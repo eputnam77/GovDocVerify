@@ -55,7 +55,7 @@ HEADING_WORDS = {
 # Predefined Acronyms
 PREDEFINED_ACRONYMS = {
     'CFR', 'U.S.', 'USA', 'US', 'U.S.C', 'e.g.', 'i.e.', 'FAQ', 'No.', 'ZIP', 'PDF', 'SSN',
-    'DC', 'MA', 'WA', 'TX', 'MO'
+    'DC', 'MD', 'MA', 'WA', 'TX', 'MO', 'FAA IR-M', 'DOT'
 }
 
 # Configuration Constants
@@ -452,6 +452,16 @@ class DocumentCheckerConfig:
         return {
             'terminology': [
                 PatternConfig(
+                    pattern=r'\btitle 14 of the Code of Federal Regulations \(14 CFR\)\b',
+                    description="Ignore 'title 14 of the Code of Federal Regulations (14 CFR)'",
+                    is_error=False  # Set to False to ignore this phrase
+                ),
+                PatternConfig(
+                    pattern=r'\btitle 14, Code of Federal Regulations \(14 CFR\)\b',
+                    description="Ignore 'title 14, Code of Federal Regulations (14 CFR)'",
+                    is_error=False
+                ),
+                PatternConfig(
                     pattern=r'\bUSC\b',
                     description="USC should be U.S.C.",
                     is_error=True,
@@ -468,12 +478,6 @@ class DocumentCheckerConfig:
                     description="C.F.R. should be CFR",
                     is_error=True,
                     replacement="CFR"
-                ),
-                PatternConfig(
-                    pattern=r'\b14 CFR\s*§',
-                    description="14 CFR § should be 14 CFR",
-                    is_error=True,
-                    replacement="14 CFR"
                 ),
                 PatternConfig(
                     pattern=r'\bWe\b',
@@ -510,6 +514,60 @@ class DocumentCheckerConfig:
                     description="'flight crew' should be 'flightcrew'",
                     is_error=True,
                     replacement="flightcrew"
+                ),
+                PatternConfig(
+                    pattern=r'\bchairman\b',
+                    description="'chairman' should be 'chair'",
+                    is_error=True,
+                    replacement="chair"
+                ),
+                PatternConfig(
+                    pattern=r'\bflagman\b',
+                    description="'flagman' should be 'flagger' or 'flagperson'",
+                    is_error=True,
+                    replacement="flagperson"
+                ),
+                PatternConfig(
+                    pattern=r'\bman\b',
+                    description="'man' should be 'individual' or 'person'",
+                    is_error=True,
+                    replacement="person"
+                ),
+                PatternConfig(
+                    pattern=r'\bmanmade\b',
+                    description="'manmade' should be 'personmade'",
+                    is_error=True,
+                    replacement="personmade"
+                ),
+                PatternConfig(
+                    pattern=r'\bmanpower\b',
+                    description="'manpower' should be 'labor force'",
+                    is_error=True,
+                    replacement="labor force"
+                ),
+                PatternConfig(
+                    pattern=r'\bnotice to airman\b',
+                    description="'notice to airman' should be 'notice to air missions'",
+                    is_error=True,
+                    replacement="notice to air missions"
+                ),
+                PatternConfig(
+                    pattern=r'\bnotice to airmen\b',
+                    description="'notice to airmen' should be 'notice to air missions'",
+                    is_error=True,
+                    replacement="notice to air missions"
+                ),
+                PatternConfig(
+                    pattern=r'\bcockpit\b',
+                    description="'cockpit' should be 'flight deck'",
+                    is_error=True,
+                    replacement="flight deck"
+                ),
+                PatternConfig(
+                    pattern=r'\bA321 neo\b',
+                    description="'A321 neo' should be 'A321neo'",
+                    is_error=True,
+                    replacement="A321neo"
                 )
             ],
             'section_symbol': [
@@ -670,20 +728,12 @@ class FAADocumentChecker(DocumentChecker):
     # Constructor
     def __init__(self, config_path: Optional[str] = None):
         super().__init__(config_path)
+        self.HEADING_WORDS = HEADING_WORDS
+        self.PREDEFINED_ACRONYMS = PREDEFINED_ACRONYMS
 
     # Core Check Methods
     @profile_performance
     def heading_title_check(self, doc: List[str], doc_type: str) -> DocumentCheckResult:
-        """
-        Check headings for a specific document type.
-        
-        Args:
-            doc (List[str]): List of document paragraphs
-            doc_type (str): Type of document being checked
-            
-        Returns:
-            DocumentCheckResult: Result of heading check including found and missing headings
-        """
         if not self.validate_input(doc):
             self.logger.error("Invalid document input for heading check")
             return DocumentCheckResult(success=False, issues=[{'error': 'Invalid document input'}])
@@ -710,13 +760,29 @@ class FAADocumentChecker(DocumentChecker):
         headings_found = []
         required_headings_set = set(required_headings)
 
-        # Extract and normalize headings from document
+        # Precompile a regex pattern to match headings at the start of the paragraph
+        # Escape special characters in headings and allow for optional spaces and periods
+        heading_patterns = []
+        for heading in required_headings:
+            escaped_heading = re.escape(heading.rstrip('.'))
+            pattern = rf'^\s*{escaped_heading}\.?\s*'
+            heading_patterns.append(pattern)
+        combined_pattern = re.compile('|'.join(heading_patterns), re.IGNORECASE)
+
         for para in doc:
             para_strip = para.strip()
-            # Handle both exact matches and variations with trailing periods
-            para_base = para_strip.rstrip('.')
-            if para_base in required_headings_set or para_strip in required_headings_set:
-                headings_found.append(para_strip)
+            # Check if paragraph starts with any of the required headings
+            match = combined_pattern.match(para_strip)
+            if match:
+                # Extract the matched heading
+                matched_heading = match.group().strip()
+                # Normalize the matched heading to compare with required headings
+                matched_heading_base = matched_heading.rstrip('.').strip()
+                # Find the exact heading from required headings (case-insensitive)
+                for required_heading in required_headings:
+                    if matched_heading_base.lower() == required_heading.rstrip('.').lower():
+                        headings_found.append(required_heading)
+                        break
 
         # Check if all required headings are found
         found_headings_set = set(headings_found)
@@ -747,6 +813,7 @@ class FAADocumentChecker(DocumentChecker):
         }
 
         return DocumentCheckResult(success=success, issues=issues, details=details)
+
 
     @profile_performance
     def heading_title_period_check(self, doc: List[str], doc_type: str) -> DocumentCheckResult:
@@ -859,40 +926,24 @@ class FAADocumentChecker(DocumentChecker):
 
     @profile_performance
     def acronym_check(self, doc: List[str]) -> DocumentCheckResult:
-        """
-        Check if acronyms are defined at their first use, ignoring uppercase headings 
-        and common exceptions.
-        """
         if not self.validate_input(doc):
             return DocumentCheckResult(success=False, issues=[{'error': 'Invalid document input'}])
 
-        defined_acronyms = set()
-        first_occurrences = {}  # Track first occurrence of each acronym
-        undefined_acronyms = []
-
         # Common words that might appear in uppercase but aren't acronyms
-        heading_words = {
-            'INFORMATION', 'GENERAL', 'SUMMARY', 'INTRODUCTION', 'BACKGROUND', 
-            'DISCUSSION', 'CONCLUSION', 'APPENDIX', 'CHAPTER', 'SECTION',
-            'PURPOSE', 'APPLICABILITY', 'CANCELLATION', 'DEFINITION', 'REQUIREMENTS',
-            'AUTHORITY', 'POLICY', 'SCOPE', 'RELATED', 'MATERIAL', 'DISTRIBUTION',
-            'EXPLANATION', 'PROCEDURES', 'NOTE', 'WARNING', 'CAUTION', 'EXCEPTION',
-            'GROUPS', 'PARTS', 'TABLE', 'FIGURE', 'REFERENCES', 'DEFINITIONS'
-        }
+        heading_words = self.config_manager.config.get('heading_words', self.HEADING_WORDS)
 
         # Standard acronyms that don't need to be defined
-        predefined_acronyms = {
-            'CFR', 'U.S.', 'USA', 'US', 'U.S.C', 'e.g.', 'i.e.', 'FAQ', 'No.', 'ZIP', 'PDF', 'SSN',
-            'DC', 'MA', 'WA', 'TX', 'MO'
-        }
+        predefined_acronyms = self.config_manager.config.get('predefined_acronyms', self.PREDEFINED_ACRONYMS)
 
-        defined_acronyms.update(predefined_acronyms)
+        # Tracking structures
+        defined_acronyms = {}  # Stores definition info
+        used_acronyms = set()  # Stores acronyms used after definition
+        reported_acronyms = set()  # Stores acronyms that have already been noted as issues
+        issues = []
 
-        # Pattern for finding defined acronyms like "Federal Aviation Administration (FAA)"
+        # Patterns
         defined_pattern = re.compile(r'\b([\w\s&]+?)\s*\((\b[A-Z]{2,}\b)\)')
-        
-        # Modified acronym pattern to exclude common heading patterns
-        acronym_pattern = re.compile(r'\b[A-Z]{2,}\b(?!\s*[:.]\s*)')
+        acronym_pattern = re.compile(r'(?<!\()\b[A-Z]{2,}\b(?!\s*[:.]\s*)')
 
         for paragraph in doc:
             # Skip lines that appear to be headings (all uppercase with common heading words)
@@ -900,82 +951,163 @@ class FAADocumentChecker(DocumentChecker):
             if all(word.isupper() for word in words) and any(word in heading_words for word in words):
                 continue
 
-            # Check for definitions first
+            # Check for acronym definitions first
             defined_matches = defined_pattern.findall(paragraph)
             for full_term, acronym in defined_matches:
-                defined_acronyms.add(acronym)
-                # If this was previously marked as undefined, remove it
-                if acronym in first_occurrences:
-                    del first_occurrences[acronym]
+                if acronym not in predefined_acronyms:
+                    if acronym not in defined_acronyms:
+                        defined_acronyms[acronym] = {
+                            'full_term': full_term.strip(),
+                            'defined_at': paragraph.strip(),
+                            'used': False  # Initially not used
+                        }
 
             # Check for acronym usage
             usage_matches = acronym_pattern.finditer(paragraph)
             for match in usage_matches:
                 acronym = match.group()
-                
+
+                # Skip predefined acronyms
+                if acronym in predefined_acronyms:
+                    continue
+
                 # Skip if it's part of a heading or contains non-letter characters
-                if (acronym in heading_words or 
+                if (acronym in heading_words or
                     any(not c.isalpha() for c in acronym) or
                     len(acronym) > 10):  # Usually acronyms aren't this long
                     continue
 
-                if acronym not in defined_acronyms:
-                    # Only process if we haven't seen this acronym before
-                    if acronym not in first_occurrences:
-                        # Find the sentence containing the first undefined acronym
-                        sentences = re.split(r'(?<=[.!?])\s+', paragraph)
-                        for sentence in sentences:
-                            if acronym in sentence:
-                                # Additional check to avoid marking uppercase headings
-                                if not (sentence.isupper() and any(word in heading_words for word in sentence.split())):
-                                    first_occurrences[acronym] = {
-                                        'acronym': acronym,
-                                        'sentence': sentence.strip()
-                                    }
-                                break
+                if acronym not in defined_acronyms and acronym not in reported_acronyms:
+                    # Undefined acronym used; report only once
+                    issues.append(f"Confirm '{acronym}' was defined at its first use.")
+                    reported_acronyms.add(acronym)  # Add to reported list
+                elif acronym in defined_acronyms:
+                    # Mark as used
+                    defined_acronyms[acronym]['used'] = True
+                    used_acronyms.add(acronym)
 
-        # Convert first occurrences to list of issues
-        undefined_acronyms = list(first_occurrences.values())
-        
-        success = len(undefined_acronyms) == 0
-        issues = undefined_acronyms if not success else []
+        # Define success based on whether there are any undefined acronyms
+        success = len(issues) == 0
 
+        # Return the result with detailed issues
         return DocumentCheckResult(success=success, issues=issues)
 
     @profile_performance
+    def acronym_usage_check(self, doc: List[str]) -> DocumentCheckResult:
+        if not self.validate_input(doc):
+            return DocumentCheckResult(success=False, issues=[{'error': 'Invalid document input'}])
+
+        # Pattern to find acronym definitions (e.g., "Environmental Protection Agency (EPA)")
+        defined_pattern = re.compile(r'\b([\w\s&]+?)\s*\((\b[A-Z]{2,}\b)\)')
+
+        # Pattern to find acronym usage (e.g., "FAA", "EPA")
+        acronym_pattern = re.compile(r'\b[A-Z]{2,}\b')
+
+        # Tracking structures
+        defined_acronyms = {}
+        used_acronyms = set()
+
+        # Step 1: Extract all defined acronyms
+        for paragraph in doc:
+            defined_matches = defined_pattern.findall(paragraph)
+            for full_term, acronym in defined_matches:
+                if acronym not in defined_acronyms:
+                    defined_acronyms[acronym] = {
+                        'full_term': full_term.strip(),
+                        'defined_at': paragraph.strip()
+                    }
+
+        # Step 2: Check for acronym usage, excluding definitions
+        for paragraph in doc:
+            # Remove definitions from paragraph for usage checks
+            paragraph_excluding_definitions = re.sub(defined_pattern, '', paragraph)
+
+            usage_matches = acronym_pattern.findall(paragraph_excluding_definitions)
+            for acronym in usage_matches:
+                if acronym in defined_acronyms:
+                    used_acronyms.add(acronym)
+
+        # Step 3: Identify unused acronyms
+        unused_acronyms = [
+            {
+                'acronym': acronym,
+                'full_term': data['full_term'],
+                'defined_at': data['defined_at']
+            }
+            for acronym, data in defined_acronyms.items()
+            if acronym not in used_acronyms
+        ]
+
+        # Success is true if no unused acronyms are found
+        success = len(unused_acronyms) == 0
+
+        return DocumentCheckResult(success=success, issues=unused_acronyms)
+    
+    @profile_performance
     def check_terminology(self, doc: List[str]) -> DocumentCheckResult:
         """
-        Check document terminology and output only the sentences needing correction.
+        Check document terminology and output only unique sentences needing correction.
+        
+        Args:
+            doc (List[str]): List of document paragraphs
+            
+        Returns:
+            DocumentCheckResult: Result containing unique terminology issues with context
         """
         if not self.validate_input(doc):
             return DocumentCheckResult(success=False, issues=[{'error': 'Invalid document input'}])
 
-        # Get patterns from the pattern registry
         terminology_patterns = self.config_manager.pattern_registry.get('terminology', [])
         prohibited_patterns = self.config_manager.pattern_registry.get('reference_terms', [])
 
-        # Collect sentences with issues
-        issue_sentences = []
+        sentence_issues = {}
 
-        # Check each paragraph for terminology and prohibited patterns
         for paragraph in doc:
             sentences = re.split(r'(?<=[.!?])\s+', paragraph)
             for sentence in sentences:
-                # Check for incorrect terms that need replacement
-                for pattern_config in terminology_patterns:
-                    if re.search(pattern_config.pattern, sentence):
-                        issue_sentences.append(sentence.strip())
+                sentence = sentence.strip()
+                if not sentence:
+                    continue
 
-                # Check for prohibited phrases and constructions
+                current_sentence_issues = []
+
+                for pattern_config in terminology_patterns:
+                    matches = list(re.finditer(pattern_config.pattern, sentence))
+                    for match in matches:
+                        current_sentence_issues.append({
+                            'incorrect_term': match.group(),
+                            'correct_term': pattern_config.replacement,
+                            'description': pattern_config.description,
+                            'sentence': sentence
+                        })
+
                 for pattern_config in prohibited_patterns:
                     if re.search(pattern_config.pattern, sentence, re.IGNORECASE):
-                        issue_sentences.append(sentence.strip())
+                        current_sentence_issues.append({
+                            'description': pattern_config.description,
+                            'sentence': sentence
+                        })
 
-        # Remove duplicates for cleaner output
-        issue_sentences = list(set(issue_sentences))
+                if current_sentence_issues:
+                    if sentence not in sentence_issues:
+                        sentence_issues[sentence] = current_sentence_issues
+                    else:
+                        sentence_issues[sentence].extend(current_sentence_issues)
 
-        # Return only the minimal list of issue sentences
-        return DocumentCheckResult(success=not issue_sentences, issues=issue_sentences)
+        unique_issues = []
+        for sentence, sentence_issue_list in sentence_issues.items():
+            replacements = []
+            for issue in sentence_issue_list:
+                if 'incorrect_term' in issue and issue.get('correct_term'):
+                    replacements.append(f"'{issue['incorrect_term']}' with '{issue['correct_term']}'")
+
+            replacement_text = "; ".join(replacements)
+            formatted_issue = {
+                'sentence': f"{sentence} ({'Replace ' + replacement_text})" if replacements else sentence
+            }
+            unique_issues.append(formatted_issue)
+
+        return DocumentCheckResult(success=not unique_issues, issues=unique_issues)
 
     @profile_performance
     def check_section_symbol_usage(self, doc: List[str]) -> DocumentCheckResult:
@@ -983,36 +1115,33 @@ class FAADocumentChecker(DocumentChecker):
         if not self.validate_input(doc):
             return DocumentCheckResult(success=False, issues=[{'error': 'Invalid document input'}])
 
-        # Patterns for specific issues
         section_patterns = self.config_manager.pattern_registry.get('section_symbol', [])
 
-        # Capture problematic sentences or phrases
-        sentences_starting_with_section_symbol = []
-        incorrect_14_CFR_section_symbol_usage = []
+        issues = []
 
-        # Define patterns and check the document for issues
         for paragraph in doc:
             sentences = re.split(r'(?<=[.!?])\s+', paragraph)
             
-            for pattern_config in section_patterns:
-                compiled_pattern = re.compile(pattern_config.pattern)
-                if pattern_config.pattern == r'^§':
-                    for sentence in sentences:
-                        if compiled_pattern.match(sentence.strip()):
-                            sentences_starting_with_section_symbol.append(sentence.strip())
-                elif pattern_config.pattern == r'\b14 CFR §\s*\d+\.\d+\b':
-                    matches = compiled_pattern.findall(paragraph)
-                    incorrect_14_CFR_section_symbol_usage.extend(matches)
+            for sentence in sentences:
+                sentence = sentence.strip()
+                for pattern_config in section_patterns:
+                    compiled_pattern = re.compile(pattern_config.pattern)
 
-        # Minimal output structure with only the sentences and matches needing correction
-        issues = []
-        if sentences_starting_with_section_symbol:
-            issues.extend(sentences_starting_with_section_symbol)
+                    if pattern_config.pattern == r'^§':  # Start of sentence with § symbol
+                        if compiled_pattern.match(sentence):
+                            corrected_sentence = sentence.replace('§', 'Section', 1)
+                            issues.append({
+                                'sentence': f"{sentence} (Replace § with 'Section')"
+                            })
 
-        if incorrect_14_CFR_section_symbol_usage:
-            issues.extend(incorrect_14_CFR_section_symbol_usage)
+                    elif pattern_config.pattern == r'\b14 CFR §\s*\d+\.\d+\b':  # 14 CFR § format
+                        matches = compiled_pattern.findall(sentence)
+                        for match in matches:
+                            corrected_sentence = sentence.replace('§', '', 1)
+                            issues.append({
+                                'sentence': f"{sentence} (Remove §)"
+                            })
 
-        # Return only the list of issues
         return DocumentCheckResult(success=not issues, issues=issues)
 
     @profile_performance
@@ -1614,6 +1743,7 @@ class FAADocumentChecker(DocumentChecker):
             ('heading_title_check', lambda: self.heading_title_check(doc, doc_type)),
             ('heading_title_period_check', lambda: self.heading_title_period_check(doc, doc_type)),
             ('acronym_check', lambda: self.acronym_check(doc)),
+            ('acronym_usage_check', lambda: self.acronym_usage_check(doc)),
             ('terminology_check', lambda: self.check_terminology(doc)),
             ('section_symbol_usage_check', lambda: self.check_section_symbol_usage(doc)),
             ('caption_check_table', lambda: self.caption_check(doc, doc_type, 'Table')),
@@ -1683,6 +1813,15 @@ class DocumentCheckResultsFormatter:
                 'example_fix': {
                     'before': 'This order establishes general FAA organizational policies.',
                     'after': 'This order establishes general Federal Aviation Administration (FAA) organizational policies.'
+                }
+            },
+            'acronym_usage_check': {
+                'title': 'Unused Acronym Definitions',
+                'description': 'Ensures that all acronyms defined in the document are actually used later. If an acronym is defined but never referenced, the definition should be removed to avoid confusion or unnecessary clutter.',
+                'solution': 'Identify acronyms that are defined but not used later in the document and remove their definitions.',
+                'example_fix': {
+                    'before': 'Operators must comply with airworthiness directives (AD) to ensure aircraft safety and regulatory compliance.',
+                    'after': 'Operators must comply with airworthiness directives to ensure aircraft safety and regulatory compliance.'
                 }
             },
             'terminology_check': {
@@ -1817,6 +1956,23 @@ class DocumentCheckResultsFormatter:
         
         return output
 
+    def _format_unused_acronym_issues(self, result: DocumentCheckResult) -> List[str]:
+        """
+        Format issues for unused acronyms to display only the acronym.
+        
+        Args:
+            result: The DocumentCheckResult object containing issues.
+
+        Returns:
+            List[str]: Formatted lines displaying unused acronyms.
+        """
+        output = []
+        for issue in result.issues:
+            if isinstance(issue, dict):
+                acronym = issue.get('acronym', 'Unknown Acronym')
+                output.append(f"    • Acronym '{acronym}' was defined but never used.")
+        return output
+    
     def _format_caption_issues(self, result: DocumentCheckResult) -> List[str]:
         """Format caption issues consistently."""
         output = []
@@ -1827,13 +1983,31 @@ class DocumentCheckResultsFormatter:
         
         return output
 
-    def _format_standard_issue(self, issue: Dict[str, Any]) -> str:
+    def _format_standard_issue(self, issue: Dict[str, Any]) -> str: 
         """Format a standard issue consistently."""
         if isinstance(issue, dict):
+            # Handle grouped issues per sentence
+            if 'incorrect_terms' in issue and 'sentence' in issue:
+                # Build the replacements text
+                replacements = '; '.join(
+                    f"'{inc}' with '{corr}'" if corr else f"Remove '{inc}'"
+                    for inc, corr in sorted(issue['incorrect_terms'])
+                )
+                # Start building the output lines
+                lines = []
+                lines.append(f"    • In: {issue['sentence']}")
+                lines.append(f"      Replace {replacements}")
+                # Format each line individually
+                formatted_lines = [
+                    textwrap.fill(line, width=76, subsequent_indent='      ')
+                    for line in lines
+                ]
+                return '\n'.join(formatted_lines)
+            
             # Handle issues with occurrences list
             if 'occurrences' in issue:
-                # Format the first 3 occurrences
-                examples = issue['occurrences'][:3]
+                # Format the first 7 occurrences
+                examples = issue['occurrences'][:7]
                 formatted_examples = []
                 for example in examples:
                     if 'sentence' in example:
@@ -1844,6 +2018,14 @@ class DocumentCheckResultsFormatter:
                 description = issue.get('description', '')
                 return textwrap.fill(
                     f"    • {description} - Examples: {'; '.join(formatted_examples)}",
+                    width=76,
+                    subsequent_indent='      '
+                )
+            
+            # Handle unused acronym issues
+            if issue.get('type') == 'unused_acronym':
+                return textwrap.fill(
+                    f"    • Acronym '{issue['acronym']}' defined but not used again after definition.",
                     width=76,
                     subsequent_indent='      '
                 )
@@ -1863,7 +2045,7 @@ class DocumentCheckResultsFormatter:
                 
             # Handle issues with description and matches
             elif all(k in issue for k in ['issue_type', 'description', 'matches']):
-                matches_str = '; '.join(str(m) for m in issue['matches'][:3])
+                matches_str = '; '.join(str(m) for m in issue['matches'][:7])
                 return textwrap.fill(
                     f"    • {issue['description']} - Found: {matches_str}",
                     width=76,
@@ -1871,9 +2053,10 @@ class DocumentCheckResultsFormatter:
                 )
                 
             # Handle terminology issues
-            elif 'incorrect_term' in issue and 'correct_term' in issue:
+            if all(k in issue for k in ['incorrect_term', 'correct_term', 'sentence']):
                 return textwrap.fill(
-                    f"    • '{issue['incorrect_term']}' should be '{issue['correct_term']}' in: {issue.get('sentence', '')}",
+                    f"    • Replace '{issue['incorrect_term']}' with '{issue['correct_term']}' in: "
+                    f"{issue['sentence']}",
                     width=76,
                     subsequent_indent='      '
                 )
@@ -1894,16 +2077,17 @@ class DocumentCheckResultsFormatter:
                         if isinstance(v, list):
                             if all(isinstance(item, dict) for item in v):
                                 # Handle list of dictionaries
-                                v_str = '; '.join(str(item.get('sentence', str(item))) for item in v[:3])
+                                v_str = '; '.join(str(item.get('sentence', str(item))) for item in v[:7])
                             else:
                                 # Handle list of strings
-                                v_str = ', '.join(str(item) for item in v[:3])
+                                v_str = ', '.join(str(item) for item in v[:7])
                             message_parts.append(f"{k}: {v_str}")
                         else:
                             message_parts.append(f"{k}: {v}")
                 return f"    • {'; '.join(message_parts)}"
         
         return f"    • {str(issue)}"
+
     
     def format_results(self, results: Dict[str, Any], doc_type: str) -> str:
         """
@@ -1967,7 +2151,7 @@ class DocumentCheckResultsFormatter:
                 "italics": True, 
                 "quotes": False,
                 "description": "For Advisory Circulars, referenced document titles should be italicized but not quoted",
-                "example": "See AC 25.1309-1B, *System Design and Analysis*, for information on X."
+                "example": "See AC 25.1309-1B, <i>System Design and Analysis</i>, for information on X."
             },
             "quotes_only": {
                 "types": [
@@ -2017,6 +2201,18 @@ class DocumentCheckResultsFormatter:
         
         output = []
         
+        self.issue_categories['acronym_usage_check'] = {
+            'title': 'Unused Acronym Definitions',
+            'description': 'Ensures that all acronyms defined in the document are actually used later. If an acronym is defined but never referenced, the definition should be removed to avoid confusion or unnecessary clutter.',
+            'solution': 'Identify acronyms that are defined but not used later in the document and remove their definitions.',
+            'example_fix': {
+                'before': 'Operators must comply with airworthiness directives (AD) to ensure aircraft safety and regulatory compliance.',
+                'after': 'Operators must comply with airworthiness directives to ensure aircraft safety and regulatory compliance.'
+            }
+        }
+
+        output = []
+        
         # Header
         output.append(f"\n{Fore.CYAN}{'='*80}")
         output.append(f"Document Check Results Summary")
@@ -2059,13 +2255,15 @@ class DocumentCheckResultsFormatter:
                     output.extend(self._format_reference_issues(result))
                 elif check_name in ['caption_check_table', 'caption_check_figure']:
                     output.extend(self._format_caption_issues(result))
+                elif check_name == 'acronym_usage_check':
+                    output.extend(self._format_unused_acronym_issues(result))
                 else:
                     # Standard issue formatting
-                    formatted_issues = [self._format_standard_issue(issue) for issue in result.issues[:3]]
+                    formatted_issues = [self._format_standard_issue(issue) for issue in result.issues[:7]]
                     output.extend(formatted_issues)
                     
-                    if len(result.issues) > 3:
-                        output.append(f"\n    ... and {len(result.issues) - 3} more similar issues.")
+                    if len(result.issues) > 7:
+                        output.append(f"\n    ... and {len(result.issues) - 7} more similar issues.")
         
         # Summary and Next Steps
         output.append(f"\n{Fore.CYAN}{'='*80}")
@@ -2310,7 +2508,7 @@ def create_interface():
                     """
             
             # Extract issues
-            issues_match = re.findall(r'•\s*([^•\n]+)', content)
+            issues_match = re.findall(r'•\s*(.*?)(?=•|\Z)', content, re.DOTALL)
             issues_html_section = ""
             if issues_match:
                 issues_html_section = """
@@ -2318,15 +2516,15 @@ def create_interface():
                         <h3 class="font-medium text-gray-800 mb-2">Issues found in your document:</h3>
                         <ul class="list-none space-y-2">
                 """
-                for issue in issues_match[:3]:
+                for issue in issues_match[:7]: 
                     # Remove any existing bullet points from the issue text
                     clean_issue = issue.strip().lstrip('•').strip()
                     issues_html_section += f"""
                         <li class="text-gray-600 ml-4">• {clean_issue}</li>
                     """
-                if len(issues_match) > 3:
+                if len(issues_match) > 7: 
                     issues_html_section += f"""
-                        <li class="text-gray-500 italic ml-4">...and {len(issues_match) - 3} more similar issues</li>
+                        <li class="text-gray-500 italic ml-4">... and {len(issues_match) - 7} more similar issues.</li>
                     """
                 issues_html_section += "</ul></div>"
             
