@@ -9,7 +9,7 @@ import logging
 import traceback
 from datetime import datetime
 from enum import Enum, auto
-from typing import Dict, List, Any, Tuple, Optional, Pattern
+from typing import Dict, List, Any, Tuple, Optional, Pattern, Callable
 from dataclasses import dataclass
 from functools import wraps
 from abc import ABC, abstractmethod
@@ -49,14 +49,14 @@ HEADING_WORDS = {
     'PURPOSE', 'APPLICABILITY', 'CANCELLATION', 'DEFINITION', 'REQUIREMENTS',
     'AUTHORITY', 'POLICY', 'SCOPE', 'RELATED', 'MATERIAL', 'DISTRIBUTION',
     'EXPLANATION', 'PROCEDURES', 'NOTE', 'WARNING', 'CAUTION', 'EXCEPTION',
-    'GROUPS', 'PARTS', 'TABLE', 'FIGURE', 'REFERENCES', 'DEFINITIONS'
-}
-
-# Predefined Acronyms
+    'GROUPS', 'PARTS', 'TABLE', 'FIGURE', 'REFERENCES', 'DEFINITIONS', 'DEPARTMENT',
+    'INSERT'
+    }
+    
 PREDEFINED_ACRONYMS = {
-    'CFR', 'U.S.', 'USA', 'US', 'U.S.C', 'e.g.', 'i.e.', 'FAQ', 'No.', 'ZIP', 'PDF', 'SSN',
-    'DC', 'MD', 'MA', 'WA', 'TX', 'MO', 'FAA IR-M', 'DOT'
-}
+    'CFR', 'U.S.', 'USA', 'US', 'U.S.C.', 'e.g.', 'i.e.', 'FAQ', 'No.', 'ZIP', 'PDF', 'SSN',
+    'DC', 'MD', 'MA', 'WA', 'TX', 'MO', 'FAA IR-M', 'DOT', 'AGC', 'AIR'
+    }
 
 # Configuration Constants
 REQUIRED_CONFIG_KEYS = {'logging', 'checks', 'document_types'}
@@ -85,7 +85,7 @@ DOCUMENT_FORMATTING_RULES = {
         "italics": True, 
         "quotes": False,
         "description": "For Advisory Circulars, referenced document titles should be italicized but not quoted.",
-        "example": "See AC 20-135, *Powerplant Installation and Propulsion System Component Fire Protection Test Methods, Standards, and Criteria* for information on X."
+        "example": "See AC 25.1309-1B, <i>System Design and Analysis</i>, for information on X."
     },
     "quotes_only": {
         "types": [
@@ -96,14 +96,14 @@ DOCUMENT_FORMATTING_RULES = {
         "italics": False, 
         "quotes": True,
         "description": "For this document type, referenced document titles should be in quotes without italics.",
-        "example": 'See AC 20-135, "Powerplant Installation and Propulsion System Component Fire Protection Test Methods, Standards, and Criteria" for information on X.'
+        "example": 'See AC 25.1309-1B, "System Design and Analysis," for information on X.'
     },
     "no_formatting": {
         "types": ["Policy Statement", "Other"],
         "italics": False, 
         "quotes": False,
         "description": "For this document type, referenced document titles should not use italics or quotes.",
-        "example": "See AC 20-135, Powerplant Installation and Propulsion System Component Fire Protection Test Methods, Standards, and Criteria for information on X."
+        "example": "See AC 25.1309-1B, System Design and Analysis, for information on X."
     }
 }
 
@@ -738,14 +738,11 @@ class FAADocumentChecker(DocumentChecker):
             self.logger.error("Invalid document input for heading check")
             return DocumentCheckResult(success=False, issues=[{'error': 'Invalid document input'}])
 
-        # Validate document type
-        doc_type_config = self.config_manager.config['document_types'].get(doc_type)
-        if not doc_type_config:
-            self.logger.error(f"Unsupported document type: {doc_type}")
-            return DocumentCheckResult(
-                success=False, 
-                issues=[{'error': f'Unsupported document type: {doc_type}'}]
-            )
+        try:
+            # Use the new helper method
+            doc_type_config, _ = self._get_doc_type_config(doc_type)
+        except DocumentTypeError as e:
+            return DocumentCheckResult(success=False, issues=[{'error': str(e)}])
 
         # Get configuration for document-specific headings
         required_headings = doc_type_config.get('required_headings', [])
@@ -844,7 +841,22 @@ class FAADocumentChecker(DocumentChecker):
                 issues=[{'error': f'Unsupported document type: {doc_type}'}]
             )
 
-        should_have_period = PERIOD_REQUIRED.get(doc_type)
+        # Define document types requiring periods in headings
+        period_required = {
+            "Advisory Circular": True,
+            "Airworthiness Criteria": False,
+            "Deviation Memo": False,
+            "Exemption": False,
+            "Federal Register Notice": False,
+            "Order": True,
+            "Policy Statement": False,
+            "Rule": False,
+            "Special Condition": False,
+            "Technical Standard Order": True,
+            "Other": False
+        }
+
+        should_have_period = period_required.get(doc_type)
         if should_have_period is None:
             self.logger.error(f"Period requirement not defined for document type: {doc_type}")
             return DocumentCheckResult(
@@ -935,6 +947,22 @@ class FAADocumentChecker(DocumentChecker):
         # Standard acronyms that don't need to be defined
         predefined_acronyms = self.config_manager.config.get('predefined_acronyms', self.PREDEFINED_ACRONYMS)
 
+        # Patterns for references that contain acronyms but should be ignored
+        ignore_patterns = [
+            r'FAA-\d{4}-\d+',              # FAA docket numbers
+            r'\d{2}-\d{2}-\d{2}-SC',       # Special condition numbers
+            r'AC\s*\d+(?:[-.]\d+)*[A-Z]*', # Advisory circular numbers
+            r'AD\s*\d{4}-\d{2}-\d{2}',     # Airworthiness directive numbers
+            r'\d{2}-[A-Z]{2,}',            # Other reference numbers with acronyms
+            r'[A-Z]+-\d+',                 # Generic reference numbers
+            r'§\s*[A-Z]+\.\d+',            # Section references
+            r'Part\s*[A-Z]+',              # Part references
+        ]
+        
+        # Combine ignore patterns
+        ignore_regex = '|'.join(f'(?:{pattern})' for pattern in ignore_patterns)
+        ignore_pattern = re.compile(ignore_regex)
+
         # Tracking structures
         defined_acronyms = {}  # Stores definition info
         used_acronyms = set()  # Stores acronyms used after definition
@@ -946,51 +974,56 @@ class FAADocumentChecker(DocumentChecker):
         acronym_pattern = re.compile(r'(?<!\()\b[A-Z]{2,}\b(?!\s*[:.]\s*)')
 
         for paragraph in doc:
-            # Skip lines that appear to be headings (all uppercase with common heading words)
+            # Skip lines that appear to be headings
             words = paragraph.strip().split()
             if all(word.isupper() for word in words) and any(word in heading_words for word in words):
                 continue
 
+            # First, find all text that should be ignored
+            ignored_spans = []
+            for match in ignore_pattern.finditer(paragraph):
+                ignored_spans.append(match.span())
+
             # Check for acronym definitions first
-            defined_matches = defined_pattern.findall(paragraph)
-            for full_term, acronym in defined_matches:
-                if acronym not in predefined_acronyms:
-                    if acronym not in defined_acronyms:
-                        defined_acronyms[acronym] = {
-                            'full_term': full_term.strip(),
-                            'defined_at': paragraph.strip(),
-                            'used': False  # Initially not used
-                        }
+            defined_matches = defined_pattern.finditer(paragraph)
+            for match in defined_matches:
+                full_term, acronym = match.groups()
+                # Skip if the acronym is in an ignored span
+                if not any(start <= match.start(2) <= end for start, end in ignored_spans):
+                    if acronym not in predefined_acronyms:
+                        if acronym not in defined_acronyms:
+                            defined_acronyms[acronym] = {
+                                'full_term': full_term.strip(),
+                                'defined_at': paragraph.strip(),
+                                'used': False
+                            }
 
             # Check for acronym usage
             usage_matches = acronym_pattern.finditer(paragraph)
             for match in usage_matches:
                 acronym = match.group()
+                start_pos = match.start()
 
-                # Skip predefined acronyms
-                if acronym in predefined_acronyms:
+                # Skip if the acronym is in an ignored span
+                if any(start <= start_pos <= end for start, end in ignored_spans):
                     continue
 
-                # Skip if it's part of a heading or contains non-letter characters
-                if (acronym in heading_words or
+                # Skip predefined acronyms and other checks
+                if (acronym in predefined_acronyms or
+                    acronym in heading_words or
                     any(not c.isalpha() for c in acronym) or
-                    len(acronym) > 10):  # Usually acronyms aren't this long
+                    len(acronym) > 10):
                     continue
 
                 if acronym not in defined_acronyms and acronym not in reported_acronyms:
                     # Undefined acronym used; report only once
                     issues.append(f"Confirm '{acronym}' was defined at its first use.")
-                    reported_acronyms.add(acronym)  # Add to reported list
+                    reported_acronyms.add(acronym)
                 elif acronym in defined_acronyms:
-                    # Mark as used
                     defined_acronyms[acronym]['used'] = True
                     used_acronyms.add(acronym)
 
-        # Define success based on whether there are any undefined acronyms
-        success = len(issues) == 0
-
-        # Return the result with detailed issues
-        return DocumentCheckResult(success=success, issues=issues)
+        return DocumentCheckResult(success=len(issues) == 0, issues=issues)
 
     @profile_performance
     def acronym_usage_check(self, doc: List[str]) -> DocumentCheckResult:
@@ -1047,12 +1080,6 @@ class FAADocumentChecker(DocumentChecker):
     def check_terminology(self, doc: List[str]) -> DocumentCheckResult:
         """
         Check document terminology and output only unique sentences needing correction.
-        
-        Args:
-            doc (List[str]): List of document paragraphs
-            
-        Returns:
-            DocumentCheckResult: Result containing unique terminology issues with context
         """
         if not self.validate_input(doc):
             return DocumentCheckResult(success=False, issues=[{'error': 'Invalid document input'}])
@@ -1062,6 +1089,7 @@ class FAADocumentChecker(DocumentChecker):
 
         sentence_issues = {}
 
+        # Process each sentence
         for paragraph in doc:
             sentences = re.split(r'(?<=[.!?])\s+', paragraph)
             for sentence in sentences:
@@ -1094,6 +1122,7 @@ class FAADocumentChecker(DocumentChecker):
                     else:
                         sentence_issues[sentence].extend(current_sentence_issues)
 
+        # Compile unique issues
         unique_issues = []
         for sentence, sentence_issue_list in sentence_issues.items():
             replacements = []
@@ -1103,7 +1132,7 @@ class FAADocumentChecker(DocumentChecker):
 
             replacement_text = "; ".join(replacements)
             formatted_issue = {
-                'sentence': f"{sentence} ({'Replace ' + replacement_text})" if replacements else sentence
+                'sentence': f"{sentence} (Replace {replacement_text})" if replacements else sentence
             }
             unique_issues.append(formatted_issue)
 
@@ -1111,16 +1140,15 @@ class FAADocumentChecker(DocumentChecker):
 
     @profile_performance
     def check_section_symbol_usage(self, doc: List[str]) -> DocumentCheckResult:
-        """Check for section symbol (§) usage issues and provide only sentences or matches needing correction."""
+        """Check for section symbol (§) usage issues."""
         if not self.validate_input(doc):
             return DocumentCheckResult(success=False, issues=[{'error': 'Invalid document input'}])
 
         section_patterns = self.config_manager.pattern_registry.get('section_symbol', [])
-
         issues = []
 
         for paragraph in doc:
-            sentences = re.split(r'(?<=[.!?])\s+', paragraph)
+            sentences = re.split(r'(?<=[.!?])\s+', paragraph.strip())
             
             for sentence in sentences:
                 sentence = sentence.strip()
@@ -1129,106 +1157,104 @@ class FAADocumentChecker(DocumentChecker):
 
                     if pattern_config.pattern == r'^§':  # Start of sentence with § symbol
                         if compiled_pattern.match(sentence):
-                            corrected_sentence = sentence.replace('§', 'Section', 1)
+                            section_ref = sentence.split()[0]  # Get the first word (§XX.XX)
                             issues.append({
-                                'sentence': f"{sentence} (Replace § with 'Section')"
+                                'incorrect': section_ref,
+                                'correct': f"Section {section_ref.lstrip('§')}",
+                                'is_sentence_start': True  # Flag to indicate sentence start issue
                             })
 
                     elif pattern_config.pattern == r'\b14 CFR §\s*\d+\.\d+\b':  # 14 CFR § format
-                        matches = compiled_pattern.findall(sentence)
+                        matches = compiled_pattern.finditer(sentence)
                         for match in matches:
-                            corrected_sentence = sentence.replace('§', '', 1)
+                            incorrect = match.group()
+                            # Remove § symbol without adding 'Section'
+                            correct = incorrect.replace('§ ', '')
                             issues.append({
-                                'sentence': f"{sentence} (Remove §)"
+                                'incorrect': incorrect,
+                                'correct': correct
+                            })
+
+                    elif '§' in sentence:
+                        matches = compiled_pattern.finditer(sentence)
+                        for match in matches:
+                            incorrect = match.group()
+                            correct = incorrect.replace('§', 'Section')
+                            issues.append({
+                                'incorrect': incorrect,
+                                'correct': correct
                             })
 
         return DocumentCheckResult(success=not issues, issues=issues)
 
     @profile_performance
     def caption_check(self, doc: List[str], doc_type: str, caption_type: str) -> DocumentCheckResult:
-        """Check for correctly formatted captions (Table or Figure)."""
+        """Check for correctly formatted table or figure captions."""
         if not self.validate_input(doc):
             return DocumentCheckResult(success=False, issues=[{'error': 'Invalid document input'}])
 
-        # Determine the caption pattern based on document type
-        if doc_type in ["Advisory Circular", "Order"]:
-            caption_pattern = re.compile(rf'^{caption_type}\s+([A-Z0-9]+)-([A-Z0-9]+)[\.\s]', re.IGNORECASE)
-            correct_format = f"{caption_type} X-Y"
-        else:
-            caption_pattern = re.compile(rf'^{caption_type}\s+([A-Z0-9]+)[\.\s]', re.IGNORECASE)
-            correct_format = f"{caption_type} X"
-
         incorrect_captions = []
-        in_toc = False
 
         for paragraph in doc:
-            # Check for start or end of Table of Contents (TOC)
-            if "Table of Contents" in paragraph or "Contents" in paragraph:
-                in_toc = True
-                continue
-            elif in_toc and paragraph.strip() == "":
-                in_toc = False  # Assume blank line marks the end of TOC
-
-            # If within TOC, skip this paragraph
-            if in_toc:
-                continue
-
-            # Only check paragraphs that start with "Table" or "Figure" for proper caption format
             paragraph_strip = paragraph.strip()
+            
+            # Check if paragraph starts with the caption type and includes a number
             if paragraph_strip.lower().startswith(caption_type.lower()):
-                if not caption_pattern.match(paragraph_strip):
-                    incorrect_captions.append({
-                        'incorrect_caption': paragraph_strip,
-                        'correct_format': correct_format
-                    })
+                # Look for any number pattern after the caption type
+                number_match = re.search(rf'{caption_type}\s+(\d+(?:-\d+)?)', paragraph_strip, re.IGNORECASE)
+                if number_match:
+                    number_format = number_match.group(1)
+                    if doc_type in ["Advisory Circular", "Order"]:
+                        if '-' not in number_format:
+                            incorrect_captions.append({
+                                'incorrect_caption': f"{caption_type} {number_format}",
+                                'doc_type': doc_type,
+                                'caption_type': caption_type
+                            })
+                    else:
+                        if '-' in number_format:
+                            incorrect_captions.append({
+                                'incorrect_caption': f"{caption_type} {number_format}",
+                                'doc_type': doc_type,
+                                'caption_type': caption_type
+                            })
 
-        success = len(incorrect_captions) == 0
-
-        return DocumentCheckResult(success=success, issues=incorrect_captions)
+        return DocumentCheckResult(
+            success=len(incorrect_captions) == 0,
+            issues=incorrect_captions,
+            details={
+                'document_type': doc_type,
+                'caption_type': caption_type
+            }
+        )
 
     @profile_performance
     def table_figure_reference_check(self, doc: List[str], doc_type: str) -> DocumentCheckResult:
-        """
-        Check for incorrect references to tables and figures in the document.
-        References should be lowercase within sentences and capitalized at sentence start.
-        
-        Args:
-            doc (List[str]): List of document paragraphs
-            doc_type (str): Type of document being checked
-            
-        Returns:
-            DocumentCheckResult: Result of table and figure reference check
-        """
+        """Check for correctly formatted table and figure references."""
         if not self.validate_input(doc):
             return DocumentCheckResult(success=False, issues=[{'error': 'Invalid document input'}])
-        
+
         incorrect_references = []
-        
-        # Define patterns based on document type
-        if doc_type in ["Advisory Circular", "Order"]:
-            table_pattern = r'\b([Tt]able)\s+\d+-\d+\b'
-            figure_pattern = r'\b([Ff]igure)\s+\d+-\d+\b'
-        else:
-            table_pattern = r'\b([Tt]able)\s+\d+\b'
-            figure_pattern = r'\b([Ff]igure)\s+\d+\b'
-        
-        # Compile patterns for efficiency
-        table_ref_pattern = re.compile(table_pattern)
-        figure_ref_pattern = re.compile(figure_pattern)
         
         # Pattern to identify table/figure captions
         caption_pattern = re.compile(r'^(Table|Figure)\s+\d+[-\d]*\.?', re.IGNORECASE)
         
+        # Patterns for references within sentences and at start
+        table_ref_pattern = re.compile(r'\b([Tt]able)\s+\d+(?:-\d+)?')
+        figure_ref_pattern = re.compile(r'\b([Ff]igure)\s+\d+(?:-\d+)?')
+
         for paragraph in doc:
             # Skip if this is a caption line
             if caption_pattern.match(paragraph.strip()):
                 continue
-                
+            
             # Split into sentences while preserving punctuation
             sentences = re.split(r'(?<=[.!?])\s+', paragraph)
             
             for sentence in sentences:
                 sentence = sentence.strip()
+                if not sentence:
+                    continue
                 
                 # Check table references
                 for pattern, ref_type in [(table_ref_pattern, "Table"), (figure_ref_pattern, "Figure")]:
@@ -1258,8 +1284,7 @@ class FAADocumentChecker(DocumentChecker):
                                 'correct_form': ref.lower()
                             })
 
-        success = len(incorrect_references) == 0
-        return DocumentCheckResult(success=success, issues=incorrect_references)
+        return DocumentCheckResult(success=len(incorrect_references) == 0, issues=incorrect_references)
 
     @profile_performance
     def document_title_check(self, doc_path: str, doc_type: str) -> DocumentCheckResult:
@@ -1308,7 +1333,7 @@ class FAADocumentChecker(DocumentChecker):
                 title_end = match.end(2)
 
                 # Check for any type of quotation marks, including smart quotes
-                title_in_quotes = any(q in title_text for q in ['"', "'", '“', '”', '‘', '’'])
+                title_in_quotes = any(q in title_text for q in ['"', "'", '"', '"', '"', '"'])
 
                 # Check the formatting of the title
                 title_is_italicized = False
@@ -1360,7 +1385,7 @@ class FAADocumentChecker(DocumentChecker):
             return DocumentCheckResult(success=False, issues=[{'error': 'Invalid document input'}])
 
         incorrect_sentences = []
-
+        
         for paragraph in doc:
             # Split the paragraph into sentences based on common sentence-ending punctuation
             sentences = re.split(r'(?<=[.!?]) +', paragraph)
@@ -1381,79 +1406,53 @@ class FAADocumentChecker(DocumentChecker):
         # Get patterns from registry
         spacing_patterns = self.config_manager.pattern_registry.get('spacing', [])
         
-        # Categorize different types of spacing issues
-        document_type_spacing_issues = []  # AC25.25, FAA123, etc.
-        section_symbol_spacing_issues = []  # §25.25
-        part_number_spacing_issues = []     # Part25
-        paragraph_spacing_issues = []       # text(a) or text(1)
-        double_space_issues = []           # Multiple spaces between words
+        # Initialize issue groups
+        issue_groups = {
+            'document_type_spacing': [],  # AC25.25, FAA123, etc.
+            'section_symbol_spacing': [], # §25.25
+            'part_number_spacing': [],    # Part25
+            'paragraph_spacing': [],      # text(a) or text(1)
+            'double_space': []           # Multiple spaces between words
+        }
+        
+        # Define descriptions for each issue type
+        category_descriptions = {
+            'document_type_spacing': 'Missing space between document type and number',
+            'section_symbol_spacing': 'Missing space after section symbol',
+            'part_number_spacing': 'Missing space between Part and number',
+            'paragraph_spacing': 'Missing space before paragraph indication',
+            'double_space': 'Multiple spaces between words'
+        }
         
         # Pattern mapping for categorization
         pattern_categories = {
-            r'(?<!\s)(AC|AD|CFR|FAA|N|SFAR)(\d+[-]?\d*)': ('document_type_spacing', document_type_spacing_issues),
-            r'(?<!\s)(§|§§)(\d+\.\d+)': ('section_symbol_spacing', section_symbol_spacing_issues),
-            r'(?<!\s)Part(\d+)': ('part_number_spacing', part_number_spacing_issues),
-            r'(?<!\s)(\([a-z](?!\))|\([1-9](?!\)))': ('paragraph_spacing', paragraph_spacing_issues),
-            r'\s{2,}': ('double_spacing', double_space_issues)
+            r'(?<!\s)(AC|AD|CFR|FAA|N|SFAR)(\d+[-]?\d*)': ('document_type_spacing', issue_groups['document_type_spacing']),
+            r'(?<!\s)(§|§§)(\d+\.\d+)': ('section_symbol_spacing', issue_groups['section_symbol_spacing']),
+            r'(?<!\s)Part(\d+)': ('part_number_spacing', issue_groups['part_number_spacing']),
+            r'(?<!\s)(\([a-z](?!\))|\([1-9](?!\)))': ('paragraph_spacing', issue_groups['paragraph_spacing']),
+            r'\s{2,}': ('double_space', issue_groups['double_space'])
         }
 
-        for paragraph in doc:
-            sentences = re.split(r'(?<=[.!?])\s+', paragraph)
-            for sentence in sentences:
-                for pattern_config in spacing_patterns:
-                    compiled_pattern = re.compile(pattern_config.pattern)
-                    
-                    # Find the corresponding category for this pattern
-                    for pattern_key, (category_name, category_list) in pattern_categories.items():
-                        if pattern_config.pattern == pattern_key:
-                            matches = compiled_pattern.finditer(sentence)
-                            for match in matches:
-                                category_list.append({
-                                    'text': match.group(),
-                                    'sentence': sentence.strip(),
-                                    'description': pattern_config.description
-                                })
+        # Use _process_sentences helper instead of manual sentence processing
+        for sentence, paragraph in self._process_sentences(doc, skip_empty=True, skip_headings=False):
+            for pattern_config in spacing_patterns:
+                compiled_pattern = re.compile(pattern_config.pattern)
+                
+                # Find the corresponding category for this pattern
+                for pattern_key, (category_name, category_list) in pattern_categories.items():
+                    if pattern_config.pattern == pattern_key:
+                        matches = compiled_pattern.finditer(sentence)
+                        for match in matches:
+                            category_list.append({
+                                'text': match.group(),
+                                'sentence': sentence.strip(),
+                                'description': pattern_config.description
+                            })
 
-        # Compile issues maintaining the original structure
-        issues = []
+        # Use the helper to compile issues
+        issues = self._compile_issues(issue_groups, category_descriptions)
         
-        if document_type_spacing_issues:
-            issues.append({
-                'issue_type': 'document_type_spacing',
-                'description': 'Missing space between document type and number',
-                'occurrences': document_type_spacing_issues
-            })
-        
-        if section_symbol_spacing_issues:
-            issues.append({
-                'issue_type': 'section_symbol_spacing',
-                'description': 'Missing space after section symbol',
-                'occurrences': section_symbol_spacing_issues
-            })
-        
-        if part_number_spacing_issues:
-            issues.append({
-                'issue_type': 'part_number_spacing',
-                'description': 'Missing space between Part and number',
-                'occurrences': part_number_spacing_issues
-            })
-        
-        if paragraph_spacing_issues:
-            issues.append({
-                'issue_type': 'paragraph_spacing',
-                'description': 'Missing space before paragraph indication',
-                'occurrences': paragraph_spacing_issues
-            })
-        
-        if double_space_issues:
-            issues.append({
-                'issue_type': 'double_spacing',
-                'description': 'Multiple spaces between words',
-                'occurrences': double_space_issues
-            })
-
-        success = len(issues) == 0
-        return DocumentCheckResult(success=success, issues=issues)
+        return DocumentCheckResult(success=len(issues) == 0, issues=issues)
 
     @profile_performance
     def check_abbreviation_usage(self, doc: List[str]) -> DocumentCheckResult:
@@ -1461,106 +1460,40 @@ class FAADocumentChecker(DocumentChecker):
         if not self.validate_input(doc):
             return DocumentCheckResult(success=False, issues=[{'error': 'Invalid document input'}])
 
-        # Get patterns from registry - Add a new category in _setup_patterns if not existing
-        abbreviation_patterns = self.config_manager.pattern_registry.get('abbreviations', [
-            PatternConfig(
-                pattern=r'\b([A-Za-z &]+)\s+\((\b[A-Z]{2,}\b)\)',
-                description="Acronym definition pattern",
-                is_error=False  # Not an error, just a pattern to find definitions
-            )
-        ])
-
         # Track abbreviations and their usage
         abbreviations = {}  # Store defined abbreviations
-        undefined_uses = []  # Track uses before definition
         inconsistent_uses = []  # Track full term usage after definition
-        duplicate_definitions = []  # Track multiple definitions of same acronym
 
+        def process_sentence(sentence: str) -> None:
+            """Process a single sentence for abbreviation usage."""
+            for acronym, data in abbreviations.items():
+                full_term = data["full_term"]
+                if full_term not in sentence:
+                    continue
+                    
+                # Skip if this is the definition sentence
+                if sentence.strip() == data["first_occurrence"]:
+                    continue
+                    
+                # Track inconsistent usage
+                if not data["defined"]:
+                    inconsistent_uses.append({
+                        'issue_type': 'full_term_after_acronym',
+                        'full_term': full_term,
+                        'acronym': acronym,
+                        'sentence': sentence.strip(),
+                        'definition_context': data["first_occurrence"]
+                    })
+                data["defined"] = False  # Mark as used
+
+        # Process each paragraph
         for paragraph in doc:
             sentences = re.split(r'(?<=[.!?])\s+', paragraph)
             for sentence in sentences:
-                # Find definitions using pattern from registry
-                for pattern_config in abbreviation_patterns:
-                    compiled_pattern = re.compile(pattern_config.pattern)
-                    defined_matches = compiled_pattern.finditer(sentence)
-                    
-                    for match in defined_matches:
-                        full_term, acronym = match.groups()
-                        full_term = full_term.strip()
-                        
-                        # Check for duplicate definitions
-                        if acronym in abbreviations:
-                            if abbreviations[acronym]["full_term"] != full_term:
-                                duplicate_definitions.append({
-                                    'acronym': acronym,
-                                    'first_definition': abbreviations[acronym]["full_term"],
-                                    'second_definition': full_term,
-                                    'sentence': sentence.strip()
-                                })
-                        else:
-                            abbreviations[acronym] = {
-                                "full_term": full_term,
-                                "defined": True,
-                                "first_occurrence": sentence.strip()
-                            }
+                process_sentence(sentence.strip())
 
-                # Check for full term usage after definition
-                for acronym, data in abbreviations.items():
-                    full_term = data["full_term"]
-                    if full_term in sentence:
-                        # Skip if this is the definition sentence
-                        if sentence.strip() == data["first_occurrence"]:
-                            continue
-                            
-                        # Only flag if already defined
-                        if not data["defined"]:
-                            inconsistent_uses.append({
-                                'issue_type': 'full_term_after_acronym',
-                                'full_term': full_term,
-                                'acronym': acronym,
-                                'sentence': sentence.strip(),
-                                'definition_context': data["first_occurrence"]
-                            })
-                        data["defined"] = False  # Mark as used
-
-        # Compile all issues
-        issues = []
-
-        if duplicate_definitions:
-            issues.append({
-                'issue_type': 'duplicate_acronym_definition',
-                'description': 'Acronym defined multiple times with different terms',
-                'occurrences': duplicate_definitions
-            })
-
-        if inconsistent_uses:
-            issues.append({
-                'issue_type': 'inconsistent_acronym_usage',
-                'description': 'Full term used after acronym was defined',
-                'occurrences': inconsistent_uses
-            })
-
-        # Add summary information
-        details = {
-            'total_acronyms_defined': len(abbreviations),
-            'total_duplicate_definitions': len(duplicate_definitions),
-            'total_inconsistent_uses': len(inconsistent_uses),
-            'defined_acronyms': [
-                {
-                    'acronym': acronym,
-                    'full_term': data['full_term'],
-                    'first_occurrence': data['first_occurrence']
-                }
-                for acronym, data in abbreviations.items()
-            ]
-        }
-
-        success = len(issues) == 0
-        return DocumentCheckResult(
-            success=success,
-            issues=issues,
-            details=details
-        )
+        success = len(inconsistent_uses) == 0
+        return DocumentCheckResult(success=success, issues=inconsistent_uses)
 
     @profile_performance
     def check_date_formats(self, doc: List[str]) -> DocumentCheckResult:
@@ -1573,99 +1506,69 @@ class FAADocumentChecker(DocumentChecker):
         
         # Patterns to ignore (aviation references)
         ignore_patterns = [
-            r'\bAD \d{4}-\d{2}-\d{2}\b',  # Airworthiness Directive references
-            r'\bSWPM \d{2}-\d{2}-\d{2}\b',  # Standard Wiring Practices Manual references
-            r'\bAMM \d{2}-\d{2}-\d{2}\b',   # Aircraft Maintenance Manual references
-            r'\bSOPM \d{2}-\d{2}-\d{2}\b',  # Standard Operating Procedure references
+            r'\bAD \d{4}-\d{2}-\d{2}\b',      # Airworthiness Directive references
+            r'\bSWPM \d{2}-\d{2}-\d{2}\b',    # Standard Wiring Practices Manual references
+            r'\bAMM \d{2}-\d{2}-\d{2}\b',     # Aircraft Maintenance Manual references
+            r'\bSOPM \d{2}-\d{2}-\d{2}\b',    # Standard Operating Procedure references
             r'\b[A-Z]{2,4} \d{2}-\d{2}-\d{2}\b'  # Generic manual reference pattern
         ]
         
         # Combine ignore patterns into one
-        ignore_regex = '|'.join(ignore_patterns)
+        ignore_regex = '|'.join(f'(?:{pattern})' for pattern in ignore_patterns)
         ignore_pattern = re.compile(ignore_regex)
         
-        # Track different types of date format issues
-        slash_format_dates = []    # MM/DD/YYYY
-        hyphen_format_dates = []   # MM-DD-YYYY or YYYY-MM-DD
+        # Track unique issues
+        unique_issues = []
         
-        for paragraph in doc:
-            sentences = re.split(r'(?<=[.!?])\s+', paragraph)
-            for sentence in sentences:
-                # First, identify and temporarily remove text that should be ignored
-                ignored_matches = list(ignore_pattern.finditer(sentence))
-                working_sentence = sentence
-                
-                # Replace ignored patterns with placeholders
-                for match in reversed(ignored_matches):
-                    start, end = match.span()
-                    working_sentence = working_sentence[:start] + 'X' * (end - start) + working_sentence[end:]
-                
-                # Now check for date patterns
-                for pattern_config in date_patterns:
-                    compiled_pattern = re.compile(pattern_config.pattern)
-                    matches = compiled_pattern.finditer(working_sentence)
-                    for match in matches:
-                        # Get the original text from the match position
-                        original_date = sentence[match.start():match.end()]
-                        issue = {
-                            'date': original_date,
-                            'description': pattern_config.description,
-                            'sentence': sentence.strip()
-                        }
-                        
-                        if '/' in original_date:
-                            slash_format_dates.append(issue)
-                        elif '-' in original_date:
-                            hyphen_format_dates.append(issue)
-
-        # Compile issues
-        issues = []
-        
-        if slash_format_dates:
-            issues.append({
-                'issue_type': 'slash_date_format',
-                'description': "Dates should use 'Month Day, Year' format instead of MM/DD/YYYY",
-                'occurrences': slash_format_dates
-            })
+        # Use _process_sentences helper
+        for sentence, paragraph in self._process_sentences(doc, skip_empty=True, skip_headings=True):
+            # First, identify and temporarily remove text that should be ignored
+            working_sentence = sentence
             
-        if hyphen_format_dates:
-            issues.append({
-                'issue_type': 'hyphen_date_format',
-                'description': "Dates should use 'Month Day, Year' format instead of MM-DD-YYYY or YYYY-MM-DD",
-                'occurrences': hyphen_format_dates
-            })
+            # Find all matches to ignore
+            ignored_matches = list(ignore_pattern.finditer(sentence))
+            
+            # Replace ignored patterns with placeholders
+            for match in reversed(ignored_matches):
+                start, end = match.span()
+                working_sentence = working_sentence[:start] + 'X' * (end - start) + working_sentence[end:]
+            
+            # Now check for date patterns in the modified sentence
+            for pattern_config in date_patterns:
+                matches = list(re.finditer(pattern_config.pattern, working_sentence))
+                
+                for match in matches:
+                    # Get the original text from the match position
+                    original_date = sentence[match.start():match.end()]
+                    
+                    # Create formatted issue with incorrect/correct format
+                    formatted_issue = {
+                        'incorrect': original_date,
+                        'correct': 'Month Day, Year'
+                    }
+                    unique_issues.append(formatted_issue)
 
-        success = len(issues) == 0
-        return DocumentCheckResult(success=success, issues=issues)
+        return DocumentCheckResult(success=len(unique_issues) == 0, issues=unique_issues)
 
     @profile_performance
     def check_placeholders(self, doc: List[str]) -> DocumentCheckResult:
         """Check for placeholders that should be removed."""
-        if not self.validate_input(doc):
-            return DocumentCheckResult(success=False, issues=[{'error': 'Invalid document input'}])
+        def process_placeholders(doc: List[str], patterns: List[PatternConfig]) -> DocumentCheckResult:
+            tbd_placeholders = []
+            to_be_determined_placeholders = []
+            to_be_added_placeholders = []
+            
+            pattern_categories = {
+                r'\bTBD\b': ('tbd', tbd_placeholders),
+                r'\bTo be determined\b': ('to_be_determined', to_be_determined_placeholders),
+                r'\bTo be added\b': ('to_be_added', to_be_added_placeholders)
+            }
 
-        # Get patterns from registry
-        placeholder_patterns = self.config_manager.pattern_registry.get('placeholders', [])
-        
-        # Track different types of placeholders
-        tbd_placeholders = []
-        to_be_determined_placeholders = []
-        to_be_added_placeholders = []
-        
-        # Pattern mapping for categorization
-        pattern_categories = {
-            r'\bTBD\b': ('tbd', tbd_placeholders),
-            r'\bTo be determined\b': ('to_be_determined', to_be_determined_placeholders),
-            r'\bTo be added\b': ('to_be_added', to_be_added_placeholders)
-        }
-
-        for paragraph in doc:
-            sentences = re.split(r'(?<=[.!?])\s+', paragraph)
-            for sentence in sentences:
-                for pattern_config in placeholder_patterns:
+            # Use _process_sentences helper
+            for sentence, paragraph in self._process_sentences(doc, skip_empty=True, skip_headings=True):
+                for pattern_config in patterns:
                     compiled_pattern = re.compile(pattern_config.pattern, re.IGNORECASE)
                     
-                    # Find the corresponding category for this pattern
                     for pattern_key, (category_name, category_list) in pattern_categories.items():
                         if pattern_config.pattern == pattern_key:
                             matches = compiled_pattern.finditer(sentence)
@@ -1676,45 +1579,104 @@ class FAADocumentChecker(DocumentChecker):
                                     'description': pattern_config.description
                                 })
 
-        # Compile issues
-        issues = []
-        
-        if tbd_placeholders:
-            issues.append({
-                'issue_type': 'tbd_placeholder',
-                'description': 'Remove TBD placeholder',
-                'occurrences': tbd_placeholders
-            })
-            
-        if to_be_determined_placeholders:
-            issues.append({
-                'issue_type': 'to_be_determined_placeholder',
-                'description': "Remove 'To be determined' placeholder",
-                'occurrences': to_be_determined_placeholders
-            })
-            
-        if to_be_added_placeholders:
-            issues.append({
-                'issue_type': 'to_be_added_placeholder',
-                'description': "Remove 'To be added' placeholder",
-                'occurrences': to_be_added_placeholders
-            })
+            # Compile issues
+            issues = []
+            if tbd_placeholders:
+                issues.append({
+                    'issue_type': 'tbd_placeholder',
+                    'description': 'Remove TBD placeholder',
+                    'occurrences': tbd_placeholders
+                })
+                
+            if to_be_determined_placeholders:
+                issues.append({
+                    'issue_type': 'to_be_determined_placeholder',
+                    'description': "Remove 'To be determined' placeholder",
+                    'occurrences': to_be_determined_placeholders
+                })
+                
+            if to_be_added_placeholders:
+                issues.append({
+                    'issue_type': 'to_be_added_placeholder',
+                    'description': "Remove 'To be added' placeholder",
+                    'occurrences': to_be_added_placeholders
+                })
 
-        # Add summary information
-        details = {
-            'total_placeholders': len(tbd_placeholders) + 
-                                len(to_be_determined_placeholders) + 
-                                len(to_be_added_placeholders),
-            'placeholder_types': {
-                'TBD': len(tbd_placeholders),
-                'To be determined': len(to_be_determined_placeholders),
-                'To be added': len(to_be_added_placeholders)
+            details = {
+                'total_placeholders': len(tbd_placeholders) + 
+                                    len(to_be_determined_placeholders) + 
+                                    len(to_be_added_placeholders),
+                'placeholder_types': {
+                    'TBD': len(tbd_placeholders),
+                    'To be determined': len(to_be_determined_placeholders),
+                    'To be added': len(to_be_added_placeholders)
+                }
             }
-        }
 
-        success = len(issues) == 0
-        return DocumentCheckResult(success=success, issues=issues, details=details)
+            return DocumentCheckResult(success=len(issues) == 0, issues=issues, details=details)
 
+        return self._process_patterns(doc, 'placeholders', process_placeholders)
+
+    @profile_performance
+    def _process_patterns(
+        self,
+        doc: List[str],
+        pattern_category: str,
+        process_func: Optional[Callable] = None
+    ) -> DocumentCheckResult:
+        """
+        Process document text against patterns from a specific category.
+        
+        Args:
+            doc: List of document paragraphs
+            pattern_category: Category of patterns to check against
+            process_func: Optional custom processing function
+            
+        Returns:
+            DocumentCheckResult with processed issues
+        """
+        if not self.validate_input(doc):
+            self.logger.error("Invalid document input for pattern check")
+            return DocumentCheckResult(
+                success=False, 
+                issues=[{'error': 'Invalid document input'}]
+            )
+
+        # Get patterns from registry
+        patterns = self.config_manager.pattern_registry.get(pattern_category, [])
+        if not patterns:
+            self.logger.warning(f"No patterns found for category: {pattern_category}")
+            return DocumentCheckResult(
+                success=True,
+                issues=[],
+                details={'message': f'No patterns defined for {pattern_category}'}
+            )
+
+        # Use custom processing function if provided, otherwise use default
+        if process_func:
+            return process_func(doc, patterns)
+
+        # Default processing
+        issues = []
+        for paragraph in doc:
+            sentences = re.split(r'(?<=[.!?])\s+', paragraph)
+            for sentence in sentences:
+                sentence = sentence.strip()
+                if not sentence:
+                    continue
+                    
+                for pattern_config in patterns:
+                    matches = list(re.finditer(pattern_config.pattern, sentence))
+                    if matches:
+                        issues.append({
+                            'pattern': pattern_config.pattern,
+                            'description': pattern_config.description,
+                            'sentence': sentence,
+                            'matches': [m.group() for m in matches]
+                        })
+
+        return DocumentCheckResult(success=len(issues) == 0, issues=issues)
+    
     def run_all_checks(self, doc_path: str, doc_type: str, template_type: Optional[str] = None) -> Dict[str, DocumentCheckResult]:
         """
         Run all checks on the document.
@@ -1754,7 +1716,8 @@ class FAADocumentChecker(DocumentChecker):
             ('spacing_check', lambda: self.spacing_check(doc)),
             ('abbreviation_usage_check', lambda: self.check_abbreviation_usage(doc)),
             ('date_formats_check', lambda: self.check_date_formats(doc)),
-            ('placeholders_check', lambda: self.check_placeholders(doc))
+            ('placeholders_check', lambda: self.check_placeholders(doc)),
+            ('parentheses_check', lambda: self.check_parentheses(doc))
         ]
 
         # Run each check and store results
@@ -1770,6 +1733,563 @@ class FAADocumentChecker(DocumentChecker):
 
         return results
 
+    def _compile_issues(
+        self,
+        issue_groups: Dict[str, List[Dict[str, Any]]],
+        category_descriptions: Dict[str, str]
+    ) -> List[Dict[str, Any]]:
+        """
+        Compile issues from different groups into a standardized format.
+        
+        Args:
+            issue_groups: Dictionary of issue type to list of issues
+            category_descriptions: Dictionary of issue type to description
+            
+        Returns:
+            List of compiled issues in standardized format
+        """
+        compiled_issues = []
+        
+        for issue_type, issues in issue_groups.items():
+            if issues:  # Only add groups that have issues
+                compiled_issues.append({
+                    'issue_type': issue_type,
+                    'description': category_descriptions.get(
+                        issue_type, 
+                        f'Issues found in {issue_type}'
+                    ),
+                    'occurrences': issues
+                })
+                
+        return compiled_issues
+
+    def _process_sentences(
+        self, 
+        doc: List[str], 
+        skip_empty: bool = True,
+        skip_headings: bool = False
+    ) -> List[Tuple[str, str]]:
+        """
+        Process document paragraphs into sentences with their parent paragraphs.
+        
+        Args:
+            doc: List of document paragraphs
+            skip_empty: Whether to skip empty sentences
+            skip_headings: Whether to skip lines that appear to be headings
+            
+        Returns:
+            List of tuples containing (sentence, parent_paragraph)
+        """
+        sentences = []
+        for paragraph in doc:
+            paragraph = paragraph.strip()
+            
+            # Skip heading-like paragraphs if requested
+            if skip_headings:
+                words = paragraph.split()
+                if all(word.isupper() for word in words) and any(
+                    word in self.HEADING_WORDS for word in words
+                ):
+                    continue
+            
+            # Split paragraph into sentences
+            para_sentences = re.split(r'(?<=[.!?])\s+', paragraph)
+            
+            # Process each sentence
+            for sentence in para_sentences:
+                sentence = sentence.strip()
+                if skip_empty and not sentence:
+                    continue
+                sentences.append((sentence, paragraph))
+                
+        return sentences
+
+    @profile_performance
+    def check_terminology(self, doc: List[str]) -> DocumentCheckResult:
+        """Check document terminology and output only unique term replacements needed."""
+        if not self.validate_input(doc):
+            return DocumentCheckResult(success=False, issues=[{'error': 'Invalid document input'}])
+
+        terminology_patterns = self.config_manager.pattern_registry.get('terminology', [])
+        prohibited_patterns = self.config_manager.pattern_registry.get('reference_terms', [])
+
+        unique_issues = set()  # Using a set to avoid duplicate replacements
+
+        # Process each sentence
+        for paragraph in doc:
+            sentences = re.split(r'(?<=[.!?])\s+', paragraph)
+            for sentence in sentences:
+                sentence = sentence.strip()
+                if not sentence:
+                    continue
+
+                # Check terminology patterns
+                for pattern_config in terminology_patterns:
+                    matches = list(re.finditer(pattern_config.pattern, sentence))
+                    for match in matches:
+                        if pattern_config.replacement:  # Only if there's a replacement term
+                            unique_issues.add((match.group(), pattern_config.replacement))
+
+                # Check prohibited patterns
+                for pattern_config in prohibited_patterns:
+                    if re.search(pattern_config.pattern, sentence, re.IGNORECASE):
+                        if pattern_config.replacement:  # Only if there's a replacement term
+                            match_text = re.search(pattern_config.pattern, sentence, re.IGNORECASE).group()
+                            unique_issues.add((match_text, pattern_config.replacement))
+
+        # Format issues as simple replacement instructions
+        formatted_issues = [
+            {'incorrect_term': incorrect, 'correct_term': correct}
+            for incorrect, correct in sorted(unique_issues)  # Sort for consistent output
+        ]
+
+        return DocumentCheckResult(success=not formatted_issues, issues=formatted_issues)
+
+    @profile_performance
+    def check_parentheses(self, doc: List[str]) -> DocumentCheckResult:
+        """
+        Check for matching parentheses in the document.
+        
+        Args:
+            doc (List[str]): List of document paragraphs
+            
+        Returns:
+            DocumentCheckResult: Result containing any mismatched parentheses issues
+        """
+        if not self.validate_input(doc):
+            return DocumentCheckResult(success=False, issues=[{'error': 'Invalid document input'}])
+
+        issues = []
+        
+        for i, paragraph in enumerate(doc, 1):
+            # Skip empty paragraphs
+            if not paragraph.strip():
+                continue
+                
+            stack = []
+            for j, char in enumerate(paragraph):
+                if char == '(':
+                    stack.append((i, j))  # Store paragraph and character position
+                elif char == ')':
+                    if not stack:  # No matching opening parenthesis
+                        issues.append({
+                            'type': 'missing_opening',
+                            'paragraph': i,
+                            'position': j,
+                            'text': paragraph,
+                            'message': f"Add an opening parenthesis before '{paragraph[max(0, j-20):min(len(paragraph), j+20)]}'"
+                        })
+                    else:
+                        stack.pop()  # Remove matching pair
+            
+            # Check for remaining opening parentheses
+            while stack:
+                para_num, pos = stack.pop()
+                issues.append({
+                    'type': 'missing_closing',
+                    'paragraph': para_num,
+                    'position': pos,
+                    'text': paragraph,
+                    'message': f"Add a closing parenthesis after '{paragraph[max(0, pos-20):min(len(paragraph), pos+20)]}'"
+                })
+
+        return DocumentCheckResult(success=len(issues) == 0, issues=issues)
+
+    @profile_performance
+    def spacing_check(self, doc: List[str]) -> DocumentCheckResult:
+        """Check for correct spacing in the document."""
+        if not self.validate_input(doc):
+            return DocumentCheckResult(success=False, issues=[{'error': 'Invalid document input'}])
+
+        # Get patterns from registry
+        spacing_patterns = self.config_manager.pattern_registry.get('spacing', [])
+        
+        # Initialize issue groups
+        issue_groups = {
+            'document_type_spacing': [],  # AC25.25, FAA123, etc.
+            'section_symbol_spacing': [], # §25.25
+            'part_number_spacing': [],    # Part25
+            'paragraph_spacing': [],      # text(a) or text(1)
+            'double_space': []           # Multiple spaces between words
+        }
+        
+        # Define descriptions for each issue type
+        category_descriptions = {
+            'document_type_spacing': 'Missing space between document type and number',
+            'section_symbol_spacing': 'Missing space after section symbol',
+            'part_number_spacing': 'Missing space between Part and number',
+            'paragraph_spacing': 'Missing space before paragraph indication',
+            'double_space': 'Multiple spaces between words'
+        }
+        
+        # Pattern mapping for categorization
+        pattern_categories = {
+            r'(?<!\s)(AC|AD|CFR|FAA|N|SFAR)(\d+[-]?\d*)': ('document_type_spacing', issue_groups['document_type_spacing']),
+            r'(?<!\s)(§|§§)(\d+\.\d+)': ('section_symbol_spacing', issue_groups['section_symbol_spacing']),
+            r'(?<!\s)Part(\d+)': ('part_number_spacing', issue_groups['part_number_spacing']),
+            r'(?<!\s)(\([a-z](?!\))|\([1-9](?!\)))': ('paragraph_spacing', issue_groups['paragraph_spacing']),
+            r'\s{2,}': ('double_space', issue_groups['double_space'])
+        }
+
+        # Use _process_sentences helper instead of manual sentence processing
+        for sentence, paragraph in self._process_sentences(doc, skip_empty=True, skip_headings=False):
+            for pattern_config in spacing_patterns:
+                compiled_pattern = re.compile(pattern_config.pattern)
+                
+                # Find the corresponding category for this pattern
+                for pattern_key, (category_name, category_list) in pattern_categories.items():
+                    if pattern_config.pattern == pattern_key:
+                        matches = compiled_pattern.finditer(sentence)
+                        for match in matches:
+                            category_list.append({
+                                'text': match.group(),
+                                'sentence': sentence.strip(),
+                                'description': pattern_config.description
+                            })
+
+        # Use the helper to compile issues
+        issues = self._compile_issues(issue_groups, category_descriptions)
+        
+        return DocumentCheckResult(success=len(issues) == 0, issues=issues)
+
+    @profile_performance
+    def check_abbreviation_usage(self, doc: List[str]) -> DocumentCheckResult:
+        """Check for abbreviation consistency after first definition."""
+        if not self.validate_input(doc):
+            return DocumentCheckResult(success=False, issues=[{'error': 'Invalid document input'}])
+
+        # Track abbreviations and their usage
+        abbreviations = {}  # Store defined abbreviations
+        inconsistent_uses = []  # Track full term usage after definition
+
+        def process_sentence(sentence: str) -> None:
+            """Process a single sentence for abbreviation usage."""
+            for acronym, data in abbreviations.items():
+                full_term = data["full_term"]
+                if full_term not in sentence:
+                    continue
+                    
+                # Skip if this is the definition sentence
+                if sentence.strip() == data["first_occurrence"]:
+                    continue
+                    
+                # Track inconsistent usage
+                if not data["defined"]:
+                    inconsistent_uses.append({
+                        'issue_type': 'full_term_after_acronym',
+                        'full_term': full_term,
+                        'acronym': acronym,
+                        'sentence': sentence.strip(),
+                        'definition_context': data["first_occurrence"]
+                    })
+                data["defined"] = False  # Mark as used
+
+        # Process each paragraph
+        for paragraph in doc:
+            sentences = re.split(r'(?<=[.!?])\s+', paragraph)
+            for sentence in sentences:
+                process_sentence(sentence.strip())
+
+        success = len(inconsistent_uses) == 0
+        return DocumentCheckResult(success=success, issues=inconsistent_uses)
+
+    @profile_performance
+    def check_placeholders(self, doc: List[str]) -> DocumentCheckResult:
+        """Check for placeholders that should be removed."""
+        def process_placeholders(doc: List[str], patterns: List[PatternConfig]) -> DocumentCheckResult:
+            tbd_placeholders = []
+            to_be_determined_placeholders = []
+            to_be_added_placeholders = []
+            
+            pattern_categories = {
+                r'\bTBD\b': ('tbd', tbd_placeholders),
+                r'\bTo be determined\b': ('to_be_determined', to_be_determined_placeholders),
+                r'\bTo be added\b': ('to_be_added', to_be_added_placeholders)
+            }
+
+            # Use _process_sentences helper
+            for sentence, paragraph in self._process_sentences(doc, skip_empty=True, skip_headings=True):
+                for pattern_config in patterns:
+                    compiled_pattern = re.compile(pattern_config.pattern, re.IGNORECASE)
+                    
+                    for pattern_key, (category_name, category_list) in pattern_categories.items():
+                        if pattern_config.pattern == pattern_key:
+                            matches = compiled_pattern.finditer(sentence)
+                            for match in matches:
+                                category_list.append({
+                                    'placeholder': match.group().strip(),
+                                    'sentence': sentence.strip(),
+                                    'description': pattern_config.description
+                                })
+
+            # Compile issues
+            issues = []
+            if tbd_placeholders:
+                issues.append({
+                    'issue_type': 'tbd_placeholder',
+                    'description': 'Remove TBD placeholder',
+                    'occurrences': tbd_placeholders
+                })
+                
+            if to_be_determined_placeholders:
+                issues.append({
+                    'issue_type': 'to_be_determined_placeholder',
+                    'description': "Remove 'To be determined' placeholder",
+                    'occurrences': to_be_determined_placeholders
+                })
+                
+            if to_be_added_placeholders:
+                issues.append({
+                    'issue_type': 'to_be_added_placeholder',
+                    'description': "Remove 'To be added' placeholder",
+                    'occurrences': to_be_added_placeholders
+                })
+
+            details = {
+                'total_placeholders': len(tbd_placeholders) + 
+                                    len(to_be_determined_placeholders) + 
+                                    len(to_be_added_placeholders),
+                'placeholder_types': {
+                    'TBD': len(tbd_placeholders),
+                    'To be determined': len(to_be_determined_placeholders),
+                    'To be added': len(to_be_added_placeholders)
+                }
+            }
+
+            return DocumentCheckResult(success=len(issues) == 0, issues=issues, details=details)
+
+        return self._process_patterns(doc, 'placeholders', process_placeholders)
+
+    @profile_performance
+    def _process_patterns(
+        self,
+        doc: List[str],
+        pattern_category: str,
+        process_func: Optional[Callable] = None
+    ) -> DocumentCheckResult:
+        """
+        Process document text against patterns from a specific category.
+        
+        Args:
+            doc: List of document paragraphs
+            pattern_category: Category of patterns to check against
+            process_func: Optional custom processing function
+            
+        Returns:
+            DocumentCheckResult with processed issues
+        """
+        if not self.validate_input(doc):
+            self.logger.error("Invalid document input for pattern check")
+            return DocumentCheckResult(
+                success=False, 
+                issues=[{'error': 'Invalid document input'}]
+            )
+
+        # Get patterns from registry
+        patterns = self.config_manager.pattern_registry.get(pattern_category, [])
+        if not patterns:
+            self.logger.warning(f"No patterns found for category: {pattern_category}")
+            return DocumentCheckResult(
+                success=True,
+                issues=[],
+                details={'message': f'No patterns defined for {pattern_category}'}
+            )
+
+        # Use custom processing function if provided, otherwise use default
+        if process_func:
+            return process_func(doc, patterns)
+
+        # Default processing
+        issues = []
+        for paragraph in doc:
+            sentences = re.split(r'(?<=[.!?])\s+', paragraph)
+            for sentence in sentences:
+                sentence = sentence.strip()
+                if not sentence:
+                    continue
+                    
+                for pattern_config in patterns:
+                    matches = list(re.finditer(pattern_config.pattern, sentence))
+                    if matches:
+                        issues.append({
+                            'pattern': pattern_config.pattern,
+                            'description': pattern_config.description,
+                            'sentence': sentence,
+                            'matches': [m.group() for m in matches]
+                        })
+
+        return DocumentCheckResult(success=len(issues) == 0, issues=issues)
+
+    def _format_colored_text(self, text: str, color: str) -> str:
+        """Helper method to format colored text with reset.
+        
+        Args:
+            text: The text to be colored
+            color: The color to apply (from colorama.Fore)
+            
+        Returns:
+            str: The colored text with reset styling
+        """
+        return f"{color}{text}{Style.RESET_ALL}"
+    
+    def _format_example(self, example_fix: Dict[str, str]) -> List[str]:
+        """Format example fixes consistently.
+        
+        Args:
+            example_fix: Dictionary containing 'before' and 'after' examples
+            
+        Returns:
+            List[str]: Formatted example lines
+        """
+        return [
+            f"    ❌ Incorrect: {example_fix['before']}",
+            f"    ✓ Correct: {example_fix['after']}"
+        ]
+    
+    def _format_heading_issues(self, result: DocumentCheckResult, doc_type: str) -> List[str]:
+        """Format heading check issues consistently."""
+        output = []
+        
+        for issue in result.issues:
+            if issue.get('type') == 'missing_headings':
+                missing = sorted(issue['missing'])
+                output.append(f"\n  Missing Required Headings for {doc_type}:")
+                for heading in missing:
+                    output.append(f"    • {heading}")
+            elif issue.get('type') == 'unexpected_headings':
+                unexpected = sorted(issue['unexpected'])
+                output.append(f"\n  Unexpected Headings Found:")
+                for heading in unexpected:
+                    output.append(f"    • {heading}")
+        
+        return output
+
+    def _format_period_issues(self, result: DocumentCheckResult) -> List[str]:
+        """Format period check issues consistently."""
+        output = []
+        
+        if result.issues:
+            output.append(f"\n  Heading Period Format Issues:")
+            for issue in result.issues:
+                if 'message' in issue:
+                    output.append(f"    • {issue['message']}")
+        
+        return output
+
+    def _format_caption_issues(self, issues: List[Dict], doc_type: str) -> List[str]:
+        """Format caption check issues with clear replacement instructions."""
+        formatted_issues = []
+        for issue in issues:
+            if 'incorrect_caption' in issue:
+                caption_parts = issue['incorrect_caption'].split()
+                if len(caption_parts) >= 2:
+                    caption_type = caption_parts[0]  # "Table" or "Figure"
+                    number = caption_parts[1]
+                    
+                    # Determine correct format based on document type
+                    if doc_type in ["Advisory Circular", "Order"]:
+                        if '-' not in number:
+                            correct_format = f"{caption_type} {number}-1"
+                    else:
+                        if '-' in number:
+                            correct_format = f"{caption_type} {number.split('-')[0]}"
+                        else:
+                            correct_format = issue['incorrect_caption']
+
+                    formatted_issues.append(
+                        f"    • Replace '{issue['incorrect_caption']}' with '{correct_format}'"
+                    )
+
+        return formatted_issues
+
+    def _format_reference_issues(self, result: DocumentCheckResult) -> List[str]:
+        """Format reference-related issues with clear replacement instructions."""
+        output = []
+        
+        if result.issues:
+            for issue in result.issues:
+                if 'reference' in issue and 'correct_form' in issue:
+                    output.append(f"    • Replace '{issue['reference']}' with '{issue['correct_form']}'")
+
+        return output
+
+    def _format_standard_issue(self, issue: Dict[str, Any]) -> str:
+        """Format standard issues consistently."""
+        if isinstance(issue, str):
+            return f"    • {issue}"
+        
+        if 'incorrect' in issue and 'correct' in issue:
+            return f"    • Replace '{issue['incorrect']}' with '{issue['correct']}'"
+        
+        if 'incorrect_term' in issue and 'correct_term' in issue:
+            return f"    • Replace '{issue['incorrect_term']}' with '{issue['correct_term']}'"
+        
+        if 'sentence' in issue:
+            return f"    • {issue['sentence']}"
+        
+        if 'description' in issue:
+            return f"    • {issue['description']}"
+        
+        # Fallback for other issue formats
+        return f"    • {str(issue)}"
+
+    def _format_unused_acronym_issues(self, result: DocumentCheckResult) -> List[str]:
+        """Format unused acronym issues with a simple, clear message.
+        
+        Args:
+            result: DocumentCheckResult containing acronym issues
+            
+        Returns:
+            List[str]: Formatted list of unused acronym issues
+        """
+        formatted_issues = []
+        
+        if result.issues:
+            for issue in result.issues:
+                if isinstance(issue, dict) and 'acronym' in issue:
+                    formatted_issues.append(f"    • Acronym '{issue['acronym']}' was defined but never used.")
+                elif isinstance(issue, str):
+                    # Handle case where issue might be just the acronym
+                    formatted_issues.append(f"    • Acronym '{issue}' was defined but never used.")
+    
+        return formatted_issues
+
+    def _format_parentheses_issues(self, result: DocumentCheckResult) -> List[str]:
+        """Format parentheses issues with clear instructions for fixing."""
+        formatted_issues = []
+        
+        if result.issues:
+            for issue in result.issues:
+                if issue['type'] == 'missing_opening':
+                    formatted_issues.append(
+                        f"    • Paragraph {issue['paragraph']}: {issue['message']}"
+                    )
+                elif issue['type'] == 'missing_closing':
+                    formatted_issues.append(
+                        f"    • Paragraph {issue['paragraph']}: {issue['message']}"
+                    )
+        
+        return formatted_issues
+
+    def _format_section_symbol_issues(self, result: DocumentCheckResult) -> List[str]:
+        """Format section symbol issues with clear replacement instructions."""
+        formatted_issues = []
+        
+        if result.issues:
+            for issue in result.issues:
+                if 'incorrect' in issue and 'correct' in issue:
+                    if issue.get('is_sentence_start'):
+                        formatted_issues.append(
+                            f"    • Do not begin sentences with the section symbol. "
+                            f"Replace '{issue['incorrect']}' with '{issue['correct']}' at the start of the sentence"
+                        )
+                    else:
+                        formatted_issues.append(
+                            f"    • Replace '{issue['incorrect']}' with '{issue['correct']}'"
+                        )
+        
+        return formatted_issues
+
 class DocumentCheckResultsFormatter:
     """Formats document check results in a user-friendly way with detailed examples and fixes."""
     
@@ -1781,8 +2301,8 @@ class DocumentCheckResultsFormatter:
         self.issue_categories = {
             'heading_title_check': {
                 'title': 'Required Headings Check',
-                'description': 'Verifies that your document includes all mandatory section headings, with requirements varying by document type. For example, long Advisory Circulars require headings like "Purpose." and "Applicability." with initial caps and periods, while Federal Register Notices use ALL CAPS headings like "SUMMARY" and "BACKGROUND" without periods. This check ensures both the presence of required headings and their correct capitalization format based on document type.',
-                'solution': 'Add all required headings in the correct order',
+                'description': 'Verifies that your document includes all mandatory section headings, with requirements varying by document type. For example, long-template Advisory Circulars require headings like "Purpose." and "Applicability." with initial caps and periods, while Federal Register Notices use ALL CAPS headings like "SUMMARY" and "BACKGROUND" without periods. This check ensures both the presence of required headings and their correct capitalization format based on document type.',
+                'solution': 'Add all required headings in the correct order using the correct capitalization format.',
                 'example_fix': {
                     'before': 'Missing required heading "PURPOSE."',
                     'after': 'Added heading "PURPOSE." at the beginning of the document'
@@ -1790,7 +2310,7 @@ class DocumentCheckResultsFormatter:
             },
             'heading_title_period_check': {
                 'title': 'Heading Period Format',
-                'description': 'Examines heading punctuation to ensure compliance with FAA document formatting standards. Some FAA documents (like Advisory Circulars and Orders) require periods at the end of headings, while others (like Federal Register Notices) explicitly prohibit them. This standardization ensures consistent document formatting across the FAA.',
+                'description': 'Examines heading punctuation to ensure compliance with FAA document formatting standards. Some FAA documents (like Advisory Circulars and Orders) require periods at the end of headings, while others (like Federal Register Notices) don\'t.',
                 'solution': 'Format heading periods according to document type requirements',
                 'example_fix': {
                     'before': 'Purpose',
@@ -1799,7 +2319,7 @@ class DocumentCheckResultsFormatter:
             },
             'table_figure_reference_check': {
                 'title': 'Table and Figure References',
-                'description': 'Analyzes how tables and figures are referenced within your document text to ensure consistent capitalization following FAA style guidelines. Capitalize references at the beginning of sentences (e.g., "Table 2-1 shows...") and use lowercase references within sentences (e.g., "...as shown in table 2-1"). This promotes clear and professional document presentation.',
+                'description': 'Analyzes how tables and figures are referenced within your document text. Capitalize references at the beginning of sentences (e.g., "Table 2-1 shows...") and use lowercase references within sentences (e.g., "...as shown in table 2-1").',
                 'solution': 'Capitalize references at start of sentences, use lowercase within sentences',
                 'example_fix': {
                     'before': 'The DTR values are specified in Table 3-1 and Figure 3-2.',
@@ -1826,25 +2346,25 @@ class DocumentCheckResultsFormatter:
             },
             'terminology_check': {
                 'title': 'Incorrect Terminology',
-                'description': 'Evaluates document text against the various style manuals and orders to identify non-compliant terminology, ambiguous references, and outdated phrases. This includes checking for prohibited relative references (like "above" or "below"), proper legal terminology (like "must" instead of "shall"), and consistent formatting of regulatory citations. The check ensures precise, unambiguous communication that meets current FAA documentation requirements.',
+                'description': 'Evaluates document text against the various style manuals and orders to identify non-compliant terminology, ambiguous references, and outdated phrases. This includes checking for prohibited relative references (like "above" or "below"), proper legal terminology (like "must" instead of "shall"), and consistent formatting of regulatory citations.',
                 'solution': 'Use explicit references to paragraphs, sections, tables, and figures',
                 'example_fix': {
-                    'before': 'See above section for details | Refer to below table | shall comply with',
-                    'after': 'See paragraph 3.2 for details | Refer to table 2-1 | must comply with'
+                    'before': 'Operators shall comply with ADs to ensure aircraft safety and regulatory compliance',
+                    'after': 'Operators must comply with ADs to ensure aircraft safety and regulatory compliance.'
                 }
             },
             'section_symbol_usage_check': {
                 'title': 'Section Symbol (§) Format Issues',
-                'description': 'Examines the usage of section symbols (§) throughout your document against FAA and Federal Register citation standards. This includes verifying proper symbol placement in regulatory references, ensuring sections aren\'t started with the symbol, checking consistency in multiple-section citations, and validating proper CFR citations.',
+                'description': 'Examines the usage of section symbols (§) throughout your document. This includes verifying proper symbol placement in regulatory references, ensuring sections aren\'t started with the symbol, checking consistency in multiple-section citations, and validating proper CFR citations. For ACs, see FAA Order 1320.46.',
                 'solution': 'Format section symbols correctly and never start sentences with them',
                 'example_fix': {
-                    'before': '§ 25.25 states | 14 CFR § 21.21',
-                    'after': 'Section 25.25 states | 14 CFR 21.21'
+                    'before': '§ 23.3 establishes design criteria.',
+                    'after': 'Section 23.3 establishes design criteria.'
                 }
             },
             'double_period_check': {
                 'title': 'Multiple Period Issues',
-                'description': 'Examines sentences for accidental double periods that often occur during document editing and revision. These unintended duplications can appear when combining sentences, after abbreviations, or during collaborative editing. While double periods are sometimes found in ellipses (...) or web addresses, they should never appear at the end of standard sentences in FAA documentation.',
+                'description': 'Examines sentences for accidental double periods that often occur during document editing and revision. While double periods are sometimes found in ellipses (...) or web addresses, they should never appear at the end of standard sentences in FAA documentation.',
                 'solution': 'Remove multiple periods that end sentences',
                 'example_fix': {
                     'before': 'The following ACs are related to the guidance in this document..',
@@ -1853,17 +2373,17 @@ class DocumentCheckResultsFormatter:
             },
             'spacing_check': {
                 'title': 'Spacing Issues',
-                'description': 'Analyzes document spacing patterns to ensure compliance with FAA formatting standards. This includes checking for proper spacing around regulatory references (like "AC 25-1" not "AC25-1"), section symbols (§ 25.1), paragraph references, and multiple spaces between words. Special attention is given to common aviation document elements like CFR citations, airworthiness directives (ADs), and advisory circular references where precise spacing affects document searchability and citation accuracy.',
+                'description': 'Analyzes document spacing patterns to ensure compliance with FAA formatting standards. This includes checking for proper spacing around regulatory references (like "AC 25-1" not "AC25-1"), section symbols (§ 25.1), paragraph references, and multiple spaces between words.',
                 'solution': 'Fix spacing issues: remove any missing spaces, double spaces, or inadvertent tabs.',
                 'example_fix': {
-                    'before': 'AC25.25 states that  SFAR88 and §25.981 require... (note double space)',
+                    'before': 'AC25.25 states that  SFAR88 and §25.981 require... (note double space before SFAR88)',
                     'after': 'AC 25.25 states that SFAR 88 and § 25.981 require...'
                 }
             },
             'date_formats_check': {
                 'title': 'Date Format Issues',
-                'description': 'Examines all date references in your document to ensure adherence to FAA standardized date formatting requirements. This check distinguishes between dates in regulatory references (like airworthiness directive numbers "AD 2023-12-14") and actual calendar dates, which must use the "Month Day, Year" format. The check automatically excludes technical reference numbers that may look like dates to ensure accurate validation of true date references.',
-                'solution': 'Use the format "Month Day, Year"',
+                'description': 'Examines all date references in your document. The check automatically excludes technical reference numbers that may look like dates to ensure accurate validation of true date references. Note, though, there might be instances in the heading of the document where the date is formatted as "MM/DD/YYYY", which is acceptable. This applies mostly to date formats within the document body.',
+                'solution': 'Use the format "Month Day, Year" where appropriate.',
                 'example_fix': {
                     'before': '01/15/2024 | 2024-01-15 | 15 January 2024 | January 15th, 2024',
                     'after': 'January 15, 2024'
@@ -1871,11 +2391,20 @@ class DocumentCheckResultsFormatter:
             },
             'placeholders_check': {
                 'title': 'Placeholder Content',
-                'description': 'Identifies incomplete content and temporary placeholders that must be finalized before document publication. This includes common placeholder text (like "TBD" or "To be determined"), draft markers, and incomplete sections. The check helps ensure all required information is properly completed, particularly for critical regulatory and safety information in FAA documentation where incomplete content could affect operational or certification decisions.',
+                'description': 'Identifies incomplete content and temporary placeholders that must be finalized before document publication. This includes common placeholder text (like "TBD" or "To be determined"), draft markers, and incomplete sections.',
                 'solution': 'Replace all placeholder content with actual content',
                 'example_fix': {
                     'before': 'TBD | To be determined | [Insert text] | [Pending review] | To be added',
                     'after': 'Actual, specific content relevant to the section\'s purpose'
+                }
+            },
+            'parentheses_check': {
+                'title': 'Parentheses Balance Check',
+                'description': 'Ensures that all parentheses in the document are properly paired with matching opening and closing characters.',
+                'solution': 'Add missing opening or closing parentheses where indicated',
+                'example_fix': {
+                    'before': 'The system (as defined in AC 25-11B performs...',
+                    'after': 'The system (as defined in AC 25-11B) performs...'
                 }
             }
         }
@@ -1937,157 +2466,116 @@ class DocumentCheckResultsFormatter:
         
         return output
 
-    def _format_reference_issues(self, result: DocumentCheckResult) -> List[str]:
-        """Format reference issues consistently."""
-        output = []
-        
-        for issue in result.issues:
-            if isinstance(issue, dict):
-                reference_text = f"    • {issue['reference']} should be {issue['correct_form']}"
-                output.append(reference_text)
-                if 'sentence' in issue:
-                    context = textwrap.fill(
-                        issue['sentence'],
-                        width=76,
-                        initial_indent='      ',
-                        subsequent_indent='      '
-                    )
-                    output.append(f"{Fore.YELLOW}Context: {context}{Style.RESET_ALL}")
-        
-        return output
-
-    def _format_unused_acronym_issues(self, result: DocumentCheckResult) -> List[str]:
-        """
-        Format issues for unused acronyms to display only the acronym.
-        
-        Args:
-            result: The DocumentCheckResult object containing issues.
-
-        Returns:
-            List[str]: Formatted lines displaying unused acronyms.
-        """
-        output = []
-        for issue in result.issues:
-            if isinstance(issue, dict):
-                acronym = issue.get('acronym', 'Unknown Acronym')
-                output.append(f"    • Acronym '{acronym}' was defined but never used.")
-        return output
-    
-    def _format_caption_issues(self, result: DocumentCheckResult) -> List[str]:
-        """Format caption issues consistently."""
-        output = []
-        
-        for issue in result.issues:
-            if isinstance(issue, dict):
-                output.append(f"    • {issue.get('incorrect_caption', '')} (correct format: {issue.get('correct_format', '')})")
-        
-        return output
-
-    def _format_standard_issue(self, issue: Dict[str, Any]) -> str: 
-        """Format a standard issue consistently."""
-        if isinstance(issue, dict):
-            # Handle grouped issues per sentence
-            if 'incorrect_terms' in issue and 'sentence' in issue:
-                # Build the replacements text
-                replacements = '; '.join(
-                    f"'{inc}' with '{corr}'" if corr else f"Remove '{inc}'"
-                    for inc, corr in sorted(issue['incorrect_terms'])
-                )
-                # Start building the output lines
-                lines = []
-                lines.append(f"    • In: {issue['sentence']}")
-                lines.append(f"      Replace {replacements}")
-                # Format each line individually
-                formatted_lines = [
-                    textwrap.fill(line, width=76, subsequent_indent='      ')
-                    for line in lines
-                ]
-                return '\n'.join(formatted_lines)
-            
-            # Handle issues with occurrences list
-            if 'occurrences' in issue:
-                # Format the first 7 occurrences
-                examples = issue['occurrences'][:7]
-                formatted_examples = []
-                for example in examples:
-                    if 'sentence' in example:
-                        formatted_examples.append(example['sentence'])
-                    elif isinstance(example, str):
-                        formatted_examples.append(example)
-                
-                description = issue.get('description', '')
-                return textwrap.fill(
-                    f"    • {description} - Examples: {'; '.join(formatted_examples)}",
-                    width=76,
-                    subsequent_indent='      '
-                )
-            
-            # Handle unused acronym issues
-            if issue.get('type') == 'unused_acronym':
-                return textwrap.fill(
-                    f"    • Acronym '{issue['acronym']}' defined but not used again after definition.",
-                    width=76,
-                    subsequent_indent='      '
-                )
-            
-            # Handle issues with direct sentence reference
-            elif 'sentence' in issue:
-                return textwrap.fill(
-                    issue['sentence'],
-                    width=76,
-                    initial_indent='    • ',
-                    subsequent_indent='      '
-                )
-                
-            # Handle issues with specific error messages
-            elif 'error' in issue:
-                return f"    • Error: {issue['error']}"
-                
-            # Handle issues with description and matches
-            elif all(k in issue for k in ['issue_type', 'description', 'matches']):
-                matches_str = '; '.join(str(m) for m in issue['matches'][:7])
-                return textwrap.fill(
-                    f"    • {issue['description']} - Found: {matches_str}",
-                    width=76,
-                    subsequent_indent='      '
-                )
-                
-            # Handle terminology issues
-            if all(k in issue for k in ['incorrect_term', 'correct_term', 'sentence']):
-                return textwrap.fill(
-                    f"    • Replace '{issue['incorrect_term']}' with '{issue['correct_term']}' in: "
-                    f"{issue['sentence']}",
-                    width=76,
-                    subsequent_indent='      '
-                )
-                
-            # Handle placeholder issues
-            elif 'placeholder' in issue:
-                return textwrap.fill(
-                    f"    • Found placeholder '{issue['placeholder']}' in: {issue.get('sentence', '')}",
-                    width=76,
-                    subsequent_indent='      '
-                )
-                
-            # Handle other dictionary formats
-            else:
-                message_parts = []
-                for k, v in issue.items():
-                    if k not in ['type', 'error']:
-                        if isinstance(v, list):
-                            if all(isinstance(item, dict) for item in v):
-                                # Handle list of dictionaries
-                                v_str = '; '.join(str(item.get('sentence', str(item))) for item in v[:7])
-                            else:
-                                # Handle list of strings
-                                v_str = ', '.join(str(item) for item in v[:7])
-                            message_parts.append(f"{k}: {v_str}")
+    def _format_caption_issues(self, issues: List[Dict], doc_type: str) -> List[str]:
+        """Format caption check issues with clear replacement instructions."""
+        formatted_issues = []
+        for issue in issues:
+            if 'incorrect_caption' in issue:
+                caption_parts = issue['incorrect_caption'].split()
+                if len(caption_parts) >= 2:
+                    caption_type = caption_parts[0]  # "Table" or "Figure"
+                    number = caption_parts[1]
+                    
+                    # Determine correct format based on document type
+                    if doc_type in ["Advisory Circular", "Order"]:
+                        if '-' not in number:
+                            correct_format = f"{caption_type} {number}-1"
+                    else:
+                        if '-' in number:
+                            correct_format = f"{caption_type} {number.split('-')[0]}"
                         else:
-                            message_parts.append(f"{k}: {v}")
-                return f"    • {'; '.join(message_parts)}"
+                            correct_format = issue['incorrect_caption']
+
+                    formatted_issues.append(
+                        f"    • Replace '{issue['incorrect_caption']}' with '{correct_format}'"
+                    )
+
+        return formatted_issues
+
+    def _format_reference_issues(self, result: DocumentCheckResult) -> List[str]:
+        """Format reference-related issues with clear replacement instructions."""
+        output = []
         
+        if result.issues:
+            for issue in result.issues:
+                if 'reference' in issue and 'correct_form' in issue:
+                    output.append(f"    • Replace '{issue['reference']}' with '{issue['correct_form']}'")
+
+        return output
+
+    def _format_standard_issue(self, issue: Dict[str, Any]) -> str:
+        """Format standard issues consistently."""
+        if isinstance(issue, str):
+            return f"    • {issue}"
+        
+        if 'incorrect_term' in issue and 'correct_term' in issue:
+            return f"    • Replace '{issue['incorrect_term']}' with '{issue['correct_term']}'"
+        
+        if 'sentence' in issue:
+            return f"    • {issue['sentence']}"
+        
+        if 'description' in issue:
+            return f"    • {issue['description']}"
+        
+        # Fallback for other issue formats
         return f"    • {str(issue)}"
 
+    def _format_unused_acronym_issues(self, result: DocumentCheckResult) -> List[str]:
+        """Format unused acronym issues with a simple, clear message.
+        
+        Args:
+            result: DocumentCheckResult containing acronym issues
+            
+        Returns:
+            List[str]: Formatted list of unused acronym issues
+        """
+        formatted_issues = []
+        
+        if result.issues:
+            for issue in result.issues:
+                if isinstance(issue, dict) and 'acronym' in issue:
+                    formatted_issues.append(f"    • Acronym '{issue['acronym']}' was defined but never used.")
+                elif isinstance(issue, str):
+                    # Handle case where issue might be just the acronym
+                    formatted_issues.append(f"    • Acronym '{issue}' was defined but never used.")
+    
+        return formatted_issues
+
+    def _format_parentheses_issues(self, result: DocumentCheckResult) -> List[str]:
+        """Format parentheses issues with clear instructions for fixing."""
+        formatted_issues = []
+        
+        if result.issues:
+            for issue in result.issues:
+                if issue['type'] == 'missing_opening':
+                    formatted_issues.append(
+                        f"    • Paragraph {issue['paragraph']}: {issue['message']}"
+                    )
+                elif issue['type'] == 'missing_closing':
+                    formatted_issues.append(
+                        f"    • Paragraph {issue['paragraph']}: {issue['message']}"
+                    )
+        
+        return formatted_issues
+
+    def _format_section_symbol_issues(self, result: DocumentCheckResult) -> List[str]:
+        """Format section symbol issues with clear replacement instructions."""
+        formatted_issues = []
+        
+        if result.issues:
+            for issue in result.issues:
+                if 'incorrect' in issue and 'correct' in issue:
+                    if issue.get('is_sentence_start'):
+                        formatted_issues.append(
+                            f"    • Do not begin sentences with the section symbol. "
+                            f"Replace '{issue['incorrect']}' with '{issue['correct']}' at the start of the sentence"
+                        )
+                    else:
+                        formatted_issues.append(
+                            f"    • Replace '{issue['incorrect']}' with '{issue['correct']}'"
+                        )
+        
+        return formatted_issues
     
     def format_results(self, results: Dict[str, Any], doc_type: str) -> str:
         """
@@ -2100,11 +2588,11 @@ class DocumentCheckResultsFormatter:
         Returns:
             str: Formatted report with consistent styling
         """
-         # Determine caption format based on document type
+        # Determine caption format based on document type
         if doc_type in ["Advisory Circular", "Order"]:
             table_format = {
                 'title': 'Table Caption Format Issues',
-                'description': 'Analyzes table captions to ensure they follow the FAA\'s dual-numbering system, where tables must be numbered according to their chapter or appendix location (X-Y format). The first number (X) indicates the chapter number, while the second number (Y) provides sequential numbering within that chapter. This system ensures clear cross-referencing and helps readers quickly locate tables within large documents.',
+                'description': 'Analyzes table captions to ensure they follow the FAA\'s dual-numbering system, where tables must be numbered according to their chapter or appendix location (X-Y format). The first number (X) indicates the chapter number, while the second number (Y) provides sequential numbering within that chapter. For more information, see FAA Order 1320.46.',
                 'solution': 'Use the format "Table X-Y" where X is the chapter or appendix number and Y is the sequence number',
                 'example_fix': {
                     'before': 'Table 5. | Table A.',
@@ -2113,7 +2601,7 @@ class DocumentCheckResultsFormatter:
             }
             figure_format = {
                 'title': 'Figure Caption Format Issues',
-                'description': 'Analyzes figure captions to ensure they follow the FAA\'s dual-numbering system, where figures must be numbered according to their chapter or appendix location (X-Y format). The first number (X) indicates the chapter number, while the second number (Y) provides sequential numbering within that chapter. This system allows precise figure references and maintains consistency with table numbering.',
+                'description': 'Analyzes figure captions to ensure they follow the FAA\'s dual-numbering system, where figures must be numbered according to their chapter or appendix location (X-Y format). The first number (X) indicates the chapter number, while the second number (Y) provides sequential numbering within that chapter. For more information, see FAA Order 1320.46.',
                 'solution': 'Use the format "Figure X-Y" where X is the chapter or appendix number and Y is the sequence number',
                 'example_fix': {
                     'before': 'Figure 5. | Figure A.',
@@ -2123,7 +2611,7 @@ class DocumentCheckResultsFormatter:
         else:
             table_format = {
                 'title': 'Table Caption Format Issues',
-                'description': f'Analyzes table captions to ensure they follow the FAA\'s sequential numbering system for {doc_type}s. Tables must be numbered consecutively throughout the document using a single-number format. This straightforward numbering system maintains document organization while facilitating clear references to specific tables.',
+                'description': f'Analyzes table captions to ensure they follow the FAA\'s sequential numbering system for {doc_type}s. Tables must be numbered consecutively throughout the document using a single number format.',
                 'solution': 'Use the format "Table X" where X is a sequential number',
                 'example_fix': {
                     'before': 'Table 5-1. | Table A-1',
@@ -2132,7 +2620,7 @@ class DocumentCheckResultsFormatter:
             }
             figure_format = {
                 'title': 'Figure Caption Format Issues',
-                'description': f'Analyzes figure captions to ensure they follow the FAA\'s sequential numbering system for {doc_type}s. Figures must be numbered consecutively throughout the document using a single-number format. This consistent numbering approach ensures clear figure identification and maintains parallel structure with table numbering.',
+                'description': f'Analyzes figure captions to ensure they follow the FAA\'s sequential numbering system for {doc_type}s. Figures must be numbered consecutively throughout the document using a single number format.',
                 'solution': 'Use the format "Figure X" where X is a sequential number',
                 'example_fix': {
                     'before': 'Figure 5-1. | Figure A-1.',
@@ -2150,7 +2638,7 @@ class DocumentCheckResultsFormatter:
                 "types": ["Advisory Circular"],
                 "italics": True, 
                 "quotes": False,
-                "description": "For Advisory Circulars, referenced document titles should be italicized but not quoted",
+                "description": "For Advisory Circulars, referenced document titles should be italicized but not quoted. For more information, see FAA Order 1320.46.",
                 "example": "See AC 25.1309-1B, <i>System Design and Analysis</i>, for information on X."
             },
             "quotes_only": {
@@ -2161,14 +2649,14 @@ class DocumentCheckResultsFormatter:
                 ],
                 "italics": False, 
                 "quotes": True,
-                "description": "For this document type, referenced document titles should be in quotes without italics",
+                "description": "For this document type, referenced document titles should be in quotes without italics.",
                 "example": 'See AC 25.1309-1B, "System Design and Analysis," for information on X.'
             },
             "no_formatting": {
                 "types": ["Policy Statement", "Other"],
                 "italics": False, 
                 "quotes": False,
-                "description": "For this document type, referenced document titles should not use italics or quotes",
+                "description": "For this document type, referenced document titles should not use italics or quotes.",
                 "example": "See AC 25.1309-1B, System Design and Analysis, for information on X."
             }
         }
@@ -2194,7 +2682,7 @@ class DocumentCheckResultsFormatter:
                 "No special formatting required"
             ),
             'example_fix': {
-                'before': 'See AC 20-135, Powerplant Installation for information on X.',
+                'before': 'See AC 25.1309-1B, System Design and Analysis, for information on X.',
                 'after': format_group['example']
             }
         }
@@ -2231,39 +2719,42 @@ class DocumentCheckResultsFormatter:
             if not result.success and check_name in self.issue_categories:
                 category = self.issue_categories[check_name]
                 
-                # Add extra line break before each category
                 output.append("\n")
-                
-                # Category Header
                 output.append(self._format_colored_text(f"■ {category['title']}", Fore.YELLOW))
                 output.append(f"  {category['description']}")
                 output.append(f"  {self._format_colored_text('How to fix: ' + category['solution'], Fore.GREEN)}")
                         
-                # Example Fix
                 output.append(f"\n  {self._format_colored_text('Example Fix:', Fore.CYAN)}")
                 output.extend(self._format_example(category['example_fix']))
-                output.append("")  # Add blank line after example
+                output.append("")
                 
-                # Actual Issues Found
                 output.append(f"  {self._format_colored_text('Issues found in your document:', Fore.CYAN)}")
                 
-                if check_name == 'heading_title_check':
+                # Special handling for date format issues
+                if check_name == 'date_formats_check':
+                    for issue in result.issues:
+                        output.append(f"    • Replace '{issue['incorrect']}' with '{issue['correct']}'")
+                # Handle other check types
+                elif check_name == 'heading_title_check':
                     output.extend(self._format_heading_issues(result, doc_type))
                 elif check_name == 'heading_title_period_check':
                     output.extend(self._format_period_issues(result))
                 elif check_name == 'table_figure_reference_check':
                     output.extend(self._format_reference_issues(result))
                 elif check_name in ['caption_check_table', 'caption_check_figure']:
-                    output.extend(self._format_caption_issues(result))
+                    output.extend(self._format_caption_issues(result.issues, doc_type))
                 elif check_name == 'acronym_usage_check':
                     output.extend(self._format_unused_acronym_issues(result))
+                elif check_name == 'section_symbol_usage_check':
+                    output.extend(self._format_section_symbol_issues(result))
+                elif check_name == 'parentheses_check':
+                    output.extend(self._format_parentheses_issues(result))
                 else:
-                    # Standard issue formatting
-                    formatted_issues = [self._format_standard_issue(issue) for issue in result.issues[:7]]
+                    formatted_issues = [self._format_standard_issue(issue) for issue in result.issues[:10]]
                     output.extend(formatted_issues)
                     
-                    if len(result.issues) > 7:
-                        output.append(f"\n    ... and {len(result.issues) - 7} more similar issues.")
+                    if len(result.issues) > 10:
+                        output.append(f"\n    ... and {len(result.issues) - 10} more similar issues.")
         
         # Summary and Next Steps
         output.append(f"\n{Fore.CYAN}{'='*80}")
@@ -2729,7 +3220,8 @@ def create_interface():
             - This tool helps ensure compliance with federal documentation standards
             - Results are based on current style guides and FAA requirements
             - The tool provides suggestions but final editorial decisions rest with the document author
-            - For questions or feedback, contact Eric Putnam
+            - For questions or feedback on the FAA documentation standards, contact the AIR-646 Senior Technical Writers
+            - For questions or feedback on the tool, contact Eric Putnam
             - Results are not stored or saved
             """
         )
