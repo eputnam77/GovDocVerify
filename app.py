@@ -2788,6 +2788,28 @@ def create_interface():
             - Results are not stored or saved
             """
         )
+        
+        # Define the function to read the README content
+        def open_readme():
+            readme_path = "README.md"
+            with open(readme_path, "r", encoding="utf-8") as file:
+                readme_content = file.read()
+            return readme_content
+
+        # Add a Markdown component to display the README content
+        readme_output = gr.Markdown()
+
+        # Modify the Help button to toggle the README content
+        def toggle_readme():
+            if readme_output.visible:
+                readme_output.visible = False
+                return ""
+            else:
+                readme_output.visible = True
+                return open_readme()
+
+        help_button = gr.Button("❓ Help")
+        help_button.click(fn=toggle_readme, outputs=readme_output)
     
     return demo
 
