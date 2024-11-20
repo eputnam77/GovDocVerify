@@ -25,87 +25,6 @@ DEFAULT_HOST = "0.0.0.0"
 DEFAULT_LOG_FORMAT = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 DEFAULT_LOG_LEVEL = "INFO"
 
-# Document Type Constants
-DOCUMENT_TYPES = [
-    "Advisory Circular",
-    "Airworthiness Criteria",
-    "Deviation Memo",
-    "Exemption",
-    "Federal Register Notice",
-    "Order",
-    "Policy Statement",
-    "Rule",
-    "Special Condition",
-    "Technical Standard Order",
-    "Other"
-]
-
-TEMPLATE_TYPES = ["Short AC template AC", "Long AC template AC"]
-
-HEADING_WORDS = {
-    'APPLICABILITY', 'APPENDIX', 'AUTHORITY', 'BACKGROUND', 'CANCELLATION', 'CAUTION',
-    'CHAPTER', 'CONCLUSION', 'DEPARTMENT', 'DEFINITION', 'DEFINITIONS', 'DISCUSSION',
-    'DISTRIBUTION', 'EXCEPTION', 'EXPLANATION', 'FIGURE', 'GENERAL', 'GROUPS', 
-    'INFORMATION', 'INSERT', 'INTRODUCTION', 'MATERIAL', 'NOTE', 'PARTS', 'PAST', 
-    'POLICY', 'PRACTICE', 'PROCEDURES', 'PURPOSE', 'RELEVANT', 'RELATED', 
-    'REQUIREMENTS', 'SCOPE', 'SECTION', 'SUMMARY', 'TABLE', 'WARNING'
-    }
-    
-PREDEFINED_ACRONYMS = {
-    'AGC', 'AIR', 'CFR', 'DC', 'DOT', 'FAA IR-M', 'FAQ', 'i.e.', 'e.g.', 'MA',
-    'MD', 'MIL', 'MO', 'No.', 'PDF', 'SSN', 'TX', 'U.S.', 'U.S.C.', 'USA', 'US', 
-    'WA', 'ZIP'
-    }
-
-# Configuration Constants
-REQUIRED_CONFIG_KEYS = {'logging', 'checks', 'document_types'}
-REQUIRED_LOGGING_KEYS = {'level', 'format'}
-REQUIRED_CHECKS_KEYS = {'acronyms', 'terminology_check', 'headings'}
-
-# Document Type Period Requirements
-PERIOD_REQUIRED = {
-    "Advisory Circular": True,
-    "Airworthiness Criteria": False,
-    "Deviation Memo": False,
-    "Exemption": False,
-    "Federal Register Notice": False,
-    "Order": True,
-    "Policy Statement": False,
-    "Rule": False,
-    "Special Condition": False,
-    "Technical Standard Order": True,
-    "Other": False
-}
-
-# Document formatting rules
-DOCUMENT_FORMATTING_RULES = {
-    "italics_only": {
-        "types": ["Advisory Circular"],
-        "italics": True, 
-        "quotes": False,
-        "description": "For Advisory Circulars, referenced document titles should be italicized but not quoted.",
-        "example": "See AC 25.1309-1B, <i>System Design and Analysis</i>, for information on X."
-    },
-    "quotes_only": {
-        "types": [
-            "Airworthiness Criteria", "Deviation Memo", "Exemption", 
-            "Federal Register Notice", "Order", "Rule", "Special Condition", 
-            "Technical Standard Order"
-        ],
-        "italics": False, 
-        "quotes": True,
-        "description": "For this document type, referenced document titles should be in quotes without italics.",
-        "example": 'See AC 25.1309-1B, "System Design and Analysis," for information on X.'
-    },
-    "no_formatting": {
-        "types": ["Policy Statement", "Other"],
-        "italics": False, 
-        "quotes": False,
-        "description": "For this document type, referenced document titles should not use italics or quotes.",
-        "example": "See AC 25.1309-1B, System Design and Analysis, for information on X."
-    }
-}
-
 # 1. Base Exception Classes
 class DocumentCheckError(Exception):
     """Base exception for document checker errors."""
@@ -127,6 +46,7 @@ class PatternConfig:
     description: str
     is_error: bool
     replacement: Optional[str] = None
+    keep_together: bool = False
     
     def compile(self) -> Pattern:
         """Compile the pattern."""
@@ -157,7 +77,7 @@ class DocumentType(Enum):
         except KeyError:
             raise DocumentTypeError(f"Unsupported document type: {doc_type}")
 
-# 4. Utility Classes
+# 3. Utility Classes
 @dataclass
 class TextNormalization:
     """Text normalization utilities."""
@@ -178,39 +98,21 @@ class TextNormalization:
         """Normalize document type string."""
         return ' '.join(word.capitalize() for word in doc_type.lower().split())
 
-# 5. Result Class
+# 4. Result Class
 @dataclass
 class DocumentCheckResult:
-    """Structured result for document checks."""
     success: bool
     issues: List[Dict[str, Any]]
     details: Optional[Dict[str, Any]] = None
 
-# 6. Base Document Checker
+# 5. Base Document Checker
 class DocumentChecker:
-    """Base class for document checking with comprehensive configuration and logging."""
-
     def __init__(self, config_path: Optional[str] = None):
-        """
-        Initialize DocumentChecker with optional configuration.
-
-        Args:
-            config_path (str, optional): Path to configuration file.
-        """
         self.config_manager = DocumentCheckerConfig(config_path)
         self.logger = self.config_manager.logger
 
     @classmethod
     def extract_paragraphs(cls, doc_path: str) -> List[str]:
-        """
-        Extract plain text paragraphs from a document.
-
-        Args:
-            doc_path (str): Path to the document.
-
-        Returns:
-            List[str]: List of paragraph texts.
-        """
         try:
             doc = Document(doc_path)
             return [para.text for para in doc.paragraphs if para.text.strip()]
@@ -220,20 +122,10 @@ class DocumentChecker:
 
     @staticmethod
     def validate_input(doc: List[str]) -> bool:
-        """
-        Validate input document.
-
-        Args:
-            doc (List[str]): List of paragraphs.
-
-        Returns:
-            bool: Whether input is valid.
-        """
         return doc is not None and isinstance(doc, list) and len(doc) > 0
 
-# 7. Configuration Manager
+# 6. Configuration Manager
 class DocumentCheckerConfig:
-    """Configuration management for document checks."""
     
     REQUIRED_CONFIG_KEYS = {'logging', 'checks', 'document_types'}
     REQUIRED_LOGGING_KEYS = {'level', 'format'}
@@ -243,8 +135,8 @@ class DocumentCheckerConfig:
         """Initialize configuration with optional config file."""
         self.default_config = {
             "logging": {
-                "level": DEFAULT_LOG_LEVEL,  # Use constant defined at top
-                "format": DEFAULT_LOG_FORMAT  # Use constant defined at top
+                "level": "INFO",
+                "format": "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
             },
             "checks": {
                 "acronyms": True,
@@ -448,7 +340,7 @@ class DocumentCheckerConfig:
         Returns:
             Dict[str, List[PatternConfig]]: Dictionary of pattern configurations by category
         """
-        return {
+        patterns = {
             'terminology': [
                 PatternConfig(
                     pattern=r'\btitle 14 of the Code of Federal Regulations \(14 CFR\)\b',
@@ -697,8 +589,21 @@ class DocumentCheckerConfig:
                     description="Figure reference at start of sentence should be capitalized",
                     is_error=True
                 )
+            ],
+            'parentheses': [
+                PatternConfig(
+                    pattern=r'\([^)]*$',  # Finds opening parenthesis without closing
+                    description="Missing closing parenthesis",
+                    is_error=True
+                ),
+                PatternConfig(
+                    pattern=r'[^(]*\)',  # Finds closing parenthesis without opening
+                    description="Missing opening parenthesis",
+                    is_error=True
+                )
             ]
         }
+        return patterns
 
 def profile_performance(func):
     """Decorator to profile function performance."""
@@ -718,14 +623,64 @@ def profile_performance(func):
 # 8. FAA Document Checker
 class FAADocumentChecker(DocumentChecker):
     """Document checker implementation for FAA documents."""
+    
+    # Class Constants
+    PERIOD_REQUIRED = {
+        DocumentType.ADVISORY_CIRCULAR: True,
+        DocumentType.AIRWORTHINESS_CRITERIA: False,
+        DocumentType.DEVIATION_MEMO: False,
+        DocumentType.EXEMPTION: False,
+        DocumentType.FEDERAL_REGISTER_NOTICE: False,
+        DocumentType.ORDER: True,
+        DocumentType.POLICY_STATEMENT: False,
+        DocumentType.RULE: False,
+        DocumentType.SPECIAL_CONDITION: False,
+        DocumentType.TECHNICAL_STANDARD_ORDER: True,
+        DocumentType.OTHER: False
+    }
+    
+    HEADING_WORDS = {
+        'APPLICABILITY', 'APPENDIX', 'AUTHORITY', 'BACKGROUND', 'CANCELLATION', 'CAUTION',
+        'CHAPTER', 'CONCLUSION', 'DEPARTMENT', 'DEFINITION', 'DEFINITIONS', 'DISCUSSION',
+        'DISTRIBUTION', 'EXCEPTION', 'EXPLANATION', 'FIGURE', 'GENERAL', 'GROUPS', 
+        'INFORMATION', 'INSERT', 'INTRODUCTION', 'MATERIAL', 'NOTE', 'PARTS', 'PAST', 
+        'POLICY', 'PRACTICE', 'PROCEDURES', 'PURPOSE', 'RELEVANT', 'RELATED', 
+        'REQUIREMENTS', 'SCOPE', 'SECTION', 'SUMMARY', 'TABLE', 'WARNING'
+    }
+    
+    PREDEFINED_ACRONYMS = {
+        'AGC', 'AIR', 'CFR', 'DC', 'DOT', 'FAA IR-M', 'FAQ', 'i.e.', 'e.g.', 'MA',
+        'MD', 'MIL', 'MO', 'No.', 'PDF', 'SSN', 'TX', 'U.S.', 'U.S.C.', 'USA', 'US', 
+        'WA', 'ZIP'
+    }
 
     # Constructor
     def __init__(self, config_path: Optional[str] = None):
         super().__init__(config_path)
-        self.HEADING_WORDS = HEADING_WORDS
-        self.PREDEFINED_ACRONYMS = PREDEFINED_ACRONYMS
 
-    # Core Check Methods
+    def _get_doc_type_config(self, doc_type: str) -> Tuple[Dict[str, Any], bool]:
+        """
+        Get document type configuration and validate document type.
+        
+        Args:
+            doc_type: Type of document being checked
+            
+        Returns:
+            Tuple containing:
+                - Document type configuration dictionary
+                - Boolean indicating if document type is valid
+                
+        Raises:
+            DocumentTypeError: If document type is invalid
+        """
+        # Validate document type
+        doc_type_config = self.config_manager.config['document_types'].get(doc_type)
+        if not doc_type_config:
+            self.logger.error(f"Unsupported document type: {doc_type}")
+            raise DocumentTypeError(f'Unsupported document type: {doc_type}')
+            
+        return doc_type_config, True
+
     @profile_performance
     def heading_title_check(self, doc: List[str], doc_type: str) -> DocumentCheckResult:
         if not self.validate_input(doc):
@@ -804,7 +759,6 @@ class FAADocumentChecker(DocumentChecker):
         }
 
         return DocumentCheckResult(success=success, issues=issues, details=details)
-
 
     @profile_performance
     def heading_title_period_check(self, doc: List[str], doc_type: str) -> DocumentCheckResult:
@@ -1069,7 +1023,7 @@ class FAADocumentChecker(DocumentChecker):
         success = len(unused_acronyms) == 0
 
         return DocumentCheckResult(success=success, issues=unused_acronyms)
-    
+
     @profile_performance
     def check_terminology(self, doc: List[str]) -> DocumentCheckResult:
         """Check document terminology and output only unique term replacements needed."""
@@ -1434,7 +1388,7 @@ class FAADocumentChecker(DocumentChecker):
                     )
         
         return formatted_issues
-    
+
     @profile_performance
     def check_abbreviation_usage(self, doc: List[str]) -> DocumentCheckResult:
         """Check for abbreviation consistency after first definition."""
@@ -1669,7 +1623,7 @@ class FAADocumentChecker(DocumentChecker):
         ]
 
         return DocumentCheckResult(success=len(formatted_issues) == 0, issues=formatted_issues)
-    
+
     def run_all_checks(self, doc_path: str, doc_type: str, template_type: Optional[str] = None) -> Dict[str, DocumentCheckResult]:
         """
         Run all checks on the document.
@@ -1795,7 +1749,7 @@ class FAADocumentChecker(DocumentChecker):
                     continue
                 sentences.append((sentence, paragraph))
                 
-        return sentences
+        return sentences  
 
     @profile_performance
     def check_parentheses(self, doc: List[str]) -> DocumentCheckResult:
@@ -1887,66 +1841,23 @@ class FAADocumentChecker(DocumentChecker):
         return DocumentCheckResult(success=len(issues) == 0, issues=issues)
 
     def _format_spacing_issues(self, result: DocumentCheckResult) -> List[str]:
-            """Format spacing issues with clear instructions for fixing."""
-            formatted_issues = []
-            
-            if result.issues:
-                for issue in result.issues:
-                    if 'error' in issue:
-                        formatted_issues.append(f"    • {issue['error']}")
-                    else:
-                        formatted_issues.append(
-                            f"    • {issue['description']} in: \"{issue['context']}\""
-                        )
-            
-            return formatted_issues
-    
-    @profile_performance
-    def check_abbreviation_usage(self, doc: List[str]) -> DocumentCheckResult:
-        """Check for abbreviation consistency after first definition."""
-        if not self.validate_input(doc):
-            return DocumentCheckResult(success=False, issues=[{'error': 'Invalid document input'}])
-
-        # Track abbreviations and their usage
-        abbreviations = {}  # Store defined abbreviations
-        inconsistent_uses = []  # Track full term usage after definition
-
-        def process_sentence(sentence: str) -> None:
-            """Process a single sentence for abbreviation usage."""
-            for acronym, data in abbreviations.items():
-                full_term = data["full_term"]
-                if full_term not in sentence:
-                    continue
-                    
-                # Skip if this is the definition sentence
-                if sentence.strip() == data["first_occurrence"]:
-                    continue
-                    
-                # Track inconsistent usage
-                if not data["defined"]:
-                    inconsistent_uses.append({
-                        'issue_type': 'full_term_after_acronym',
-                        'full_term': full_term,
-                        'acronym': acronym,
-                        'sentence': sentence.strip(),
-                        'definition_context': data["first_occurrence"]
-                    })
-                data["defined"] = False  # Mark as used
-
-        # Process each paragraph
-        for paragraph in doc:
-            sentences = re.split(r'(?<=[.!?])\s+', paragraph)
-            for sentence in sentences:
-                process_sentence(sentence.strip())
-
-        success = len(inconsistent_uses) == 0
-        return DocumentCheckResult(success=success, issues=inconsistent_uses)
+        """Format spacing issues with clear instructions for fixing."""
+        formatted_issues = []
+        
+        if result.issues:
+            for issue in result.issues:
+                if 'error' in issue:
+                    formatted_issues.append(f"    • {issue['error']}")
+                else:
+                    formatted_issues.append(
+                        f"    • {issue['description']} in: \"{issue['context']}\""
+                    )
+        
+        return formatted_issues
 
 class DocumentCheckResultsFormatter:
-    """Formats document check results in a user-friendly way with detailed examples and fixes."""
     
     def __init__(self):
-        """Initialize the formatter with colorama for cross-platform color support."""
         init()  # Initialize colorama
         
         # Enhanced issue categories with examples and specific fixes
@@ -2104,7 +2015,7 @@ class DocumentCheckResultsFormatter:
                 for heading in unexpected:
                     output.append(f"    • {heading}")
         
-        return output 
+        return output
 
     def _format_period_issues(self, result: DocumentCheckResult) -> List[str]:
         """Format period check issues consistently."""
@@ -2224,7 +2135,7 @@ class DocumentCheckResultsFormatter:
                         )
         
         return formatted_issues
-    
+
     def format_results(self, results: Dict[str, Any], doc_type: str) -> str:
         """
         Format check results into a detailed, user-friendly report.
@@ -2427,6 +2338,7 @@ class DocumentCheckResultsFormatter:
 def process_document(file_obj, doc_type: str, template_type: Optional[str] = None) -> str:
     """Process document and run all checks."""
     try:
+        print(f"Processing document at {time.time()}")  # Debug print
         checker = FAADocumentChecker()
         
         if isinstance(file_obj, bytes):
@@ -2513,22 +2425,6 @@ def format_markdown_results(results: Dict[str, DocumentCheckResult], doc_type: s
                     output.append(f"\n*...and {len(result.issues) - 5} more similar issues*")
             
             output.append("")
-
-    output.extend([
-        "## 📋 Summary and Recommendations",
-        "",
-        "### Priority Order for Fixes:",
-        "1. 🔴 Critical: Heading formats, required content, and document structure",
-        "2. 🟡 Important: Terminology, acronyms, and references",
-        "3. 🟢 Standard: Formatting, spacing, and style consistency",
-        "",
-        "### Next Steps:",
-        "1. Address issues in priority order",
-        "2. Use search/replace for consistent fixes",
-        "3. Re-run checker after making changes",
-        "4. Update your document template if needed",
-        ""
-    ])
 
     return "\n".join(output)
 
@@ -2897,12 +2793,6 @@ def create_interface():
 
 # Initialize and launch the interface
 if __name__ == "__main__":
-    # Setup logging
-    logging.basicConfig(
-        level=logging.INFO,
-        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-    )
-        
     # Create and launch the interface
     demo = create_interface()
     demo.launch(
