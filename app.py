@@ -13,11 +13,13 @@ from typing import Dict, List, Any, Tuple, Optional, Pattern, Callable
 from dataclasses import dataclass
 from functools import wraps
 from abc import ABC, abstractmethod
+# import tempfile  # For creating temporary files
 
 # Third-party imports
 import gradio as gr
 from docx import Document
 from colorama import init, Fore, Style
+# from weasyprint import HTML  # PDF generation related import
 
 # Constants
 DEFAULT_PORT = 7860
@@ -353,6 +355,21 @@ class DocumentCheckerConfig:
                     is_error=False
                 ),
                 PatternConfig(
+                    pattern=r'\btitle 49 of the United States Code \(49 U.S.C.\)\b',
+                    description="Ignore 'title 49 of the United States Code (49 U.S.C.)'",
+                    is_error=False
+                ),
+                PatternConfig(
+                    pattern=r'\btitle 49, United States Code \(49 U.S.C.\)\b',
+                    description="Ignore 'title 49, United States Code (49 U.S.C.)'",
+                    is_error=False
+                ),
+                PatternConfig(
+                    pattern=r'\bAD Compliance Team \(AD CRT\)\b',
+                    description="Ignore 'AD Compliance Team (AD CRT)'",
+                    is_error=False
+                ),
+                PatternConfig(
                     pattern=r'\bUSC\b',
                     description="USC should be U.S.C.", # Per GPO Style Manual
                     is_error=True,
@@ -651,7 +668,7 @@ class FAADocumentChecker(DocumentChecker):
     PREDEFINED_ACRONYMS = {
         'AGC', 'AIR', 'CFR', 'DC', 'DOT', 'FAA IR-M', 'FAQ', 'i.e.', 'e.g.', 'MA',
         'MD', 'MIL', 'MO', 'No.', 'PDF', 'SSN', 'TX', 'U.S.', 'U.S.C.', 'USA', 'US', 
-        'WA', 'ZIP'
+        'WA', 'XX', 'ZIP'
     }
 
     # Constructor
@@ -1071,48 +1088,47 @@ class FAADocumentChecker(DocumentChecker):
         if not self.validate_input(doc):
             return DocumentCheckResult(success=False, issues=[{'error': 'Invalid document input'}])
 
-        section_patterns = self.config_manager.pattern_registry.get('section_symbol', [])
         issues = []
-
+        
         for paragraph in doc:
             sentences = re.split(r'(?<=[.!?])\s+', paragraph.strip())
             
             for sentence in sentences:
                 sentence = sentence.strip()
-                for pattern_config in section_patterns:
-                    compiled_pattern = re.compile(pattern_config.pattern)
+                
+                # Check 14 CFR citations only
+                cfr_matches = re.finditer(r'\b14 CFR §\s*(\d+\.\d+)\b', sentence)
+                for match in cfr_matches:
+                    # Skip if this is part of a U.S.C. citation
+                    if not re.search(r'U\.S\.C\.\s*§', sentence):
+                        full_match = match.group(0)
+                        section_num = match.group(1)
+                        issues.append({
+                            'incorrect': full_match,
+                            'correct': f'14 CFR {section_num}',
+                            'description': f"Replace '{full_match}' with '14 CFR {section_num}'"
+                        })
 
-                    if pattern_config.pattern == r'^§':  # Start of sentence with § symbol
-                        if compiled_pattern.match(sentence):
-                            section_ref = sentence.split()[0]  # Get the first word (§XX.XX)
-                            issues.append({
-                                'incorrect': section_ref,
-                                'correct': f"Section {section_ref.lstrip('§')}",
-                                'is_sentence_start': True  # Flag to indicate sentence start issue
-                            })
+                # Skip any checks for sections that are part of U.S.C. citations
+                if re.search(r'U\.S\.C\.\s*(?:§|§§)', sentence):
+                    continue
 
-                    elif pattern_config.pattern == r'\b14 CFR §\s*\d+\.\d+\b':  # 14 CFR § format
-                        matches = compiled_pattern.finditer(sentence)
-                        for match in matches:
-                            incorrect = match.group()
-                            # Remove § symbol without adding 'Section'
-                            correct = incorrect.replace('§ ', '')
-                            issues.append({
-                                'incorrect': incorrect,
-                                'correct': correct
-                            })
+                # Skip any checks for sections that are part of 14 CFR citations
+                if re.search(r'14 CFR\s*§', sentence):
+                    continue
 
-                    elif '§' in sentence:
-                        matches = compiled_pattern.finditer(sentence)
-                        for match in matches:
-                            incorrect = match.group()
-                            correct = incorrect.replace('§', 'Section')
-                            issues.append({
-                                'incorrect': incorrect,
-                                'correct': correct
-                            })
+                # Check section symbol at start of sentence
+                if sentence.startswith('§'):
+                    match = re.match(r'^§\s*(\d+(?:\.\d+)?)', sentence)
+                    if match:
+                        section_num = match.group(1)
+                        issues.append({
+                            'incorrect': f'§ {section_num}',
+                            'correct': f'Section {section_num}',
+                            'description': f"Replace '§ {section_num}' with 'Section {section_num}'"
+                        })
 
-        return DocumentCheckResult(success=not issues, issues=issues)
+        return DocumentCheckResult(success=len(issues) == 0, issues=issues)
 
     @profile_performance
     def caption_check(self, doc: List[str], doc_type: str, caption_type: str) -> DocumentCheckResult:
@@ -2651,166 +2667,172 @@ def create_interface():
         
         return full_html
 
-    with gr.Blocks() as demo:
-        gr.Markdown(
-            """
-            # 📑 FAA Document Checker Tool
-            
-            ## Purpose
-            
-            This tool checks Word documents for compliance with U.S. federal documentation standards and guidelines, including:
-            
-            - GPO Style Manual requirements
-
-            - Federal Register Document Drafting Handbook guidelines
-
-            - FAA Orders
-
-            - Plain Language Guidelines per Plain Writing Act of 2010
-
-            - Chicago Manual of Style
-            
-            ## Validation Checks Include
-
-            - Required heading structure and organization
-
-            - Standard terminology usage
-            
-            - Proper acronym definitions and usage
-
-            - Correct formatting of citations and references
-
-            - Consistent date and number formats
-
-            - Table and figure caption formatting
-
-            - Section symbol usage
-
-            - Spacing and punctuation
-
-            - Placeholder content detection
-
-            
-            ## How to Use
-
-            1. Upload your Word document (.docx format)
-
-            2. Select the document type
-
-            3. Click "Check Document"
-            
-            > **Note:** Please ensure your document is clean (no track changes or comments)
-            """
-        )
-        
-        with gr.Row():
-            with gr.Column(scale=1):
-                file_input = gr.File(
-                    label="📎 Upload Word Document (.docx)",
-                    file_types=[".docx"],
-                    type="binary"
-                )
-                
-                doc_type = gr.Dropdown(
-                    choices=document_types,
-                    label="📋 Document Type",
-                    value="Advisory Circular",
-                    info="Select the type of document you're checking"
-                )
-                
-                template_type = gr.Radio(
-                    choices=template_types,
-                    label="📑 Template Type",
-                    visible=False,
-                    info="Only applicable for Advisory Circulars"
-                )
-                
-                submit_btn = gr.Button(
-                    "🔍 Check Document",
-                    variant="primary"
-                )
-            
-            with gr.Column(scale=2):
-                results = gr.HTML()
-        
-        def process_and_format(file_obj, doc_type, template_type):
-            """Process document and format results as HTML."""
-            try:
-                # Get text results from original process_document function
-                checker = FAADocumentChecker()
-                if isinstance(file_obj, bytes):
-                    file_obj = io.BytesIO(file_obj)
-                results = checker.run_all_checks(file_obj, doc_type, template_type)
-                
-                # Format results using DocumentCheckResultsFormatter
-                formatter = DocumentCheckResultsFormatter()
-                text_results = formatter.format_results(results, doc_type)
-                
-                # Convert to HTML
-                return format_results_as_html(text_results)
-                
-            except Exception as e:
-                logging.error(f"Error processing document: {str(e)}")
-                traceback.print_exc()
-                return f"""
-                    <div style="color: red; padding: 1rem;">
-                        ❌ Error processing document: {str(e)}
-                        <br><br>
-                        Please ensure the file is a valid .docx document and try again.
-                    </div>
-                """
-        
-        # Update template type visibility based on document type
-        def update_template_visibility(doc_type):
-            return gr.update(visible=doc_type == "Advisory Circular")
-        
-        doc_type.change(
-            fn=update_template_visibility,
-            inputs=[doc_type],
-            outputs=[template_type]
-        )
-        
-        # Handle document processing
-        submit_btn.click(
-            fn=process_and_format,
-            inputs=[file_input, doc_type, template_type],
-            outputs=[results]
-        )
-        
-        gr.Markdown(
-            """
-            ### 📌 Important Notes
-            - This tool helps ensure compliance with federal documentation standards
-            - Results are based on current style guides and FAA requirements
-            - The tool provides suggestions but final editorial decisions rest with the document author
-            - For questions or feedback on the FAA documentation standards, contact the AIR-646 Senior Technical Writers
-            - For questions or feedback on the tool, contact Eric Putnam
-            - Results are not stored or saved
-            """
-        )
-        
-        # Define the function to read the README content
-        def open_readme():
-            readme_path = "README.md"
+    # Define the function to read the README content
+    def get_readme_content():
+        readme_path = "README.md"
+        try:
             with open(readme_path, "r", encoding="utf-8") as file:
                 readme_content = file.read()
             return readme_content
-
-        # Add a Markdown component to display the README content
-        readme_output = gr.Markdown()
-
-        # Modify the Help button to toggle the README content
-        def toggle_readme():
-            if readme_output.visible:
-                readme_output.visible = False
-                return ""
-            else:
-                readme_output.visible = True
-                return open_readme()
-
-        help_button = gr.Button("❓ Help")
-        help_button.click(fn=toggle_readme, outputs=readme_output)
+        except Exception as e:
+            logging.error(f"Error reading README.md: {str(e)}")
+            return "Error loading help content."
     
+    with gr.Blocks() as demo:
+        with gr.Tabs():
+            with gr.Tab("Document Checker"):
+                gr.Markdown(
+                    """
+                # 📑 FAA Document Checker Tool
+
+                This tool performs **15 validation checks** on Word documents to ensure compliance with U.S. federal documentation standards. See the About tab for more information.
+
+                ## How to Use
+
+                1. Upload your Word document (`.docx` format).
+                2. Select the document type.
+                3. Click **Check Document**.
+
+                > **Note:** Please ensure your document is clean (no track changes or comments).
+                """
+                )
+                
+                with gr.Row():
+                    with gr.Column(scale=1):
+                        file_input = gr.File(
+                            label="📎 Upload Word Document (.docx)",
+                            file_types=[".docx"],
+                            type="binary"
+                        )
+                        
+                        doc_type = gr.Dropdown(
+                            choices=document_types,
+                            label="📋 Document Type",
+                            value="Advisory Circular",
+                            info="Select the type of document you're checking"
+                        )
+                        
+                        template_type = gr.Radio(
+                            choices=template_types,
+                            label="📑 Template Type",
+                            visible=False,
+                            info="Only applicable for Advisory Circulars"
+                        )
+                        
+                        submit_btn = gr.Button(
+                            "🔍 Check Document",
+                            variant="primary"
+                        )
+                    
+                    with gr.Column(scale=2):
+                        results = gr.HTML()
+                
+                # Download button
+                # with gr.Row():
+                #     download_btn = gr.Button(
+                #         "⬇️ Download Results as PDF",
+                #         variant="secondary",
+                #         visible=False
+                #     )
+                #
+                #     pdf_file = gr.File(
+                #         label="Download PDF",
+                #         visible=False,
+                #         interactive=False,
+                #         file_types=[".pdf"]
+                #     )
+                
+                def process_and_format(file_obj, doc_type_value, template_type_value):
+                    """Process document and format results as HTML."""
+                    try:
+                        # Get text results from your original process_document function
+                        checker = FAADocumentChecker()
+                        if isinstance(file_obj, bytes):
+                            file_obj = io.BytesIO(file_obj)
+                        results_data = checker.run_all_checks(file_obj, doc_type_value, template_type_value)
+                        
+                        # Format results using DocumentCheckResultsFormatter
+                        formatter = DocumentCheckResultsFormatter()
+                        text_results = formatter.format_results(results_data, doc_type_value)
+
+                        # Convert to HTML
+                        html_results = format_results_as_html(text_results)
+
+                        # Return only the HTML results
+                        return html_results
+                        
+                    except Exception as e:
+                        logging.error(f"Error processing document: {str(e)}")
+                        traceback.print_exc()
+                        error_html = f"""
+                            <div style="color: red; padding: 1rem;">
+                                ❌ Error processing document: {str(e)}
+                                <br><br>
+                                Please ensure the file is a valid .docx document and try again.
+                            </div>
+                        """
+                        return error_html
+                
+                # Update template type visibility based on document type
+                def update_template_visibility(doc_type_value):
+                    if doc_type_value == "Advisory Circular":
+                        return gr.update(visible=True)
+                    else:
+                        return gr.update(visible=False)
+
+                doc_type.change(
+                    fn=update_template_visibility,
+                    inputs=[doc_type],
+                    outputs=[template_type]
+                )
+
+                # Handle document processing
+                submit_btn.click(
+                    fn=process_and_format,
+                    inputs=[file_input, doc_type, template_type],
+                    outputs=[results]  # Only output the results
+                )
+
+                # Function to generate PDF and provide it for download
+                # def generate_pdf(html_content):
+                #     try:
+                #         # Use a temporary file to store the PDF
+                #         with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp_pdf:
+                #             # Convert HTML to PDF using WeasyPrint
+                #             HTML(string=html_content, base_url='.').write_pdf(tmp_pdf.name)
+                #
+                #         # Return the path to the PDF file
+                #         return gr.update(value=tmp_pdf.name, visible=True)
+                #     except Exception as e:
+                #         logging.error(f"Error generating PDF with WeasyPrint: {str(e)}")
+                #         traceback.print_exc()
+                #         return gr.update(value=None, visible=False)
+
+
+                # When the download button is clicked, generate the PDF
+                # download_btn.click(
+                #     fn=generate_pdf,
+                #     inputs=[results],
+                #     outputs=[pdf_file]
+                # )
+
+                
+                gr.Markdown(
+                    """
+                    ### 📌 Important Notes
+                    - This tool helps ensure compliance with federal documentation standards
+                    - Results are based on current style guides and FAA requirements
+                    - The tool provides suggestions but final editorial decisions rest with the document author
+                    - For questions or feedback on the FAA documentation standards, contact the AIR-646 Senior Technical Writers
+                    - For questions or feedback on the tool, contact Eric Putnam
+                    - Results are not stored or saved
+                    """
+                )
+            
+            with gr.Tab("About"):
+                readme_content = get_readme_content()
+                gr.Markdown(readme_content)
+
     return demo
 
 # Initialize and launch the interface
