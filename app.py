@@ -1680,7 +1680,8 @@ class FAADocumentChecker(DocumentChecker):
             ('abbreviation_usage_check', lambda: self.check_abbreviation_usage(doc)),
             ('date_formats_check', lambda: self.check_date_formats(doc)),
             ('placeholders_check', lambda: self.check_placeholders(doc)),
-            ('parentheses_check', lambda: self.check_parentheses(doc))
+            ('parentheses_check', lambda: self.check_parentheses(doc)),
+            ('paragraph_length_check', lambda: self.check_paragraph_length(doc)),
         ]
 
         # Run each check and store results
@@ -1871,6 +1872,284 @@ class FAADocumentChecker(DocumentChecker):
         
         return formatted_issues
 
+    @profile_performance
+    def check_abbreviation_usage(self, doc: List[str]) -> DocumentCheckResult:
+        """Check for abbreviation consistency after first definition."""
+        if not self.validate_input(doc):
+            return DocumentCheckResult(success=False, issues=[{'error': 'Invalid document input'}])
+
+        # Track abbreviations and their usage
+        abbreviations = {}  # Store defined abbreviations
+        inconsistent_uses = []  # Track full term usage after definition
+
+        def process_sentence(sentence: str) -> None:
+            """Process a single sentence for abbreviation usage."""
+            for acronym, data in abbreviations.items():
+                full_term = data["full_term"]
+                if full_term not in sentence:
+                    continue
+                    
+                # Skip if this is the definition sentence
+                if sentence.strip() == data["first_occurrence"]:
+                    continue
+                    
+                # Track inconsistent usage
+                if not data["defined"]:
+                    inconsistent_uses.append({
+                        'issue_type': 'full_term_after_acronym',
+                        'full_term': full_term,
+                        'acronym': acronym,
+                        'sentence': sentence.strip(),
+                        'definition_context': data["first_occurrence"]
+                    })
+                data["defined"] = False  # Mark as used
+
+        # Process each paragraph
+        for paragraph in doc:
+            sentences = re.split(r'(?<=[.!?])\s+', paragraph)
+            for sentence in sentences:
+                process_sentence(sentence.strip())
+
+        success = len(inconsistent_uses) == 0
+        return DocumentCheckResult(success=success, issues=inconsistent_uses)
+
+    @profile_performance
+    def check_date_formats(self, doc: List[str]) -> DocumentCheckResult:
+        """Check for inconsistent date formats while ignoring aviation reference numbers."""
+        if not self.validate_input(doc):
+            return DocumentCheckResult(success=False, issues=[{'error': 'Invalid document input'}])
+        
+        # Get patterns from registry
+        date_patterns = self.config_manager.pattern_registry.get('dates', [])
+        
+        # Patterns to ignore (aviation references)
+        ignore_patterns = [
+            r'\bAD \d{4}-\d{2}-\d{2}\b',      # Airworthiness Directive references
+            r'\bSWPM \d{2}-\d{2}-\d{2}\b',    # Standard Wiring Practices Manual references
+            r'\bAMM \d{2}-\d{2}-\d{2}\b',     # Aircraft Maintenance Manual references
+            r'\bSOPM \d{2}-\d{2}-\d{2}\b',    # Standard Operating Procedure references
+            r'\b[A-Z]{2,4} \d{2}-\d{2}-\d{2}\b'  # Generic manual reference pattern
+        ]
+        
+        # Combine ignore patterns into one
+        ignore_regex = '|'.join(f'(?:{pattern})' for pattern in ignore_patterns)
+        ignore_pattern = re.compile(ignore_regex)
+        
+        # Track unique issues
+        unique_issues = []
+        
+        # Use _process_sentences helper
+        for sentence, paragraph in self._process_sentences(doc, skip_empty=True, skip_headings=True):
+            # First, identify and temporarily remove text that should be ignored
+            working_sentence = sentence
+            
+            # Find all matches to ignore
+            ignored_matches = list(ignore_pattern.finditer(sentence))
+            
+            # Replace ignored patterns with placeholders
+            for match in reversed(ignored_matches):
+                start, end = match.span()
+                working_sentence = working_sentence[:start] + 'X' * (end - start) + working_sentence[end:]
+            
+            # Now check for date patterns in the modified sentence
+            for pattern_config in date_patterns:
+                matches = list(re.finditer(pattern_config.pattern, working_sentence))
+                
+                for match in matches:
+                    # Get the original text from the match position
+                    original_date = sentence[match.start():match.end()]
+                    
+                    # Create formatted issue with incorrect/correct format
+                    formatted_issue = {
+                        'incorrect': original_date,
+                        'correct': 'Month Day, Year'
+                    }
+                    unique_issues.append(formatted_issue)
+
+        return DocumentCheckResult(success=len(unique_issues) == 0, issues=unique_issues)
+
+    @profile_performance
+    def check_placeholders(self, doc: List[str]) -> DocumentCheckResult:
+        """Check for placeholders that should be removed."""
+        def process_placeholders(doc: List[str], patterns: List[PatternConfig]) -> DocumentCheckResult:
+            tbd_placeholders = []
+            to_be_determined_placeholders = []
+            to_be_added_placeholders = []
+            
+            pattern_categories = {
+                r'\bTBD\b': ('tbd', tbd_placeholders),
+                r'\bTo be determined\b': ('to_be_determined', to_be_determined_placeholders),
+                r'\bTo be added\b': ('to_be_added', to_be_added_placeholders)
+            }
+
+            # Use _process_sentences helper
+            for sentence, paragraph in self._process_sentences(doc, skip_empty=True, skip_headings=True):
+                for pattern_config in patterns:
+                    compiled_pattern = re.compile(pattern_config.pattern, re.IGNORECASE)
+                    
+                    for pattern_key, (category_name, category_list) in pattern_categories.items():
+                        if pattern_config.pattern == pattern_key:
+                            matches = compiled_pattern.finditer(sentence)
+                            for match in matches:
+                                category_list.append({
+                                    'placeholder': match.group().strip(),
+                                    'sentence': sentence.strip(),
+                                    'description': pattern_config.description
+                                })
+
+            # Compile issues
+            issues = []
+            if tbd_placeholders:
+                issues.append({
+                    'issue_type': 'tbd_placeholder',
+                    'description': 'Remove TBD placeholder',
+                    'occurrences': tbd_placeholders
+                })
+                
+            if to_be_determined_placeholders:
+                issues.append({
+                    'issue_type': 'to_be_determined_placeholder',
+                    'description': "Remove 'To be determined' placeholder",
+                    'occurrences': to_be_determined_placeholders
+                })
+                
+            if to_be_added_placeholders:
+                issues.append({
+                    'issue_type': 'to_be_added_placeholder',
+                    'description': "Remove 'To be added' placeholder",
+                    'occurrences': to_be_added_placeholders
+                })
+
+            details = {
+                'total_placeholders': len(tbd_placeholders) + 
+                                    len(to_be_determined_placeholders) + 
+                                    len(to_be_added_placeholders),
+                'placeholder_types': {
+                    'TBD': len(tbd_placeholders),
+                    'To be determined': len(to_be_determined_placeholders),
+                    'To be added': len(to_be_added_placeholders)
+                }
+            }
+
+            return DocumentCheckResult(success=len(issues) == 0, issues=issues, details=details)
+
+        return self._process_patterns(doc, 'placeholders', process_placeholders)
+
+    @profile_performance
+    def _process_patterns(
+        self,
+        doc: List[str],
+        pattern_category: str,
+        process_func: Optional[Callable] = None
+    ) -> DocumentCheckResult:
+        """
+        Process document text against patterns from a specific category.
+        
+        Args:
+            doc: List of document paragraphs
+            pattern_category: Category of patterns to check against
+            process_func: Optional custom processing function
+            
+        Returns:
+            DocumentCheckResult with processed issues
+        """
+        if not self.validate_input(doc):
+            self.logger.error("Invalid document input for pattern check")
+            return DocumentCheckResult(
+                success=False, 
+                issues=[{'error': 'Invalid document input'}]
+            )
+
+        # Get patterns from registry
+        patterns = self.config_manager.pattern_registry.get(pattern_category, [])
+        if not patterns:
+            self.logger.warning(f"No patterns found for category: {pattern_category}")
+            return DocumentCheckResult(
+                success=True,
+                issues=[],
+                details={'message': f'No patterns defined for {pattern_category}'}
+            )
+
+        # Use custom processing function if provided
+        if process_func:
+            return process_func(doc, patterns)
+
+        # Default processing with deduplication
+        unique_issues = set()  # Using a set to track unique issues
+
+        for paragraph in doc:
+            sentences = re.split(r'(?<=[.!?])\s+', paragraph)
+            for sentence in sentences:
+                sentence = sentence.strip()
+                if not sentence:
+                    continue
+                    
+                for pattern_config in patterns:
+                    matches = list(re.finditer(pattern_config.pattern, sentence))
+                    if matches:
+                        # Add each match as a tuple to ensure uniqueness
+                        for match in matches:
+                            unique_issues.add((
+                                match.group(),  # The matched text
+                                pattern_config.description,  # The issue description
+                                pattern_config.replacement if hasattr(pattern_config, 'replacement') else None
+                            ))
+
+        # Convert unique issues back to the expected format
+        formatted_issues = [
+            {
+                'incorrect': issue[0],
+                'description': issue[1],
+                'replacement': issue[2]
+            }
+            for issue in sorted(unique_issues)  # Sort for consistent output
+        ]
+
+        return DocumentCheckResult(success=len(formatted_issues) == 0, issues=formatted_issues)
+
+    @profile_performance
+    def check_paragraph_length(self, doc: List[str]) -> DocumentCheckResult:
+        """
+        Check for overly long paragraphs that may need to be split up.
+        
+        Args:
+            doc (List[str]): List of document paragraphs
+            
+        Returns:
+            DocumentCheckResult: Results of paragraph length check
+        """
+        if not self.validate_input(doc):
+            return DocumentCheckResult(success=False, issues=[{'error': 'Invalid document input'}])
+            
+        issues = []
+        
+        for paragraph in doc:
+            if not paragraph.strip():  # Skip empty paragraphs
+                continue
+                
+            # Count sentences (split on period, exclamation, question mark followed by space)
+            sentences = re.split(r'(?<=[.!?])\s+', paragraph.strip())
+            # Count lines (split on newlines or when length exceeds ~80 characters)
+            lines = []
+            current_line = ""
+            
+            for word in paragraph.split():
+                if len(current_line) + len(word) + 1 <= 80:
+                    current_line += " " + word if current_line else word
+                else:
+                    lines.append(current_line)
+                    current_line = word
+            if current_line:
+                lines.append(current_line)
+            
+            # Check if paragraph exceeds either threshold
+            if len(sentences) > 6 or len(lines) > 8:
+                # Get first sentence for context
+                first_sentence = sentences[0].strip()
+                issues.append(f"Consider breaking up this paragraph: \"{first_sentence}\"")
+        
+        return DocumentCheckResult(success=len(issues) == 0, issues=issues)
+
 class DocumentCheckResultsFormatter:
     
     def __init__(self):
@@ -1985,6 +2264,15 @@ class DocumentCheckResultsFormatter:
                     'before': 'The system (as defined in AC 25-11B performs...',
                     'after': 'The system (as defined in AC 25-11B) performs...'
                 }
+            },
+            'paragraph_length_check': {
+                'title': 'Paragraph Length Issues',
+                'description': 'Evaluates paragraph length to ensure readability and clarity. A paragraph should be limited to the length necessary to convey one idea or related points, generally avoiding overly long or dense paragraphs. Paragraphs should be brief enough to be easily understood. The check identifies paragraphs that exceed 6 sentences or 8 lines, suggesting they may benefit from being split into smaller, more focused paragraphs for improved readability.',
+                'solution': 'Break long paragraphs into smaller ones, focusing on one main idea per paragraph',
+                'example_fix': {
+                    'before': 'A very long paragraph covering multiple topics and spanning many lines...',
+                    'after': 'Multiple shorter paragraphs, each focused on a single topic or related points.'
+                }
             }
         }
 
@@ -2098,6 +2386,9 @@ class DocumentCheckResultsFormatter:
         
         if 'description' in issue:
             return f"    • {issue['description']}"
+        
+        if 'type' in issue and issue['type'] == 'long_paragraph':
+            return f"    • {issue['message']}"
         
         # Fallback for other issue formats
         return f"    • {str(issue)}"
@@ -2324,6 +2615,8 @@ class DocumentCheckResultsFormatter:
                     output.extend(self._format_section_symbol_issues(result))
                 elif check_name == 'parentheses_check':
                     output.extend(self._format_parentheses_issues(result))
+                elif check_name == 'paragraph_length_check':
+                    output.extend(self._format_paragraph_length_issues(result))
                 else:
                     formatted_issues = [self._format_standard_issue(issue) for issue in result.issues[:10]]
                     output.extend(formatted_issues)
@@ -2412,7 +2705,8 @@ def format_markdown_results(results: Dict[str, DocumentCheckResult], doc_type: s
         'spacing_check': {'title': '⌨️ Spacing Issues', 'priority': 4},
         'abbreviation_usage_check': {'title': '📎 Abbreviation Usage', 'priority': 3},
         'date_formats_check': {'title': '📅 Date Formats', 'priority': 3},
-        'placeholders_check': {'title': '🚩 Placeholder Content', 'priority': 1}
+        'placeholders_check': {'title': '🚩 Placeholder Content', 'priority': 1},
+        'paragraph_length_check': {'title': '📏 Paragraph Length', 'priority': 5}
     }
 
     sorted_checks = sorted(
