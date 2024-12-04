@@ -662,7 +662,7 @@ class FAADocumentChecker(DocumentChecker):
         'DISTRIBUTION', 'EXCEPTION', 'EXPLANATION', 'FIGURE', 'GENERAL', 'GROUPS', 
         'INFORMATION', 'INSERT', 'INTRODUCTION', 'MATERIAL', 'NOTE', 'PARTS', 'PAST', 
         'POLICY', 'PRACTICE', 'PROCEDURES', 'PURPOSE', 'RELEVANT', 'RELATED', 
-        'REQUIREMENTS', 'SCOPE', 'SECTION', 'SUMMARY', 'TABLE', 'WARNING'
+        'REQUIREMENTS', 'REPORT', 'SCOPE', 'SECTION', 'SUMMARY', 'TABLE', 'WARNING'
     }
     
     PREDEFINED_ACRONYMS = {
@@ -1457,6 +1457,7 @@ class FAADocumentChecker(DocumentChecker):
         
         # Patterns to ignore (aviation references)
         ignore_patterns = [
+            r'\bAC\s*\d+(?:[-.]\d+)*[A-Z]*\b', # AC reference pattern
             r'\bAD \d{4}-\d{2}-\d{2}\b',      # Airworthiness Directive references
             r'\bSWPM \d{2}-\d{2}-\d{2}\b',    # Standard Wiring Practices Manual references
             r'\bAMM \d{2}-\d{2}-\d{2}\b',     # Aircraft Maintenance Manual references
