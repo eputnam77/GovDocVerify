@@ -1668,21 +1668,21 @@ class FAADocumentChecker(DocumentChecker):
         check_sequence = [
             ('heading_title_check', lambda: self.heading_title_check(doc, doc_type)),
             ('heading_title_period_check', lambda: self.heading_title_period_check(doc, doc_type)),
+            ('terminology_check', lambda: self.check_terminology(doc)),
             ('acronym_check', lambda: self.acronym_check(doc)),
             ('acronym_usage_check', lambda: self.acronym_usage_check(doc)),
-            ('terminology_check', lambda: self.check_terminology(doc)),
             ('section_symbol_usage_check', lambda: self.check_section_symbol_usage(doc)),
+            ('date_formats_check', lambda: self.check_date_formats(doc)),
+            ('placeholders_check', lambda: self.check_placeholders(doc)),
+            ('document_title_check', lambda: self.document_title_check(doc_path, doc_type) if not skip_title_check else DocumentCheckResult(success=True, issues=[])),
             ('caption_check_table', lambda: self.caption_check(doc, doc_type, 'Table')),
             ('caption_check_figure', lambda: self.caption_check(doc, doc_type, 'Figure')),
             ('table_figure_reference_check', lambda: self.table_figure_reference_check(doc, doc_type)),
-            ('document_title_check', lambda: self.document_title_check(doc_path, doc_type) if not skip_title_check else DocumentCheckResult(success=True, issues=[])),
+            ('parentheses_check', lambda: self.check_parentheses(doc)),
             ('double_period_check', lambda: self.double_period_check(doc)),
             ('spacing_check', lambda: self.spacing_check(doc)),
-            ('abbreviation_usage_check', lambda: self.check_abbreviation_usage(doc)),
-            ('date_formats_check', lambda: self.check_date_formats(doc)),
-            ('placeholders_check', lambda: self.check_placeholders(doc)),
-            ('parentheses_check', lambda: self.check_parentheses(doc)),
             ('paragraph_length_check', lambda: self.check_paragraph_length(doc)),
+            ('sentence_length_check', lambda: self.check_sentence_length(doc)),
         ]
 
         # Run each check and store results
@@ -2147,9 +2147,94 @@ class FAADocumentChecker(DocumentChecker):
             if len(sentences) > 6 or len(lines) > 8:
                 # Get first sentence for context
                 first_sentence = sentences[0].strip()
-                issues.append(f"Consider breaking up this paragraph: \"{first_sentence}\"")
+                issues.append(f"Review the paragraph that starts with: \"{first_sentence}\"")
         
         return DocumentCheckResult(success=len(issues) == 0, issues=issues)
+    
+    @profile_performance
+    def check_sentence_length(self, doc: List[str]) -> DocumentCheckResult:
+        """
+        Check for overly long sentences that may need to be split for clarity.
+        
+        Args:
+            doc (List[str]): List of document paragraphs
+            
+        Returns:
+            DocumentCheckResult: Results of sentence length check including:
+                - success: Boolean indicating if all sentences are acceptable length
+                - issues: List of dicts with long sentence details
+                - details: Additional statistics about sentence lengths
+        """
+        if not self.validate_input(doc):
+            return DocumentCheckResult(success=False, issues=[{'error': 'Invalid document input'}])
+            
+        issues = []
+        sentence_stats = {
+            'total_sentences': 0,
+            'long_sentences': 0,
+            'max_length': 0,
+            'avg_length': 0
+        }
+        
+        # Skip patterns for technical content that might naturally be longer
+        skip_patterns = [
+            r'^(?:Note:|Warning:|Caution:)',  # Notes and warnings
+            r'^\d+\.',  # Numbered lists
+            r'^\([a-z]\)',  # Letter lists
+            r'^\([0-9]\)',  # Number lists in parentheses
+            r'^Table \d',  # Table captions
+            r'^Figure \d',  # Figure captions
+            r'(?:e\.g\.|i\.e\.|viz\.,)',  # Latin abbreviations often used in complex sentences
+            r'\b(?:AC|AD|TSO|SFAR)\s+\d',  # Technical references
+            r'\d+\s*(?:CFR|U\.S\.C\.)',  # Regulatory references
+        ]
+        skip_regex = re.compile('|'.join(skip_patterns), re.IGNORECASE)
+        
+        total_words = 0
+        
+        for paragraph in doc:
+            if not paragraph.strip():
+                continue
+                
+            # Skip if paragraph matches any skip patterns
+            if skip_regex.search(paragraph):
+                continue
+                
+            # Split into sentences while preserving punctuation
+            sentences = re.split(r'(?<=[.!?])\s+', paragraph.strip())
+            
+            for sentence in sentences:
+                sentence = sentence.strip()
+                if not sentence:
+                    continue
+                    
+                # Count words (splitting on whitespace)
+                words = sentence.split()
+                word_count = len(words)
+                
+                sentence_stats['total_sentences'] += 1
+                total_words += word_count
+                
+                if word_count > sentence_stats['max_length']:
+                    sentence_stats['max_length'] = word_count
+                
+                # Flag sentences over 35 words
+                if word_count > 35:
+                    sentence_stats['long_sentences'] += 1
+                    issues.append({
+                        'sentence': sentence,
+                        'word_count': word_count
+                    })
+        
+        # Calculate average sentence length
+        if sentence_stats['total_sentences'] > 0:
+            sentence_stats['avg_length'] = round(total_words / sentence_stats['total_sentences'], 1)
+        
+        return DocumentCheckResult(
+            success=len(issues) == 0,
+            issues=issues,
+            details=sentence_stats
+        )
 
 class DocumentCheckResultsFormatter:
     
@@ -2170,7 +2255,7 @@ class DocumentCheckResultsFormatter:
             'heading_title_period_check': {
                 'title': 'Heading Period Format',
                 'description': 'Examines heading punctuation to ensure compliance with FAA document formatting standards. Some FAA documents (like Advisory Circulars and Orders) require periods at the end of headings, while others (like Federal Register Notices) don\'t.',
-                'solution': 'Format heading periods according to document type requirements',
+                'solution': 'Format heading periods according to document type requirements.',
                 'example_fix': {
                     'before': 'Purpose',
                     'after': 'Purpose.' # For ACs and Orders
@@ -2179,7 +2264,7 @@ class DocumentCheckResultsFormatter:
             'table_figure_reference_check': {
                 'title': 'Table and Figure References',
                 'description': 'Analyzes how tables and figures are referenced within your document text. Capitalize references at the beginning of sentences (e.g., "Table 2-1 shows...") and use lowercase references within sentences (e.g., "...as shown in table 2-1").',
-                'solution': 'Capitalize references at start of sentences, use lowercase within sentences',
+                'solution': 'Capitalize references at start of sentences, use lowercase within sentences.',
                 'example_fix': {
                     'before': 'The DTR values are specified in Table 3-1 and Figure 3-2.',
                     'after': 'The DTR values are specified in table 3-1 and figure 3-2.'
@@ -2188,7 +2273,7 @@ class DocumentCheckResultsFormatter:
             'acronym_check': {
                 'title': 'Acronym Definition Issues',
                 'description': 'Ensures every acronym is properly introduced with its full term at first use. The check identifies undefined acronyms while recognizing common exceptions (like U.S.) that don\'t require definition.',
-                'solution': 'Define each acronym at its first use, e.g., "Federal Aviation Administration (FAA)"',
+                'solution': 'Define each acronym at its first use, e.g., "Federal Aviation Administration (FAA)".',
                 'example_fix': {
                     'before': 'This order establishes general FAA organizational policies.',
                     'after': 'This order establishes general Federal Aviation Administration (FAA) organizational policies.'
@@ -2206,7 +2291,7 @@ class DocumentCheckResultsFormatter:
             'terminology_check': {
                 'title': 'Incorrect Terminology',
                 'description': 'Evaluates document text against the various style manuals and orders to identify non-compliant terminology, ambiguous references, and outdated phrases. This includes checking for prohibited relative references (like "above" or "below"), proper legal terminology (like "must" instead of "shall"), and consistent formatting of regulatory citations.',
-                'solution': 'Use explicit references to paragraphs, sections, tables, and figures',
+                'solution': 'Use explicit references to paragraphs, sections, tables, and figures.',
                 'example_fix': {
                     'before': 'Operators shall comply with ADs to ensure aircraft safety and regulatory compliance',
                     'after': 'Operators must comply with ADs to ensure aircraft safety and regulatory compliance.'
@@ -2215,7 +2300,7 @@ class DocumentCheckResultsFormatter:
             'section_symbol_usage_check': {
                 'title': 'Section Symbol (§) Format Issues',
                 'description': 'Examines the usage of section symbols (§) throughout your document. This includes verifying proper symbol placement in regulatory references, ensuring sections aren\'t started with the symbol, checking consistency in multiple-section citations, and validating proper CFR citations. For ACs, see FAA Order 1320.46.',
-                'solution': 'Format section symbols correctly and never start sentences with them',
+                'solution': 'Format section symbols correctly and never start sentences with them.',
                 'example_fix': {
                     'before': '§ 23.3 establishes design criteria.',
                     'after': 'Section 23.3 establishes design criteria.'
@@ -2224,7 +2309,7 @@ class DocumentCheckResultsFormatter:
             'double_period_check': {
                 'title': 'Multiple Period Issues',
                 'description': 'Examines sentences for accidental double periods that often occur during document editing and revision. While double periods are sometimes found in ellipses (...) or web addresses, they should never appear at the end of standard sentences in FAA documentation.',
-                'solution': 'Remove multiple periods that end sentences',
+                'solution': 'Remove multiple periods that end sentences.',
                 'example_fix': {
                     'before': 'The following ACs are related to the guidance in this document..',
                     'after': 'The following ACs are related to the guidance in this document.'
@@ -2251,7 +2336,7 @@ class DocumentCheckResultsFormatter:
             'placeholders_check': {
                 'title': 'Placeholder Content',
                 'description': 'Identifies incomplete content and temporary placeholders that must be finalized before document publication. This includes common placeholder text (like "TBD" or "To be determined"), draft markers, and incomplete sections.',
-                'solution': 'Replace all placeholder content with actual content',
+                'solution': 'Replace all placeholder content with actual content.',
                 'example_fix': {
                     'before': 'Pilots must submit the [Insert text] form to the FAA for approval.',
                     'after': 'Pilots must submit the Report of Eye Evaluation form 8500-7 to the FAA for approval.'
@@ -2260,7 +2345,7 @@ class DocumentCheckResultsFormatter:
             'parentheses_check': {
                 'title': 'Parentheses Balance Check',
                 'description': 'Ensures that all parentheses in the document are properly paired with matching opening and closing characters.',
-                'solution': 'Add missing opening or closing parentheses where indicated',
+                'solution': 'Add missing opening or closing parentheses where indicated.',
                 'example_fix': {
                     'before': 'The system (as defined in AC 25-11B performs...',
                     'after': 'The system (as defined in AC 25-11B) performs...'
@@ -2268,11 +2353,20 @@ class DocumentCheckResultsFormatter:
             },
             'paragraph_length_check': {
                 'title': 'Paragraph Length Issues',
-                'description': 'Evaluates paragraph length to ensure readability and clarity. A paragraph should be limited to the length necessary to convey one idea or related points, generally avoiding overly long or dense paragraphs. Paragraphs should be brief enough to be easily understood. The check identifies paragraphs that exceed 6 sentences or 8 lines, suggesting they may benefit from being split into smaller, more focused paragraphs for improved readability.',
-                'solution': 'Break long paragraphs into smaller ones, focusing on one main idea per paragraph',
+                'description': 'Flags paragraphs exceeding 6 sentences or 8 lines to enhance readability and clarity. While concise paragraphs are encouraged, with each focusing on a single idea or related points, exceeding these limits doesn\'t necessarily indicate a problem. Some content may appropriately extend beyond 8 lines, especially if it includes necessary details. Boilerplate language or template text exceeding these limits is not subject to modification or division.',
+                'solution': 'Where possible, split long paragraphs into smaller sections, ensuring each focuses on one primary idea. If restructuring is not feasible or the content is boilerplate text, no changes are needed.',
                 'example_fix': {
                     'before': 'A very long paragraph covering multiple topics and spanning many lines...',
-                    'after': 'Multiple shorter paragraphs, each focused on a single topic or related points.'
+                    'after': 'Multiple shorter paragraphs or restructured paragraphs, each focused on a single topic or related points.'
+                }
+            },
+            'sentence_length_check': {
+                'title': 'Sentence Length Issues',
+                'description': 'Analyzes sentence length to ensure readability. While the ideal length varies with content complexity, sentences over 35 words often become difficult to follow. Technical content, regulatory references, notes, warnings, and list items are excluded from this check.',
+                'solution': 'Break long sentences into smaller ones where possible, focusing on one main point per sentence. Consider using lists for complex items.',
+                'example_fix': {
+                    'before': 'The operator must ensure that all required maintenance procedures are performed in accordance with the manufacturer\'s specifications and that proper documentation is maintained throughout the entire process to demonstrate compliance with regulatory requirements.',
+                    'after': 'The operator must ensure all required maintenance procedures are performed according to manufacturer specifications. Additionally, proper documentation must be maintained to demonstrate regulatory compliance.'
                 }
             }
         }
@@ -2382,6 +2476,9 @@ class DocumentCheckResultsFormatter:
         if 'incorrect_term' in issue and 'correct_term' in issue:
             return f"    • Replace '{issue['incorrect_term']}' with '{issue['correct_term']}'"
         
+        if 'sentence' in issue and 'word_count' in issue:  # For sentence length check
+            return f"    • Review this sentence: \"{issue['sentence']}\""
+        
         if 'sentence' in issue:
             return f"    • {issue['sentence']}"
         
@@ -2441,6 +2538,29 @@ class DocumentCheckResultsFormatter:
                         formatted_issues.append(
                             f"    • Replace '{issue['incorrect']}' with '{issue['correct']}'"
                         )
+        
+        return formatted_issues
+
+    def _format_paragraph_length_issues(self, result: DocumentCheckResult) -> List[str]:
+        """Format paragraph length issues with clear instructions for fixing.
+        
+        Args:
+            result: DocumentCheckResult containing paragraph length issues
+            
+        Returns:
+            List[str]: Formatted list of paragraph length issues
+        """
+        formatted_issues = []
+        
+        if result.issues:
+            for issue in result.issues:
+                if isinstance(issue, str):
+                    formatted_issues.append(f"    • {issue}")
+                elif isinstance(issue, dict) and 'message' in issue:
+                    formatted_issues.append(f"    • {issue['message']}")
+                else:
+                    # Fallback for unexpected issue format
+                    formatted_issues.append(f"    • Review paragraph for length issues: {str(issue)}")
         
         return formatted_issues
 
@@ -2618,12 +2738,18 @@ class DocumentCheckResultsFormatter:
                     output.extend(self._format_parentheses_issues(result))
                 elif check_name == 'paragraph_length_check':
                     output.extend(self._format_paragraph_length_issues(result))
-                else:
-                    formatted_issues = [self._format_standard_issue(issue) for issue in result.issues[:10]]
+                elif check_name == 'sentence_length_check':
+                    formatted_issues = [self._format_standard_issue(issue) for issue in result.issues[:15]]
                     output.extend(formatted_issues)
                     
-                    if len(result.issues) > 10:
-                        output.append(f"\n    ... and {len(result.issues) - 10} more similar issues.")
+                    if len(result.issues) > 15:
+                        output.append(f"\n    ... and {len(result.issues) - 15} more similar issues.")
+                else:
+                    formatted_issues = [self._format_standard_issue(issue) for issue in result.issues[:15]]
+                    output.extend(formatted_issues)
+                    
+                    if len(result.issues) > 15:
+                        output.append(f"\n    ... and {len(result.issues) - 15} more similar issues.")
         
         return '\n'.join(output)
 
@@ -2695,19 +2821,21 @@ def format_markdown_results(results: Dict[str, DocumentCheckResult], doc_type: s
     check_categories = {
         'heading_title_check': {'title': '📋 Required Headings', 'priority': 1},
         'heading_title_period_check': {'title': '🔍 Heading Period Usage', 'priority': 1},
-        'acronym_check': {'title': '📝 Acronym Definitions', 'priority': 2},
-        'terminology_check': {'title': '📖 Terminology Usage', 'priority': 2},
+        'terminology_check': {'title': '📖 Terminology Usage', 'priority': 1},
+        'acronym_check': {'title': '📝 Acronym Definitions', 'priority': 1},
+        'acronym_usage_check': {'title': '📎 Acronym Usage', 'priority': 1},
         'section_symbol_usage_check': {'title': '§ Section Symbol Usage', 'priority': 2},
+        'date_formats_check': {'title': '📅 Date Formats', 'priority': 2},
+        'placeholders_check': {'title': '🚩 Placeholder Content', 'priority': 2},
+        'document_title_check': {'title': '📑 Document Title Format', 'priority': 2},
         'caption_check_table': {'title': '📊 Table Captions', 'priority': 3},
         'caption_check_figure': {'title': '🖼️ Figure Captions', 'priority': 3},
         'table_figure_reference_check': {'title': '🔗 Table/Figure References', 'priority': 3},
-        'document_title_check': {'title': '📑 Document Title Format', 'priority': 1},
+        'parentheses_check': {'title': '🔗 Parentheses Usage', 'priority': 4},
         'double_period_check': {'title': '⚡ Double Periods', 'priority': 4},
         'spacing_check': {'title': '⌨️ Spacing Issues', 'priority': 4},
-        'abbreviation_usage_check': {'title': '📎 Abbreviation Usage', 'priority': 3},
-        'date_formats_check': {'title': '📅 Date Formats', 'priority': 3},
-        'placeholders_check': {'title': '🚩 Placeholder Content', 'priority': 1},
-        'paragraph_length_check': {'title': '📏 Paragraph Length', 'priority': 5}
+        'paragraph_length_check': {'title': '📏 Paragraph Length', 'priority': 5},
+        'sentence_length_check': {'title': '📏 Sentence Length', 'priority': 5}
     }
 
     sorted_checks = sorted(
@@ -2980,7 +3108,7 @@ def create_interface():
                     """
                 # 📑 FAA Document Checker Tool
 
-                This tool performs **15 validation checks** on Word documents to ensure compliance with U.S. federal documentation standards. See the About tab for more information.
+                This tool performs multiple **validation checks** on Word documents to ensure compliance with U.S. federal documentation standards. See the About tab for more information.
 
                 ## How to Use
 
