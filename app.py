@@ -1231,7 +1231,19 @@ class FAADocumentChecker(DocumentChecker):
 
     @profile_performance
     def document_title_check(self, doc_path: str, doc_type: str) -> DocumentCheckResult:
-        """Check for correct formatting of document titles."""
+        """
+        Check for correct formatting of document titles.
+        
+        For Advisory Circulars: Use italics without quotes
+        For all other document types: Use quotes without italics
+        
+        Args:
+            doc_path: Path to the document
+            doc_type: Type of document being checked
+            
+        Returns:
+            DocumentCheckResult: Results of document title check
+        """
         try:
             doc = Document(doc_path)
         except Exception as e:
@@ -1240,86 +1252,82 @@ class FAADocumentChecker(DocumentChecker):
 
         incorrect_titles = []
 
-        # Define formatting rules for different document types
-        formatting_rules = {
-            "Advisory Circular": {"italics": True, "quotes": False},
-            "Airworthiness Criteria": {"italics": False, "quotes": True},
-            "Deviation Memo": {"italics": False, "quotes": True},
-            "Exemption": {"italics": False, "quotes": True},
-            "Federal Register Notice": {"italics": False, "quotes": True},
-            "Order": {"italics": False, "quotes": True},
-            "Policy Statement": {"italics": False, "quotes": False},
-            "Rule": {"italics": False, "quotes": True},
-            "Special Condition": {"italics": False, "quotes": True},
-            "Technical Standard Order": {"italics": False, "quotes": True},
-            "Other": {"italics": False, "quotes": False}
-        }
+        # Define formatting rules based on document type
+        use_italics = doc_type == "Advisory Circular"
+        use_quotes = doc_type != "Advisory Circular"
 
-        if doc_type not in formatting_rules:
-            self.logger.warning(f"Unsupported document type: {doc_type}. Skipping title check.")
-            return DocumentCheckResult(success=True, issues=[])
-
-        required_format = formatting_rules[doc_type]
-
-        ac_pattern = re.compile(r'(AC\s+\d+(?:-\d+)?(?:,|\s)+)(.+?)(?=\.|,|$)')
+        # Pattern to match document references (e.g., "AC 25.1309-1B, System Design and Analysis")
+        doc_ref_pattern = re.compile(
+            r'(?:AC|Order|Policy|Notice)\s+[\d.-]+[A-Z]?,\s+([^,.]+)(?:[,.]|$)'
+        )
 
         for paragraph in doc.paragraphs:
-            text = paragraph.text
-            matches = ac_pattern.finditer(text)
-
+            matches = doc_ref_pattern.finditer(paragraph.text)
+            
             for match in matches:
-                full_match = match.group(0)
-                title_text = match.group(2).strip()
+                title_text = match.group(1).strip()
+                title_start = match.start(1)
+                title_end = match.end(1)
 
-                # Get the position where the title starts
-                title_start = match.start(2)
-                title_end = match.end(2)
-
-                # Check for any type of quotation marks, including smart quotes
-                title_in_quotes = any(q in title_text for q in ['"', "'", '"', '"', '"', '"'])
-
-                # Check the formatting of the title
+                # Check formatting within the matched range
                 title_is_italicized = False
+                title_in_quotes = False
                 current_pos = 0
+
                 for run in paragraph.runs:
                     run_length = len(run.text)
                     run_start = current_pos
                     run_end = current_pos + run_length
-                    if run_start <= title_start < run_end:
-                        title_is_italicized = run.italic
-                        break
+
+                    # Check if this run overlaps with the title
+                    if (run_start <= title_start < run_end or 
+                        run_start < title_end <= run_end or
+                        title_start <= run_start < title_end):
+                        title_is_italicized = title_is_italicized or run.italic
+                        # Check for any type of quotation marks
+                        title_in_quotes = title_in_quotes or any(
+                            q in run.text for q in ['"', "'", '"', '"', '"', '"']
+                        )
+
                     current_pos += run_length
 
-                # Check if formatting matches the required format
+                # Determine if formatting is incorrect
                 formatting_incorrect = False
                 issue_message = []
 
-                # Check italics requirement
-                if required_format["italics"] and not title_is_italicized:
-                    formatting_incorrect = True
-                    issue_message.append("should be italicized")
-                elif not required_format["italics"] and title_is_italicized:
-                    formatting_incorrect = True
-                    issue_message.append("should not be italicized")
-
-                # Check quotes requirement
-                if required_format["quotes"] and not title_in_quotes:
-                    formatting_incorrect = True
-                    issue_message.append("should be in quotes")
-                elif not required_format["quotes"] and title_in_quotes:
-                    formatting_incorrect = True
-                    issue_message.append("should not be in quotes")
+                if use_italics:
+                    if not title_is_italicized:
+                        formatting_incorrect = True
+                        issue_message.append("should be italicized")
+                    if title_in_quotes:
+                        formatting_incorrect = True
+                        issue_message.append("should not be in quotes")
+                else:  # use quotes
+                    if title_is_italicized:
+                        formatting_incorrect = True
+                        issue_message.append("should not be italicized")
+                    if not title_in_quotes:
+                        formatting_incorrect = True
+                        issue_message.append("should be in quotes")
 
                 if formatting_incorrect:
                     incorrect_titles.append({
                         'text': title_text,
-                        'issue': ', '.join(issue_message),
-                        'sentence': text.strip()
+                        'issue': ' and '.join(issue_message),
+                        'sentence': paragraph.text.strip(),
+                        'correct_format': 'italics' if use_italics else 'quotes'
                     })
 
         success = len(incorrect_titles) == 0
 
-        return DocumentCheckResult(success=success, issues=incorrect_titles)
+        return DocumentCheckResult(
+            success=success,
+            issues=incorrect_titles,
+            details={
+                'document_type': doc_type,
+                'formatting_rule': 'italics' if use_italics else 'quotes'
+            }
+        )
 
     @profile_performance
     def double_period_check(self, doc: List[str]) -> DocumentCheckResult:
@@ -2368,6 +2376,15 @@ class DocumentCheckResultsFormatter:
                     'before': 'The operator must ensure that all required maintenance procedures are performed in accordance with the manufacturer\'s specifications and that proper documentation is maintained throughout the entire process to demonstrate compliance with regulatory requirements.',
                     'after': 'The operator must ensure all required maintenance procedures are performed according to manufacturer specifications. Additionally, proper documentation must be maintained to demonstrate regulatory compliance.'
                 }
+            },
+            'document_title_check': {
+                'title': 'Referenced Document Title Format Issues',
+                'description': 'Checks document title formatting based on document type. Advisory Circulars require italics without quotes, while all other document types require quotes without italics.',
+                'solution': 'Format document titles according to document type: use italics for Advisory Circulars, quotes for all other document types.',
+                'example_fix': {
+                    'before': 'See AC 25.1309-1B, System Design and Analysis, for information on X.',
+                    'after': 'See AC 25.1309-1B, <i>System Design and Analysis</i>, for information on X.'
+                }
             }
         }
 
@@ -2631,20 +2648,13 @@ class DocumentCheckResultsFormatter:
             "quotes_only": {
                 "types": [
                     "Airworthiness Criteria", "Deviation Memo", "Exemption", 
-                    "Federal Register Notice", "Order", "Rule", "Special Condition", 
-                    "Technical Standard Order"
+                    "Federal Register Notice", "Order", "Policy Statement", "Rule", 
+                    "Special Condition", "Technical Standard Order", "Other"
                 ],
                 "italics": False, 
                 "quotes": True,
                 "description": "For this document type, referenced document titles should be in quotes without italics.",
                 "example": 'See AC 25.1309-1B, "System Design and Analysis," for information on X.'
-            },
-            "no_formatting": {
-                "types": ["Policy Statement", "Other"],
-                "italics": False, 
-                "quotes": False,
-                "description": "For this document type, referenced document titles should not use italics or quotes.",
-                "example": "See AC 25.1309-1B, System Design and Analysis, for information on X."
             }
         }
 
@@ -2655,24 +2665,31 @@ class DocumentCheckResultsFormatter:
                 format_group = rules
                 break
 
-        # Use default if document type not found
+        # Use quotes_only as default if document type not found
         if not format_group:
-            format_group = formatting_rules["no_formatting"]
+            format_group = formatting_rules["quotes_only"]
 
-        # Update the document title check category
-        self.issue_categories['document_title_check'] = {
-            'title': 'Referenced Document Title Format Issues',
-            'description': format_group['description'],
-            'solution': "Format referenced document titles as follows: " + (
-                "Italicize the title" if format_group['italics'] else 
-                "Put the title in quotes" if format_group['quotes'] else 
-                "No special formatting required"
-            ),
-            'example_fix': {
-                'before': 'See AC 25.1309-1B, System Design and Analysis, for information on X.',
-                'after': format_group['example']
+        # Update document title check category based on document type
+        if doc_type == "Advisory Circular":
+            self.issue_categories['document_title_check'] = {
+                'title': 'Referenced Document Title Format Issues',
+                'description': 'For Advisory Circulars, all referenced document titles must be italicized.',
+                'solution': 'Format document titles using italics for Advisory Circulars.',
+                'example_fix': {
+                    'before': 'See AC 25.1309-1B, System Design and Analysis, for information on X.',
+                    'after': 'See AC 25.1309-1B, <i>System Design and Analysis</i>, for information on X.'
+                }
             }
-        }
+        else:
+            self.issue_categories['document_title_check'] = {
+                'title': 'Referenced Document Title Format Issues',
+                'description': f'For {doc_type}s, all referenced document titles must be enclosed in quotation marks.',
+                'solution': 'Format document titles using quotation marks.',
+                'example_fix': {
+                    'before': 'See AC 25.1309-1B, System Design and Analysis, for information on X.',
+                    'after': 'See AC 25.1309-1B, "System Design and Analysis," for information on X.'
+                }
+            }
         
         output = []
         
