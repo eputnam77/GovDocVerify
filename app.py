@@ -9,17 +9,124 @@ import logging
 import traceback
 from datetime import datetime
 from enum import Enum, auto
-from typing import Dict, List, Any, Tuple, Optional, Pattern, Callable
+from typing import Dict, List, Any, Tuple, Optional, Pattern, Callable, Set
 from dataclasses import dataclass
 from functools import wraps
 from abc import ABC, abstractmethod
-# import tempfile  # For creating temporary files
 
 # Third-party imports
 import gradio as gr
 from docx import Document
 from colorama import init, Fore, Style
-# from weasyprint import HTML  # PDF generation related import
+import nltk
+from nltk.corpus import words
+
+# Download required NLTK data (only needs to be done once)
+try:
+    nltk.data.find('corpora/words')
+except LookupError:
+    nltk.download('words')
+
+# Create set of English words plus aviation terms
+ENGLISH_WORDS: Set[str] = set(word.lower() for word in words.words())
+# Add aviation-specific terms that might not be in the standard dictionary
+AVIATION_TERMS: Set[str] = {
+    # Aircraft Components & Systems
+    "pitot", "aileron", "rudder", "flap", "slat", "spoiler", "nacelle", 
+    "fuselage", "empennage", "winglet", "stabilizer", "propeller", "rotor",
+    "avionics", "autopilot", "transponder", "altimeter", "airspeed", "gyro",
+    "manifold", "magneto", "cowling", "strut", "spar", "rib", "longeron",
+    "turbine", "compressor", "combustor", "nozzle", "pylon", "thrust",
+    
+    # Navigation & Communication
+    "waypoint", "datalink", "navaid", "vor", "dme", "tacan", "rnav", "ils",
+    "localizer", "glideslope", "marker", "beacon", "tcas", "acars", "cpdlc",
+    "squawk", "metar", "notam", "pirep", "airmet", "sigmet", "atis",
+    
+    # Operations & Procedures
+    "takeoff", "touchdown", "rollout", "taxi", "pushback", "startup",
+    "shutdown", "crosswind", "downwind", "upwind", "base", "final", "approach",
+    "departure", "arrival", "holding", "pattern", "circuit", "climb", "cruise",
+    "descent", "stall", "flare", "rotate", "abort", "divert", "mayday", "pan",
+    
+    # Airport & Infrastructure
+    "runway", "taxiway", "apron", "ramp", "gate", "hangar", "helipad",
+    "heliport", "windsock", "threshold", "touchdown", "overrun", "clearway",
+    "stopway", "holdshort", "terminal", "tarmac",
+    
+    # Weather & Environmental
+    "windshear", "turbulence", "crosswind", "tailwind", "headwind", "gust",
+    "microburst", "icing", "ceiling", "visibility", "precipitation", "dewpoint",
+    "altimeter", "barometer", "density", "isotherm", "isobar",
+    
+    # Maintenance & Technical
+    "airframe", "powerplant", "hydraulic", "pneumatic", "electrical",
+    "mechanical", "structural", "composite", "metallic", "corrosion",
+    "fatigue", "overhaul", "inspection", "repair", "replace", "service",
+    "lubricate", "calibrate", "adjust", "align", "balance", "torque",
+    
+    # Flight Characteristics
+    "airspeed", "groundspeed", "mach", "altitude", "attitude", "heading",
+    "bearing", "track", "course", "drift", "pitch", "roll", "yaw", "bank",
+    "trim", "lift", "drag", "thrust", "weight", "momentum", "inertia",
+    
+    # Safety & Emergency
+    "evacuation", "ditching", "jettison", "eject", "bailout", "emergency",
+    "failure", "malfunction", "warning", "caution", "advisory", "abnormal",
+    "incident", "accident", "hazard", "risk", "safety",
+    
+    # Regulatory & Documentation
+    "airworthy", "certification", "compliance", "directive", "regulation",
+    "standard", "requirement", "specification", "limitation", "restriction",
+    "prohibition", "exemption", "deviation", "waiver", "approval",
+    
+    # Plurals and variations
+    "waypoints", "datalinks", "transponders", "runways", "taxiways",
+    "airports", "airways", "airlines", "airplanes", "helicopters", "pilots",
+    "controllers", "mechanics", "inspectors", "operators", "manufacturers"
+}
+ENGLISH_WORDS.update(AVIATION_TERMS)
+
+# More common words that might appear in uppercase
+COMMON_UPPERCASE_WORDS: Set[str] = {
+    # Common words that might appear in uppercase
+    "the", "and", "or", "not", "for", "to", "in", "on", "at", "by", "with",
+    "from", "into", "during", "including", "until", "against", "among",
+    "throughout", "through", "within", "along", "upon", "after", "before",
+    "above", "below", "under", "over", "between", "out", "off", "up", "down",
+    # Technical/Scientific terms
+    "max", "min", "maximum", "minimum", "total", "sum", "average", "mean",
+    "range", "limit", "limits", "value", "values", "high", "low", "mid",
+    "upper", "lower", "inner", "outer", "top", "bottom", "side", "front",
+    "rear", "back", "left", "right", "center", "north", "south", "east", "west",
+    # Common adjectives
+    "new", "old", "big", "small", "large", "main", "key", "basic", "major",
+    "minor", "full", "half", "partial", "complete", "normal", "standard",
+    "special", "specific", "general", "common", "rare", "unique", "same",
+    "different", "various", "several", "many", "few",
+    # Aviation/Technical specific
+    "true", "false", "yes", "no", "on", "off", "set", "reset", "start", "stop",
+    "run", "hold", "release", "engage", "disengage", "lock", "unlock", "open",
+    "close", "active", "passive", "master", "slave", "primary", "secondary",
+    "backup", "alternate", "emergency", "normal", "caution", "warning", "alert",
+    "status", "mode", "level", "phase", "stage", "step", "rate", "speed",
+    "power", "force", "load", "stress", "strain", "flow", "pressure", "temp",
+    "temperature", "volt", "voltage", "current", "frequency", "signal",
+    # Units and measurements
+    "volt", "amp", "watt", "ohm", "hertz", "meter", "gram", "second", "hour",
+    "minute", "day", "week", "month", "year", "degree", "celsius", "fahrenheit",
+    "pascal", "bar", "psi", "knot", "foot", "feet", "inch", "pound", "mile",
+    # Common abbreviations that aren't acronyms
+    "etc", "fig", "ref", "no", "nos", "vol", "rev", "ver", "vs", "max", "min",
+    "temp", "prep", "misc", "spec", "specs", "info", "intro", "para", "paras",
+    "app", "apps", "calc", "calcs", "tech", "dist"
+}
+
+# Update ENGLISH_WORDS with the common uppercase words
+ENGLISH_WORDS.update(COMMON_UPPERCASE_WORDS)
+
+# Also add plural forms of all words
+ENGLISH_WORDS.update(word + "s" for word in COMMON_UPPERCASE_WORDS)
 
 # Constants
 DEFAULT_PORT = 7860
@@ -903,6 +1010,20 @@ class FAADocumentChecker(DocumentChecker):
 
     @profile_performance
     def acronym_check(self, doc: List[str]) -> DocumentCheckResult:
+        """
+        Check document for proper acronym usage with enhanced validation.
+        
+        Args:
+            doc: List of document paragraphs
+            
+        Returns:
+            DocumentCheckResult with any acronym-related issues found
+            
+        Note:
+            - Validates against known English words to reduce false positives
+            - Ignores common aviation reference patterns
+            - Tracks acronym definitions and usage
+        """
         if not self.validate_input(doc):
             return DocumentCheckResult(success=False, issues=[{'error': 'Invalid document input'}])
 
@@ -973,6 +1094,11 @@ class FAADocumentChecker(DocumentChecker):
                 if any(start <= start_pos <= end for start, end in ignored_spans):
                     continue
 
+                # Check if this uppercase word is actually a known English word
+                # If so, skip it as a false positive
+                if acronym.lower() in ENGLISH_WORDS:
+                    continue
+
                 # Skip predefined acronyms and other checks
                 if (acronym in predefined_acronyms or
                     acronym in heading_words or
@@ -981,7 +1107,7 @@ class FAADocumentChecker(DocumentChecker):
                     continue
 
                 if acronym not in defined_acronyms and acronym not in reported_acronyms:
-                    # Undefined acronym used; report only once
+                    # Undefined acronym used; report only once with simple message format
                     issues.append(f"Confirm '{acronym}' was defined at its first use.")
                     reported_acronyms.add(acronym)
                 elif acronym in defined_acronyms:
@@ -1232,10 +1358,10 @@ class FAADocumentChecker(DocumentChecker):
     @profile_performance
     def document_title_check(self, doc_path: str, doc_type: str) -> DocumentCheckResult:
         """
-        Check for correct formatting of document titles.
-        
-        For Advisory Circulars: Use italics without quotes
-        For all other document types: Use quotes without italics
+        Check for correct formatting of document titles in references.
+        Format should be: "{doc_type} {number}, {title}," 
+        For Advisory Circulars: title should be italicized without quotes
+        For other document types: title should be in quotes without italics
         
         Args:
             doc_path: Path to the document
@@ -1251,81 +1377,82 @@ class FAADocumentChecker(DocumentChecker):
             return DocumentCheckResult(success=False, issues=[{'error': str(e)}])
 
         incorrect_titles = []
+        
+        # Define document type patterns
+        doc_patterns = {
+            'AC': r'AC\s+[\d.-]+[A-Z]?,\s+([^,]+),',
+            'Order': r'Order\s+[\d.-]+[A-Z]?,\s+([^,]+),',
+            'Policy': r'Policy\s+[\d.-]+[A-Z]?,\s+([^,]+),',
+            'Notice': r'Notice\s+[\d.-]+[A-Z]?,\s+([^,]+),'
+        }
 
-        # Define formatting rules based on document type
+        # Use italics for ACs, quotes for others
         use_italics = doc_type == "Advisory Circular"
-        use_quotes = doc_type != "Advisory Circular"
-
-        # Pattern to match document references (e.g., "AC 25.1309-1B, System Design and Analysis")
-        doc_ref_pattern = re.compile(
-            r'(?:AC|Order|Policy|Notice)\s+[\d.-]+[A-Z]?,\s+([^,.]+)(?:[,.]|$)'
-        )
 
         for paragraph in doc.paragraphs:
-            matches = doc_ref_pattern.finditer(paragraph.text)
-            
-            for match in matches:
-                title_text = match.group(1).strip()
-                title_start = match.start(1)
-                title_end = match.end(1)
+            # Skip empty paragraphs
+            if not paragraph.text.strip():
+                continue
 
-                # Check formatting within the matched range
-                title_is_italicized = False
-                title_in_quotes = False
-                current_pos = 0
+            # Check each document type pattern
+            for doc_prefix, pattern in doc_patterns.items():
+                matches = re.finditer(pattern, paragraph.text)
+                
+                for match in matches:
+                    title_text = match.group(1).strip()
+                    title_start = match.start(1)
+                    title_end = match.end(1)
+                    
+                    # Track formatting within the matched title range
+                    title_is_italicized = False
+                    title_in_quotes = False
+                    current_pos = 0
 
-                for run in paragraph.runs:
-                    run_length = len(run.text)
-                    run_start = current_pos
-                    run_end = current_pos + run_length
+                    for run in paragraph.runs:
+                        run_length = len(run.text)
+                        run_start = current_pos
+                        run_end = current_pos + run_length
 
-                    # Check if this run overlaps with the title
-                    if (run_start <= title_start < run_end or 
-                        run_start < title_end <= run_end or
-                        title_start <= run_start < title_end):
-                        title_is_italicized = title_is_italicized or run.italic
-                        # Check for any type of quotation marks
-                        title_in_quotes = title_in_quotes or any(
-                            q in run.text for q in ['"', "'", '"', '"', '"', '"']
-                        )
+                        # Check if this run overlaps with the title
+                        if (run_start <= title_start < run_end or 
+                            run_start < title_end <= run_end or
+                            title_start <= run_start < title_end):
+                            
+                            title_is_italicized = title_is_italicized or run.italic
+                            title_in_quotes = title_in_quotes or any(
+                                q in run.text for q in ['"', "'", '"', '"']
+                            )
 
-                    current_pos += run_length
+                        current_pos += run_length
 
-                # Determine if formatting is incorrect
-                formatting_incorrect = False
-                issue_message = []
+                    # Determine if formatting is incorrect
+                    formatting_incorrect = False
 
-                if use_italics:
-                    if not title_is_italicized:
-                        formatting_incorrect = True
-                        issue_message.append("should be italicized")
-                    if title_in_quotes:
-                        formatting_incorrect = True
-                        issue_message.append("should not be in quotes")
-                else:  # use quotes
-                    if title_is_italicized:
-                        formatting_incorrect = True
-                        issue_message.append("should not be italicized")
-                    if not title_in_quotes:
-                        formatting_incorrect = True
-                        issue_message.append("should be in quotes")
+                    if doc_prefix == 'AC':
+                        if not title_is_italicized or title_in_quotes:
+                            formatting_incorrect = True
+                    else:  # Other document types
+                        if title_is_italicized or not title_in_quotes:
+                            formatting_incorrect = True
 
-                if formatting_incorrect:
-                    incorrect_titles.append({
-                        'text': title_text,
-                        'issue': ' and '.join(issue_message),
-                        'sentence': paragraph.text.strip(),
-                        'correct_format': 'italics' if use_italics else 'quotes'
-                    })
+                    if formatting_incorrect:
+                        # Get the full sentence containing the reference
+                        sentences = re.split(r'(?<=[.!?])\s+', paragraph.text)
+                        for sentence in sentences:
+                            if match.group(0) in sentence:
+                                incorrect_titles.append(
+                                    f"Confirm the title formatting in: {sentence.strip()}"
+                                )
+                                break
 
         success = len(incorrect_titles) == 0
-
+        
         return DocumentCheckResult(
             success=success,
             issues=incorrect_titles,
             details={
                 'document_type': doc_type,
-                'formatting_rule': 'italics' if use_italics else 'quotes'
+                'total_references_checked': len(incorrect_titles)
             }
         )
 
@@ -2254,7 +2381,7 @@ class DocumentCheckResultsFormatter:
             'heading_title_check': {
                 'title': 'Required Headings Check',
                 'description': 'Verifies that your document includes all mandatory section headings, with requirements varying by document type. For example, long-template Advisory Circulars require headings like "Purpose." and "Applicability." with initial caps and periods, while Federal Register Notices use ALL CAPS headings like "SUMMARY" and "BACKGROUND" without periods. This check ensures both the presence of required headings and their correct capitalization format based on document type.',
-                'solution': 'Add all required headings in the correct order using the correct capitalization format.',
+                'solution': 'Add all required headings in the correct order using the correct capitalization format. Note that the "Cancellation." heading is only required if this AC cancels an existing AC. If this AC does not cancel another AC, you can ignore this heading.',
                 'example_fix': {
                     'before': 'Missing required heading "PURPOSE."',
                     'after': 'Added heading "PURPOSE." at the beginning of the document'
