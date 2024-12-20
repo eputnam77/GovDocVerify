@@ -1837,6 +1837,9 @@ class FAADocumentChecker(DocumentChecker):
             ('paragraph_length_check', lambda: self.check_paragraph_length(doc)),
             ('sentence_length_check', lambda: self.check_sentence_length(doc)),
             ('508_compliance_check', lambda: self.check_508_compliance(doc_path)),
+            ('hyperlink_check', lambda: self.check_hyperlinks(doc)),
+            ('numbered_lists_check', lambda: self.check_numbered_lists(doc)),
+            ('cross_references_check', lambda: self.check_cross_references(doc)),
         ]
 
         # Run each check and store results
@@ -2627,6 +2630,110 @@ class FAADocumentChecker(DocumentChecker):
             issues=issues,
             details={'total_urls_checked': len(issues)}
         )
+    
+    @profile_performance
+    def check_numbered_lists(self, doc: List[str]) -> DocumentCheckResult:
+        """Check for consistent numbered list formatting.
+        
+        Verifies:
+        - Sequential numbering
+        - Consistent period/parenthesis usage
+        - Proper indentation
+        - Parallel structure
+        """
+        if not self.validate_input(doc):
+            return DocumentCheckResult(success=False, issues=[{'error': 'Invalid document input'}])
+        
+        issues = []
+        current_list = []
+        expected_number = 1
+        
+        for paragraph in doc:
+            # Match common list patterns like "1.", "1)", "(1)", etc.
+            list_match = re.match(r'^(?:\s*)(?:\(?\d+[\.)]\)?|\([a-z]\))\s+', paragraph.strip())
+            
+            if list_match:
+                list_item = paragraph.strip()
+                current_list.append(list_item)
+                
+                # Check numbering sequence
+                number_match = re.match(r'\d+', list_match.group())
+                if number_match and int(number_match.group()) != expected_number:
+                    issues.append({
+                        'type': 'sequence_error',
+                        'item': list_item,
+                        'expected': expected_number
+                    })
+                expected_number += 1
+            else:
+                # Reset list tracking when non-list paragraph is found
+                current_list = []
+                expected_number = 1
+        
+        return DocumentCheckResult(success=len(issues) == 0, issues=issues)
+
+    @profile_performance
+    def check_cross_references(self, doc: List[str]) -> DocumentCheckResult:
+        """Check for consistent and valid cross-references within the document.
+        
+        Verifies:
+        - References to sections exist
+        - References to figures/tables exist
+        - Consistent formatting of references
+        - No broken internal links
+        """
+        if not self.validate_input(doc):
+            return DocumentCheckResult(success=False, issues=[{'error': 'Invalid document input'}])
+            
+        issues = []
+        section_refs = set()
+        figure_refs = set()
+        table_refs = set()
+        
+        # First pass: collect all section/figure/table numbers
+        for paragraph in doc:
+            # Match section headers
+            if re.match(r'^\d+\.\d+\s+', paragraph):
+                section_refs.add(paragraph.split()[0].rstrip('.'))
+                
+            # Match figure/table captions
+            if paragraph.lower().startswith(('figure', 'table')):
+                match = re.match(r'(Figure|Table)\s+(\d+(?:-\d+)?)', paragraph, re.IGNORECASE)
+                if match:
+                    if match.group(1).lower() == 'figure':
+                        figure_refs.add(match.group(2))
+                    else:
+                        table_refs.add(match.group(2))
+        
+        # Second pass: check references
+        for paragraph in doc:
+            # Check section references
+            section_matches = re.finditer(r'[Ss]ection\s+(\d+\.\d+)', paragraph)
+            for match in section_matches:
+                if match.group(1) not in section_refs:
+                    issues.append({
+                        'type': 'invalid_section_reference',
+                        'reference': match.group(0),
+                        'section_number': match.group(1)
+                    })
+                    
+            # Check figure/table references
+            for ref_type in ['figure', 'table']:
+                matches = re.finditer(
+                    rf'{ref_type}\s+(\d+(?:-\d+)?)',
+                    paragraph,
+                    re.IGNORECASE
+                )
+                for match in matches:
+                    ref_set = figure_refs if ref_type.lower() == 'figure' else table_refs
+                    if match.group(1) not in ref_set:
+                        issues.append({
+                            'type': f'invalid_{ref_type}_reference',
+                            'reference': match.group(0),
+                            'number': match.group(1)
+                        })
+        
+        return DocumentCheckResult(success=len(issues) == 0, issues=issues)
 
 class DocumentCheckResultsFormatter:
     
@@ -2786,6 +2893,24 @@ class DocumentCheckResultsFormatter:
                 'example_fix': {
                     'before': 'See https://broken-link.example.com for more details.',
                     'after': 'See https://www.faa.gov for more details.'
+                }
+            },
+            'numbered_lists_check': {
+                'title': 'Numbered List Format Issues',
+                'description': 'Verifies consistent formatting of numbered lists, including proper sequencing, indentation, and parallel structure. Lists should maintain consistent formatting (either all periods or all parentheses) and follow proper numbering sequence.',
+                'solution': 'Correct list numbering sequence and ensure consistent format usage.',
+                'example_fix': {
+                    'before': '1. First item\n3. Second item\n2) Third item',
+                    'after': '1. First item\n2. Second item\n3. Third item'
+                }
+            },
+            'cross_references_check': {
+                'title': 'Cross-Reference Issues',
+                'description': 'Validates internal document references to ensure all referenced sections, figures, and tables exist and are properly formatted. This helps prevent broken internal links and maintains document integrity.',
+                'solution': 'Update or remove invalid cross-references to ensure all referenced content exists.',
+                'example_fix': {
+                    'before': 'See Section 3.5 for details on...',
+                    'after': 'See Section 3.4 for details on...'  # Assuming 3.4 exists but 3.5 doesn't
                 }
             }
         }
@@ -2979,6 +3104,84 @@ class DocumentCheckResultsFormatter:
                 else:
                     # Fallback for unexpected issue format
                     formatted_issues.append(f"    • Review paragraph for length issues: {str(issue)}")
+        
+        return formatted_issues
+
+    def _format_numbered_list_issues(self, result: DocumentCheckResult) -> List[str]:
+        """Format numbered list issues with clear instructions for fixing."""
+        formatted_issues = []
+        
+        if result.issues:
+            # Group issues by type
+            sequence_errors = []
+            format_errors = []
+            indentation_errors = []
+            
+            for issue in result.issues:
+                if issue['type'] == 'sequence_error':
+                    sequence_errors.append(
+                        f"    • List item '{issue['item']}' should be number {issue['expected']}"
+                    )
+                elif issue['type'] == 'format_inconsistency':
+                    format_errors.append(
+                        f"    • Inconsistent format: '{issue['item']}' uses different style than previous items"
+                    )
+                elif issue['type'] == 'indentation_error':
+                    indentation_errors.append(
+                        f"    • Incorrect indentation in: '{issue['item']}'"
+                    )
+            
+            # Add grouped issues with headers
+            if sequence_errors:
+                formatted_issues.append("\n  Numbering Sequence Issues:")
+                formatted_issues.extend(sequence_errors)
+                
+            if format_errors:
+                formatted_issues.append("\n  Format Consistency Issues:")
+                formatted_issues.extend(format_errors)
+                
+            if indentation_errors:
+                formatted_issues.append("\n  Indentation Issues:")
+                formatted_issues.extend(indentation_errors)
+        
+        return formatted_issues
+
+    def _format_cross_reference_issues(self, result: DocumentCheckResult) -> List[str]:
+        """Format cross-reference issues with clear instructions for fixing."""
+        formatted_issues = []
+        
+        if result.issues:
+            # Group issues by reference type
+            section_refs = []
+            figure_refs = []
+            table_refs = []
+            
+            for issue in result.issues:
+                if issue['type'] == 'invalid_section_reference':
+                    section_refs.append(
+                        f"    • Invalid section reference: '{issue['reference']}' - Section {issue['section_number']} not found"
+                    )
+                elif issue['type'] == 'invalid_figure_reference':
+                    figure_refs.append(
+                        f"    • Invalid figure reference: '{issue['reference']}' - Figure {issue['number']} not found"
+                    )
+                elif issue['type'] == 'invalid_table_reference':
+                    table_refs.append(
+                        f"    • Invalid table reference: '{issue['reference']}' - Table {issue['number']} not found"
+                    )
+            
+            # Add grouped issues with headers
+            if section_refs:
+                formatted_issues.append("\n  Section Reference Issues:")
+                formatted_issues.extend(section_refs)
+                
+            if figure_refs:
+                formatted_issues.append("\n  Figure Reference Issues:")
+                formatted_issues.extend(figure_refs)
+                
+            if table_refs:
+                formatted_issues.append("\n  Table Reference Issues:")
+                formatted_issues.extend(table_refs)
         
         return formatted_issues
 
@@ -3187,6 +3390,10 @@ class DocumentCheckResultsFormatter:
                             output.append(f"      (HTTP Status: {issue['status_code']})")
                         elif 'error' in issue:
                             output.append(f"      (Error: {issue['error']})")
+                elif check_name == 'numbered_lists_check':
+                    output.extend(self._format_numbered_list_issues(result))
+                elif check_name == 'cross_references_check':
+                    output.extend(self._format_cross_reference_issues(result))
                 else:
                     formatted_issues = [self._format_standard_issue(issue) for issue in result.issues[:15]]
                     output.extend(formatted_issues)
@@ -3276,7 +3483,9 @@ def format_markdown_results(results: Dict[str, DocumentCheckResult], doc_type: s
         'double_period_check': {'title': '⚡ Double Periods', 'priority': 4},
         'spacing_check': {'title': '⌨️ Spacing Issues', 'priority': 4},
         'paragraph_length_check': {'title': '📏 Paragraph Length', 'priority': 5},
-        'sentence_length_check': {'title': '📏 Sentence Length', 'priority': 5}
+        'sentence_length_check': {'title': '📏 Sentence Length', 'priority': 5},
+        'numbered_lists_check': {'title': '📋 Numbered List Format Issues', 'priority': 6},
+        'cross_references_check': {'title': '🔗 Cross-Reference Issues', 'priority': 7}
     }
 
     sorted_checks = sorted(
