@@ -20,6 +20,7 @@ from docx import Document
 from colorama import init, Fore, Style
 import nltk
 from nltk.stem import WordNetLemmatizer
+import requests
 
 # Initialize NLTK and required data
 try:
@@ -2574,6 +2575,59 @@ class FAADocumentChecker(DocumentChecker):
     
         return formatted_issues
 
+    @profile_performance
+    def check_hyperlinks(self, doc: List[str]) -> DocumentCheckResult:
+        """
+        Basic hyperlink checker that identifies potentially broken URLs.
+        
+        Args:
+            doc: List of document paragraphs
+            
+        Returns:
+            DocumentCheckResult with any potentially broken links
+        """
+        if not self.validate_input(doc):
+            return DocumentCheckResult(success=False, issues=[{'error': 'Invalid document input'}])
+
+        issues = []
+        
+        # URL pattern - matches http/https URLs
+        url_pattern = re.compile(
+            r'https?://(?:www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b[-a-zA-Z0-9()@:%_\+.~#?&//=]*'
+        )
+
+        for paragraph in doc:
+            # Find all URLs in the paragraph
+            urls = url_pattern.finditer(paragraph)
+            
+            for url_match in urls:
+                url = url_match.group()
+                try:
+                    # Attempt to make a HEAD request with a timeout
+                    response = requests.head(url, timeout=5, allow_redirects=True)
+                    
+                    # Check if the response indicates an error
+                    if response.status_code >= 400:
+                        issues.append({
+                            'url': url,
+                            'message': f"Confirm this URL: {url}",
+                            'status_code': response.status_code
+                        })
+                        
+                except requests.RequestException:
+                    # Handle any request errors (timeout, connection error, etc.)
+                    issues.append({
+                        'url': url,
+                        'message': f"Confirm this URL: {url}",
+                        'error': 'Connection failed'
+                    })
+
+        return DocumentCheckResult(
+            success=len(issues) == 0,
+            issues=issues,
+            details={'total_urls_checked': len(issues)}
+        )
+
 class DocumentCheckResultsFormatter:
     
     def __init__(self):
@@ -2724,10 +2778,18 @@ class DocumentCheckResultsFormatter:
                     'before': 'Image without alt text, skipped heading levels, non-descriptive links',
                     'after': 'All images have alt text, proper heading hierarchy, descriptive link text'
                 }
+            },
+            'hyperlink_check': {
+                'title': 'Hyperlink Issues',
+                'description': 'Checks for potentially broken or inaccessible URLs in the document. This includes checking response codes and connection issues.',
+                'solution': 'Verify each flagged URL is correct and accessible.',
+                'example_fix': {
+                    'before': 'See https://broken-link.example.com for more details.',
+                    'after': 'See https://www.faa.gov for more details.'
+                }
             }
         }
 
-        # Add these two helper methods here, after __init__ and before other methods
     def _format_colored_text(self, text: str, color: str) -> str:
         """Helper method to format colored text with reset.
         
@@ -3118,6 +3180,13 @@ class DocumentCheckResultsFormatter:
                             for category, count in result.details['categories'].items():
                                 if count > 0:
                                     output.append(f"      • {category.replace('_', ' ').title()}: {count}")
+                elif check_name == 'hyperlink_check':
+                    for issue in result.issues:
+                        output.append(f"    • {issue['message']}")
+                        if 'status_code' in issue:
+                            output.append(f"      (HTTP Status: {issue['status_code']})")
+                        elif 'error' in issue:
+                            output.append(f"      (Error: {issue['error']})")
                 else:
                     formatted_issues = [self._format_standard_issue(issue) for issue in result.issues[:15]]
                     output.extend(formatted_issues)
