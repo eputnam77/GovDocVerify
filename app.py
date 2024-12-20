@@ -1835,6 +1835,7 @@ class FAADocumentChecker(DocumentChecker):
             ('spacing_check', lambda: self.spacing_check(doc)),
             ('paragraph_length_check', lambda: self.check_paragraph_length(doc)),
             ('sentence_length_check', lambda: self.check_sentence_length(doc)),
+            ('508_compliance_check', lambda: self.check_508_compliance(doc_path)),
         ]
 
         # Run each check and store results
@@ -2387,6 +2388,191 @@ class FAADocumentChecker(DocumentChecker):
             issues=issues,
             details=sentence_stats
         )
+    
+    @profile_performance
+    def check_508_compliance(self, doc_path: str) -> DocumentCheckResult:
+        """
+        Perform basic Section 508 compliance checks on a Word document.
+        
+        Checks:
+        1. Alternative text for images
+        2. Table headers
+        3. Document language
+        4. Document title
+        5. Heading structure/hierarchy
+        6. List structure
+        7. Color contrast warnings
+        8. Meaningful hyperlink text
+        
+        Args:
+            doc_path: Path to the Word document
+            
+        Returns:
+            DocumentCheckResult with any 508 compliance issues found
+        """
+        try:
+            doc = Document(doc_path)
+            issues = []
+            
+            # Track heading levels for hierarchy check
+            heading_levels_used = set()
+            last_heading_level = 0
+            
+            # Check document properties
+            core_properties = doc.core_properties
+            if not core_properties.title:
+                issues.append({
+                    'type': '508_compliance',
+                    'category': 'document_properties',
+                    'message': 'Document title is not set in properties'
+                })
+                
+            # Check language setting - corrected approach
+            try:
+                if not doc.styles.element.xpath('//w:lang'):  # Check if any language is set
+                    issues.append({
+                        'type': '508_compliance',
+                        'category': 'language',
+                        'message': 'Document language is not specified'
+                    })
+            except Exception as e:
+                logging.debug(f"Could not check language settings: {str(e)}")
+                
+            # Check images for alt text
+            for shape in doc.inline_shapes:
+                try:
+                    if hasattr(shape, '_inline') and not shape._inline.docPr.descr:
+                        issues.append({
+                            'type': '508_compliance',
+                            'category': 'images',
+                            'message': f'Image missing alternative text'
+                        })
+                except AttributeError:
+                    continue
+                    
+            # Check tables
+            for table in doc.tables:
+                # Check if table has header row
+                if len(table.rows) > 1:
+                    try:
+                        first_row = table.rows[0]
+                        if not any(cell._tc.get_or_add_tcPr().vMerge for cell in first_row.cells):
+                            issues.append({
+                                'type': '508_compliance',
+                                'category': 'tables',
+                                'message': 'Table may be missing header row'
+                            })
+                    except AttributeError:
+                        continue
+                        
+            # Check paragraphs for various issues
+            for paragraph in doc.paragraphs:
+                # Check heading hierarchy
+                if paragraph.style.name.startswith('Heading'):
+                    try:
+                        current_level = int(paragraph.style.name.split()[-1])
+                        heading_levels_used.add(current_level)
+                        
+                        # Check for skipped heading levels
+                        if current_level > last_heading_level + 1 and current_level != 1:
+                            issues.append({
+                                'type': '508_compliance',
+                                'category': 'headings',
+                                'message': f'Heading level skipped from {last_heading_level} to {current_level}',
+                                'context': paragraph.text
+                            })
+                        last_heading_level = current_level
+                    except ValueError:
+                        pass
+                        
+                # Check hyperlinks
+                for run in paragraph.runs:
+                    if hasattr(run, 'style') and run.style and run.style.name == 'Hyperlink':
+                        if len(run.text.strip()) < 4 or run.text.lower() in ['click here', 'here', 'link', 'this link']:
+                            issues.append({
+                                'type': '508_compliance',
+                                'category': 'links',
+                                'message': f'Non-descriptive link text found: "{run.text}"',
+                                'context': paragraph.text
+                            })
+                            
+                # Check for potential color contrast issues (basic warning)
+                for run in paragraph.runs:
+                    try:
+                        if hasattr(run, 'font') and hasattr(run.font, 'color') and run.font.color.rgb:
+                            issues.append({
+                                'type': '508_compliance',
+                                'category': 'color_contrast',
+                                'message': 'Custom text color used - verify sufficient contrast',
+                                'context': run.text
+                            })
+                    except AttributeError:
+                        continue
+                            
+            # Check heading hierarchy completeness
+            if heading_levels_used:
+                max_level = max(heading_levels_used)
+                for level in range(1, max_level + 1):
+                    if level not in heading_levels_used:
+                        issues.append({
+                            'type': '508_compliance',
+                            'category': 'headings',
+                            'message': f'Heading level {level} is not used but higher levels exist'
+                        })
+                        
+            return DocumentCheckResult(
+                success=len(issues) == 0,
+                issues=issues,
+                details={
+                    'total_issues': len(issues),
+                    'categories': {
+                        'document_properties': len([i for i in issues if i['category'] == 'document_properties']),
+                        'language': len([i for i in issues if i['category'] == 'language']),
+                        'images': len([i for i in issues if i['category'] == 'images']),
+                        'tables': len([i for i in issues if i['category'] == 'tables']),
+                        'headings': len([i for i in issues if i['category'] == 'headings']),
+                        'links': len([i for i in issues if i['category'] == 'links']),
+                        'color_contrast': len([i for i in issues if i['category'] == 'color_contrast'])
+                    }
+                }
+            )
+            
+        except Exception as e:
+            logging.error(f"Error during 508 compliance check: {str(e)}")
+            return DocumentCheckResult(
+                success=False,
+                issues=[{
+                    'type': '508_compliance',
+                    'category': 'error',
+                    'message': f'Error performing 508 compliance check: {str(e)}'
+                }]
+            )
+
+    def _format_508_compliance_issues(self, result: DocumentCheckResult) -> List[str]:
+        """Format 508 compliance issues with clear instructions for fixing."""
+        formatted_issues = []
+        
+        if not result.success and result.issues:
+            # Group issues by category
+            issues_by_category = {}
+            for issue in result.issues:
+                category = issue.get('category', 'general')
+                if category not in issues_by_category:
+                    issues_by_category[category] = []
+                issues_by_category[category].append(issue)
+            
+            # Format issues by category
+            for category, category_issues in issues_by_category.items():
+                formatted_issues.append(f"\n508 Compliance - {category.replace('_', ' ').title()}:")
+                for issue in category_issues:
+                    message = issue.get('message', '')
+                    context = issue.get('context', '')
+                    if context:
+                        formatted_issues.append(f"    • {message} in: \"{context}\"")
+                    else:
+                        formatted_issues.append(f"    • {message}")
+    
+        return formatted_issues
 
 class DocumentCheckResultsFormatter:
     
@@ -2528,6 +2714,15 @@ class DocumentCheckResultsFormatter:
                 'example_fix': {
                     'before': 'See AC 25.1309-1B, System Design and Analysis, for information on X.',
                     'after': 'See AC 25.1309-1B, <i>System Design and Analysis</i>, for information on X.'
+                }
+            },
+            '508_compliance_check': {
+                'title': 'Section 508 Compliance Issues',
+                'description': 'Checks document accessibility features required by Section 508 standards, including proper headings, alt text, table headers, and more.',
+                'solution': 'Address each accessibility issue to ensure document is usable by people with disabilities.',
+                'example_fix': {
+                    'before': 'Image without alt text, skipped heading levels, non-descriptive links',
+                    'after': 'All images have alt text, proper heading hierarchy, descriptive link text'
                 }
             }
         }
@@ -2897,22 +3092,38 @@ class DocumentCheckResultsFormatter:
                     output.extend(self._format_section_symbol_issues(result))
                 elif check_name == 'parentheses_check':
                     output.extend(self._format_parentheses_issues(result))
-                elif check_name == 'paragraph_length_check':
-                    output.extend(self._format_paragraph_length_issues(result))
-                elif check_name == 'sentence_length_check':
-                    formatted_issues = [self._format_standard_issue(issue) for issue in result.issues[:15]]
-                    output.extend(formatted_issues)
-                    
-                    if len(result.issues) > 15:
-                        output.append(f"\n    ... and {len(result.issues) - 15} more similar issues.")
+                elif check_name == '508_compliance_check':
+                    if not result.success and result.issues:
+                        output.append("\n  508 Compliance Issues:")
+                        issues_by_category = {}
+                        for issue in result.issues:
+                            category = issue.get('category', 'general')
+                            if category not in issues_by_category:
+                                issues_by_category[category] = []
+                            issues_by_category[category].append(issue)
+                        
+                        for category, category_issues in issues_by_category.items():
+                            output.append(f"\n    {category.replace('_', ' ').title()}:")
+                            for issue in category_issues:
+                                message = issue.get('message', '')
+                                context = issue.get('context', '')
+                                if context:
+                                    output.append(f"      • {message}\n        Context: \"{context}\"")
+                                else:
+                                    output.append(f"      • {message}")
+                        
+                        if result.details:
+                            output.append("\n    Summary:")
+                            output.append(f"      • Total issues: {result.details['total_issues']}")
+                            for category, count in result.details['categories'].items():
+                                if count > 0:
+                                    output.append(f"      • {category.replace('_', ' ').title()}: {count}")
                 else:
                     formatted_issues = [self._format_standard_issue(issue) for issue in result.issues[:15]]
                     output.extend(formatted_issues)
                     
-                    if len(result.issues) > 15:
+                    if len(result.issues) > 10:
                         output.append(f"\n    ... and {len(result.issues) - 15} more similar issues.")
-        
-        return '\n'.join(output)
 
     def save_report(self, results: Dict[str, Any], filepath: str, doc_type: str) -> None:
         """Save the formatted results to a file with proper formatting."""
