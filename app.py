@@ -19,16 +19,32 @@ import gradio as gr
 from docx import Document
 from colorama import init, Fore, Style
 import nltk
-from nltk.corpus import words
+from nltk.stem import WordNetLemmatizer
 
-# Download required NLTK data (only needs to be done once)
+# Initialize NLTK and required data
 try:
-    nltk.data.find('corpora/words')
-except LookupError:
-    nltk.download('words')
+    from nltk.corpus import words
+    import nltk
+    
+    # Try to find required NLTK data, download if not found
+    try:
+        nltk.data.find('corpora/wordnet')
+        nltk.data.find('corpora/words')
+    except LookupError:
+        print("Downloading required NLTK data...")
+        nltk.download('wordnet', quiet=True)
+        nltk.download('words', quiet=True)
+    
+    lemmatizer = WordNetLemmatizer()
+    WORDNET_AVAILABLE = True
+    
+    # Create set of English words
+    ENGLISH_WORDS: Set[str] = set(word.lower() for word in words.words())
+except ImportError:
+    WORDNET_AVAILABLE = False
+    print("Note: NLTK not installed. Using basic acronym detection.")
+    ENGLISH_WORDS = set()  # Empty set as fallback
 
-# Create set of English words plus aviation terms
-ENGLISH_WORDS: Set[str] = set(word.lower() for word in words.words())
 # Add aviation-specific terms that might not be in the standard dictionary
 AVIATION_TERMS: Set[str] = {
     # Aircraft Components & Systems
@@ -87,7 +103,7 @@ AVIATION_TERMS: Set[str] = {
 }
 ENGLISH_WORDS.update(AVIATION_TERMS)
 
-# More common words that might appear in uppercase
+# After the existing AVIATION_TERMS set, add more common words that might appear in uppercase
 COMMON_UPPERCASE_WORDS: Set[str] = {
     # Common words that might appear in uppercase
     "the", "and", "or", "not", "for", "to", "in", "on", "at", "by", "with",
@@ -211,7 +227,7 @@ class TextNormalization:
 @dataclass
 class DocumentCheckResult:
     success: bool
-    issues: List[Dict[str, Any]]
+    issues: List[str]
     details: Optional[Dict[str, Any]] = None
 
 # 5. Base Document Checker
@@ -1018,12 +1034,14 @@ class FAADocumentChecker(DocumentChecker):
             
         Returns:
             DocumentCheckResult with any acronym-related issues found
-            
+
         Note:
             - Validates against known English words to reduce false positives
+            - Uses heuristics (length, vowels) and lemmatization to filter words
             - Ignores common aviation reference patterns
             - Tracks acronym definitions and usage
         """
+
         if not self.validate_input(doc):
             return DocumentCheckResult(success=False, issues=[{'error': 'Invalid document input'}])
 
@@ -1035,24 +1053,24 @@ class FAADocumentChecker(DocumentChecker):
 
         # Patterns for references that contain acronyms but should be ignored
         ignore_patterns = [
-            r'FAA-\d{4}-\d+',              # FAA docket numbers
-            r'\d{2}-\d{2}-\d{2}-SC',       # Special condition numbers
-            r'AC\s*\d+(?:[-.]\d+)*[A-Z]*', # Advisory circular numbers
-            r'AD\s*\d{4}-\d{2}-\d{2}',     # Airworthiness directive numbers
-            r'\d{2}-[A-Z]{2,}',            # Other reference numbers with acronyms
-            r'[A-Z]+-\d+',                 # Generic reference numbers
-            r'§\s*[A-Z]+\.\d+',            # Section references
-            r'Part\s*[A-Z]+',              # Part references
+            r'FAA-\d{4}-\d+',
+            r'\d{2}-\d{2}-\d{2}-SC',
+            r'AC\s*\d+(?:[-.]\d+)*[A-Z]*',
+            r'AD\s*\d{4}-\d{2}-\d{2}',
+            r'\d{2}-[A-Z]{2,}',
+            r'[A-Z]+-\d+',
+            r'§\s*[A-Z]+\.\d+',
+            r'Part\s*[A-Z]+',
         ]
-        
+
         # Combine ignore patterns
         ignore_regex = '|'.join(f'(?:{pattern})' for pattern in ignore_patterns)
         ignore_pattern = re.compile(ignore_regex)
 
         # Tracking structures
-        defined_acronyms = {}  # Stores definition info
-        used_acronyms = set()  # Stores acronyms used after definition
-        reported_acronyms = set()  # Stores acronyms that have already been noted as issues
+        defined_acronyms = {}
+        used_acronyms = set()
+        reported_acronyms = set()
         issues = []
 
         # Patterns
@@ -1065,28 +1083,22 @@ class FAADocumentChecker(DocumentChecker):
             if all(word.isupper() for word in words) and any(word in heading_words for word in words):
                 continue
 
-            # First, find all text that should be ignored
-            ignored_spans = []
-            for match in ignore_pattern.finditer(paragraph):
-                ignored_spans.append(match.span())
+            # Identify ignored spans
+            ignored_spans = [m.span() for m in ignore_pattern.finditer(paragraph)]
 
-            # Check for acronym definitions first
-            defined_matches = defined_pattern.finditer(paragraph)
-            for match in defined_matches:
+            # Check for acronym definitions
+            for match in defined_pattern.finditer(paragraph):
                 full_term, acronym = match.groups()
-                # Skip if the acronym is in an ignored span
                 if not any(start <= match.start(2) <= end for start, end in ignored_spans):
-                    if acronym not in predefined_acronyms:
-                        if acronym not in defined_acronyms:
-                            defined_acronyms[acronym] = {
-                                'full_term': full_term.strip(),
-                                'defined_at': paragraph.strip(),
-                                'used': False
-                            }
+                    if acronym not in predefined_acronyms and acronym not in defined_acronyms:
+                        defined_acronyms[acronym] = {
+                            'full_term': full_term.strip(),
+                            'defined_at': paragraph.strip(),
+                            'used': False
+                        }
 
             # Check for acronym usage
-            usage_matches = acronym_pattern.finditer(paragraph)
-            for match in usage_matches:
+            for match in acronym_pattern.finditer(paragraph):
                 acronym = match.group()
                 start_pos = match.start()
 
@@ -1094,20 +1106,25 @@ class FAADocumentChecker(DocumentChecker):
                 if any(start <= start_pos <= end for start, end in ignored_spans):
                     continue
 
-                # Check if this uppercase word is actually a known English word
-                # If so, skip it as a false positive
-                if acronym.lower() in ENGLISH_WORDS:
-                    continue
-
-                # Skip predefined acronyms and other checks
+                # Check if predefined or heading or invalid
                 if (acronym in predefined_acronyms or
                     acronym in heading_words or
                     any(not c.isalpha() for c in acronym) or
                     len(acronym) > 10):
                     continue
 
+                # Heuristic checks before flagging:
+                # 1. Lemmatize and check dictionary
+                # 2. Check length and presence of vowels
+                lemma = lemmatizer.lemmatize(acronym.lower())
+                vowels = set("AEIOU")
+                if (lemma in ENGLISH_WORDS or
+                    (len(acronym) > 5 and any(v in acronym for v in vowels) and lemma in ENGLISH_WORDS)):
+                    # Consider it a normal word, not an acronym
+                    continue
+
+                # If no definition found
                 if acronym not in defined_acronyms and acronym not in reported_acronyms:
-                    # Undefined acronym used; report only once with simple message format
                     issues.append(f"Confirm '{acronym}' was defined at its first use.")
                     reported_acronyms.add(acronym)
                 elif acronym in defined_acronyms:
