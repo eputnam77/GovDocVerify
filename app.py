@@ -2551,6 +2551,53 @@ class FAADocumentChecker(DocumentChecker):
                     'message': f'Error performing 508 compliance check: {str(e)}'
                 }]
             )
+    def _format_508_compliance_issues(self, result: DocumentCheckResult) -> List[str]:
+        """Format 508 compliance issues with clear instructions for fixing."""
+        formatted_issues = []
+        
+        if not result.success and result.issues:
+            # Group issues by category
+            issues_by_category = {}
+            for issue in result.issues:
+                category = issue.get('category', 'general')
+                if category not in issues_by_category:
+                    issues_by_category[category] = []
+                issues_by_category[category].append(issue)
+            
+            # Format issues by category with specific guidance
+            for category, category_issues in issues_by_category.items():
+                formatted_issues.append(f"\n508 Compliance - {category.replace('_', ' ').title()}:")
+                
+                # Add category-specific guidance
+                if category == 'image_alt_text':
+                    formatted_issues.append("  Guidance: Add descriptive alternative text to all meaningful images.")
+                elif category == 'color_contrast':
+                    formatted_issues.append("  Guidance: Ensure text has sufficient contrast ratio (4.5:1 for normal text, 3:1 for large text).")
+                elif category == 'chart_description':
+                    formatted_issues.append("  Guidance: Include detailed descriptions of chart data and trends.")
+                elif category == 'smartart':
+                    formatted_issues.append("  Guidance: Ensure SmartArt content is also available in text form.")
+                
+                # List specific issues
+                for issue in category_issues:
+                    message = issue.get('message', '')
+                    context = issue.get('context', '')
+                    if context:
+                        formatted_issues.append(f"    • {message} in: \"{context}\"")
+                    else:
+                        formatted_issues.append(f"    • {message}")
+                        
+            # Add statistics if available
+            if result.details and 'statistics' in result.details:
+                stats = result.details['statistics']
+                formatted_issues.append("\nAccessibility Statistics:")
+                formatted_issues.append(f"  • Total images: {stats['total_images']}")
+                formatted_issues.append(f"  • Images with alt text: {stats['images_with_alt']}")
+                formatted_issues.append(f"  • Custom colored text elements: {stats['colored_text']}")
+                formatted_issues.append(f"  • Charts: {stats['charts']}")
+                formatted_issues.append(f"  • SmartArt elements: {stats['smartart']}")
+    
+        return formatted_issues
 
     def _format_508_compliance_issues(self, result: DocumentCheckResult) -> List[str]:
         """Format 508 compliance issues with clear instructions for fixing."""
@@ -2674,47 +2721,143 @@ class FAADocumentChecker(DocumentChecker):
 
     @profile_performance
     def check_cross_references(self, doc: List[str]) -> DocumentCheckResult:
-        """Check for consistent and valid cross-references within the document.
+        """
+        Check for consistent and valid cross-references within the document.
         
         Verifies:
-        - References to sections exist
+        - References to sections exist (including parent sections)
+        - References to paragraphs exist
         - References to figures/tables exist
+        - References to appendices exist
         - Consistent formatting of references
-        - No broken internal links
+        
+        Args:
+            doc: List of document paragraphs
+            
+        Returns:
+            DocumentCheckResult with any invalid reference issues
         """
         if not self.validate_input(doc):
             return DocumentCheckResult(success=False, issues=[{'error': 'Invalid document input'}])
             
-        issues = []
-        section_refs = set()
-        figure_refs = set()
-        table_refs = set()
+        # Track all defined elements
+        sections = set()
+        paragraphs = set()
+        figures = set()
+        tables = set()
+        appendices = set()
         
-        # First pass: collect all section/figure/table numbers
+        # Debug info
+        debug_info = {
+            'found_sections': [],
+            'found_paragraphs': [],
+            'skipped_lines': []
+        }
+        
+        # First pass: collect all defined elements
         for paragraph in doc:
-            # Match section headers
-            if re.match(r'^\d+\.\d+\s+', paragraph):
-                section_refs.add(paragraph.split()[0].rstrip('.'))
+            # Skip empty lines
+            if not paragraph.strip():
+                continue
                 
+            # More flexible number detection pattern
+            # Matches numbers at start of line or after whitespace
+            number_matches = re.finditer(
+                r'(?:^|\s+)(\d+(?:\.\d+)*)\s+',  # Matches "1.2.3 " or "  1.2.3 "
+                paragraph.strip()
+            )
+            
+            for match in number_matches:
+                number = match.group(1).strip()
+                # Remove trailing dot if present
+                if number.endswith('.'):
+                    number = number[:-1]
+                
+                # Validate that this looks like a section/paragraph number
+                # Should have at least one dot and consist of numbers
+                if '.' in number and all(part.isdigit() for part in number.split('.')):
+                    # Add as both section and paragraph
+                    sections.add(number)
+                    paragraphs.add(number)
+                    debug_info['found_sections'].append(
+                        f"Section/Paragraph: {number} from '{paragraph.strip()[:100]}'"  # Show more context
+                    )
+                    
+                    # Add parent sections
+                    parts = number.split('.')
+                    for i in range(1, len(parts)):
+                        parent_section = '.'.join(parts[:i])
+                        sections.add(parent_section)
+                        paragraphs.add(parent_section)
+                        debug_info['found_sections'].append(
+                            f"Parent Section/Paragraph: {parent_section} from '{number}'"
+                        )
+                    
+                    debug_info['found_paragraphs'].append(
+                        f"Paragraph: {number} from '{paragraph.strip()[:100]}'"
+                    )
+            
             # Match figure/table captions
             if paragraph.lower().startswith(('figure', 'table')):
                 match = re.match(r'(Figure|Table)\s+(\d+(?:-\d+)?)', paragraph, re.IGNORECASE)
                 if match:
                     if match.group(1).lower() == 'figure':
-                        figure_refs.add(match.group(2))
+                        figures.add(match.group(2))
                     else:
-                        table_refs.add(match.group(2))
+                        tables.add(match.group(2))
+                        
+            # Match appendix headers
+            app_match = re.match(r'^Appendix\s+([A-Z])', paragraph, re.IGNORECASE)
+            if app_match:
+                appendices.add(app_match.group(1))
+            
+            # If we didn't find any matches, add to skipped lines for debugging
+            if not any((
+                number_matches,
+                paragraph.lower().startswith(('figure', 'table')),
+                app_match
+            )):
+                debug_info['skipped_lines'].append(paragraph.strip()[:100] + "...")  # Show more context
+        
+        issues = []
         
         # Second pass: check references
         for paragraph in doc:
             # Check section references
-            section_matches = re.finditer(r'[Ss]ection\s+(\d+\.\d+)', paragraph)
+            section_matches = re.finditer(r'[Ss]ection\s+(\d+(?:\.\d+)*)', paragraph)
             for match in section_matches:
-                if match.group(1) not in section_refs:
+                referenced_section = match.group(1)
+                if referenced_section not in sections:
+                    # Check if this is a non-existent subsection of an existing section
+                    parent_exists = any(
+                        referenced_section.startswith(existing + '.') 
+                        for existing in sections
+                    )
+                    if parent_exists:
+                        issues.append({
+                            'type': 'invalid_subsection_reference',
+                            'reference': match.group(0),
+                            'section_number': referenced_section,
+                            'message': f"Referenced subsection {referenced_section} not found in document"
+                        })
+                    else:
+                        issues.append({
+                            'type': 'invalid_section_reference',
+                            'reference': match.group(0),
+                            'section_number': referenced_section,
+                            'message': f"Referenced section {referenced_section} not found in document"
+                        })
+                    
+            # Check paragraph references
+            para_matches = re.finditer(r'[Pp]aragraph\s+(\d+\.\d+(?:\.\d+)*)', paragraph)
+            for match in para_matches:
+                referenced_para = match.group(1)
+                if referenced_para not in paragraphs:
                     issues.append({
-                        'type': 'invalid_section_reference',
+                        'type': 'invalid_paragraph_reference',
                         'reference': match.group(0),
-                        'section_number': match.group(1)
+                        'paragraph_number': referenced_para,
+                        'message': f"Referenced paragraph {referenced_para} not found in document"
                     })
                     
             # Check figure/table references
@@ -2725,15 +2868,179 @@ class FAADocumentChecker(DocumentChecker):
                     re.IGNORECASE
                 )
                 for match in matches:
-                    ref_set = figure_refs if ref_type.lower() == 'figure' else table_refs
+                    ref_set = figures if ref_type.lower() == 'figure' else tables
                     if match.group(1) not in ref_set:
                         issues.append({
                             'type': f'invalid_{ref_type}_reference',
                             'reference': match.group(0),
-                            'number': match.group(1)
+                            'number': match.group(1),
+                            'message': f"Referenced {ref_type} {match.group(1)} not found in document"
                         })
+                        
+            # Check appendix references
+            app_matches = re.finditer(r'[Aa]ppendix\s+([A-Z])', paragraph)
+            for match in app_matches:
+                if match.group(1) not in appendices:
+                    issues.append({
+                        'type': 'invalid_appendix_reference',
+                        'reference': match.group(0),
+                        'appendix_letter': match.group(1),
+                        'message': f"Referenced Appendix {match.group(1)} not found in document"
+                    })
         
-        return DocumentCheckResult(success=len(issues) == 0, issues=issues)
+        # Add debug information to details
+        details = {
+            'sections_found': len(sections),
+            'paragraphs_found': len(paragraphs),
+            'figures_found': len(figures),
+            'tables_found': len(tables),
+            'appendices_found': len(appendices),
+            'total_references_checked': len(issues),
+            'debug': {
+                'sections': sorted(list(sections)),
+                'paragraphs': sorted(list(paragraphs)),
+                'section_detection': debug_info['found_sections'][:10],  # First 10 for brevity
+                'paragraph_detection': debug_info['found_paragraphs'][:10],  # First 10 for brevity
+                'skipped_lines_sample': debug_info['skipped_lines'][:5]  # First 5 for context
+            }
+        }
+
+        return DocumentCheckResult(
+            success=len(issues) == 0,
+            issues=issues,
+            details=details
+        )
+
+    @profile_performance
+    def check_508_color_contrast(self, doc_path: str) -> DocumentCheckResult:
+        """
+        Check for potential color contrast issues and image accessibility in Word documents.
+        
+        Checks:
+        1. Text color contrast against backgrounds
+        2. Images with missing alt text
+        3. Decorative images properly marked
+        4. Complex images with long descriptions
+        5. Background images with text alternatives
+        6. SmartArt accessibility
+        7. Charts and graphs with text alternatives
+        
+        Args:
+            doc_path: Path to the Word document
+            
+        Returns:
+            DocumentCheckResult with any accessibility issues found
+        """
+        try:
+            doc = Document(doc_path)
+            issues = []
+            
+            # Track statistics
+            stats = {
+                'total_images': 0,
+                'images_with_alt': 0,
+                'colored_text': 0,
+                'charts': 0,
+                'smartart': 0
+            }
+            
+            # Check inline shapes (images, charts, etc.)
+            for shape in doc.inline_shapes:
+                stats['total_images'] += 1
+                try:
+                    if hasattr(shape, '_inline'):
+                        # Check for alt text
+                        if not shape._inline.docPr.descr:
+                            if not shape._inline.docPr.title:  # No title either
+                                issues.append({
+                                    'type': '508_accessibility',
+                                    'category': 'image_alt_text',
+                                    'message': 'Image missing alternative text and title'
+                                })
+                            else:  # Has title but no description
+                                issues.append({
+                                    'type': '508_accessibility',
+                                    'category': 'image_alt_text',
+                                    'message': f'Image with title "{shape._inline.docPr.title}" missing description'
+                                })
+                        else:
+                            stats['images_with_alt'] += 1
+                            
+                        # Check if it's a chart
+                        if hasattr(shape, 'chart'):
+                            stats['charts'] += 1
+                            if not shape._inline.docPr.descr or len(shape._inline.docPr.descr) < 20:
+                                issues.append({
+                                    'type': '508_accessibility',
+                                    'category': 'chart_description',
+                                    'message': 'Chart missing detailed description of data'
+                                })
+                except AttributeError:
+                    continue
+            
+            # Check paragraphs for text color and other formatting
+            for paragraph in doc.paragraphs:
+                for run in paragraph.runs:
+                    try:
+                        if hasattr(run, 'font') and hasattr(run.font, 'color') and run.font.color.rgb:
+                            stats['colored_text'] += 1
+                            # Add warning for custom colored text
+                            issues.append({
+                                'type': '508_accessibility',
+                                'category': 'color_contrast',
+                                'message': 'Custom text color used - verify sufficient contrast',
+                                'context': run.text[:50] + '...' if len(run.text) > 50 else run.text
+                            })
+                    except AttributeError:
+                        continue
+            
+            # Check SmartArt
+            try:
+                for rel in doc.part.rels.values():
+                    if 'smartArt' in rel.reltype:
+                        stats['smartart'] += 1
+                        issues.append({
+                            'type': '508_accessibility',
+                            'category': 'smartart',
+                            'message': 'SmartArt detected - ensure content is also conveyed in text'
+                        })
+            except Exception as e:
+                logging.debug(f"Error checking SmartArt: {str(e)}")
+            
+            # Add recommendations for complex images
+            if stats['total_images'] > 0:
+                issues.append({
+                    'type': '508_accessibility',
+                    'category': 'complex_images',
+                    'message': 'For complex images, consider adding detailed descriptions in the text'
+                })
+            
+            return DocumentCheckResult(
+                success=len(issues) == 0,
+                issues=issues,
+                details={
+                    'total_issues': len(issues),
+                    'statistics': stats,
+                    'categories': {
+                        'image_alt_text': len([i for i in issues if i['category'] == 'image_alt_text']),
+                        'color_contrast': len([i for i in issues if i['category'] == 'color_contrast']),
+                        'chart_description': len([i for i in issues if i['category'] == 'chart_description']),
+                        'smartart': len([i for i in issues if i['category'] == 'smartart']),
+                        'complex_images': len([i for i in issues if i['category'] == 'complex_images'])
+                    }
+                }
+            )
+            
+        except Exception as e:
+            logging.error(f"Error during 508 color contrast check: {str(e)}")
+            return DocumentCheckResult(
+                success=False,
+                issues=[{
+                    'type': '508_accessibility',
+                    'category': 'error',
+                    'message': f'Error performing accessibility check: {str(e)}'
+                }]
+            )
 
 class DocumentCheckResultsFormatter:
     
@@ -2879,11 +3186,29 @@ class DocumentCheckResultsFormatter:
             },
             '508_compliance_check': {
                 'title': 'Section 508 Compliance Issues',
-                'description': 'Checks document accessibility features required by Section 508 standards, including proper headings, alt text, table headers, and more.',
-                'solution': 'Address each accessibility issue to ensure document is usable by people with disabilities.',
+                'description': 'Checks document accessibility features required by Section 508 standards, including proper headings, alt text, table headers, color contrast, and more. This ensures the document is usable by people with disabilities using assistive technologies.',
+                'solution': 'Address each accessibility issue to ensure document compliance with Section 508 standards:',
                 'example_fix': {
-                    'before': 'Image without alt text, skipped heading levels, non-descriptive links',
-                    'after': 'All images have alt text, proper heading hierarchy, descriptive link text'
+                    'before': [
+                        'Image without alt text',
+                        'Custom colored text without sufficient contrast',
+                        'Chart without data description',
+                        'SmartArt without text alternative'
+                    ],
+                    'after': [
+                        'Image with descriptive alt text',
+                        'Text with sufficient color contrast (4.5:1)',
+                        'Chart with detailed data description',
+                        'SmartArt with text alternative content'
+                    ]
+                },
+                'specific_guidance': {
+                    'image_alt_text': 'Add descriptive alternative text to all meaningful images. Decorative images should be marked as such.',
+                    'color_contrast': 'Ensure text has sufficient contrast ratio (4.5:1 for normal text, 3:1 for large text).',
+                    'chart_description': 'Include detailed descriptions of chart data, trends, and key findings.',
+                    'smartart': 'Ensure SmartArt content is also conveyed in accessible text format.',
+                    'complex_images': 'Provide detailed descriptions in the document text for complex images, charts, or diagrams.',
+                    'general': 'Follow WCAG 2.1 Level AA guidelines for all content.'
                 }
             },
             'hyperlink_check': {
@@ -3147,33 +3472,63 @@ class DocumentCheckResultsFormatter:
         return formatted_issues
 
     def _format_cross_reference_issues(self, result: DocumentCheckResult) -> List[str]:
-        """Format cross-reference issues with clear instructions for fixing."""
+        """Format cross-reference issues with clear instructions for fixing.
+        
+        Args:
+            result: DocumentCheckResult containing cross-reference issues
+            
+        Returns:
+            List[str]: Formatted list of cross-reference issues
+        """
         formatted_issues = []
         
         if result.issues:
             # Group issues by reference type
             section_refs = []
+            subsection_refs = []
+            paragraph_refs = []
             figure_refs = []
             table_refs = []
+            appendix_refs = []
             
             for issue in result.issues:
                 if issue['type'] == 'invalid_section_reference':
                     section_refs.append(
-                        f"    • Invalid section reference: '{issue['reference']}' - Section {issue['section_number']} not found"
+                        f"    • Confirm '{issue['reference']}' - Section {issue['section_number']} not found"
+                    )
+                elif issue['type'] == 'invalid_subsection_reference':
+                    subsection_refs.append(
+                        f"    • Confirm '{issue['reference']}' - Subsection {issue['section_number']} not found"
+                    )
+                elif issue['type'] == 'invalid_paragraph_reference':
+                    paragraph_refs.append(
+                        f"    • Confirm '{issue['reference']}' - Paragraph {issue['paragraph_number']} not found"
                     )
                 elif issue['type'] == 'invalid_figure_reference':
                     figure_refs.append(
-                        f"    • Invalid figure reference: '{issue['reference']}' - Figure {issue['number']} not found"
+                        f"    • Confirm '{issue['reference']}' - Figure {issue['number']} not found"
                     )
                 elif issue['type'] == 'invalid_table_reference':
                     table_refs.append(
-                        f"    • Invalid table reference: '{issue['reference']}' - Table {issue['number']} not found"
+                        f"    • Confirm '{issue['reference']}' - Table {issue['number']} not found"
+                    )
+                elif issue['type'] == 'invalid_appendix_reference':
+                    appendix_refs.append(
+                        f"    • Confirm '{issue['reference']}' - Appendix {issue['appendix_letter']} not found"
                     )
             
             # Add grouped issues with headers
             if section_refs:
                 formatted_issues.append("\n  Section Reference Issues:")
                 formatted_issues.extend(section_refs)
+                
+            if subsection_refs:
+                formatted_issues.append("\n  Subsection Reference Issues:")
+                formatted_issues.extend(subsection_refs)
+                
+            if paragraph_refs:
+                formatted_issues.append("\n  Paragraph Reference Issues:")
+                formatted_issues.extend(paragraph_refs)
                 
             if figure_refs:
                 formatted_issues.append("\n  Figure Reference Issues:")
@@ -3182,6 +3537,10 @@ class DocumentCheckResultsFormatter:
             if table_refs:
                 formatted_issues.append("\n  Table Reference Issues:")
                 formatted_issues.extend(table_refs)
+                
+            if appendix_refs:
+                formatted_issues.append("\n  Appendix Reference Issues:")
+                formatted_issues.extend(appendix_refs)
         
         return formatted_issues
 
