@@ -2553,195 +2553,145 @@ class FAADocumentChecker(DocumentChecker):
         return DocumentCheckResult(success=len(issues) == 0, issues=issues)
 
     @profile_performance
+    @profile_performance
     def check_cross_references(self, doc: List[str]) -> DocumentCheckResult:
         """
-        Check for consistent and valid cross-references within the document.
-        
-        Verifies:
-        - References to sections exist (including parent sections)
-        - References to paragraphs exist
-        - References to figures/tables exist
-        - References to appendices exist
-        - Consistent formatting of references
+        Enhanced cross-reference validation with improved heading detection and parent section handling.
         
         Args:
             doc: List of document paragraphs
             
         Returns:
-            DocumentCheckResult with any invalid reference issues
+            DocumentCheckResult with validated cross-references
         """
         if not self.validate_input(doc):
             return DocumentCheckResult(success=False, issues=[{'error': 'Invalid document input'}])
             
-        # Track all defined elements
+        # Initialize tracking sets for defined elements
         sections = set()
         paragraphs = set()
         figures = set()
         tables = set()
         appendices = set()
         
-        # Debug info
         debug_info = {
-            'found_sections': [],
-            'found_paragraphs': [],
+            'sections_found': [],
+            'paragraphs_found': [],
+            'figures_found': [],
+            'tables_found': [],
+            'appendices_found': [],
             'skipped_lines': []
         }
-        
-        # First pass: collect all defined elements
+
+        # First pass: collect all defined elements with improved detection
         for paragraph in doc:
-            # Skip empty lines
-            if not paragraph.strip():
+            line = paragraph.strip()
+            if not line:
                 continue
                 
-            # More flexible number detection pattern
-            # Matches numbers at start of line or after whitespace
-            number_matches = re.finditer(
-                r'(?:^|\s+)(\d+(?:\.\d+)*)\s+',  # Matches "1.2.3 " or "  1.2.3 "
-                paragraph.strip()
-            )
-            
-            for match in number_matches:
-                number = match.group(1).strip()
-                # Remove trailing dot if present
-                if number.endswith('.'):
-                    number = number[:-1]
+            # 1. Detect numeric headings (sections/paragraphs) with more flexible pattern
+            heading_match = re.match(r'^(\d+(?:\.\d+)*)\s+(.+)$', line)
+            if heading_match:
+                number = heading_match.group(1)
+                title = heading_match.group(2)
                 
-                # Validate that this looks like a section/paragraph number
-                # Should have at least one dot and consist of numbers
-                if '.' in number and all(part.isdigit() for part in number.split('.')):
-                    # Add as both section and paragraph
-                    sections.add(number)
-                    paragraphs.add(number)
-                    debug_info['found_sections'].append(
-                        f"Section/Paragraph: {number} from '{paragraph.strip()[:100]}'"  # Show more context
-                    )
+                # Add the full section number
+                sections.add(number)
+                paragraphs.add(number)
+                debug_info['sections_found'].append(f"{number}: {title}")
+                
+                # Add parent sections (e.g., "2.9" for "2.9.5")
+                parts = number.split('.')
+                for i in range(1, len(parts)):
+                    parent = '.'.join(parts[:i])
+                    sections.add(parent)
+                    paragraphs.add(parent)
+                    debug_info['sections_found'].append(f"Parent: {parent}")
                     
-                    # Add parent sections
-                    parts = number.split('.')
-                    for i in range(1, len(parts)):
-                        parent_section = '.'.join(parts[:i])
-                        sections.add(parent_section)
-                        paragraphs.add(parent_section)
-                        debug_info['found_sections'].append(
-                            f"Parent Section/Paragraph: {parent_section} from '{number}'"
-                        )
-                    
-                    debug_info['found_paragraphs'].append(
-                        f"Paragraph: {number} from '{paragraph.strip()[:100]}'"
-                    )
-            
-            # Match figure/table captions
-            if paragraph.lower().startswith(('figure', 'table')):
-                match = re.match(r'(Figure|Table)\s+(\d+(?:-\d+)?)', paragraph, re.IGNORECASE)
-                if match:
-                    if match.group(1).lower() == 'figure':
-                        figures.add(match.group(2))
-                    else:
-                        tables.add(match.group(2))
-                        
-            # Match appendix headers
-            app_match = re.match(r'^Appendix\s+([A-Z])', paragraph, re.IGNORECASE)
+            # 2. Detect figure/table captions with flexible patterns
+            figure_match = re.match(r'^(?:Figure|FIGURE)\s+(\d+(?:-\d+)?)', line)
+            if figure_match:
+                figures.add(figure_match.group(1))
+                debug_info['figures_found'].append(line)
+                
+            table_match = re.match(r'^(?:Table|TABLE)\s+(\d+(?:-\d+)?)', line)
+            if table_match:
+                tables.add(table_match.group(1))
+                debug_info['tables_found'].append(line)
+                
+            # 3. Detect appendix headings with case-insensitive pattern
+            app_match = re.match(r'^Appendix\s+([A-Z])(?:\s*:|\.|\s)', line, re.IGNORECASE)
             if app_match:
                 appendices.add(app_match.group(1))
-            
-            # If we didn't find any matches, add to skipped lines for debugging
-            if not any((
-                number_matches,
-                paragraph.lower().startswith(('figure', 'table')),
-                app_match
-            )):
-                debug_info['skipped_lines'].append(paragraph.strip()[:100] + "...")  # Show more context
-        
+                debug_info['appendices_found'].append(line)
+                
+            # Track skipped lines for debugging
+            if not any([heading_match, figure_match, table_match, app_match]):
+                debug_info['skipped_lines'].append(line[:100])
+
+        # Second pass: check references with improved validation
         issues = []
         
-        # Second pass: check references
         for paragraph in doc:
             # Check section references
-            section_matches = re.finditer(r'[Ss]ection\s+(\d+(?:\.\d+)*)', paragraph)
-            for match in section_matches:
-                referenced_section = match.group(1)
-                if referenced_section not in sections:
-                    # Check if this is a non-existent subsection of an existing section
-                    parent_exists = any(
-                        referenced_section.startswith(existing + '.') 
-                        for existing in sections
-                    )
-                    if parent_exists:
-                        issues.append({
-                            'type': 'invalid_subsection_reference',
-                            'reference': match.group(0),
-                            'section_number': referenced_section,
-                            'message': f"Referenced subsection {referenced_section} not found in document"
-                        })
-                    else:
-                        issues.append({
-                            'type': 'invalid_section_reference',
-                            'reference': match.group(0),
-                            'section_number': referenced_section,
-                            'message': f"Referenced section {referenced_section} not found in document"
-                        })
-                    
+            for match in re.finditer(r'[Ss]ection\s+(\d+(?:\.\d+)*)', paragraph):
+                ref_section = match.group(1)
+                if ref_section not in sections:
+                    parent_exists = any(ref_section.startswith(s + '.') for s in sections)
+                    issues.append({
+                        'type': 'invalid_subsection_reference' if parent_exists else 'invalid_section_reference',
+                        'reference': match.group(0),
+                        'section_number': ref_section,
+                        'context': paragraph.strip()
+                    })
+
             # Check paragraph references
-            para_matches = re.finditer(r'[Pp]aragraph\s+(\d+\.\d+(?:\.\d+)*)', paragraph)
-            for match in para_matches:
-                referenced_para = match.group(1)
-                if referenced_para not in paragraphs:
+            for match in re.finditer(r'[Pp]aragraph\s+(\d+(?:\.\d+)*)', paragraph):
+                ref_para = match.group(1)
+                if ref_para not in paragraphs:
                     issues.append({
                         'type': 'invalid_paragraph_reference',
                         'reference': match.group(0),
-                        'paragraph_number': referenced_para,
-                        'message': f"Referenced paragraph {referenced_para} not found in document"
+                        'paragraph_number': ref_para,
+                        'context': paragraph.strip()
                     })
-                    
-            # Check figure/table references
-            for ref_type in ['figure', 'table']:
-                matches = re.finditer(
-                    rf'{ref_type}\s+(\d+(?:-\d+)?)',
-                    paragraph,
-                    re.IGNORECASE
-                )
-                for match in matches:
-                    ref_set = figures if ref_type.lower() == 'figure' else tables
+
+            # Check figure/table references with improved patterns
+            for ref_type, ref_set, pattern in [
+                ('figure', figures, r'[Ff]igure\s+(\d+(?:-\d+)?)'),
+                ('table', tables, r'[Tt]able\s+(\d+(?:-\d+)?)')
+            ]:
+                for match in re.finditer(pattern, paragraph):
                     if match.group(1) not in ref_set:
                         issues.append({
                             'type': f'invalid_{ref_type}_reference',
                             'reference': match.group(0),
                             'number': match.group(1),
-                            'message': f"Referenced {ref_type} {match.group(1)} not found in document"
+                            'context': paragraph.strip()
                         })
-                        
-            # Check appendix references
-            app_matches = re.finditer(r'[Aa]ppendix\s+([A-Z])', paragraph)
-            for match in app_matches:
+
+            # Check appendix references with case-insensitive pattern
+            for match in re.finditer(r'[Aa]ppendix\s+([A-Z])', paragraph):
                 if match.group(1) not in appendices:
                     issues.append({
                         'type': 'invalid_appendix_reference',
                         'reference': match.group(0),
                         'appendix_letter': match.group(1),
-                        'message': f"Referenced Appendix {match.group(1)} not found in document"
+                        'context': paragraph.strip()
                     })
-        
-        # Add debug information to details
-        details = {
-            'sections_found': len(sections),
-            'paragraphs_found': len(paragraphs),
-            'figures_found': len(figures),
-            'tables_found': len(tables),
-            'appendices_found': len(appendices),
-            'total_references_checked': len(issues),
-            'debug': {
-                'sections': sorted(list(sections)),
-                'paragraphs': sorted(list(paragraphs)),
-                'section_detection': debug_info['found_sections'][:10],  # First 10 for brevity
-                'paragraph_detection': debug_info['found_paragraphs'][:10],  # First 10 for brevity
-                'skipped_lines_sample': debug_info['skipped_lines'][:5]  # First 5 for context
-            }
-        }
 
         return DocumentCheckResult(
             success=len(issues) == 0,
             issues=issues,
-            details=details
+            details={
+                'sections_found': len(sections),
+                'paragraphs_found': len(paragraphs),
+                'figures_found': len(figures),
+                'tables_found': len(tables),
+                'appendices_found': len(appendices),
+                'total_references_checked': len(issues),
+                'debug': debug_info
+            }
         )
 
     @profile_performance
