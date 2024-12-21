@@ -13,6 +13,7 @@ from typing import Dict, List, Any, Tuple, Optional, Pattern, Callable, Set
 from dataclasses import dataclass
 from functools import wraps
 from abc import ABC, abstractmethod
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 # Third-party imports
 import gradio as gr
@@ -2396,286 +2397,118 @@ class FAADocumentChecker(DocumentChecker):
     @profile_performance
     def check_508_compliance(self, doc_path: str) -> DocumentCheckResult:
         """
-        Perform basic Section 508 compliance checks on a Word document.
-        
-        Checks:
-        1. Alternative text for images
-        2. Table headers
-        3. Document language
-        4. Document title
-        5. Heading structure/hierarchy
-        6. List structure
-        7. Color contrast warnings
-        8. Meaningful hyperlink text
-        
-        Args:
-            doc_path: Path to the Word document
-            
-        Returns:
-            DocumentCheckResult with any 508 compliance issues found
+        Perform tailored Section 508 compliance checks on a Word document.
         """
         try:
             doc = Document(doc_path)
             issues = []
-            
-            # Track heading levels for hierarchy check
-            heading_levels_used = set()
-            last_heading_level = 0
-            
-            # Check document properties
-            core_properties = doc.core_properties
-            if not core_properties.title:
-                issues.append({
-                    'type': '508_compliance',
-                    'category': 'document_properties',
-                    'message': 'Document title is not set in properties'
-                })
-                
-            # Check language setting - corrected approach
-            try:
-                if not doc.styles.element.xpath('//w:lang'):  # Check if any language is set
-                    issues.append({
-                        'type': '508_compliance',
-                        'category': 'language',
-                        'message': 'Document language is not specified'
-                    })
-            except Exception as e:
-                logging.debug(f"Could not check language settings: {str(e)}")
-                
-            # Check images for alt text
+
+            # Example checks (image alt text, color contrast, etc.)
             for shape in doc.inline_shapes:
-                try:
-                    if hasattr(shape, '_inline') and not shape._inline.docPr.descr:
-                        issues.append({
-                            'type': '508_compliance',
-                            'category': 'images',
-                            'message': f'Image missing alternative text'
-                        })
-                except AttributeError:
-                    continue
-                    
-            # Check tables
-            for table in doc.tables:
-                # Check if table has header row
-                if len(table.rows) > 1:
-                    try:
-                        first_row = table.rows[0]
-                        if not any(cell._tc.get_or_add_tcPr().vMerge for cell in first_row.cells):
-                            issues.append({
-                                'type': '508_compliance',
-                                'category': 'tables',
-                                'message': 'Table may be missing header row'
-                            })
-                    except AttributeError:
-                        continue
-                        
-            # Check paragraphs for various issues
+                alt_text = getattr(shape, '_inline', None)
+                if not alt_text:
+                    issues.append({
+                        'message': 'Image is missing descriptive alt text.',
+                        'context': 'Ensure all images have descriptive alt text.'
+                    })
+
             for paragraph in doc.paragraphs:
-                # Check heading hierarchy
-                if paragraph.style.name.startswith('Heading'):
-                    try:
-                        current_level = int(paragraph.style.name.split()[-1])
-                        heading_levels_used.add(current_level)
-                        
-                        # Check for skipped heading levels
-                        if current_level > last_heading_level + 1 and current_level != 1:
-                            issues.append({
-                                'type': '508_compliance',
-                                'category': 'headings',
-                                'message': f'Heading level skipped from {last_heading_level} to {current_level}',
-                                'context': paragraph.text
-                            })
-                        last_heading_level = current_level
-                    except ValueError:
-                        pass
-                        
-                # Check hyperlinks
                 for run in paragraph.runs:
-                    if hasattr(run, 'style') and run.style and run.style.name == 'Hyperlink':
-                        if len(run.text.strip()) < 4 or run.text.lower() in ['click here', 'here', 'link', 'this link']:
-                            issues.append({
-                                'type': '508_compliance',
-                                'category': 'links',
-                                'message': f'Non-descriptive link text found: "{run.text}"',
-                                'context': paragraph.text
-                            })
-                            
-                # Check for potential color contrast issues (basic warning)
-                for run in paragraph.runs:
-                    try:
-                        if hasattr(run, 'font') and hasattr(run.font, 'color') and run.font.color.rgb:
-                            issues.append({
-                                'type': '508_compliance',
-                                'category': 'color_contrast',
-                                'message': 'Custom text color used - verify sufficient contrast',
-                                'context': run.text
-                            })
-                    except AttributeError:
-                        continue
-                            
-            # Check heading hierarchy completeness
-            if heading_levels_used:
-                max_level = max(heading_levels_used)
-                for level in range(1, max_level + 1):
-                    if level not in heading_levels_used:
+                    color = getattr(run.font, 'color', None)
+                    # Check if color exists and is not black or automatic
+                    if (color and color.rgb is not None and 
+                        color.rgb not in [(0, 0, 0), None]):  # None represents 'automatic'
                         issues.append({
-                            'type': '508_compliance',
-                            'category': 'headings',
-                            'message': f'Heading level {level} is not used but higher levels exist'
+                            'message': f'Text color is not black or automatic: {color.rgb}.',
+                            'context': run.text.strip()
                         })
-                        
+
+            # Return structured result
             return DocumentCheckResult(
                 success=len(issues) == 0,
-                issues=issues,
-                details={
-                    'total_issues': len(issues),
-                    'categories': {
-                        'document_properties': len([i for i in issues if i['category'] == 'document_properties']),
-                        'language': len([i for i in issues if i['category'] == 'language']),
-                        'images': len([i for i in issues if i['category'] == 'images']),
-                        'tables': len([i for i in issues if i['category'] == 'tables']),
-                        'headings': len([i for i in issues if i['category'] == 'headings']),
-                        'links': len([i for i in issues if i['category'] == 'links']),
-                        'color_contrast': len([i for i in issues if i['category'] == 'color_contrast'])
-                    }
-                }
+                issues=self.format_compliance_issues(issues),
             )
-            
         except Exception as e:
             logging.error(f"Error during 508 compliance check: {str(e)}")
             return DocumentCheckResult(
                 success=False,
                 issues=[{
-                    'type': '508_compliance',
-                    'category': 'error',
                     'message': f'Error performing 508 compliance check: {str(e)}'
                 }]
             )
-    def _format_508_compliance_issues(self, result: DocumentCheckResult) -> List[str]:
-        """Format 508 compliance issues with clear instructions for fixing."""
-        formatted_issues = []
-        
-        if not result.success and result.issues:
-            # Group issues by category
-            issues_by_category = {}
-            for issue in result.issues:
-                category = issue.get('category', 'general')
-                if category not in issues_by_category:
-                    issues_by_category[category] = []
-                issues_by_category[category].append(issue)
-            
-            # Format issues by category with specific guidance
-            for category, category_issues in issues_by_category.items():
-                formatted_issues.append(f"\n508 Compliance - {category.replace('_', ' ').title()}:")
-                
-                # Add category-specific guidance
-                if category == 'image_alt_text':
-                    formatted_issues.append("  Guidance: Add descriptive alternative text to all meaningful images.")
-                elif category == 'color_contrast':
-                    formatted_issues.append("  Guidance: Ensure text has sufficient contrast ratio (4.5:1 for normal text, 3:1 for large text).")
-                elif category == 'chart_description':
-                    formatted_issues.append("  Guidance: Include detailed descriptions of chart data and trends.")
-                elif category == 'smartart':
-                    formatted_issues.append("  Guidance: Ensure SmartArt content is also available in text form.")
-                
-                # List specific issues
-                for issue in category_issues:
-                    message = issue.get('message', '')
-                    context = issue.get('context', '')
-                    if context:
-                        formatted_issues.append(f"    • {message} in: \"{context}\"")
-                    else:
-                        formatted_issues.append(f"    • {message}")
-                        
-            # Add statistics if available
-            if result.details and 'statistics' in result.details:
-                stats = result.details['statistics']
-                formatted_issues.append("\nAccessibility Statistics:")
-                formatted_issues.append(f"  • Total images: {stats['total_images']}")
-                formatted_issues.append(f"  • Images with alt text: {stats['images_with_alt']}")
-                formatted_issues.append(f"  • Custom colored text elements: {stats['colored_text']}")
-                formatted_issues.append(f"  • Charts: {stats['charts']}")
-                formatted_issues.append(f"  • SmartArt elements: {stats['smartart']}")
-    
-        return formatted_issues
 
-    def _format_508_compliance_issues(self, result: DocumentCheckResult) -> List[str]:
-        """Format 508 compliance issues with clear instructions for fixing."""
+    def format_compliance_issues(self, issues: List[Dict[str, Any]]) -> List[str]:
+        """Format compliance issues into minimalist output."""
         formatted_issues = []
-        
-        if not result.success and result.issues:
-            # Group issues by category
-            issues_by_category = {}
-            for issue in result.issues:
-                category = issue.get('category', 'general')
-                if category not in issues_by_category:
-                    issues_by_category[category] = []
-                issues_by_category[category].append(issue)
-            
-            # Format issues by category
-            for category, category_issues in issues_by_category.items():
-                formatted_issues.append(f"\n508 Compliance - {category.replace('_', ' ').title()}:")
-                for issue in category_issues:
-                    message = issue.get('message', '')
-                    context = issue.get('context', '')
-                    if context:
-                        formatted_issues.append(f"    • {message} in: \"{context}\"")
-                    else:
-                        formatted_issues.append(f"    • {message}")
-    
+
+        for issue in issues:
+            message = issue.get('message', 'No description provided.')
+            context = issue.get('context', '').strip()
+            formatted_line = f"{message}"
+            if context:
+                formatted_line += f" Context: \"{context}\""
+            formatted_issues.append(formatted_line)
+
         return formatted_issues
 
     @profile_performance
     def check_hyperlinks(self, doc: List[str]) -> DocumentCheckResult:
         """
-        Basic hyperlink checker that identifies potentially broken URLs.
+        Enhanced hyperlink checker that identifies potentially broken URLs.
         
         Args:
-            doc: List of document paragraphs
+            doc: List of document paragraphs.
             
         Returns:
-            DocumentCheckResult with any potentially broken links
+            DocumentCheckResult with any potentially broken links.
         """
         if not self.validate_input(doc):
             return DocumentCheckResult(success=False, issues=[{'error': 'Invalid document input'}])
 
         issues = []
+        checked_urls = set()
         
         # URL pattern - matches http/https URLs
         url_pattern = re.compile(
             r'https?://(?:www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b[-a-zA-Z0-9()@:%_\+.~#?&//=]*'
         )
-
-        for paragraph in doc:
-            # Find all URLs in the paragraph
-            urls = url_pattern.finditer(paragraph)
-            
-            for url_match in urls:
-                url = url_match.group()
-                try:
-                    # Attempt to make a HEAD request with a timeout
-                    response = requests.head(url, timeout=5, allow_redirects=True)
-                    
-                    # Check if the response indicates an error
-                    if response.status_code >= 400:
-                        issues.append({
-                            'url': url,
-                            'message': f"Confirm this URL: {url}",
-                            'status_code': response.status_code
-                        })
-                        
-                except requests.RequestException:
-                    # Handle any request errors (timeout, connection error, etc.)
-                    issues.append({
+        
+        # Helper function to check a single URL
+        def check_url(url):
+            try:
+                response = requests.head(url, timeout=5, allow_redirects=True, headers={'User-Agent': 'CheckerTool/1.0'})
+                if response.status_code >= 400:
+                    return {
                         'url': url,
-                        'message': f"Confirm this URL: {url}",
-                        'error': 'Connection failed'
-                    })
+                        'message': f"Broken link: {url} (HTTP {response.status_code})"
+                    }
+            except requests.RequestException:
+                return {
+                    'url': url,
+                    'message': f"Check the link or internet connection: {url} (connection error)"
+                }
+            return None
+
+        # Extract and deduplicate URLs
+        for paragraph in doc:
+            urls = {match.group() for match in url_pattern.finditer(paragraph)}
+            checked_urls.update(urls)
+        
+        # Concurrently check URLs
+        with ThreadPoolExecutor(max_workers=10) as executor:
+            future_to_url = {executor.submit(check_url, url): url for url in checked_urls}
+            for future in as_completed(future_to_url):
+                issue = future.result()
+                if issue:
+                    issues.append(issue)
 
         return DocumentCheckResult(
             success=len(issues) == 0,
             issues=issues,
-            details={'total_urls_checked': len(issues)}
+            details={
+                'total_urls_checked': len(checked_urls),
+                'broken_urls': len(issues)
+            }
         )
     
     @profile_performance
@@ -3719,29 +3552,15 @@ class DocumentCheckResultsFormatter:
                 elif check_name == '508_compliance_check':
                     if not result.success and result.issues:
                         output.append("\n  508 Compliance Issues:")
-                        issues_by_category = {}
                         for issue in result.issues:
-                            category = issue.get('category', 'general')
-                            if category not in issues_by_category:
-                                issues_by_category[category] = []
-                            issues_by_category[category].append(issue)
-                        
-                        for category, category_issues in issues_by_category.items():
-                            output.append(f"\n    {category.replace('_', ' ').title()}:")
-                            for issue in category_issues:
-                                message = issue.get('message', '')
-                                context = issue.get('context', '')
-                                if context:
-                                    output.append(f"      • {message}\n        Context: \"{context}\"")
-                                else:
-                                    output.append(f"      • {message}")
-                        
-                        if result.details:
-                            output.append("\n    Summary:")
-                            output.append(f"      • Total issues: {result.details['total_issues']}")
-                            for category, count in result.details['categories'].items():
-                                if count > 0:
-                                    output.append(f"      • {category.replace('_', ' ').title()}: {count}")
+                            # Handle both string and dictionary issues
+                            if isinstance(issue, dict):
+                                category = issue.get('category', 'general')
+                                message = issue.get('message', str(issue))
+                                output.append(f"    • [{category}] {message}")
+                            else:
+                                # If issue is a string, just output it directly
+                                output.append(f"    • {issue}")
                 elif check_name == 'hyperlink_check':
                     for issue in result.issues:
                         output.append(f"    • {issue['message']}")
@@ -3893,7 +3712,7 @@ def create_interface():
         "Other"
     ]
     
-    template_types = ["Short AC template AC", "Long AC template AC"]
+    # template_types = ["Short AC template AC", "Long AC template AC"]
 
     def format_results_as_html(text_results):
         """Convert the text results into styled HTML."""
@@ -4144,12 +3963,12 @@ def create_interface():
                             info="Select the type of document you're checking"
                         )
                         
-                        template_type = gr.Radio(
-                            choices=template_types,
-                            label="📑 Template Type",
-                            visible=False,
-                            info="Only applicable for Advisory Circulars"
-                        )
+                        # template_type = gr.Radio(
+                        #     choices=template_types,
+                        #     label="📑 Template Type",
+                        #     visible=False,
+                        #     info="Only applicable for Advisory Circulars"
+                        # )
                         
                         submit_btn = gr.Button(
                             "🔍 Check Document",
@@ -4174,14 +3993,14 @@ def create_interface():
                 #         file_types=[".pdf"]
                 #     )
                 
-                def process_and_format(file_obj, doc_type_value, template_type_value):
+                def process_and_format(file_obj, doc_type_value):
                     """Process document and format results as HTML."""
                     try:
                         # Get text results from your original process_document function
                         checker = FAADocumentChecker()
                         if isinstance(file_obj, bytes):
                             file_obj = io.BytesIO(file_obj)
-                        results_data = checker.run_all_checks(file_obj, doc_type_value, template_type_value)
+                        results_data = checker.run_all_checks(file_obj, doc_type_value)
                         
                         # Format results using DocumentCheckResultsFormatter
                         formatter = DocumentCheckResultsFormatter()
@@ -4206,24 +4025,55 @@ def create_interface():
                         return error_html
                 
                 # Update template type visibility based on document type
-                def update_template_visibility(doc_type_value):
-                    if doc_type_value == "Advisory Circular":
-                        return gr.update(visible=True)
-                    else:
-                        return gr.update(visible=False)
+                # def update_template_visibility(doc_type_value):
+                #     if doc_type_value == "Advisory Circular":
+                #         return gr.update(visible=True)
+                #     else:
+                #         return gr.update(visible=False)
 
-                doc_type.change(
-                    fn=update_template_visibility,
-                    inputs=[doc_type],
-                    outputs=[template_type]
-                )
+                # doc_type.change(
+                #     fn=update_template_visibility,
+                #     inputs=[doc_type],
+                #     outputs=[template_type]
+                # )
 
                 # Handle document processing
                 submit_btn.click(
                     fn=process_and_format,
-                    inputs=[file_input, doc_type, template_type],
-                    outputs=[results]  # Only output the results
+                    inputs=[file_input, doc_type],  # Removed template_type
+                    outputs=[results]
                 )
+
+                def process_and_format(file_obj, doc_type_value):  # Removed template_type_value parameter
+                    """Process document and format results as HTML."""
+                    try:
+                        # Get text results from your original process_document function
+                        checker = FAADocumentChecker()
+                        if isinstance(file_obj, bytes):
+                            file_obj = io.BytesIO(file_obj)
+                        results_data = checker.run_all_checks(file_obj, doc_type_value)  # Removed template_type_value
+                        
+                        # Format results using DocumentCheckResultsFormatter
+                        formatter = DocumentCheckResultsFormatter()
+                        text_results = formatter.format_results(results_data, doc_type_value)
+
+                        # Convert to HTML
+                        html_results = format_results_as_html(text_results)
+
+                        # Return only the HTML results
+                        return html_results
+                        
+                    except Exception as e:
+                        logging.error(f"Error processing document: {str(e)}")
+                        traceback.print_exc()
+                        error_html = f"""
+                            <div style="color: red; padding: 1rem;">
+                                ❌ Error processing document: {str(e)}
+                                <br><br>
+                                Please ensure the file is a valid .docx document and try again.
+                            </div>
+                        """
+                        return error_html
 
                 # Function to generate PDF and provide it for download
                 # def generate_pdf(html_content):
