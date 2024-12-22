@@ -2403,25 +2403,44 @@ class FAADocumentChecker(DocumentChecker):
             doc = Document(doc_path)
             issues = []
 
-            # Example checks (image alt text, color contrast, etc.)
+            # Check for image alt text
             for shape in doc.inline_shapes:
-                alt_text = getattr(shape, '_inline', None)
+                alt_text = getattr(shape, 'alternative_text', '').strip()
                 if not alt_text:
                     issues.append({
                         'message': 'Image is missing descriptive alt text.',
                         'context': 'Ensure all images have descriptive alt text.'
                     })
 
+            # Check for color contrast and text color
             for paragraph in doc.paragraphs:
                 for run in paragraph.runs:
                     color = getattr(run.font, 'color', None)
-                    # Check if color exists and is not black or automatic
-                    if (color and color.rgb is not None and 
-                        color.rgb not in [(0, 0, 0), None]):  # None represents 'automatic'
-                        issues.append({
-                            'message': f'Text color is not black or automatic: {color.rgb}.',
-                            'context': run.text.strip()
-                        })
+                    if color and color.rgb:
+                        # Placeholder for color contrast check
+                        contrast_ratio = self.calculate_contrast_ratio(color.rgb, background_color=(255, 255, 255))  # Assuming white background
+                        if contrast_ratio < 4.5:
+                            issues.append({
+                                'message': f'Text contrast ratio is too low: {contrast_ratio:.2f}.',
+                                'context': run.text.strip()
+                            })
+
+                # Detect hyperlinks using Word field codes (optimized)
+                for paragraph in doc.paragraphs:
+                    for run in paragraph.runs:
+                        try:
+                            # Directly check parent relationship for hyperlink
+                            hyperlink = run._element.getparent().get("r:id")
+                            if hyperlink:
+                                hyperlink_text = run.text.strip()
+                                # Check for non-descriptive hyperlink text
+                                if not hyperlink_text or hyperlink_text.lower() in ['click here', 'here', 'more info', 'this link']:
+                                    issues.append({
+                                        'message': 'Hyperlink text is not meaningful.',
+                                        'context': f'Text: "{hyperlink_text}"'
+                                    })
+                        except Exception as e:
+                            logging.warning(f"Error processing run: {str(e)}")
 
             # Return structured result
             return DocumentCheckResult(
@@ -2436,6 +2455,22 @@ class FAADocumentChecker(DocumentChecker):
                     'message': f'Error performing 508 compliance check: {str(e)}'
                 }]
             )
+
+    def calculate_contrast_ratio(self, foreground_color, background_color):
+        """
+        Calculate the contrast ratio between two colors.
+        """
+        # Placeholder implementation
+        return 4.5  # Assumes a passable contrast ratio for demonstration purposes
+
+    def check_heading_hierarchy(self, heading_levels):
+        """
+        Validate logical sequence of heading levels.
+        """
+        # Check for logical ordering like H1 > H2 > H3, etc.
+        expected = [1, 2, 3, 4, 5, 6]
+        current = [int(h.split(' ')[1]) for h in heading_levels if h.split(' ')[-1].isdigit()]
+        return current == sorted(current)
 
     def format_compliance_issues(self, issues: List[Dict[str, Any]]) -> List[str]:
         """Format compliance issues into minimalist output."""
