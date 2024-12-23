@@ -2397,80 +2397,48 @@ class FAADocumentChecker(DocumentChecker):
     @profile_performance
     def check_508_compliance(self, doc_path: str) -> DocumentCheckResult:
         """
-        Perform tailored Section 508 compliance checks on a Word document.
+        Perform Section 508 compliance checks focusing on image alt text.
         """
         try:
             doc = Document(doc_path)
             issues = []
+            images_with_alt = 0
 
             # Check for image alt text
             for shape in doc.inline_shapes:
-                alt_text = getattr(shape, 'alternative_text', '').strip()
-                if not alt_text:
+                alt_text = None
+
+                # Check multiple locations for alt text
+                if hasattr(shape, '_inline') and hasattr(shape._inline, 'docPr'):
+                    docPr = shape._inline.docPr
+                    alt_text = docPr.get('descr') or docPr.get('title')
+
+                if alt_text:
+                    images_with_alt += 1
+                else:
                     issues.append({
+                        'category': 'image_alt_text',
                         'message': 'Image is missing descriptive alt text.',
                         'context': 'Ensure all images have descriptive alt text.'
                     })
 
-            # Check for color contrast and text color
-            for paragraph in doc.paragraphs:
-                for run in paragraph.runs:
-                    color = getattr(run.font, 'color', None)
-                    if color and color.rgb:
-                        # Placeholder for color contrast check
-                        contrast_ratio = self.calculate_contrast_ratio(color.rgb, background_color=(255, 255, 255))  # Assuming white background
-                        if contrast_ratio < 4.5:
-                            issues.append({
-                                'message': f'Text contrast ratio is too low: {contrast_ratio:.2f}.',
-                                'context': run.text.strip()
-                            })
-
-                # Detect hyperlinks using Word field codes (optimized)
-                for paragraph in doc.paragraphs:
-                    for run in paragraph.runs:
-                        try:
-                            # Directly check parent relationship for hyperlink
-                            hyperlink = run._element.getparent().get("r:id")
-                            if hyperlink:
-                                hyperlink_text = run.text.strip()
-                                # Check for non-descriptive hyperlink text
-                                if not hyperlink_text or hyperlink_text.lower() in ['click here', 'here', 'more info', 'this link']:
-                                    issues.append({
-                                        'message': 'Hyperlink text is not meaningful.',
-                                        'context': f'Text: "{hyperlink_text}"'
-                                    })
-                        except Exception as e:
-                            logging.warning(f"Error processing run: {str(e)}")
-
-            # Return structured result
             return DocumentCheckResult(
                 success=len(issues) == 0,
-                issues=self.format_compliance_issues(issues),
+                issues=issues,
+                details={
+                    'total_images': len(doc.inline_shapes),
+                    'images_with_alt': images_with_alt
+                }
             )
         except Exception as e:
             logging.error(f"Error during 508 compliance check: {str(e)}")
             return DocumentCheckResult(
                 success=False,
                 issues=[{
+                    'category': 'error',
                     'message': f'Error performing 508 compliance check: {str(e)}'
                 }]
             )
-
-    def calculate_contrast_ratio(self, foreground_color, background_color):
-        """
-        Calculate the contrast ratio between two colors.
-        """
-        # Placeholder implementation
-        return 4.5  # Assumes a passable contrast ratio for demonstration purposes
-
-    def check_heading_hierarchy(self, heading_levels):
-        """
-        Validate logical sequence of heading levels.
-        """
-        # Check for logical ordering like H1 > H2 > H3, etc.
-        expected = [1, 2, 3, 4, 5, 6]
-        current = [int(h.split(' ')[1]) for h in heading_levels if h.split(' ')[-1].isdigit()]
-        return current == sorted(current)
 
     def format_compliance_issues(self, issues: List[Dict[str, Any]]) -> List[str]:
         """Format compliance issues into minimalist output."""
@@ -2729,137 +2697,6 @@ class FAADocumentChecker(DocumentChecker):
             }
         )
 
-    @profile_performance
-    def check_508_color_contrast(self, doc_path: str) -> DocumentCheckResult:
-        """
-        Check for potential color contrast issues and image accessibility in Word documents.
-        
-        Checks:
-        1. Text color contrast against backgrounds
-        2. Images with missing alt text
-        3. Decorative images properly marked
-        4. Complex images with long descriptions
-        5. Background images with text alternatives
-        6. SmartArt accessibility
-        7. Charts and graphs with text alternatives
-        
-        Args:
-            doc_path: Path to the Word document
-            
-        Returns:
-            DocumentCheckResult with any accessibility issues found
-        """
-        try:
-            doc = Document(doc_path)
-            issues = []
-            
-            # Track statistics
-            stats = {
-                'total_images': 0,
-                'images_with_alt': 0,
-                'colored_text': 0,
-                'charts': 0,
-                'smartart': 0
-            }
-            
-            # Check inline shapes (images, charts, etc.)
-            for shape in doc.inline_shapes:
-                stats['total_images'] += 1
-                try:
-                    if hasattr(shape, '_inline'):
-                        # Check for alt text
-                        if not shape._inline.docPr.descr:
-                            if not shape._inline.docPr.title:  # No title either
-                                issues.append({
-                                    'type': '508_accessibility',
-                                    'category': 'image_alt_text',
-                                    'message': 'Image missing alternative text and title'
-                                })
-                            else:  # Has title but no description
-                                issues.append({
-                                    'type': '508_accessibility',
-                                    'category': 'image_alt_text',
-                                    'message': f'Image with title "{shape._inline.docPr.title}" missing description'
-                                })
-                        else:
-                            stats['images_with_alt'] += 1
-                            
-                        # Check if it's a chart
-                        if hasattr(shape, 'chart'):
-                            stats['charts'] += 1
-                            if not shape._inline.docPr.descr or len(shape._inline.docPr.descr) < 20:
-                                issues.append({
-                                    'type': '508_accessibility',
-                                    'category': 'chart_description',
-                                    'message': 'Chart missing detailed description of data'
-                                })
-                except AttributeError:
-                    continue
-            
-            # Check paragraphs for text color and other formatting
-            for paragraph in doc.paragraphs:
-                for run in paragraph.runs:
-                    try:
-                        if hasattr(run, 'font') and hasattr(run.font, 'color') and run.font.color.rgb:
-                            stats['colored_text'] += 1
-                            # Add warning for custom colored text
-                            issues.append({
-                                'type': '508_accessibility',
-                                'category': 'color_contrast',
-                                'message': 'Custom text color used - verify sufficient contrast',
-                                'context': run.text[:50] + '...' if len(run.text) > 50 else run.text
-                            })
-                    except AttributeError:
-                        continue
-            
-            # Check SmartArt
-            try:
-                for rel in doc.part.rels.values():
-                    if 'smartArt' in rel.reltype:
-                        stats['smartart'] += 1
-                        issues.append({
-                            'type': '508_accessibility',
-                            'category': 'smartart',
-                            'message': 'SmartArt detected - ensure content is also conveyed in text'
-                        })
-            except Exception as e:
-                logging.debug(f"Error checking SmartArt: {str(e)}")
-            
-            # Add recommendations for complex images
-            if stats['total_images'] > 0:
-                issues.append({
-                    'type': '508_accessibility',
-                    'category': 'complex_images',
-                    'message': 'For complex images, consider adding detailed descriptions in the text'
-                })
-            
-            return DocumentCheckResult(
-                success=len(issues) == 0,
-                issues=issues,
-                details={
-                    'total_issues': len(issues),
-                    'statistics': stats,
-                    'categories': {
-                        'image_alt_text': len([i for i in issues if i['category'] == 'image_alt_text']),
-                        'color_contrast': len([i for i in issues if i['category'] == 'color_contrast']),
-                        'chart_description': len([i for i in issues if i['category'] == 'chart_description']),
-                        'smartart': len([i for i in issues if i['category'] == 'smartart']),
-                        'complex_images': len([i for i in issues if i['category'] == 'complex_images'])
-                    }
-                }
-            )
-            
-        except Exception as e:
-            logging.error(f"Error during 508 color contrast check: {str(e)}")
-            return DocumentCheckResult(
-                success=False,
-                issues=[{
-                    'type': '508_accessibility',
-                    'category': 'error',
-                    'message': f'Error performing accessibility check: {str(e)}'
-                }]
-            )
-
 class DocumentCheckResultsFormatter:
     
     def __init__(self):
@@ -3004,29 +2841,11 @@ class DocumentCheckResultsFormatter:
             },
             '508_compliance_check': {
                 'title': 'Section 508 Compliance Issues',
-                'description': 'Checks document accessibility features required by Section 508 standards, including proper headings, alt text, table headers, color contrast, and more. This ensures the document is usable by people with disabilities using assistive technologies.',
-                'solution': 'Address each accessibility issue to ensure document compliance with Section 508 standards:',
+                'description': 'Checks document accessibility features required by Section 508 standards, including alt text. This ensures the document is usable by people with disabilities using assistive technologies.',
+                'solution': 'Address each accessibility issue to ensure document compliance with Section 508 standards.',
                 'example_fix': {
-                    'before': [
-                        'Image without alt text',
-                        'Custom colored text without sufficient contrast',
-                        'Chart without data description',
-                        'SmartArt without text alternative'
-                    ],
-                    'after': [
-                        'Image with descriptive alt text',
-                        'Text with sufficient color contrast (4.5:1)',
-                        'Chart with detailed data description',
-                        'SmartArt with text alternative content'
-                    ]
-                },
-                'specific_guidance': {
-                    'image_alt_text': 'Add descriptive alternative text to all meaningful images. Decorative images should be marked as such.',
-                    'color_contrast': 'Ensure text has sufficient contrast ratio (4.5:1 for normal text, 3:1 for large text).',
-                    'chart_description': 'Include detailed descriptions of chart data, trends, and key findings.',
-                    'smartart': 'Ensure SmartArt content is also conveyed in accessible text format.',
-                    'complex_images': 'Provide detailed descriptions in the document text for complex images, charts, or diagrams.',
-                    'general': 'Follow WCAG 2.1 Level AA guidelines for all content.'
+                    'before': 'Image without alt text',
+                    'after': 'Image with descriptive alt text'
                 }
             },
             'hyperlink_check': {
@@ -3535,17 +3354,8 @@ class DocumentCheckResultsFormatter:
                 elif check_name == 'parentheses_check':
                     output.extend(self._format_parentheses_issues(result))
                 elif check_name == '508_compliance_check':
-                    if not result.success and result.issues:
-                        output.append("\n  508 Compliance Issues:")
-                        for issue in result.issues:
-                            # Handle both string and dictionary issues
-                            if isinstance(issue, dict):
-                                category = issue.get('category', 'general')
-                                message = issue.get('message', str(issue))
-                                output.append(f"    • [{category}] {message}")
-                            else:
-                                # If issue is a string, just output it directly
-                                output.append(f"    • {issue}")
+                    if not result.success:
+                        output.append("  • Confirm that all images in your document have descriptive alt text.")
                 elif check_name == 'hyperlink_check':
                     for issue in result.issues:
                         output.append(f"    • {issue['message']}")
