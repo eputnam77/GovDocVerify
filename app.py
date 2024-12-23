@@ -1840,7 +1840,6 @@ class FAADocumentChecker(DocumentChecker):
             ('508_compliance_check', lambda: self.check_508_compliance(doc_path)),
             ('hyperlink_check', lambda: self.check_hyperlinks(doc)),
             ('numbered_lists_check', lambda: self.check_numbered_lists(doc)),
-            ('cross_references_check', lambda: self.check_cross_references(doc)),
         ]
 
         # Run each check and store results
@@ -2555,148 +2554,6 @@ class FAADocumentChecker(DocumentChecker):
         
         return DocumentCheckResult(success=len(issues) == 0, issues=issues)
 
-    @profile_performance
-    @profile_performance
-    def check_cross_references(self, doc: List[str]) -> DocumentCheckResult:
-        """
-        Enhanced cross-reference validation with improved heading detection and parent section handling.
-        
-        Args:
-            doc: List of document paragraphs
-            
-        Returns:
-            DocumentCheckResult with validated cross-references
-        """
-        if not self.validate_input(doc):
-            return DocumentCheckResult(success=False, issues=[{'error': 'Invalid document input'}])
-            
-        # Initialize tracking sets for defined elements
-        sections = set()
-        paragraphs = set()
-        figures = set()
-        tables = set()
-        appendices = set()
-        
-        debug_info = {
-            'sections_found': [],
-            'paragraphs_found': [],
-            'figures_found': [],
-            'tables_found': [],
-            'appendices_found': [],
-            'skipped_lines': []
-        }
-
-        # First pass: collect all defined elements with improved detection
-        for paragraph in doc:
-            line = paragraph.strip()
-            if not line:
-                continue
-                
-            # 1. Detect numeric headings (sections/paragraphs) with more flexible pattern
-            heading_match = re.match(r'^(\d+(?:\.\d+)*)\s+(.+)$', line)
-            if heading_match:
-                number = heading_match.group(1)
-                title = heading_match.group(2)
-                
-                # Add the full section number
-                sections.add(number)
-                paragraphs.add(number)
-                debug_info['sections_found'].append(f"{number}: {title}")
-                
-                # Add parent sections (e.g., "2.9" for "2.9.5")
-                parts = number.split('.')
-                for i in range(1, len(parts)):
-                    parent = '.'.join(parts[:i])
-                    sections.add(parent)
-                    paragraphs.add(parent)
-                    debug_info['sections_found'].append(f"Parent: {parent}")
-                    
-            # 2. Detect figure/table captions with flexible patterns
-            figure_match = re.match(r'^(?:Figure|FIGURE)\s+(\d+(?:-\d+)?)', line)
-            if figure_match:
-                figures.add(figure_match.group(1))
-                debug_info['figures_found'].append(line)
-                
-            table_match = re.match(r'^(?:Table|TABLE)\s+(\d+(?:-\d+)?)', line)
-            if table_match:
-                tables.add(table_match.group(1))
-                debug_info['tables_found'].append(line)
-                
-            # 3. Detect appendix headings with case-insensitive pattern
-            app_match = re.match(r'^Appendix\s+([A-Z])(?:\s*:|\.|\s)', line, re.IGNORECASE)
-            if app_match:
-                appendices.add(app_match.group(1))
-                debug_info['appendices_found'].append(line)
-                
-            # Track skipped lines for debugging
-            if not any([heading_match, figure_match, table_match, app_match]):
-                debug_info['skipped_lines'].append(line[:100])
-
-        # Second pass: check references with improved validation
-        issues = []
-        
-        for paragraph in doc:
-            # Check section references
-            for match in re.finditer(r'[Ss]ection\s+(\d+(?:\.\d+)*)', paragraph):
-                ref_section = match.group(1)
-                if ref_section not in sections:
-                    parent_exists = any(ref_section.startswith(s + '.') for s in sections)
-                    issues.append({
-                        'type': 'invalid_subsection_reference' if parent_exists else 'invalid_section_reference',
-                        'reference': match.group(0),
-                        'section_number': ref_section,
-                        'context': paragraph.strip()
-                    })
-
-            # Check paragraph references
-            for match in re.finditer(r'[Pp]aragraph\s+(\d+(?:\.\d+)*)', paragraph):
-                ref_para = match.group(1)
-                if ref_para not in paragraphs:
-                    issues.append({
-                        'type': 'invalid_paragraph_reference',
-                        'reference': match.group(0),
-                        'paragraph_number': ref_para,
-                        'context': paragraph.strip()
-                    })
-
-            # Check figure/table references with improved patterns
-            for ref_type, ref_set, pattern in [
-                ('figure', figures, r'[Ff]igure\s+(\d+(?:-\d+)?)'),
-                ('table', tables, r'[Tt]able\s+(\d+(?:-\d+)?)')
-            ]:
-                for match in re.finditer(pattern, paragraph):
-                    if match.group(1) not in ref_set:
-                        issues.append({
-                            'type': f'invalid_{ref_type}_reference',
-                            'reference': match.group(0),
-                            'number': match.group(1),
-                            'context': paragraph.strip()
-                        })
-
-            # Check appendix references with case-insensitive pattern
-            for match in re.finditer(r'[Aa]ppendix\s+([A-Z])', paragraph):
-                if match.group(1) not in appendices:
-                    issues.append({
-                        'type': 'invalid_appendix_reference',
-                        'reference': match.group(0),
-                        'appendix_letter': match.group(1),
-                        'context': paragraph.strip()
-                    })
-
-        return DocumentCheckResult(
-            success=len(issues) == 0,
-            issues=issues,
-            details={
-                'sections_found': len(sections),
-                'paragraphs_found': len(paragraphs),
-                'figures_found': len(figures),
-                'tables_found': len(tables),
-                'appendices_found': len(appendices),
-                'total_references_checked': len(issues),
-                'debug': debug_info
-            }
-        )
-
 class DocumentCheckResultsFormatter:
     
     def __init__(self):
@@ -2864,15 +2721,6 @@ class DocumentCheckResultsFormatter:
                 'example_fix': {
                     'before': '1. First item\n3. Second item\n2) Third item',
                     'after': '1. First item\n2. Second item\n3. Third item'
-                }
-            },
-            'cross_references_check': {
-                'title': 'Cross-Reference Issues',
-                'description': 'Validates internal document references to ensure all referenced sections, figures, and tables exist and are properly formatted. This helps prevent broken internal links and maintains document integrity.',
-                'solution': 'Update or remove invalid cross-references to ensure all referenced content exists.',
-                'example_fix': {
-                    'before': 'See Section 3.5 for details on...',
-                    'after': 'See Section 3.4 for details on...'  # Assuming 3.4 exists but 3.5 doesn't
                 }
             }
         }
@@ -3365,7 +3213,6 @@ class DocumentCheckResultsFormatter:
                             output.append(f"      (Error: {issue['error']})")
                 elif check_name == 'numbered_lists_check':
                     output.extend(self._format_numbered_list_issues(result))
-                elif check_name == 'cross_references_check':
                     output.extend(self._format_cross_reference_issues(result))
                 else:
                     formatted_issues = [self._format_standard_issue(issue) for issue in result.issues[:15]]
@@ -3458,7 +3305,6 @@ def format_markdown_results(results: Dict[str, DocumentCheckResult], doc_type: s
         'paragraph_length_check': {'title': '📏 Paragraph Length', 'priority': 5},
         'sentence_length_check': {'title': '📏 Sentence Length', 'priority': 5},
         'numbered_lists_check': {'title': '📋 Numbered List Format Issues', 'priority': 6},
-        'cross_references_check': {'title': '🔗 Cross-Reference Issues', 'priority': 7}
     }
 
     sorted_checks = sorted(
