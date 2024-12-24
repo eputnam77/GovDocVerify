@@ -9,142 +9,19 @@ import logging
 import traceback
 from datetime import datetime
 from enum import Enum, auto
-from typing import Dict, List, Any, Tuple, Optional, Pattern, Callable, Set
+from typing import Dict, List, Any, Tuple, Optional, Pattern, Callable
 from dataclasses import dataclass
 from functools import wraps
 from abc import ABC, abstractmethod
+# import tempfile  # For creating temporary files
+import requests
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 # Third-party imports
 import gradio as gr
 from docx import Document
 from colorama import init, Fore, Style
-import nltk
-from nltk.stem import WordNetLemmatizer
-import requests
-
-# Initialize NLTK and required data
-try:
-    from nltk.corpus import words
-    import nltk
-    
-    # Try to find required NLTK data, download if not found
-    try:
-        nltk.data.find('corpora/wordnet')
-        nltk.data.find('corpora/words')
-    except LookupError:
-        print("Downloading required NLTK data...")
-        nltk.download('wordnet', quiet=True)
-        nltk.download('words', quiet=True)
-    
-    lemmatizer = WordNetLemmatizer()
-    WORDNET_AVAILABLE = True
-    
-    # Create set of English words
-    ENGLISH_WORDS: Set[str] = set(word.lower() for word in words.words())
-except ImportError:
-    WORDNET_AVAILABLE = False
-    print("Note: NLTK not installed. Using basic acronym detection.")
-    ENGLISH_WORDS = set()  # Empty set as fallback
-
-# Add aviation-specific terms that might not be in the standard dictionary
-AVIATION_TERMS: Set[str] = {
-    # Aircraft Components & Systems
-    "pitot", "aileron", "rudder", "flap", "slat", "spoiler", "nacelle", 
-    "fuselage", "empennage", "winglet", "stabilizer", "propeller", "rotor",
-    "avionics", "autopilot", "transponder", "altimeter", "airspeed", "gyro",
-    "manifold", "magneto", "cowling", "strut", "spar", "rib", "longeron",
-    "turbine", "compressor", "combustor", "nozzle", "pylon", "thrust",
-    
-    # Navigation & Communication
-    "waypoint", "datalink", "navaid", "vor", "dme", "tacan", "rnav", "ils",
-    "localizer", "glideslope", "marker", "beacon", "tcas", "acars", "cpdlc",
-    "squawk", "metar", "notam", "pirep", "airmet", "sigmet", "atis",
-    
-    # Operations & Procedures
-    "takeoff", "touchdown", "rollout", "taxi", "pushback", "startup",
-    "shutdown", "crosswind", "downwind", "upwind", "base", "final", "approach",
-    "departure", "arrival", "holding", "pattern", "circuit", "climb", "cruise",
-    "descent", "stall", "flare", "rotate", "abort", "divert", "mayday", "pan",
-    
-    # Airport & Infrastructure
-    "runway", "taxiway", "apron", "ramp", "gate", "hangar", "helipad",
-    "heliport", "windsock", "threshold", "touchdown", "overrun", "clearway",
-    "stopway", "holdshort", "terminal", "tarmac",
-    
-    # Weather & Environmental
-    "windshear", "turbulence", "crosswind", "tailwind", "headwind", "gust",
-    "microburst", "icing", "ceiling", "visibility", "precipitation", "dewpoint",
-    "altimeter", "barometer", "density", "isotherm", "isobar",
-    
-    # Maintenance & Technical
-    "airframe", "powerplant", "hydraulic", "pneumatic", "electrical",
-    "mechanical", "structural", "composite", "metallic", "corrosion",
-    "fatigue", "overhaul", "inspection", "repair", "replace", "service",
-    "lubricate", "calibrate", "adjust", "align", "balance", "torque",
-    
-    # Flight Characteristics
-    "airspeed", "groundspeed", "mach", "altitude", "attitude", "heading",
-    "bearing", "track", "course", "drift", "pitch", "roll", "yaw", "bank",
-    "trim", "lift", "drag", "thrust", "weight", "momentum", "inertia",
-    
-    # Safety & Emergency
-    "evacuation", "ditching", "jettison", "eject", "bailout", "emergency",
-    "failure", "malfunction", "warning", "caution", "advisory", "abnormal",
-    "incident", "accident", "hazard", "risk", "safety",
-    
-    # Regulatory & Documentation
-    "airworthy", "certification", "compliance", "directive", "regulation",
-    "standard", "requirement", "specification", "limitation", "restriction",
-    "prohibition", "exemption", "deviation", "waiver", "approval",
-    
-    # Plurals and variations
-    "waypoints", "datalinks", "transponders", "runways", "taxiways",
-    "airports", "airways", "airlines", "airplanes", "helicopters", "pilots",
-    "controllers", "mechanics", "inspectors", "operators", "manufacturers"
-}
-ENGLISH_WORDS.update(AVIATION_TERMS)
-
-# After the existing AVIATION_TERMS set, add more common words that might appear in uppercase
-COMMON_UPPERCASE_WORDS: Set[str] = {
-    # Common words that might appear in uppercase
-    "the", "and", "or", "not", "for", "to", "in", "on", "at", "by", "with",
-    "from", "into", "during", "including", "until", "against", "among",
-    "throughout", "through", "within", "along", "upon", "after", "before",
-    "above", "below", "under", "over", "between", "out", "off", "up", "down",
-    # Technical/Scientific terms
-    "max", "min", "maximum", "minimum", "total", "sum", "average", "mean",
-    "range", "limit", "limits", "value", "values", "high", "low", "mid",
-    "upper", "lower", "inner", "outer", "top", "bottom", "side", "front",
-    "rear", "back", "left", "right", "center", "north", "south", "east", "west",
-    # Common adjectives
-    "new", "old", "big", "small", "large", "main", "key", "basic", "major",
-    "minor", "full", "half", "partial", "complete", "normal", "standard",
-    "special", "specific", "general", "common", "rare", "unique", "same",
-    "different", "various", "several", "many", "few",
-    # Aviation/Technical specific
-    "true", "false", "yes", "no", "on", "off", "set", "reset", "start", "stop",
-    "run", "hold", "release", "engage", "disengage", "lock", "unlock", "open",
-    "close", "active", "passive", "master", "slave", "primary", "secondary",
-    "backup", "alternate", "emergency", "normal", "caution", "warning", "alert",
-    "status", "mode", "level", "phase", "stage", "step", "rate", "speed",
-    "power", "force", "load", "stress", "strain", "flow", "pressure", "temp",
-    "temperature", "volt", "voltage", "current", "frequency", "signal",
-    # Units and measurements
-    "volt", "amp", "watt", "ohm", "hertz", "meter", "gram", "second", "hour",
-    "minute", "day", "week", "month", "year", "degree", "celsius", "fahrenheit",
-    "pascal", "bar", "psi", "knot", "foot", "feet", "inch", "pound", "mile",
-    # Common abbreviations that aren't acronyms
-    "etc", "fig", "ref", "no", "nos", "vol", "rev", "ver", "vs", "max", "min",
-    "temp", "prep", "misc", "spec", "specs", "info", "intro", "para", "paras",
-    "app", "apps", "calc", "calcs", "tech", "dist"
-}
-
-# Update ENGLISH_WORDS with the common uppercase words
-ENGLISH_WORDS.update(COMMON_UPPERCASE_WORDS)
-
-# Also add plural forms of all words
-ENGLISH_WORDS.update(word + "s" for word in COMMON_UPPERCASE_WORDS)
+# from weasyprint import HTML  # PDF generation related import
 
 # Constants
 DEFAULT_PORT = 7860
@@ -229,7 +106,7 @@ class TextNormalization:
 @dataclass
 class DocumentCheckResult:
     success: bool
-    issues: List[str]
+    issues: List[Dict[str, Any]]
     details: Optional[Dict[str, Any]] = None
 
 # 5. Base Document Checker
@@ -1028,22 +905,6 @@ class FAADocumentChecker(DocumentChecker):
 
     @profile_performance
     def acronym_check(self, doc: List[str]) -> DocumentCheckResult:
-        """
-        Check document for proper acronym usage with enhanced validation.
-        
-        Args:
-            doc: List of document paragraphs
-            
-        Returns:
-            DocumentCheckResult with any acronym-related issues found
-
-        Note:
-            - Validates against known English words to reduce false positives
-            - Uses heuristics (length, vowels) and lemmatization to filter words
-            - Ignores common aviation reference patterns
-            - Tracks acronym definitions and usage
-        """
-
         if not self.validate_input(doc):
             return DocumentCheckResult(success=False, issues=[{'error': 'Invalid document input'}])
 
@@ -1055,24 +916,24 @@ class FAADocumentChecker(DocumentChecker):
 
         # Patterns for references that contain acronyms but should be ignored
         ignore_patterns = [
-            r'FAA-\d{4}-\d+',
-            r'\d{2}-\d{2}-\d{2}-SC',
-            r'AC\s*\d+(?:[-.]\d+)*[A-Z]*',
-            r'AD\s*\d{4}-\d{2}-\d{2}',
-            r'\d{2}-[A-Z]{2,}',
-            r'[A-Z]+-\d+',
-            r'§\s*[A-Z]+\.\d+',
-            r'Part\s*[A-Z]+',
+            r'FAA-\d{4}-\d+',              # FAA docket numbers
+            r'\d{2}-\d{2}-\d{2}-SC',       # Special condition numbers
+            r'AC\s*\d+(?:[-.]\d+)*[A-Z]*', # Advisory circular numbers
+            r'AD\s*\d{4}-\d{2}-\d{2}',     # Airworthiness directive numbers
+            r'\d{2}-[A-Z]{2,}',            # Other reference numbers with acronyms
+            r'[A-Z]+-\d+',                 # Generic reference numbers
+            r'§\s*[A-Z]+\.\d+',            # Section references
+            r'Part\s*[A-Z]+',              # Part references
         ]
-
+        
         # Combine ignore patterns
         ignore_regex = '|'.join(f'(?:{pattern})' for pattern in ignore_patterns)
         ignore_pattern = re.compile(ignore_regex)
 
         # Tracking structures
-        defined_acronyms = {}
-        used_acronyms = set()
-        reported_acronyms = set()
+        defined_acronyms = {}  # Stores definition info
+        used_acronyms = set()  # Stores acronyms used after definition
+        reported_acronyms = set()  # Stores acronyms that have already been noted as issues
         issues = []
 
         # Patterns
@@ -1085,22 +946,28 @@ class FAADocumentChecker(DocumentChecker):
             if all(word.isupper() for word in words) and any(word in heading_words for word in words):
                 continue
 
-            # Identify ignored spans
-            ignored_spans = [m.span() for m in ignore_pattern.finditer(paragraph)]
+            # First, find all text that should be ignored
+            ignored_spans = []
+            for match in ignore_pattern.finditer(paragraph):
+                ignored_spans.append(match.span())
 
-            # Check for acronym definitions
-            for match in defined_pattern.finditer(paragraph):
+            # Check for acronym definitions first
+            defined_matches = defined_pattern.finditer(paragraph)
+            for match in defined_matches:
                 full_term, acronym = match.groups()
+                # Skip if the acronym is in an ignored span
                 if not any(start <= match.start(2) <= end for start, end in ignored_spans):
-                    if acronym not in predefined_acronyms and acronym not in defined_acronyms:
-                        defined_acronyms[acronym] = {
-                            'full_term': full_term.strip(),
-                            'defined_at': paragraph.strip(),
-                            'used': False
-                        }
+                    if acronym not in predefined_acronyms:
+                        if acronym not in defined_acronyms:
+                            defined_acronyms[acronym] = {
+                                'full_term': full_term.strip(),
+                                'defined_at': paragraph.strip(),
+                                'used': False
+                            }
 
             # Check for acronym usage
-            for match in acronym_pattern.finditer(paragraph):
+            usage_matches = acronym_pattern.finditer(paragraph)
+            for match in usage_matches:
                 acronym = match.group()
                 start_pos = match.start()
 
@@ -1108,25 +975,15 @@ class FAADocumentChecker(DocumentChecker):
                 if any(start <= start_pos <= end for start, end in ignored_spans):
                     continue
 
-                # Check if predefined or heading or invalid
+                # Skip predefined acronyms and other checks
                 if (acronym in predefined_acronyms or
                     acronym in heading_words or
                     any(not c.isalpha() for c in acronym) or
                     len(acronym) > 10):
                     continue
 
-                # Heuristic checks before flagging:
-                # 1. Lemmatize and check dictionary
-                # 2. Check length and presence of vowels
-                lemma = lemmatizer.lemmatize(acronym.lower())
-                vowels = set("AEIOU")
-                if (lemma in ENGLISH_WORDS or
-                    (len(acronym) > 5 and any(v in acronym for v in vowels) and lemma in ENGLISH_WORDS)):
-                    # Consider it a normal word, not an acronym
-                    continue
-
-                # If no definition found
                 if acronym not in defined_acronyms and acronym not in reported_acronyms:
+                    # Undefined acronym used; report only once
                     issues.append(f"Confirm '{acronym}' was defined at its first use.")
                     reported_acronyms.add(acronym)
                 elif acronym in defined_acronyms:
@@ -1377,10 +1234,10 @@ class FAADocumentChecker(DocumentChecker):
     @profile_performance
     def document_title_check(self, doc_path: str, doc_type: str) -> DocumentCheckResult:
         """
-        Check for correct formatting of document titles in references.
-        Format should be: "{doc_type} {number}, {title}," 
-        For Advisory Circulars: title should be italicized without quotes
-        For other document types: title should be in quotes without italics
+        Check for correct formatting of document titles.
+        
+        For Advisory Circulars: Use italics without quotes
+        For all other document types: Use quotes without italics
         
         Args:
             doc_path: Path to the document
@@ -1396,82 +1253,81 @@ class FAADocumentChecker(DocumentChecker):
             return DocumentCheckResult(success=False, issues=[{'error': str(e)}])
 
         incorrect_titles = []
-        
-        # Define document type patterns
-        doc_patterns = {
-            'AC': r'AC\s+[\d.-]+[A-Z]?,\s+([^,]+),',
-            'Order': r'Order\s+[\d.-]+[A-Z]?,\s+([^,]+),',
-            'Policy': r'Policy\s+[\d.-]+[A-Z]?,\s+([^,]+),',
-            'Notice': r'Notice\s+[\d.-]+[A-Z]?,\s+([^,]+),'
-        }
 
-        # Use italics for ACs, quotes for others
+        # Define formatting rules based on document type
         use_italics = doc_type == "Advisory Circular"
+        use_quotes = doc_type != "Advisory Circular"
+
+        # Pattern to match document references (e.g., "AC 25.1309-1B, System Design and Analysis")
+        doc_ref_pattern = re.compile(
+            r'(?:AC|Order|Policy|Notice)\s+[\d.-]+[A-Z]?,\s+([^,.]+)(?:[,.]|$)'
+        )
 
         for paragraph in doc.paragraphs:
-            # Skip empty paragraphs
-            if not paragraph.text.strip():
-                continue
+            matches = doc_ref_pattern.finditer(paragraph.text)
+            
+            for match in matches:
+                title_text = match.group(1).strip()
+                title_start = match.start(1)
+                title_end = match.end(1)
 
-            # Check each document type pattern
-            for doc_prefix, pattern in doc_patterns.items():
-                matches = re.finditer(pattern, paragraph.text)
-                
-                for match in matches:
-                    title_text = match.group(1).strip()
-                    title_start = match.start(1)
-                    title_end = match.end(1)
-                    
-                    # Track formatting within the matched title range
-                    title_is_italicized = False
-                    title_in_quotes = False
-                    current_pos = 0
+                # Check formatting within the matched range
+                title_is_italicized = False
+                title_in_quotes = False
+                current_pos = 0
 
-                    for run in paragraph.runs:
-                        run_length = len(run.text)
-                        run_start = current_pos
-                        run_end = current_pos + run_length
+                for run in paragraph.runs:
+                    run_length = len(run.text)
+                    run_start = current_pos
+                    run_end = current_pos + run_length
 
-                        # Check if this run overlaps with the title
-                        if (run_start <= title_start < run_end or 
-                            run_start < title_end <= run_end or
-                            title_start <= run_start < title_end):
-                            
-                            title_is_italicized = title_is_italicized or run.italic
-                            title_in_quotes = title_in_quotes or any(
-                                q in run.text for q in ['"', "'", '"', '"']
-                            )
+                    # Check if this run overlaps with the title
+                    if (run_start <= title_start < run_end or 
+                        run_start < title_end <= run_end or
+                        title_start <= run_start < title_end):
+                        title_is_italicized = title_is_italicized or run.italic
+                        # Check for any type of quotation marks
+                        title_in_quotes = title_in_quotes or any(
+                            q in run.text for q in ['"', "'", '"', '"', '"', '"']
+                        )
 
-                        current_pos += run_length
+                    current_pos += run_length
 
-                    # Determine if formatting is incorrect
-                    formatting_incorrect = False
+                # Determine if formatting is incorrect
+                formatting_incorrect = False
+                issue_message = []
 
-                    if doc_prefix == 'AC':
-                        if not title_is_italicized or title_in_quotes:
-                            formatting_incorrect = True
-                    else:  # Other document types
-                        if title_is_italicized or not title_in_quotes:
-                            formatting_incorrect = True
+                if use_italics:
+                    if not title_is_italicized:
+                        formatting_incorrect = True
+                        issue_message.append("should be italicized")
+                    if title_in_quotes:
+                        formatting_incorrect = True
+                        issue_message.append("should not be in quotes")
+                else:  # use quotes
+                    if title_is_italicized:
+                        formatting_incorrect = True
+                        issue_message.append("should not be italicized")
+                    if not title_in_quotes:
+                        formatting_incorrect = True
+                        issue_message.append("should be in quotes")
 
-                    if formatting_incorrect:
-                        # Get the full sentence containing the reference
-                        sentences = re.split(r'(?<=[.!?])\s+', paragraph.text)
-                        for sentence in sentences:
-                            if match.group(0) in sentence:
-                                incorrect_titles.append(
-                                    f"Confirm the title formatting in: {sentence.strip()}"
-                                )
-                                break
+                if formatting_incorrect:
+                    incorrect_titles.append({
+                        'text': title_text,
+                        'issue': ' and '.join(issue_message),
+                        'sentence': paragraph.text.strip(),
+                        'correct_format': 'italics' if use_italics else 'quotes'
+                    })
 
         success = len(incorrect_titles) == 0
-        
+
         return DocumentCheckResult(
             success=success,
             issues=incorrect_titles,
             details={
                 'document_type': doc_type,
-                'total_references_checked': len(incorrect_titles)
+                'formatting_rule': 'italics' if use_italics else 'quotes'
             }
         )
 
@@ -1839,7 +1695,6 @@ class FAADocumentChecker(DocumentChecker):
             ('sentence_length_check', lambda: self.check_sentence_length(doc)),
             ('508_compliance_check', lambda: self.check_508_compliance(doc_path)),
             ('hyperlink_check', lambda: self.check_hyperlinks(doc)),
-            ('numbered_lists_check', lambda: self.check_numbered_lists(doc)),
         ]
 
         # Run each check and store results
@@ -2512,47 +2367,6 @@ class FAADocumentChecker(DocumentChecker):
                 'broken_urls': len(issues)
             }
         )
-    
-    @profile_performance
-    def check_numbered_lists(self, doc: List[str]) -> DocumentCheckResult:
-        """Check for consistent numbered list formatting.
-        
-        Verifies:
-        - Sequential numbering
-        - Consistent period/parenthesis usage
-        - Proper indentation
-        - Parallel structure
-        """
-        if not self.validate_input(doc):
-            return DocumentCheckResult(success=False, issues=[{'error': 'Invalid document input'}])
-        
-        issues = []
-        current_list = []
-        expected_number = 1
-        
-        for paragraph in doc:
-            # Match common list patterns like "1.", "1)", "(1)", etc.
-            list_match = re.match(r'^(?:\s*)(?:\(?\d+[\.)]\)?|\([a-z]\))\s+', paragraph.strip())
-            
-            if list_match:
-                list_item = paragraph.strip()
-                current_list.append(list_item)
-                
-                # Check numbering sequence
-                number_match = re.match(r'\d+', list_match.group())
-                if number_match and int(number_match.group()) != expected_number:
-                    issues.append({
-                        'type': 'sequence_error',
-                        'item': list_item,
-                        'expected': expected_number
-                    })
-                expected_number += 1
-            else:
-                # Reset list tracking when non-list paragraph is found
-                current_list = []
-                expected_number = 1
-        
-        return DocumentCheckResult(success=len(issues) == 0, issues=issues)
 
 class DocumentCheckResultsFormatter:
     
@@ -2564,7 +2378,7 @@ class DocumentCheckResultsFormatter:
             'heading_title_check': {
                 'title': 'Required Headings Check',
                 'description': 'Verifies that your document includes all mandatory section headings, with requirements varying by document type. For example, long-template Advisory Circulars require headings like "Purpose." and "Applicability." with initial caps and periods, while Federal Register Notices use ALL CAPS headings like "SUMMARY" and "BACKGROUND" without periods. This check ensures both the presence of required headings and their correct capitalization format based on document type.',
-                'solution': 'Add all required headings in the correct order using the correct capitalization format. Note that the "Cancellation." heading is only required if this AC cancels an existing AC. If this AC does not cancel another AC, you can ignore this heading.',
+                'solution': 'Add all required headings in the correct order using the correct capitalization format.',
                 'example_fix': {
                     'before': 'Missing required heading "PURPOSE."',
                     'after': 'Added heading "PURPOSE." at the beginning of the document'
@@ -2713,18 +2527,10 @@ class DocumentCheckResultsFormatter:
                     'before': 'See https://broken-link.example.com for more details.',
                     'after': 'See https://www.faa.gov for more details.'
                 }
-            },
-            'numbered_lists_check': {
-                'title': 'Numbered List Format Issues',
-                'description': 'Verifies consistent formatting of numbered lists, including proper sequencing, indentation, and parallel structure. Lists should maintain consistent formatting (either all periods or all parentheses) and follow proper numbering sequence.',
-                'solution': 'Correct list numbering sequence and ensure consistent format usage.',
-                'example_fix': {
-                    'before': '1. First item\n3. Second item\n2) Third item',
-                    'after': '1. First item\n2. Second item\n3. Third item'
-                }
             }
         }
 
+        # Add these two helper methods here, after __init__ and before other methods
     def _format_colored_text(self, text: str, color: str) -> str:
         """Helper method to format colored text with reset.
         
@@ -2917,118 +2723,6 @@ class DocumentCheckResultsFormatter:
         
         return formatted_issues
 
-    def _format_numbered_list_issues(self, result: DocumentCheckResult) -> List[str]:
-        """Format numbered list issues with clear instructions for fixing."""
-        formatted_issues = []
-        
-        if result.issues:
-            # Group issues by type
-            sequence_errors = []
-            format_errors = []
-            indentation_errors = []
-            
-            for issue in result.issues:
-                if issue['type'] == 'sequence_error':
-                    sequence_errors.append(
-                        f"    • List item '{issue['item']}' should be number {issue['expected']}"
-                    )
-                elif issue['type'] == 'format_inconsistency':
-                    format_errors.append(
-                        f"    • Inconsistent format: '{issue['item']}' uses different style than previous items"
-                    )
-                elif issue['type'] == 'indentation_error':
-                    indentation_errors.append(
-                        f"    • Incorrect indentation in: '{issue['item']}'"
-                    )
-            
-            # Add grouped issues with headers
-            if sequence_errors:
-                formatted_issues.append("\n  Numbering Sequence Issues:")
-                formatted_issues.extend(sequence_errors)
-                
-            if format_errors:
-                formatted_issues.append("\n  Format Consistency Issues:")
-                formatted_issues.extend(format_errors)
-                
-            if indentation_errors:
-                formatted_issues.append("\n  Indentation Issues:")
-                formatted_issues.extend(indentation_errors)
-        
-        return formatted_issues
-
-    def _format_cross_reference_issues(self, result: DocumentCheckResult) -> List[str]:
-        """Format cross-reference issues with clear instructions for fixing.
-        
-        Args:
-            result: DocumentCheckResult containing cross-reference issues
-            
-        Returns:
-            List[str]: Formatted list of cross-reference issues
-        """
-        formatted_issues = []
-        
-        if result.issues:
-            # Group issues by reference type
-            section_refs = []
-            subsection_refs = []
-            paragraph_refs = []
-            figure_refs = []
-            table_refs = []
-            appendix_refs = []
-            
-            for issue in result.issues:
-                if issue['type'] == 'invalid_section_reference':
-                    section_refs.append(
-                        f"    • Confirm '{issue['reference']}' - Section {issue['section_number']} not found"
-                    )
-                elif issue['type'] == 'invalid_subsection_reference':
-                    subsection_refs.append(
-                        f"    • Confirm '{issue['reference']}' - Subsection {issue['section_number']} not found"
-                    )
-                elif issue['type'] == 'invalid_paragraph_reference':
-                    paragraph_refs.append(
-                        f"    • Confirm '{issue['reference']}' - Paragraph {issue['paragraph_number']} not found"
-                    )
-                elif issue['type'] == 'invalid_figure_reference':
-                    figure_refs.append(
-                        f"    • Confirm '{issue['reference']}' - Figure {issue['number']} not found"
-                    )
-                elif issue['type'] == 'invalid_table_reference':
-                    table_refs.append(
-                        f"    • Confirm '{issue['reference']}' - Table {issue['number']} not found"
-                    )
-                elif issue['type'] == 'invalid_appendix_reference':
-                    appendix_refs.append(
-                        f"    • Confirm '{issue['reference']}' - Appendix {issue['appendix_letter']} not found"
-                    )
-            
-            # Add grouped issues with headers
-            if section_refs:
-                formatted_issues.append("\n  Section Reference Issues:")
-                formatted_issues.extend(section_refs)
-                
-            if subsection_refs:
-                formatted_issues.append("\n  Subsection Reference Issues:")
-                formatted_issues.extend(subsection_refs)
-                
-            if paragraph_refs:
-                formatted_issues.append("\n  Paragraph Reference Issues:")
-                formatted_issues.extend(paragraph_refs)
-                
-            if figure_refs:
-                formatted_issues.append("\n  Figure Reference Issues:")
-                formatted_issues.extend(figure_refs)
-                
-            if table_refs:
-                formatted_issues.append("\n  Table Reference Issues:")
-                formatted_issues.extend(table_refs)
-                
-            if appendix_refs:
-                formatted_issues.append("\n  Appendix Reference Issues:")
-                formatted_issues.extend(appendix_refs)
-        
-        return formatted_issues
-
     def format_results(self, results: Dict[str, Any], doc_type: str) -> str:
         """
         Format check results into a detailed, user-friendly report.
@@ -3211,15 +2905,14 @@ class DocumentCheckResultsFormatter:
                             output.append(f"      (HTTP Status: {issue['status_code']})")
                         elif 'error' in issue:
                             output.append(f"      (Error: {issue['error']})")
-                elif check_name == 'numbered_lists_check':
-                    output.extend(self._format_numbered_list_issues(result))
-                    output.extend(self._format_cross_reference_issues(result))
                 else:
                     formatted_issues = [self._format_standard_issue(issue) for issue in result.issues[:15]]
                     output.extend(formatted_issues)
                     
                     if len(result.issues) > 10:
                         output.append(f"\n    ... and {len(result.issues) - 15} more similar issues.")
+        
+        return '\n'.join(output)
 
     def save_report(self, results: Dict[str, Any], filepath: str, doc_type: str) -> None:
         """Save the formatted results to a file with proper formatting."""
@@ -3303,8 +2996,7 @@ def format_markdown_results(results: Dict[str, DocumentCheckResult], doc_type: s
         'double_period_check': {'title': '⚡ Double Periods', 'priority': 4},
         'spacing_check': {'title': '⌨️ Spacing Issues', 'priority': 4},
         'paragraph_length_check': {'title': '📏 Paragraph Length', 'priority': 5},
-        'sentence_length_check': {'title': '📏 Sentence Length', 'priority': 5},
-        'numbered_lists_check': {'title': '📋 Numbered List Format Issues', 'priority': 6},
+        'sentence_length_check': {'title': '📏 Sentence Length', 'priority': 5}
     }
 
     sorted_checks = sorted(
@@ -3353,7 +3045,7 @@ def create_interface():
         "Other"
     ]
     
-    # template_types = ["Short AC template AC", "Long AC template AC"]
+    template_types = ["Short AC template AC", "Long AC template AC"]
 
     def format_results_as_html(text_results):
         """Convert the text results into styled HTML."""
@@ -3604,12 +3296,12 @@ def create_interface():
                             info="Select the type of document you're checking"
                         )
                         
-                        # template_type = gr.Radio(
-                        #     choices=template_types,
-                        #     label="📑 Template Type",
-                        #     visible=False,
-                        #     info="Only applicable for Advisory Circulars"
-                        # )
+                        template_type = gr.Radio(
+                            choices=template_types,
+                            label="📑 Template Type",
+                            visible=False,
+                            info="Only applicable for Advisory Circulars"
+                        )
                         
                         submit_btn = gr.Button(
                             "🔍 Check Document",
@@ -3634,14 +3326,14 @@ def create_interface():
                 #         file_types=[".pdf"]
                 #     )
                 
-                def process_and_format(file_obj, doc_type_value):
+                def process_and_format(file_obj, doc_type_value, template_type_value):
                     """Process document and format results as HTML."""
                     try:
                         # Get text results from your original process_document function
                         checker = FAADocumentChecker()
                         if isinstance(file_obj, bytes):
                             file_obj = io.BytesIO(file_obj)
-                        results_data = checker.run_all_checks(file_obj, doc_type_value)
+                        results_data = checker.run_all_checks(file_obj, doc_type_value, template_type_value)
                         
                         # Format results using DocumentCheckResultsFormatter
                         formatter = DocumentCheckResultsFormatter()
@@ -3666,55 +3358,24 @@ def create_interface():
                         return error_html
                 
                 # Update template type visibility based on document type
-                # def update_template_visibility(doc_type_value):
-                #     if doc_type_value == "Advisory Circular":
-                #         return gr.update(visible=True)
-                #     else:
-                #         return gr.update(visible=False)
+                def update_template_visibility(doc_type_value):
+                    if doc_type_value == "Advisory Circular":
+                        return gr.update(visible=True)
+                    else:
+                        return gr.update(visible=False)
 
-                # doc_type.change(
-                #     fn=update_template_visibility,
-                #     inputs=[doc_type],
-                #     outputs=[template_type]
-                # )
+                doc_type.change(
+                    fn=update_template_visibility,
+                    inputs=[doc_type],
+                    outputs=[template_type]
+                )
 
                 # Handle document processing
                 submit_btn.click(
                     fn=process_and_format,
-                    inputs=[file_input, doc_type],  # Removed template_type
-                    outputs=[results]
+                    inputs=[file_input, doc_type, template_type],
+                    outputs=[results]  # Only output the results
                 )
-
-                def process_and_format(file_obj, doc_type_value):  # Removed template_type_value parameter
-                    """Process document and format results as HTML."""
-                    try:
-                        # Get text results from your original process_document function
-                        checker = FAADocumentChecker()
-                        if isinstance(file_obj, bytes):
-                            file_obj = io.BytesIO(file_obj)
-                        results_data = checker.run_all_checks(file_obj, doc_type_value)  # Removed template_type_value
-                        
-                        # Format results using DocumentCheckResultsFormatter
-                        formatter = DocumentCheckResultsFormatter()
-                        text_results = formatter.format_results(results_data, doc_type_value)
-
-                        # Convert to HTML
-                        html_results = format_results_as_html(text_results)
-
-                        # Return only the HTML results
-                        return html_results
-                        
-                    except Exception as e:
-                        logging.error(f"Error processing document: {str(e)}")
-                        traceback.print_exc()
-                        error_html = f"""
-                            <div style="color: red; padding: 1rem;">
-                                ❌ Error processing document: {str(e)}
-                                <br><br>
-                                Please ensure the file is a valid .docx document and try again.
-                            </div>
-                        """
-                        return error_html
 
                 # Function to generate PDF and provide it for download
                 # def generate_pdf(html_content):
