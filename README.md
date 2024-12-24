@@ -1,3 +1,13 @@
+---
+title: Document Checker Tool SANDBOX
+emoji: 🐨
+colorFrom: green
+colorTo: green
+sdk: gradio
+sdk_version: 5.9.1
+app_file: app.py
+pinned: false
+---
 # Document Checker Tool  
 **Ensuring FAA Document Compliance and Consistency**
 
@@ -27,6 +37,8 @@ The tool adheres to style and guidelines derived from:
 
 ## 2. Revision History
 
+x/x/2025: Added checks for image alt text and broken links.
+
 12/8/2024: Added checks for paragraph length and sentence length. Reordered existing checks for improved workflow. Updated the date format check to exclude certain AC numbers.
 
 11/26/2024: Initial release with 15 checks.
@@ -35,7 +47,7 @@ The tool adheres to style and guidelines derived from:
 
 ## 3. Checker Categories Overview  
 
-### 17 Key Checker Categories  
+### 19 Key Checker Categories  
 1. **Heading Title Checks**  
 2. **Heading Period Format Check**
 3. **Terminology Checks**
@@ -53,6 +65,8 @@ The tool adheres to style and guidelines derived from:
 15. **Spacing Check**  
 16. **Paragraph Length Check**  
 17. **Sentence Length Check**
+18. **508 Compliance Check** (alt text only)
+19. **Broken Link Check**
 
 ---
 
@@ -143,8 +157,7 @@ Flags placeholders like "TBD" or "To be added."
 Verifies correct formatting of referenced document titles.  
 
 - **Italicize:** Advisory Circulars  
-- **Quotation Marks:** Airworthiness Criteria, Deviation Memo, Exemption, Federal Register Notice, Order, Rule, Special Condition, Technical Standard Order
-- **No Formatting:** Policy Statement and all others 
+- **Quotation Marks:** All other document types
 
 ---
 
@@ -196,6 +209,20 @@ Flags paragraphs exceeding 6 sentences or 8 lines.
 
 #### 17. Sentence Length Check  
 Flags sentences exceeding 35 words.  
+
+---
+
+### 508 Compliance Check  
+
+#### 18. Figure/Image Alt Text Check  
+Flags images that do not have associated alt text.
+
+---
+
+### Link Check  
+
+#### 19. Broken Link Check  
+Flags if a link is broken.
 
 ---
 
