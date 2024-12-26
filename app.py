@@ -9,13 +9,14 @@ import logging
 import traceback
 from datetime import datetime
 from enum import Enum, auto
-from typing import Dict, List, Any, Tuple, Optional, Pattern, Callable
+from typing import Dict, List, Any, Tuple, Optional, Pattern, Callable, Set
 from dataclasses import dataclass
 from functools import wraps
 from abc import ABC, abstractmethod
 # import tempfile  # For creating temporary files
 import requests
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from pathlib import Path
 
 # Third-party imports
 import gradio as gr
@@ -344,285 +345,34 @@ class DocumentCheckerConfig:
         Returns:
             Dict[str, List[PatternConfig]]: Dictionary of pattern configurations by category
         """
-        patterns = {
-            'terminology': [
-                PatternConfig(
-                    pattern=r'\btitle 14 of the Code of Federal Regulations \(14 CFR\)\b',
-                    description="Ignore 'title 14 of the Code of Federal Regulations (14 CFR)'",
-                    is_error=False  # Set to False to ignore this phrase
-                ),
-                PatternConfig(
-                    pattern=r'\btitle 14, Code of Federal Regulations \(14 CFR\)\b',
-                    description="Ignore 'title 14, Code of Federal Regulations (14 CFR)'",
-                    is_error=False
-                ),
-                PatternConfig(
-                    pattern=r'\btitle 49 of the United States Code \(49 U.S.C.\)\b',
-                    description="Ignore 'title 49 of the United States Code (49 U.S.C.)'",
-                    is_error=False
-                ),
-                PatternConfig(
-                    pattern=r'\btitle 49, United States Code \(49 U.S.C.\)\b',
-                    description="Ignore 'title 49, United States Code (49 U.S.C.)'",
-                    is_error=False
-                ),
-                PatternConfig(
-                    pattern=r'\bAD Compliance Team \(AD CRT\)\b',
-                    description="Ignore 'AD Compliance Team (AD CRT)'",
-                    is_error=False
-                ),
-                PatternConfig(
-                    pattern=r'\bUSC\b',
-                    description="USC should be U.S.C.", # Per GPO Style Manual
-                    is_error=True,
-                    replacement="U.S.C."
-                ),
-                PatternConfig(
-                    pattern=r'\bCFR Part\b',
-                    description="CFR Part should be CFR part (lowercase)", # Per FAA Order 1320.46
-                    is_error=True,
-                    replacement="CFR part"
-                ),
-                PatternConfig(
-                    pattern=r'\bC\.F\.R\.\b',
-                    description="C.F.R. should be CFR", # GPO Style Manual
-                    is_error=True,
-                    replacement="CFR"
-                ),
-                PatternConfig(
-                    pattern=r'\bWe\b',
-                    description="'We' should be 'The FAA'",
-                    is_error=True,
-                    replacement="The FAA"
-                ),
-                PatternConfig(
-                    pattern=r'\bwe\b',
-                    description="'we' should be 'the FAA'",
-                    is_error=True,
-                    replacement="the FAA"
-                ),
-                PatternConfig(
-                    pattern=r'\bcancelled\b',
-                    description="'cancelled' should be 'canceled'", # Per GPO Style Manual
-                    is_error=True,
-                    replacement="canceled"
-                ),
-                PatternConfig(
-                    pattern=r'\bshall\b',
-                    description="'shall' should be 'must'", # Per FAA Order 1320.46
-                    is_error=True,
-                    replacement="must"
-                ),
-                PatternConfig(
-                    pattern=r'\b\&\b',
-                    description="'&' should be 'and'", # Per April 17, 2024 Use ampersand instead or 'and' email from Judith Watson
-                    is_error=True,
-                    replacement="and"
-                ),
-                PatternConfig(
-                    pattern=r'\bflight crew\b',
-                    description="'flight crew' should be 'flightcrew'", # Per AIR-600 Quick Reference Guide for Authors, Reviewers, and Writers/Editors
-                    is_error=True,
-                    replacement="flightcrew"
-                ),
-                PatternConfig(
-                    pattern=r'\bchairman\b',
-                    description="'chairman' should be 'chair'", # Per AIR-600 Quick Reference Guide for Authors, Reviewers, and Writers/Editors
-                    is_error=True,
-                    replacement="chair"
-                ),
-                PatternConfig(
-                    pattern=r'\bflagman\b',
-                    description="'flagman' should be 'flagger' or 'flagperson'", # Per AIR-600 Quick Reference Guide for Authors, Reviewers, and Writers/Editors
-                    is_error=True,
-                    replacement="flagperson"
-                ),
-                PatternConfig(
-                    pattern=r'\bman\b',
-                    description="'man' should be 'individual' or 'person'", # Per AIR-600 Quick Reference Guide for Authors, Reviewers, and Writers/Editors
-                    is_error=True,
-                    replacement="person"
-                ),
-                PatternConfig(
-                    pattern=r'\bmanmade\b',
-                    description="'manmade' should be 'personmade'", # Per AIR-600 Quick Reference Guide for Authors, Reviewers, and Writers/Editors
-                    is_error=True,
-                    replacement="personmade"
-                ),
-                PatternConfig(
-                    pattern=r'\bmanpower\b',
-                    description="'manpower' should be 'labor force'", # Per AIR-600 Quick Reference Guide for Authors, Reviewers, and Writers/Editors
-                    is_error=True,
-                    replacement="labor force"
-                ),
-                PatternConfig(
-                    pattern=r'\bnotice to airman\b',
-                    description="'notice to airman' should be 'notice to air missions'", # Per AIR-600 Quick Reference Guide for Authors, Reviewers, and Writers/Editors
-                    is_error=True,
-                    replacement="notice to air missions"
-                ),
-                PatternConfig(
-                    pattern=r'\bnotice to airmen\b',
-                    description="'notice to airmen' should be 'notice to air missions'", # Per AIR-600 Quick Reference Guide for Authors, Reviewers, and Writers/Editors
-                    is_error=True,
-                    replacement="notice to air missions"
-                ),
-                PatternConfig(
-                    pattern=r'\bcockpit\b',
-                    description="'cockpit' should be 'flight deck'", # Per AIR-600 Quick Reference Guide for Authors, Reviewers, and Writers/Editors
-                    is_error=True,
-                    replacement="flight deck"
-                ),
-                PatternConfig(
-                    pattern=r'\bA321 neo\b',
-                    description="'A321 neo' should be 'A321neo'", # Per TCDS
-                    is_error=True,
-                    replacement="A321neo"
-                )
-            ],
-            'section_symbol': [
-                PatternConfig(
-                    pattern=r'^§',
-                    description="Don't start a sentence with the section symbol. Write out 'Section'",
-                    is_error=True
-                ),
-                PatternConfig(
-                    pattern=r'\b14 CFR §\s*\d+\.\d+\b',
-                    description="14 CFR should not use section symbol",
-                    is_error=True
-                ),
-                PatternConfig(
-                    pattern=r'§\s*\d+\.\d+\s+(?:and|or)\s+\d+\.\d+',
-                    description="Missing section symbol in multiple sections",
-                    is_error=True
-                ),
-                PatternConfig(
-                    pattern=r'§\s*\d+\.\d+\s+through\s+\d+\.\d+',
-                    description="Missing section symbol in range of sections",
-                    is_error=True
-                ),
-                PatternConfig(
-                    pattern=r'§\s*\d+\.\d+\s+or\s+§?\s*\d+\.\d+',
-                    description="Inconsistent section symbol usage with 'or'",
-                    is_error=True
-                )
-            ],
-            'spacing': [
-                PatternConfig(
-                    pattern=r'([^\s]+)[ ]{2,}([^\s]+)',  # Capture words before and after double space
-                    description="Remove double spacing between '{0}' and '{1}'",
-                    is_error=True
-                ),
-                PatternConfig(
-                    pattern=r'(?<!\s)(AC|AD|CFR|FAA|N|SFAR)(\d+[-]?\d*[A-Z]?)',  # Capture doc type and number
-                    description="Add space between '{0}' and '{1}'",
-                    is_error=True
-                ),
-                PatternConfig(
-                    pattern=r'(§|§§)(\d+\.\d+)',  # Removed (?<!\s) to catch all section symbols
-                    description="Add space after '{0}' before '{1}'",
-                    is_error=True
-                ),
-                PatternConfig(
-                    pattern=r'(?<!\s)(Part)(\d+)',  # Capture 'Part' and number
-                    description="Add space between '{0}' and '{1}'",
-                    is_error=True
-                )
-            ],
-            'dates': [
-                PatternConfig(
-                    pattern=r'(?<![\w/-])\d{1,2}/\d{1,2}/\d{2,4}(?![\w/-])',
-                    description="Use 'Month Day, Year' format instead of MM/DD/YYYY",
-                    is_error=True
-                ),
-                PatternConfig(
-                    pattern=r'(?<![\w/-])\d{1,2}-\d{1,2}-\d{2,4}(?![\w/-])',
-                    description="Use 'Month Day, Year' format instead of MM-DD-YYYY",
-                    is_error=True
-                ),
-                PatternConfig(
-                    pattern=r'(?<![\w/-])\d{4}-\d{1,2}-\d{1,2}(?![\w/-])',
-                    description="Use 'Month Day, Year' format instead of YYYY-MM-DD",
-                    is_error=True
-                )
-            ],
-            'placeholders': [
-                PatternConfig(
-                    pattern=r'\bTBD\b',
-                    description="Remove TBD placeholder",
-                    is_error=True
-                ),
-                PatternConfig(
-                    pattern=r'\bTo be determined\b',
-                    description="Remove 'To be determined' placeholder",
-                    is_error=True
-                ),
-                PatternConfig(
-                    pattern=r'\bTo be added\b',
-                    description="Remove 'To be added' placeholder",
-                    is_error=True
-                )
-            ],
-            'reference_terms': [
-                PatternConfig(
-                    pattern=r'\babove\b',
-                    description="Avoid using 'above' for references",
-                    is_error=True
-                ),
-                PatternConfig(
-                    pattern=r'\bbelow\b',
-                    description="Avoid using 'below' for references",
-                    is_error=True
-                ),
-                PatternConfig(
-                    pattern=r'(?:^|(?<=[.!?]\s))There\s+(?:is|are)\b',
-                    description="Avoid starting sentences with 'There is/are'",
-                    is_error=True
-                )
-            ],
-            'periods': [
-                PatternConfig(
-                    pattern=r'\.\.',
-                    description="Remove double periods",
-                    is_error=True
-                )
-            ],
-            'table_figure_references': [
-                PatternConfig(
-                    pattern=r'(?<!^)(?<![.!?])\s+[T]able\s+\d+(?:-\d+)?',
-                    description="Table reference within sentence should be lowercase",
-                    is_error=True
-                ),
-                PatternConfig(
-                    pattern=r'(?<!^)(?<![.!?])\s+[F]igure\s+\d+(?:-\d+)?',
-                    description="Figure reference within sentence should be lowercase",
-                    is_error=True
-                ),
-                PatternConfig(
-                    pattern=r'^[t]able\s+\d+(?:-\d+)?',
-                    description="Table reference at start of sentence should be capitalized",
-                    is_error=True
-                ),
-                PatternConfig(
-                    pattern=r'^[f]igure\s+\d+(?:-\d+)?',
-                    description="Figure reference at start of sentence should be capitalized",
-                    is_error=True
-                )
-            ],
-            'parentheses': [
-                PatternConfig(
-                    pattern=r'\([^)]*$',  # Finds opening parenthesis without closing
-                    description="Missing closing parenthesis",
-                    is_error=True
-                ),
-                PatternConfig(
-                    pattern=r'[^(]*\)',  # Finds closing parenthesis without opening
-                    description="Missing opening parenthesis",
-                    is_error=True
-                )
-            ]
-        }
-        return patterns
+        try:
+            # Get the directory containing the current file
+            current_dir = os.path.dirname(os.path.abspath(__file__))
+            patterns_file = os.path.join(current_dir, 'patterns.json')
+            
+            # Load patterns from JSON file
+            with open(patterns_file, 'r') as f:
+                patterns_data = json.load(f)
+                
+            # Convert JSON data to PatternConfig objects
+            patterns = {}
+            for category, pattern_list in patterns_data.items():
+                patterns[category] = [
+                    PatternConfig(
+                        pattern=p['pattern'],
+                        description=p['description'],
+                        is_error=p['is_error'],
+                        replacement=p.get('replacement'),
+                        keep_together=p.get('keep_together', False)
+                    ) for p in pattern_list
+                ]
+                
+            return patterns
+            
+        except Exception as e:
+            self.logger.error(f"Error loading patterns: {e}")
+            # Return empty patterns dictionary if file loading fails
+            return {}
 
 def profile_performance(func):
     """Decorator to profile function performance."""
@@ -905,8 +655,12 @@ class FAADocumentChecker(DocumentChecker):
 
     @profile_performance
     def acronym_check(self, doc: List[str]) -> DocumentCheckResult:
+        """Check for acronyms and their definitions."""
         if not self.validate_input(doc):
             return DocumentCheckResult(success=False, issues=[{'error': 'Invalid document input'}])
+
+        # Load valid words
+        valid_words = self._load_valid_words()
 
         # Common words that might appear in uppercase but aren't acronyms
         heading_words = self.config_manager.config.get('heading_words', self.HEADING_WORDS)
@@ -934,11 +688,12 @@ class FAADocumentChecker(DocumentChecker):
         defined_acronyms = {}  # Stores definition info
         used_acronyms = set()  # Stores acronyms used after definition
         reported_acronyms = set()  # Stores acronyms that have already been noted as issues
-        issues = []
 
         # Patterns
         defined_pattern = re.compile(r'\b([\w\s&]+?)\s*\((\b[A-Z]{2,}\b)\)')
         acronym_pattern = re.compile(r'(?<!\()\b[A-Z]{2,}\b(?!\s*[:.]\s*)')
+
+        issues = []
 
         for paragraph in doc:
             # Skip lines that appear to be headings
@@ -975,9 +730,10 @@ class FAADocumentChecker(DocumentChecker):
                 if any(start <= start_pos <= end for start, end in ignored_spans):
                     continue
 
-                # Skip predefined acronyms and other checks
+                # Skip predefined acronyms, valid words, and other checks
                 if (acronym in predefined_acronyms or
                     acronym in heading_words or
+                    acronym.lower() in valid_words or  # Check against valid words list
                     any(not c.isalpha() for c in acronym) or
                     len(acronym) > 10):
                     continue
@@ -1682,6 +1438,8 @@ class FAADocumentChecker(DocumentChecker):
             ('acronym_check', lambda: self.acronym_check(doc)),
             ('acronym_usage_check', lambda: self.acronym_usage_check(doc)),
             ('section_symbol_usage_check', lambda: self.check_section_symbol_usage(doc)),
+            ('508_compliance_check', lambda: self.check_508_compliance(doc_path)),
+            ('hyperlink_check', lambda: self.check_hyperlinks(doc)),
             ('date_formats_check', lambda: self.check_date_formats(doc)),
             ('placeholders_check', lambda: self.check_placeholders(doc)),
             ('document_title_check', lambda: self.document_title_check(doc_path, doc_type) if not skip_title_check else DocumentCheckResult(success=True, issues=[])),
@@ -1693,8 +1451,6 @@ class FAADocumentChecker(DocumentChecker):
             ('spacing_check', lambda: self.spacing_check(doc)),
             ('paragraph_length_check', lambda: self.check_paragraph_length(doc)),
             ('sentence_length_check', lambda: self.check_sentence_length(doc)),
-            ('508_compliance_check', lambda: self.check_508_compliance(doc_path)),
-            ('hyperlink_check', lambda: self.check_hyperlinks(doc)),
         ]
 
         # Run each check and store results
@@ -2368,6 +2124,28 @@ class FAADocumentChecker(DocumentChecker):
             }
         )
 
+    def _load_valid_words(self) -> Set[str]:
+        """
+        Load valid English words from valid_words.txt file.
+        
+        Returns:
+            Set[str]: Set of valid English words in lowercase
+        """
+        try:
+            # Get the directory containing the current file
+            current_dir = os.path.dirname(os.path.abspath(__file__))
+            words_file = os.path.join(current_dir, 'valid_words.txt')
+            
+            # Load words from file
+            with open(words_file, 'r') as f:
+                words = {line.strip().lower() for line in f if line.strip()}
+                
+            return words
+            
+        except Exception as e:
+            self.logger.warning(f"Error loading word list: {e}")
+            return set()  # Return empty set as fallback
+
 class DocumentCheckResultsFormatter:
     
     def __init__(self):
@@ -2931,34 +2709,6 @@ class DocumentCheckResultsFormatter:
                 f.write(report)
         except Exception as e:
             print(f"Error saving report: {e}")
-
-def process_document(file_obj, doc_type: str, template_type: Optional[str] = None) -> str:
-    """Process document and run all checks."""
-    try:
-        print(f"Processing document at {time.time()}")  # Debug print
-        checker = FAADocumentChecker()
-        
-        if isinstance(file_obj, bytes):
-            file_obj = io.BytesIO(file_obj)
-            
-        results = checker.run_all_checks(file_obj, doc_type, template_type)
-        return format_markdown_results(results, doc_type)
-        
-    except Exception as e:
-        logging.error(f"Error processing document: {str(e)}")
-        traceback.print_exc()
-        return f"""
-# ❌ Error Processing Document
-
-**Error Details:** {str(e)}
-
-Please ensure:
-1. The file is a valid .docx document
-2. The file is not corrupted or password protected
-3. The file is properly formatted
-
-Try again after checking these issues. If the problem persists, contact support.
-"""
     
 def format_markdown_results(results: Dict[str, DocumentCheckResult], doc_type: str) -> str:
     """Format check results into a Markdown string for Gradio display."""
