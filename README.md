@@ -37,7 +37,7 @@ The tool adheres to style and guidelines derived from:
 
 ## 2. Revision History
 
-x/x/2025: Added checks for image alt text and broken links.
+x/x/2025: Added checks for image alt text and broken links. Updated acronym checker to reduce words being marked as acronyms.
 
 12/8/2024: Added checks for paragraph length and sentence length. Reordered existing checks for improved workflow. Updated the date format check to exclude certain AC numbers.
 
@@ -53,20 +53,20 @@ x/x/2025: Added checks for image alt text and broken links.
 3. **Terminology Checks**
 4. **Acronym Check**  
 5. **Acronym Usage Check**  
-6. **Section Symbol (§) Checks**  
-7. **Date Format Check**
-8. **Placeholder Content Check**
-9. **Referenced Document Title Format Check**  
-10. **Table Caption Check**  
-11. **Figure Caption Check**  
-12. **Table/Figure Reference Check**  
-13. **Parenthesis Balance Check**
-14. **Double Period Check**
-15. **Spacing Check**  
-16. **Paragraph Length Check**  
-17. **Sentence Length Check**
-18. **508 Compliance Check** (alt text only)
-19. **Broken Link Check**
+6. **Section Symbol (§) Checks**
+7. **508 Compliance Check** (alt text only)
+8. **Broken Link Check**
+9. **Date Format Check**
+10. **Placeholder Content Check**
+11. **Referenced Document Title Format Check**  
+12. **Table Caption Check**  
+13. **Figure Caption Check**  
+14. **Table/Figure Reference Check**  
+15. **Parenthesis Balance Check**
+16. **Double Period Check**
+17. **Spacing Check**  
+18. **Paragraph Length Check**  
+19. **Sentence Length Check**
 
 ---
 
@@ -138,22 +138,36 @@ Ensures proper formatting for section symbols.
 
 ---
 
+### 508 Compliance Check  
+
+#### 7. Figure/Image Alt Text Check  
+Flags images that do not have associated alt text.
+
+---
+
+### Link Check  
+
+#### 8. Broken Link Check  
+Flags if a link is broken.
+
+---
+
 ### Date Format and Placeholder Checks  
 
-#### 7. Date Format Consistency Check  
+#### 9. Date Format Consistency Check  
 Ensures dates follow the "Month Day, Year" format in the document body.  
 
 **Examples:**  
 - Replace "1/15/24" with "January 15, 2024".  
 
-#### 8. Placeholder Content Check  
+#### 10. Placeholder Content Check  
 Flags placeholders like "TBD" or "To be added."  
 
 ---
 
 ### Document Title Checks  
 
-#### 9. Referenced Document Title Format Check  
+#### 11. Referenced Document Title Format Check  
 Verifies correct formatting of referenced document titles.  
 
 - **Italicize:** Advisory Circulars  
@@ -163,21 +177,21 @@ Verifies correct formatting of referenced document titles.
 
 ### Table and Figure Checks  
 
-#### 10 & 11. Table/Figure Caption Checks  
+#### 12 & 13. Table/Figure Caption Checks  
 Verifies captions follow correct numbering conventions based on document type.
 
 **Examples:**  
 - Table X-Y and Figure X-Y for Advisory Circulars and Orders.  
 - Table X and Figure X for all other document types.
 
-#### 12. Table/Figure Reference Check  
+#### 14. Table/Figure Reference Check  
 Ensures references are lowercase mid-sentence and capitalized at the start of a sentence.  
 
 ---
 
 ### Parenthesis Balance Check  
 
-#### 13. Parenthesis Balance Check  
+#### 15. Parenthesis Balance Check  
 Verifies that all parentheses are properly opened and closed.  
 
 **Examples:**  
@@ -187,13 +201,13 @@ Verifies that all parentheses are properly opened and closed.
 
 ### Punctuation and Spacing Checks  
 
-#### 14. Double Period Check  
+#### 16. Double Period Check  
 Flags unintended multiple periods.  
 
 **Example:**  
 - Corrects: "This sentence ends with two periods..".  
 
-#### 15. Spacing Check  
+#### 17. Spacing Check  
 Ensures proper spacing around references.  
 
 **Examples:**  
@@ -204,25 +218,11 @@ Ensures proper spacing around references.
 
 ### Length Checks  
 
-#### 16. Paragraph Length Check  
+#### 18. Paragraph Length Check  
 Flags paragraphs exceeding 6 sentences or 8 lines.  
 
-#### 17. Sentence Length Check  
+#### 19. Sentence Length Check  
 Flags sentences exceeding 35 words.  
-
----
-
-### 508 Compliance Check  
-
-#### 18. Figure/Image Alt Text Check  
-Flags images that do not have associated alt text.
-
----
-
-### Link Check  
-
-#### 19. Broken Link Check  
-Flags if a link is broken.
 
 ---
 
