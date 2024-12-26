@@ -1,0 +1,476 @@
+{
+    "terminology": [
+        {
+            "pattern": "\\btitle (\\d+) of the United States Code \\((\\d+ U\\.S\\.C\\.)\\)\\b",
+            "description": "Ensure proper formatting for United States Code references",
+            "is_error": false
+        },
+        {
+            "pattern": "\\btitle (\\d+) of the Code of Federal Regulations \\((\\d+ CFR)\\)\\b",
+            "description": "Ensure proper formatting for Code of Federal Regulations references",
+            "is_error": false
+        },
+        {
+            "pattern": "\\btitle (\\d+) of the (United States Code|Code of Federal Regulations) \\((\\d+ U\\.S\\.C\\.|\\d+ CFR)\\)\\b",
+            "description": "Ensure proper formatting for references to titles of the United States Code or Code of Federal Regulations",
+            "is_error": false
+        },
+        {
+            "pattern": "\\bAD Compliance Team \\(AD CRT\\)\\b",
+            "description": "Ignore 'AD Compliance Team (AD CRT)'",
+            "is_error": false
+        },
+        {
+            "_comment": "Per the GPO Style Manual",
+            "pattern": "\\b(?:USC|U\\.S\\.C)\\b",
+            "description": "USC should be U.S.C.",
+            "is_error": true,
+            "replacement": "U.S.C."
+        },
+        {
+            "_comment": "Per FAA Order 1320.46",
+            "pattern": "\\bCFR Part\\b",
+            "description": "CFR Part should be CFR part (lowercase)",
+            "is_error": true,
+            "replacement": "CFR part"
+        },
+        {
+            "_comment": "Per the GPO Style Manual",
+            "pattern": "\\bC\\.F\\.R\\.\\b",
+            "description": "C.F.R. should be CFR",
+            "is_error": true,
+            "replacement": "CFR"
+        },
+        {
+            "pattern": "\\b(?:[Ww]e)\\b",
+            "description": "'We' or 'we' should be replaced with 'The FAA' or 'the FAA', depending on case",
+            "is_error": true,
+            "replacements": {
+                "We": "The FAA",
+                "we": "the FAA"
+            }
+        },
+        {
+            "_comment": "Per the GPO Style Manual",
+            "pattern": "\\bcancelled\\b",
+            "description": "'cancelled' should be 'canceled'",
+            "is_error": true,
+            "replacement": "canceled"
+        },
+        {
+            "_comment": "Per FAA Order 1320.46",
+            "pattern": "\\bshall\\b",
+            "description": "'shall' should be 'must'",
+            "is_error": true,
+            "replacement": "must"
+        },
+        {
+            "_comment": "Per AIR-600 Quick Reference Guide",
+            "pattern": "\\bflight crew\\b",
+            "description": "'flight crew' should be 'flightcrew'",
+            "is_error": true,
+            "replacement": "flightcrew"
+        },
+        {
+            "_comment": "Per AIR-600 Quick Reference Guide",
+            "pattern": "\\b(chairman|flagman|man|manmade|manpower)\\b",
+            "description": "Replace gendered terms with their appropriate alternatives",
+            "is_error": true,
+            "replacements": {
+                "chairman": "chair",
+                "flagman": "flagperson",
+                "man": "person",
+                "manmade": "personmade",
+                "manpower": "labor force"
+            }
+        },
+        {
+            "_comment": "Per AIR-600 Quick Reference Guide",
+            "pattern": "\\bnotice to airmen?\\b",
+            "description": "'notice to airman/airmen' should be 'notice to air missions'",
+            "is_error": true,
+            "replacement": "notice to air missions"
+        },
+        {
+            "_comment": "Per AIR-600 Quick Reference Guide",
+            "pattern": "\\bcockpit\\b",
+            "description": "'cockpit' should be 'flight deck'",
+            "is_error": true,
+            "replacement": "flight deck"
+        },
+        {
+            "pattern": "\\b(in order to|for the purpose of)\\b",
+            "description": "Simplify phrases like 'in order to' to 'to'",
+            "is_error": true
+        },
+        {
+            "pattern": "\\b(herein|therein|thereof|heretofore|aforementioned)\\b",
+            "description": "Avoid archaic or legalese terms; use modern, plain language equivalents",
+            "is_error": true
+        },
+        {
+            "pattern": "\\b(aircraft|airplane|flightcrew|flight deck|maintenance technician)\\b",
+            "description": "Ensure consistent use of defined aviation terms",
+            "is_error": true
+        },
+        {
+            "pattern": "\\b(shall|will|may|must)\\b",
+            "description": "Ensure proper use of 'must' instead of 'shall' for requirements",
+            "is_error": true
+        },
+        {
+            "pattern": "\\b(very|extremely|highly|quite)\\b",
+            "description": "Avoid unnecessary qualifiers; use precise language",
+            "is_error": true
+        },
+        {
+            "pattern": "\\b(data are|criteria is|phenomena is)\\b",
+            "description": "Ensure consistent singular/plural usage (e.g., 'data is,' 'criteria are,' 'phenomena are')",
+            "is_error": true
+        },
+        {
+            "pattern": "\\bappropriate\\b",
+            "description": "Avoid vague terms like 'appropriate'; specify conditions or criteria",
+            "is_error": true
+        },
+        {
+            "pattern": "\\b(is|was|were|are|be|been|being)\\s+(\\w+ed)\\b",
+            "description": "Flag likely passive constructions even if no agent ('by') is present",
+            "is_error": true
+        },
+        {
+            "pattern": "\\babove\\b",
+            "description": "Avoid using 'above' for references",
+            "is_error": true
+        },
+        {
+            "pattern": "\\bbelow\\b",
+            "description": "Avoid using 'below' for references",
+            "is_error": true
+        },
+        {
+            "pattern": "\\baforementioned\\b",
+            "description": "Avoid using 'aforementioned' as it can be unclear",
+            "is_error": true
+        },
+        {
+            "pattern": "\\bpreceding\\b",
+            "description": "Avoid using 'preceding' for references; specify the section or item explicitly",
+            "is_error": true
+        },
+        {
+            "pattern": "\\bfollowing\\b",
+            "description": "Avoid using 'following' for references; specify the section or item explicitly",
+            "is_error": true
+        },
+        {
+            "pattern": "\\blatter\\b",
+            "description": "Avoid using 'latter'; specify the item explicitly",
+            "is_error": true
+        },
+        {
+            "pattern": "\\bformer\\b",
+            "description": "Avoid using 'former'; specify the item explicitly",
+            "is_error": true
+        },
+        {
+            "pattern": "\\bthis\\b",
+            "description": "Avoid using 'this' without a clear antecedent",
+            "is_error": true
+        },
+        {
+            "pattern": "\\bit\\b",
+            "description": "Avoid using 'it' without a clear antecedent",
+            "is_error": true
+        },
+        {
+            "pattern": "\\bthese\\b",
+            "description": "Avoid using 'these' without a clear antecedent",
+            "is_error": true
+        },
+        {
+            "pattern": "\\bsuch\\b",
+            "description": "Avoid using 'such' without a clear antecedent",
+            "is_error": true
+        },
+        {
+            "pattern": "\\brespectively\\b",
+            "description": "Avoid using 'respectively' as it can be confusing in complex lists",
+            "is_error": true
+        },
+        {
+            "pattern": "\\bper above\\b",
+            "description": "Avoid using 'per above'; provide a direct reference",
+            "is_error": true
+        },
+        {
+            "pattern": "\\bas mentioned earlier\\b",
+            "description": "Avoid using 'as mentioned earlier'; provide a direct reference",
+            "is_error": true
+        },
+        {
+            "pattern": "\\bas stated earlier\\b",
+            "description": "Avoid using 'as stated earlier'; provide a direct reference",
+            "is_error": true
+        },
+        {
+            "pattern": "\\bin question\\b",
+            "description": "Avoid using 'in question'; specify the item explicitly",
+            "is_error": true
+        },
+        {
+            "pattern": "\\bafore\\b",
+            "description": "Avoid using archaic terms like 'afore'; specify the item explicitly",
+            "is_error": true
+        },
+        {
+            "pattern": "\\b(may|might|could|should|possibly|likely)\\b",
+            "description": "Avoid vague terms; use definitive language unless conditional meaning is intended",
+            "is_error": true
+        },
+        {
+            "pattern": "\\b(as stated in|refer to|see)\\b.*?(\\bAppendix\\b|\\bTable\\b|\\bSection\\b|\\bFigure\\b)",
+            "description": "Ensure references are complete and properly formatted",
+            "is_error": true
+        }
+    ],
+    "section_symbol": [
+        {
+            "pattern": "\\b(section|subsection|paragraph|clause)\\b",
+            "description": "Ensure proper use of '§' or '§§' instead of spelled-out 'section'",
+            "is_error": true
+        },
+        {
+            "pattern": "^§",
+            "description": "Don't start a sentence with the section symbol. Write out 'Section'",
+            "is_error": true
+        },
+        {
+            "pattern": "\\b(\\d+ U\\.S\\.C\\. §§? \\d+\\([a-zA-Z0-9]*\\)(?:\\([a-zA-Z0-9]*\\))?)\\b",
+            "description": "Do not flag properly formatted citations with section symbols (e.g., '5 U.S.C. § 533(a)(1)')",
+            "is_error": false
+        },
+        {
+            "pattern": "\\b14 CFR §\\s*\\d+\\.\\d+\\b",
+            "description": "14 CFR should not use section symbol",
+            "is_error": true
+        },
+        {
+            "pattern": "§\\s*\\d+\\.\\d+\\s+(?:and|or)\\s+\\d+\\.\\d+",
+            "description": "Missing section symbol in multiple sections",
+            "is_error": true
+        },
+        {
+            "pattern": "§\\s*\\d+\\.\\d+\\s+through\\s+\\d+\\.\\d+",
+            "description": "Missing section symbol in range of sections",
+            "is_error": true
+        },
+        {
+            "pattern": "§\\s*\\d+\\.\\d+\\s+or\\s+§?\\s*\\d+\\.\\d+",
+            "description": "Inconsistent section symbol usage with 'or'",
+            "is_error": true
+        }
+    ],
+    "spacing": [
+        {
+            "pattern": "([^\\s]+)[ ]{2,}([^\\s]+)",
+            "description": "Remove double spacing between '{0}' and '{1}'",
+            "is_error": true
+        },
+        {
+            "pattern": "(?<!\\s)(AC|AD|CFR|FAA|N|SFAR)(\\d+[-]?\\d*[A-Z]?)",
+            "description": "Add space between '{0}' and '{1}'",
+            "is_error": true
+        },
+        {
+            "pattern": "(§|§§)(\\d+\\.\\d+)",
+            "description": "Add space after '{0}' before '{1}'",
+            "is_error": true
+        },
+        {
+            "pattern": "(?<!\\s)(Part)(\\d+)",
+            "description": "Add space between '{0}' and '{1}'",
+            "is_error": true
+        },
+        {
+            "pattern": "^(\\d+\\.\\d+\\.\\d+\\.\\d+)\\s*$",
+            "description": "Ensure subsections are followed by content",
+            "is_error": true
+        },
+        {
+            "pattern": "^\\s*[-*]\\s*[^a-zA-Z0-9]+",
+            "description": "Flag empty or improperly formatted bullet points",
+            "is_error": true
+        },
+        {
+            "pattern": "\\b(\\d+)\\s*to\\s*(\\d+)\\b",
+            "description": "Ensure numeric ranges use a dash (e.g., '10-20') instead of 'to'",
+            "is_error": true
+        }
+    ],
+    "dates": [
+        {
+            "pattern": "(?<![\\w/-])(\\d{1,2}/\\d{1,2}/\\d{2,4}|\\d{1,2}-\\d{1,2}-\\d{2,4}|\\d{4}-\\d{1,2}-\\d{1,2})(?![\\w/-])",
+            "description": "Use 'Month Day, Year' format instead of numeric date formats (MM/DD/YYYY, MM-DD-YYYY, YYYY-MM-DD)",
+            "is_error": true
+        }
+    ],
+    "placeholders": [
+        {
+            "pattern": "\\bTBD\\b",
+            "description": "Remove TBD placeholder",
+            "is_error": true
+        },
+        {
+            "pattern": "\\bTo be determined\\b",
+            "description": "Remove 'To be determined' placeholder",
+            "is_error": true
+        },
+        {
+            "pattern": "\\bTo be added\\b",
+            "description": "Remove 'To be added' placeholder",
+            "is_error": true
+        },
+        {
+            "pattern": "\\bTBA\\b",
+            "description": "Remove TBA (To Be Announced) placeholder",
+            "is_error": true
+        },
+        {
+            "pattern": "\\bTo be updated\\b",
+            "description": "Remove 'To be updated' placeholder",
+            "is_error": true
+        },
+        {
+            "pattern": "\\bTo follow\\b",
+            "description": "Remove 'To follow' placeholder",
+            "is_error": true
+        },
+        {
+            "pattern": "\\bInsert here\\b",
+            "description": "Remove 'Insert here' placeholder",
+            "is_error": true
+        },
+        {
+            "pattern": "\\[Insert.*?\\]",
+            "description": "Remove '[Insert...]' placeholder",
+            "is_error": true
+        },
+        {
+            "pattern": "\\[Placeholder.*?\\]",
+            "description": "Remove '[Placeholder...]' placeholder",
+            "is_error": true
+        },
+        {
+            "pattern": "\\bComing soon\\b",
+            "description": "Remove 'Coming soon' placeholder",
+            "is_error": true
+        },
+        {
+            "pattern": "\\[Add .*?\\]",
+            "description": "Remove '[Add...]' placeholder",
+            "is_error": true
+        },
+        {
+            "pattern": "\\[Replace .*?\\]",
+            "description": "Remove '[Replace...]' placeholder",
+            "is_error": true
+        },
+        {
+            "pattern": "\\[Example.*?\\]",
+            "description": "Remove '[Example...]' placeholder",
+            "is_error": true
+        },
+        {
+            "pattern": "\\[Add text here\\]",
+            "description": "Remove '[Add text here]' placeholder",
+            "is_error": true
+        },
+        {
+            "pattern": "\\bTo be filled\\b",
+            "description": "Remove 'To be filled' placeholder",
+            "is_error": true
+        }
+    ],
+    "periods": [
+        {
+            "pattern": "\\.\\.",
+            "description": "Remove double periods",
+            "is_error": true
+        },
+        {
+            "pattern": "(?<!\\.)\\.\\s*\\.\\s*",
+            "description": "Remove multiple standalone periods",
+            "is_error": true
+        },
+        {
+            "pattern": "\\s+\\.",
+            "description": "Remove unnecessary spaces before periods",
+            "is_error": true
+        },
+        {
+            "pattern": "(?<!\\w)\\.\\s*$",
+            "description": "Avoid ending sentences with only a period (check for sentence fragment)",
+            "is_error": true
+        },
+        {
+            "pattern": "\\.(?!\\s|$)",
+            "description": "Add a space after a period unless at the end of the text",
+            "is_error": true
+        },
+        {
+            "pattern": "(\\.{3,})",
+            "description": "Replace repeated periods with an ellipsis ('...') where appropriate",
+            "is_error": true,
+            "replacement": "..."
+        },
+        {
+            "pattern": "(?<!\\s)\\.{3}(?!\\s)",
+            "description": "Ensure spaces before and after ellipses",
+            "is_error": true
+        },
+        {
+            "pattern": "\\.{4,}",
+            "description": "Replace four or more periods with a single ellipsis ('...')",
+            "is_error": true,
+            "replacement": "..."
+        },
+        {
+            "pattern": "\\.(\\d)",
+            "description": "Add a space between the period and the number if it's not a decimal",
+            "is_error": true
+        },
+        {
+            "pattern": "\\.\\s+(\\.|\\d)",
+            "description": "Remove extra spaces after a period if followed by another period or number",
+            "is_error": true
+        },
+        {
+            "pattern": "\\bU\\.S\\.C\\.\\s*\\d+\\b",
+            "description": "Do not flag 'U.S.C. x' as a period issue",
+            "is_error": false
+        }
+    ],
+    "table_figure_references": [
+        {
+            "pattern": "(?<!^)(?<![.!?])\\s+(Table|Figure)\\s+\\d+(?:-\\d+)?",
+            "description": "'Table' and 'Figure' references within sentences should be lowercase",
+            "is_error": true,
+            "enforce_case": "lowercase"
+        },
+        {
+            "pattern": "^(table|figure)\\s+\\d+(?:-\\d+)?",
+            "description": "'Table' and 'Figure' references at the start of a sentence should be capitalized",
+            "is_error": true,
+            "enforce_case": "capitalized"
+        }
+    ],
+    "parentheses": [
+        {
+            "pattern": "\\([^)]*$|[^(]*\\)",
+            "description": "Detect unmatched parentheses (missing opening or closing parenthesis)",
+            "is_error": true,
+            "notes": "Matches cases where a closing parenthesis is missing after an opening or an opening parenthesis is missing before a closing."
+        }
+    ]
+}
