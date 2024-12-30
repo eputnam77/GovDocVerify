@@ -2007,18 +2007,18 @@ class FAADocumentChecker(DocumentChecker):
     @profile_performance
     def check_508_compliance(self, doc_path: str) -> DocumentCheckResult:
         """
-        Perform Section 508 compliance checks focusing on image alt text.
+        Perform Section 508 compliance checks focusing on image alt text and heading structure.
         """
         try:
             doc = Document(doc_path)
             issues = []
             images_with_alt = 0
+            heading_structure = {}
+            heading_issues = []  # Separate list for heading-specific issues
 
-            # Check for image alt text
+            # Image alt text check
             for shape in doc.inline_shapes:
                 alt_text = None
-
-                # Check multiple locations for alt text
                 if hasattr(shape, '_inline') and hasattr(shape._inline, 'docPr'):
                     docPr = shape._inline.docPr
                     alt_text = docPr.get('descr') or docPr.get('title')
@@ -2032,16 +2032,93 @@ class FAADocumentChecker(DocumentChecker):
                         'context': 'Ensure all images have descriptive alt text.'
                     })
 
+            # Enhanced heading structure check
+            headings = []
+            
+            for paragraph in doc.paragraphs:
+                if paragraph.style.name.startswith('Heading'):
+                    try:
+                        level = int(paragraph.style.name.split()[-1])
+                        text = paragraph.text.strip()
+                        
+                        if not text:
+                            continue
+                            
+                        headings.append((text, level))
+                        heading_structure[level] = heading_structure.get(level, 0) + 1
+                        
+                    except ValueError:
+                        continue
+
+            # Check heading hierarchy
+            if headings:
+                min_level = min(level for _, level in headings)
+                
+                if min_level > 1:
+                    heading_issues.append({
+                        'severity': 'error',
+                        'type': 'missing_h1',
+                        'message': 'Document should start with a Heading 1',
+                        'context': f"First heading found is level {headings[0][1]}: '{headings[0][0]}'",
+                        'recommendation': 'Add a Heading 1 at the start of the document'
+                    })
+
+                # Check for skipped levels
+                previous_heading = None
+                for text, level in headings:
+                    if previous_heading:
+                        prev_text, prev_level = previous_heading
+                        
+                        if level > prev_level + 1:
+                            missing_levels = list(range(prev_level + 1, level))
+                            heading_issues.append({
+                                'severity': 'error',
+                                'type': 'skipped_levels',
+                                'message': f"Found H{level} after H{prev_level} - add H{prev_level + 1} before '{text}'",
+                                'context': f"Found Heading {level} ('{text}') after Heading {prev_level} ('{prev_text}')",
+                                'recommendation': f"Add Heading {prev_level + 1} before this section",
+                                'missing_levels': missing_levels
+                            })
+                        elif level < prev_level and level != prev_level - 1:
+                            heading_issues.append({
+                                'severity': 'error',
+                                'type': 'out_of_sequence',
+                                'message': f"Out of sequence heading: Heading {level} after Heading {prev_level}",
+                                'context': f"Found '{text}' after '{prev_text}'",
+                                'recommendation': "Ensure heading levels follow a logical sequence"
+                            })
+                    
+                    previous_heading = (text, level)
+
+            # Combine all issues
+            if heading_issues:
+                issues.extend([{
+                    'category': '508_compliance_heading_structure',
+                    **issue
+                } for issue in heading_issues])
+
+            # Enhanced details with heading structure information
+            details = {
+                'total_images': len(doc.inline_shapes),
+                'images_with_alt': images_with_alt,
+                'heading_structure': {
+                    'total_headings': len(headings),
+                    'levels_found': dict(sorted(heading_structure.items())),
+                    'hierarchy_depth': max(heading_structure.keys()) if heading_structure else 0,
+                    'heading_sequence': [(text[:50] + '...' if len(text) > 50 else text, level) 
+                                       for text, level in headings],
+                    'issues_found': len(heading_issues)
+                }
+            }
+
             return DocumentCheckResult(
                 success=len(issues) == 0,
                 issues=issues,
-                details={
-                    'total_images': len(doc.inline_shapes),
-                    'images_with_alt': images_with_alt
-                }
+                details=details
             )
+            
         except Exception as e:
-            logging.error(f"Error during 508 compliance check: {str(e)}")
+            self.logger.error(f"Error during 508 compliance check: {str(e)}")
             return DocumentCheckResult(
                 success=False,
                 issues=[{
@@ -2050,17 +2127,48 @@ class FAADocumentChecker(DocumentChecker):
                 }]
             )
 
-    def format_compliance_issues(self, issues: List[Dict[str, Any]]) -> List[str]:
-        """Format compliance issues into minimalist output."""
+    def _format_compliance_issues(self, result: DocumentCheckResult) -> List[str]:
+        """Format compliance issues with clear, user-friendly descriptions."""
         formatted_issues = []
+        
+        # Group issues by type
+        heading_issues = []
+        alt_text_issues = []
+        other_issues = []
+        
+        for issue in result.issues:
+            if issue.get('category') == '508_compliance_heading_structure':
+                heading_issues.append(issue)
+            elif issue.get('category') == 'image_alt_text':
+                alt_text_issues.append(issue)
+            else:
+                other_issues.append(issue)
 
-        for issue in issues:
-            message = issue.get('message', 'No description provided.')
-            context = issue.get('context', '').strip()
-            formatted_line = f"{message}"
-            if context:
-                formatted_line += f" Context: \"{context}\""
-            formatted_issues.append(formatted_line)
+        # Format heading structure issues
+        if heading_issues:
+            formatted_issues.append("\n**Heading Structure Issues:**")
+            for issue in heading_issues:
+                message = issue.get('message', '').strip()
+                context = issue.get('context', '').strip()
+                recommendation = issue.get('recommendation', '').strip()
+                
+                formatted_issues.append(f"\n• **Issue**: {message}")
+                if context:
+                    formatted_issues.append(f"  - **Context**: {context}")
+                if recommendation:
+                    formatted_issues.append(f"  - **Fix**: {recommendation}")
+
+        # Format alt text issues
+        if alt_text_issues:
+            formatted_issues.append("\n**Image Accessibility Issues:**")
+            formatted_issues.append("• Images found without descriptive alt text")
+            formatted_issues.append("  - **Fix**: Add descriptive alt text to all images to ensure screen reader accessibility")
+
+        # Format other issues
+        if other_issues:
+            formatted_issues.append("\n**Other Accessibility Issues:**")
+            for issue in other_issues:
+                formatted_issues.append(f"• {issue.get('message', 'Unknown issue')}")
 
         return formatted_issues
 
@@ -2290,11 +2398,17 @@ class DocumentCheckResultsFormatter:
             },
             '508_compliance_check': {
                 'title': 'Section 508 Compliance Issues',
-                'description': 'Checks document accessibility features required by Section 508 standards, including alt text. This ensures the document is usable by people with disabilities using assistive technologies.',
-                'solution': 'Address each accessibility issue to ensure document compliance with Section 508 standards.',
+                'description': 'Checks document accessibility features required by Section 508 standards: Image alt text for screen readers and heading structure issues (missing heading 1, skipped heading levels, and out of sequence headings).',
+                'solution': 'Address each accessibility issue: add image alt text for screen readers and fix heading structure.',
                 'example_fix': {
-                    'before': 'Image without alt text',
-                    'after': 'Image with descriptive alt text'
+                    'before': [
+                        'Image without alt text',
+                        'Heading sequence: H1 → H2 → H4 (skipped H3)'
+                    ],
+                    'after': [
+                        'Image with descriptive alt text',
+                        'Proper heading sequence: H1 → H2 → H3 → H4'
+                    ]
                 }
             },
             'hyperlink_check': {
@@ -2675,7 +2789,27 @@ class DocumentCheckResultsFormatter:
                     output.extend(self._format_parentheses_issues(result))
                 elif check_name == '508_compliance_check':
                     if not result.success:
-                        output.append("  • Confirm that all images in your document have descriptive alt text.")
+                        # Handle heading structure issues
+                        heading_issues = [i for i in result.issues 
+                                        if i.get('category') == '508_compliance_heading_structure']
+                        if heading_issues:
+                            output.append("\n  Heading Structure Issues:")
+                            for issue in heading_issues:
+                                output.append(f"    • {issue['message']}")
+                                if 'context' in issue:
+                                    output.append(f"      Context: {issue['context']}")
+                                if 'recommendation' in issue:
+                                    output.append(f"      Recommendation: {issue['recommendation']}")
+                        
+                        # Handle alt text issues
+                        alt_text_issues = [i for i in result.issues 
+                                         if i.get('category') == 'image_alt_text']
+                        if alt_text_issues:
+                            output.append("\n  Image Accessibility Issues:")
+                            output.append("    • Confirm that all images in your document have descriptive alt text.")
+                            for issue in alt_text_issues:
+                                if 'context' in issue:
+                                    output.append(f"      {issue['context']}")
                 elif check_name == 'hyperlink_check':
                     for issue in result.issues:
                         output.append(f"    • {issue['message']}")
