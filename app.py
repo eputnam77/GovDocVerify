@@ -1451,6 +1451,7 @@ class FAADocumentChecker(DocumentChecker):
             ('spacing_check', lambda: self.spacing_check(doc)),
             ('paragraph_length_check', lambda: self.check_paragraph_length(doc)),
             ('sentence_length_check', lambda: self.check_sentence_length(doc)),
+            ('cross_references_check', lambda: self.check_cross_references(doc_path)),
         ]
 
         # Run each check and store results
@@ -2253,6 +2254,108 @@ class FAADocumentChecker(DocumentChecker):
         except Exception as e:
             self.logger.warning(f"Error loading word list: {e}")
             return set()  # Return empty set as fallback
+    
+    @profile_performance
+    def check_cross_references(self, doc_path: str) -> DocumentCheckResult:
+        """
+        Check for missing cross-referenced elements in the document.
+        """
+        try:
+            doc = Document(doc_path)
+        except Exception as e:
+            self.logger.error(f"Error reading the document: {e}")
+            return DocumentCheckResult(success=False, issues=[{'error': str(e)}], details={})
+
+        # Extract tables and figures
+        tables = set()
+        figures = set()
+
+        for para in doc.paragraphs:
+            text = para.text.strip()
+            
+            # Debug table/figure extraction
+            if 'table' in text.lower() or 'figure' in text.lower():
+                self.logger.debug(f"Processing potential table/figure: {text}")
+
+            # Identify table captions - both single and dual numbering
+            if text.lower().startswith('table'):
+                matches = [
+                    re.match(r'table\s+(\d+(?:-\d+)*)', text, re.IGNORECASE),  # matches "Table 2-1"
+                    re.match(r'table\s+(\d+)', text, re.IGNORECASE)            # matches "Table 2"
+                ]
+                for match in matches:
+                    if match:
+                        number = match.group(1)
+                        tables.add(number)
+                        self.logger.debug(f"Found table: {number}")
+
+            # Identify figure captions - both single and dual numbering
+            if text.lower().startswith('figure'):
+                matches = [
+                    re.match(r'figure\s+(\d+(?:-\d+)*)', text, re.IGNORECASE),  # matches "Figure 2-1"
+                    re.match(r'figure\s+(\d+)', text, re.IGNORECASE)            # matches "Figure 2"
+                ]
+                for match in matches:
+                    if match:
+                        number = match.group(1)
+                        figures.add(number)
+                        self.logger.debug(f"Found figure: {number}")
+
+        # More comprehensive reference patterns
+        reference_patterns = [
+            # "see/in" references
+            (r'(?:see|in)\s+(?:table|tbl\.?|t(?:ab)?\.)\s+(\d+(?:[-\.]\d+)*)', tables, 'Table'),
+            (r'(?:see|in)\s+(?:figure|fig\.?|f(?:ig)?\.)\s+(\d+(?:[-\.]\d+)*)', figures, 'Figure'),
+            
+            # "provides/shows/illustrates" references - made more permissive
+            (r'(?:Table|table|tbl\.?|t(?:ab)?\.)\s+(\d+(?:[-\.]\d+)*)[^\w]*(?:shows|provides|illustrates|depicts|presents|displays)', tables, 'Table'),
+            (r'(?:Figure|figure|fig\.?|f(?:ig)?\.)\s+(\d+(?:[-\.]\d+)*)[^\w]*(?:shows|provides|illustrates|depicts|presents|displays)', figures, 'Figure'),
+            
+            # Start of sentence references
+            (r'^(?:Table|Figure)\s+(\d+(?:[-\.]\d+)*)', tables if 'Table' in r'\1' else figures, lambda x: 'Table' if 'Table' in x else 'Figure'),
+            
+            # Single number references
+            (r'(?:see|in)\s+(?:table|tbl\.?|t(?:ab)?\.)\s+(\d+)\b', tables, 'Table'),
+            (r'(?:see|in)\s+(?:figure|fig\.?|f(?:ig)?\.)\s+(\d+)\b', figures, 'Figure'),
+            
+            # Additional patterns for "provides/shows" with single numbers
+            (r'(?:Table|table|tbl\.?|t(?:ab)?\.)\s+(\d+)[^\w]*(?:shows|provides|illustrates|depicts|presents|displays)', tables, 'Table'),
+            (r'(?:Figure|figure|fig\.?|f(?:ig)?\.)\s+(\d+)[^\w]*(?:shows|provides|illustrates|depicts|presents|displays)', figures, 'Figure')
+        ]
+
+        issues = []
+        for para in doc.paragraphs:
+            text = para.text.strip()
+            
+            # Debug reference checking
+            self.logger.debug(f"Checking for references in: {text[:100]}...")
+            
+            for pattern, collection, ref_type in reference_patterns:
+                matches = re.finditer(pattern, text, re.IGNORECASE)
+                for match in matches:
+                    ref = match.group(1)
+                    ref_type_value = ref_type(text) if callable(ref_type) else ref_type
+                    self.logger.debug(f"Found {ref_type_value} reference: {ref}")
+                    self.logger.debug(f"Checking against collection: {collection}")
+                    
+                    if ref not in collection:
+                        issues.append({
+                            'reference': ref,
+                            'type': ref_type_value,
+                            'context': text,
+                            'message': f"Referenced {ref_type_value} {ref} not found in document"
+                        })
+
+        return DocumentCheckResult(
+            success=len(issues) == 0,
+            issues=issues,
+            details={
+                'total_tables': len(tables),
+                'total_figures': len(figures),
+                'found_tables': sorted(list(tables)),
+                'found_figures': sorted(list(figures))
+            }
+        )
 
 class DocumentCheckResultsFormatter:
     
@@ -2817,6 +2920,9 @@ class DocumentCheckResultsFormatter:
                             output.append(f"      (HTTP Status: {issue['status_code']})")
                         elif 'error' in issue:
                             output.append(f"      (Error: {issue['error']})")
+                elif check_name == 'cross_references_check':
+                    for issue in result.issues:
+                        output.append(f"    • Confirm {issue['type']} {issue['reference']} referenced in '{issue['context']}' exists in the document")
                 else:
                     formatted_issues = [self._format_standard_issue(issue) for issue in result.issues[:15]]
                     output.extend(formatted_issues)
@@ -2880,7 +2986,8 @@ def format_markdown_results(results: Dict[str, DocumentCheckResult], doc_type: s
         'double_period_check': {'title': '⚡ Double Periods', 'priority': 4},
         'spacing_check': {'title': '⌨️ Spacing Issues', 'priority': 4},
         'paragraph_length_check': {'title': '📏 Paragraph Length', 'priority': 5},
-        'sentence_length_check': {'title': '📏 Sentence Length', 'priority': 5}
+        'sentence_length_check': {'title': '📏 Sentence Length', 'priority': 5},
+        'cross_references_check': {'title': '🔗 Cross References', 'priority': 6}
     }
 
     sorted_checks = sorted(
