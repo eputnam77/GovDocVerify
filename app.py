@@ -2074,18 +2074,18 @@ class FAADocumentChecker(DocumentChecker):
                             heading_issues.append({
                                 'severity': 'error',
                                 'type': 'skipped_levels',
-                                'message': f"Found H{level} after H{prev_level} - add H{prev_level + 1} before '{text}'",
-                                'context': f"Found Heading {level} ('{text}') after Heading {prev_level} ('{prev_text}')",
-                                'recommendation': f"Add Heading {prev_level + 1} before this section",
+                                'message': f"Skipped heading level(s) {', '.join(map(str, missing_levels))} - Found H{level} '{text}' after H{prev_level} '{prev_text}'. Add H{prev_level + 1} before this section.",
+                                # 'context': None,  # Removed since we combined it into message
+                                # 'recommendation': None,  # Removed since we combined it into message
                                 'missing_levels': missing_levels
                             })
                         elif level < prev_level and level != prev_level - 1:
                             heading_issues.append({
                                 'severity': 'error',
                                 'type': 'out_of_sequence',
-                                'message': f"Out of sequence heading: Heading {level} after Heading {prev_level}",
-                                'context': f"Found '{text}' after '{prev_text}'",
-                                'recommendation': "Ensure heading levels follow a logical sequence"
+                                'message': f"Out of sequence: H{level} '{text}' after H{prev_level} '{prev_text}'. Ensure heading levels follow a logical sequence.",
+                                # 'context': None,  # Removed since we combined it into message
+                                # 'recommendation': None,  # Removed since we combined it into message
                             })
                     
                     previous_heading = (text, level)
