@@ -1439,6 +1439,7 @@ class FAADocumentChecker(DocumentChecker):
             ('acronym_usage_check', lambda: self.acronym_usage_check(doc)),
             ('section_symbol_usage_check', lambda: self.check_section_symbol_usage(doc)),
             ('508_compliance_check', lambda: self.check_508_compliance(doc_path)),
+            ('cross_references_check', lambda: self.check_cross_references(doc_path)),
             ('hyperlink_check', lambda: self.check_hyperlinks(doc)),
             ('date_formats_check', lambda: self.check_date_formats(doc)),
             ('placeholders_check', lambda: self.check_placeholders(doc)),
@@ -1451,7 +1452,6 @@ class FAADocumentChecker(DocumentChecker):
             ('spacing_check', lambda: self.spacing_check(doc)),
             ('paragraph_length_check', lambda: self.check_paragraph_length(doc)),
             ('sentence_length_check', lambda: self.check_sentence_length(doc)),
-            ('cross_references_check', lambda: self.check_cross_references(doc_path)),
         ]
 
         # Run each check and store results
@@ -2976,6 +2976,9 @@ def format_markdown_results(results: Dict[str, DocumentCheckResult], doc_type: s
         'acronym_check': {'title': '📝 Acronym Definitions', 'priority': 1},
         'acronym_usage_check': {'title': '📎 Acronym Usage', 'priority': 1},
         'section_symbol_usage_check': {'title': '§ Section Symbol Usage', 'priority': 2},
+        '508_compliance_check': {'title': '🕵️‍♂️ 508 Compliance', 'priority': 2},
+        'cross_references_check': {'title': '🔗 Cross References', 'priority': 2},
+        'hyperlink_check': {'title': '🔗 Hyperlinks', 'priority': 2},
         'date_formats_check': {'title': '📅 Date Formats', 'priority': 2},
         'placeholders_check': {'title': '🚩 Placeholder Content', 'priority': 2},
         'document_title_check': {'title': '📑 Document Title Format', 'priority': 2},
@@ -2987,7 +2990,7 @@ def format_markdown_results(results: Dict[str, DocumentCheckResult], doc_type: s
         'spacing_check': {'title': '⌨️ Spacing Issues', 'priority': 4},
         'paragraph_length_check': {'title': '📏 Paragraph Length', 'priority': 5},
         'sentence_length_check': {'title': '📏 Sentence Length', 'priority': 5},
-        'cross_references_check': {'title': '🔗 Cross References', 'priority': 6}
+        
     }
 
     sorted_checks = sorted(
