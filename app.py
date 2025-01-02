@@ -2609,15 +2609,24 @@ class DocumentCheckResultsFormatter:
         return formatted_issues
 
     def _format_reference_issues(self, result: DocumentCheckResult) -> List[str]:
-        """Format reference-related issues with clear replacement instructions."""
-        output = []
+        """Format reference issues with clear, concise descriptions."""
+        formatted_issues = []
         
-        if result.issues:
-            for issue in result.issues:
-                if 'reference' in issue and 'correct_form' in issue:
-                    output.append(f"    • Replace '{issue['reference']}' with '{issue['correct_form']}'")
+        for issue in result.issues:
+            ref_type = issue.get('type', '')
+            ref_num = issue.get('reference', '')
+            context = issue.get('context', '').strip()
+            
+            if context:  # Only include context if it exists
+                formatted_issues.append(
+                    f"    • Confirm {ref_type} {ref_num} referenced in '{context}' exists in the document"
+                )
+            else:
+                formatted_issues.append(
+                    f"    • Confirm {ref_type} {ref_num} exists in the document"
+                )
 
-        return output
+        return formatted_issues
 
     def _format_standard_issue(self, issue: Dict[str, Any]) -> str:
         """Format standard issues consistently."""
