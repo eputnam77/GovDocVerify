@@ -2375,23 +2375,21 @@ class FAADocumentChecker(DocumentChecker):
         numbered_paragraphs = []
         
         try:
-            # Track heading hierarchy
+            # Track heading hierarchy (limit to 6 levels as per standard heading styles)
             current_numbers = {
                 1: 0,  # Heading 1: 1, 2, 3, ...
                 2: 0,  # Heading 2: 1.1, 1.2, 1.3, ...
                 3: 0,  # Heading 3: 1.1.1, 1.1.2, ...
                 4: 0,
                 5: 0,
-                6: 0,
-                7: 0
+                6: 0
             }
             current_parent = {
                 2: 0,  # Parent number for level 2
                 3: 0,  # Parent number for level 3
                 4: 0,
                 5: 0,
-                6: 0,
-                7: 0
+                6: 0
             }
             last_level = {
                 1: 0,  # Last number used at each level
@@ -2399,8 +2397,7 @@ class FAADocumentChecker(DocumentChecker):
                 3: 0,
                 4: 0,
                 5: 0,
-                6: 0,
-                7: 0
+                6: 0
             }
             
             for para in doc.paragraphs:
@@ -2412,12 +2409,16 @@ class FAADocumentChecker(DocumentChecker):
                     try:
                         heading_level = int(style_name.replace('Heading ', ''))
                         
+                        # Skip if heading level is beyond our supported range
+                        if heading_level > 6:
+                            continue
+                            
                         if heading_level == 1:
                             # For Heading 1, simply increment
                             current_numbers[1] += 1
                             last_level[1] = current_numbers[1]
                             # Reset all lower levels
-                            for level in range(2, 8):
+                            for level in range(2, 7):  # Changed from 8 to 7
                                 current_numbers[level] = 0
                                 current_parent[level] = current_numbers[1]
                                 last_level[level] = 0
@@ -2436,7 +2437,7 @@ class FAADocumentChecker(DocumentChecker):
                             last_level[heading_level] = current_numbers[heading_level]
                             
                             # Reset all lower levels
-                            for level in range(heading_level + 1, 8):
+                            for level in range(heading_level + 1, 7):  # Changed from 8 to 7
                                 current_numbers[level] = 0
                                 current_parent[level] = 0
                                 last_level[level] = 0
@@ -2459,7 +2460,8 @@ class FAADocumentChecker(DocumentChecker):
                         continue
             
         except Exception as e:
-            self.logger.error(f"Error processing document structure: {str(e)}")
+            self.logger.error(f"Error processing document structure: {str(e)}, Type: {type(e)}, Details: {repr(e)}")
+            return []
         
         return numbered_paragraphs
 
@@ -3065,27 +3067,17 @@ class DocumentCheckResultsFormatter:
                     output.extend(self._format_parentheses_issues(result))
                 elif check_name == '508_compliance_check':
                     if not result.success:
-                        # Handle heading structure issues
-                        heading_issues = [i for i in result.issues 
-                                        if i.get('category') == '508_compliance_heading_structure']
-                        if heading_issues:
-                            output.append("\n  Heading Structure Issues:")
-                            for issue in heading_issues:
+                        # Combine all 508 compliance issues into a single list
+                        for issue in result.issues:
+                            if issue.get('category') == '508_compliance_heading_structure':
                                 output.append(f"    • {issue['message']}")
                                 if 'context' in issue:
                                     output.append(f"      Context: {issue['context']}")
                                 if 'recommendation' in issue:
                                     output.append(f"      Recommendation: {issue['recommendation']}")
-                        
-                        # Handle alt text issues
-                        alt_text_issues = [i for i in result.issues 
-                                         if i.get('category') == 'image_alt_text']
-                        if alt_text_issues:
-                            output.append("\n  Image Accessibility Issues:")
-                            output.append("    • Confirm that all images in your document have descriptive alt text.")
-                            for issue in alt_text_issues:
+                            elif issue.get('category') == 'image_alt_text':
                                 if 'context' in issue:
-                                    output.append(f"      {issue['context']}")
+                                    output.append(f"    • {issue['context']}")
                 elif check_name == 'hyperlink_check':
                     for issue in result.issues:
                         output.append(f"    • {issue['message']}")
