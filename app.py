@@ -2070,25 +2070,15 @@ class FAADocumentChecker(DocumentChecker):
                     if previous_heading:
                         prev_text, prev_level = previous_heading
                         
+                        # Only check for skipped levels when going deeper
                         if level > prev_level + 1:
                             missing_levels = list(range(prev_level + 1, level))
                             heading_issues.append({
                                 'severity': 'error',
                                 'type': 'skipped_levels',
                                 'message': f"Skipped heading level(s) {', '.join(map(str, missing_levels))} - Found H{level} '{text}' after H{prev_level} '{prev_text}'. Add H{prev_level + 1} before this section.",
-                                # 'context': None,  # Removed since we combined it into message
-                                # 'recommendation': None,  # Removed since we combined it into message
-                                'missing_levels': missing_levels
                             })
-                        elif level < prev_level and level != prev_level - 1:
-                            heading_issues.append({
-                                'severity': 'error',
-                                'type': 'out_of_sequence',
-                                'message': f"Out of sequence: H{level} '{text}' after H{prev_level} '{prev_text}'. Ensure heading levels follow a logical sequence.",
-                                # 'context': None,  # Removed since we combined it into message
-                                # 'recommendation': None,  # Removed since we combined it into message
-                            })
-                    
+                        
                     previous_heading = (text, level)
 
             # Combine all issues
@@ -2132,44 +2122,27 @@ class FAADocumentChecker(DocumentChecker):
         """Format compliance issues with clear, user-friendly descriptions."""
         formatted_issues = []
         
-        # Group issues by type
-        heading_issues = []
-        alt_text_issues = []
-        other_issues = []
-        
         for issue in result.issues:
             if issue.get('category') == '508_compliance_heading_structure':
-                heading_issues.append(issue)
+                # Consolidate all information on one line
+                message = issue.get('message', 'No description provided')
+                context = issue.get('context', 'No context provided').strip()
+                recommendation = issue.get('recommendation', 'No recommendation provided').strip()
+                formatted_issues.append(
+                    f"    • {message}. Context: {context}. Recommendation: {recommendation}"
+                )
             elif issue.get('category') == 'image_alt_text':
-                alt_text_issues.append(issue)
+                # Simplify alt-text issues
+                formatted_issues.append(
+                    f"    • Image Issue: {issue.get('message', 'No description provided')}. {issue.get('context', '')}"
+                )
             else:
-                other_issues.append(issue)
-
-        # Format heading structure issues
-        if heading_issues:
-            formatted_issues.append("\n**Heading Structure Issues:**")
-            for issue in heading_issues:
-                message = issue.get('message', '').strip()
+                # Generic formatting for other issues
+                message = issue.get('message', 'No description provided')
                 context = issue.get('context', '').strip()
-                recommendation = issue.get('recommendation', '').strip()
-                
-                formatted_issues.append(f"\n• **Issue**: {message}")
-                if context:
-                    formatted_issues.append(f"  - **Context**: {context}")
-                if recommendation:
-                    formatted_issues.append(f"  - **Fix**: {recommendation}")
-
-        # Format alt text issues
-        if alt_text_issues:
-            formatted_issues.append("\n**Image Accessibility Issues:**")
-            formatted_issues.append("• Images found without descriptive alt text")
-            formatted_issues.append("  - **Fix**: Add descriptive alt text to all images to ensure screen reader accessibility")
-
-        # Format other issues
-        if other_issues:
-            formatted_issues.append("\n**Other Accessibility Issues:**")
-            for issue in other_issues:
-                formatted_issues.append(f"• {issue.get('message', 'Unknown issue')}")
+                formatted_issues.append(
+                    f"    • {message} {context}"
+                )
 
         return formatted_issues
 
@@ -2266,85 +2239,121 @@ class FAADocumentChecker(DocumentChecker):
             self.logger.error(f"Error reading the document: {e}")
             return DocumentCheckResult(success=False, issues=[{'error': str(e)}], details={})
 
-        # Extract tables and figures
+        heading_structure = self._extract_paragraph_numbering(doc)
+        valid_sections = {number for number, _ in heading_structure}
         tables = set()
         figures = set()
-
-        for para in doc.paragraphs:
-            text = para.text.strip()
-            
-            # Debug table/figure extraction
-            if 'table' in text.lower() or 'figure' in text.lower():
-                self.logger.debug(f"Processing potential table/figure: {text}")
-
-            # Identify table captions - both single and dual numbering
-            if text.lower().startswith('table'):
-                matches = [
-                    re.match(r'table\s+(\d+(?:-\d+)*)', text, re.IGNORECASE),  # matches "Table 2-1"
-                    re.match(r'table\s+(\d+)', text, re.IGNORECASE)            # matches "Table 2"
-                ]
-                for match in matches:
-                    if match:
-                        number = match.group(1)
-                        tables.add(number)
-                        self.logger.debug(f"Found table: {number}")
-
-            # Identify figure captions - both single and dual numbering
-            if text.lower().startswith('figure'):
-                matches = [
-                    re.match(r'figure\s+(\d+(?:-\d+)*)', text, re.IGNORECASE),  # matches "Figure 2-1"
-                    re.match(r'figure\s+(\d+)', text, re.IGNORECASE)            # matches "Figure 2"
-                ]
-                for match in matches:
-                    if match:
-                        number = match.group(1)
-                        figures.add(number)
-                        self.logger.debug(f"Found figure: {number}")
-
-        # More comprehensive reference patterns
-        reference_patterns = [
-            # "see/in" references
-            (r'(?:see|in)\s+(?:table|tbl\.?|t(?:ab)?\.)\s+(\d+(?:[-\.]\d+)*)', tables, 'Table'),
-            (r'(?:see|in)\s+(?:figure|fig\.?|f(?:ig)?\.)\s+(\d+(?:[-\.]\d+)*)', figures, 'Figure'),
-            
-            # "provides/shows/illustrates" references - made more permissive
-            (r'(?:Table|table|tbl\.?|t(?:ab)?\.)\s+(\d+(?:[-\.]\d+)*)[^\w]*(?:shows|provides|illustrates|depicts|presents|displays)', tables, 'Table'),
-            (r'(?:Figure|figure|fig\.?|f(?:ig)?\.)\s+(\d+(?:[-\.]\d+)*)[^\w]*(?:shows|provides|illustrates|depicts|presents|displays)', figures, 'Figure'),
-            
-            # Start of sentence references
-            (r'^(?:Table|Figure)\s+(\d+(?:[-\.]\d+)*)', tables if 'Table' in r'\1' else figures, lambda x: 'Table' if 'Table' in x else 'Figure'),
-            
-            # Single number references
-            (r'(?:see|in)\s+(?:table|tbl\.?|t(?:ab)?\.)\s+(\d+)\b', tables, 'Table'),
-            (r'(?:see|in)\s+(?:figure|fig\.?|f(?:ig)?\.)\s+(\d+)\b', figures, 'Figure'),
-            
-            # Additional patterns for "provides/shows" with single numbers
-            (r'(?:Table|table|tbl\.?|t(?:ab)?\.)\s+(\d+)[^\w]*(?:shows|provides|illustrates|depicts|presents|displays)', tables, 'Table'),
-            (r'(?:Figure|figure|fig\.?|f(?:ig)?\.)\s+(\d+)[^\w]*(?:shows|provides|illustrates|depicts|presents|displays)', figures, 'Figure')
-        ]
-
         issues = []
-        for para in doc.paragraphs:
-            text = para.text.strip()
-            
-            # Debug reference checking
-            self.logger.debug(f"Checking for references in: {text[:100]}...")
-            
-            for pattern, collection, ref_type in reference_patterns:
-                matches = re.finditer(pattern, text, re.IGNORECASE)
-                for match in matches:
+
+        # Skip patterns for external references
+        skip_patterns = [
+            r'(?:U\.S\.C\.|USC)\s+(?:§+\s*)?(?:Section|section)?\s*\d+',
+            r'Section\s+\d+(?:\([a-z]\))*\s+of\s+(?:the\s+)?(?:United States Code|U\.S\.C\.)',
+            r'Section\s+\d+(?:\([a-z]\))*\s+of\s+Title\s+\d+',
+            r'(?:Section|§)\s*\d+(?:\([a-z]\))*\s+of\s+the\s+Act',
+            r'Section\s+\d+\([a-z]\)',
+            r'§\s*\d+\([a-z]\)',
+            r'\d+\s*(?:CFR|C\.F\.R\.)',
+            r'Part\s+\d+(?:\.[0-9]+)*\s+of\s+Title\s+\d+',
+            r'Public\s+Law\s+\d+[-–]\d+',
+            r'Title\s+\d+,\s+Section\s+\d+(?:\([a-z]\))*',
+            r'\d+\s+U\.S\.C\.\s+\d+(?:\([a-z]\))*',
+        ]
+        skip_regex = re.compile('|'.join(skip_patterns), re.IGNORECASE)
+
+        try:
+            # Extract tables and figures
+            for para in doc.paragraphs:
+                text = para.text.strip() if hasattr(para, 'text') else ''
+                
+                # Table extraction
+                if text.lower().startswith('table'):
+                    matches = [
+                        re.match(r'^table\s+(\d{1,2}(?:-\d+)?)\b', text, re.IGNORECASE),
+                        re.match(r'^table\s+(\d{1,2}(?:\.\d+)?)\b', text, re.IGNORECASE)
+                    ]
+                    for match in matches:
+                        if match:
+                            tables.add(match.group(1))
+
+                # Figure extraction
+                if text.lower().startswith('figure'):
+                    matches = [
+                        re.match(r'^figure\s+(\d{1,2}(?:-\d+)?)\b', text, re.IGNORECASE),
+                        re.match(r'^figure\s+(\d{1,2}(?:\.\d+)?)\b', text, re.IGNORECASE)
+                    ]
+                    for match in matches:
+                        if match:
+                            figures.add(match.group(1))
+
+            # Check references
+            for para in doc.paragraphs:
+                para_text = para.text.strip() if hasattr(para, 'text') else ''
+                if not para_text or skip_regex.search(para_text):
+                    continue
+
+                # Table reference check
+                table_refs = re.finditer(
+                    r'(?:see|in|refer to)?\s*(?:table|Table)\s+(\d{1,2}(?:[-\.]\d+)?)\b', 
+                    para_text
+                )
+                for match in table_refs:
                     ref = match.group(1)
-                    ref_type_value = ref_type(text) if callable(ref_type) else ref_type
-                    self.logger.debug(f"Found {ref_type_value} reference: {ref}")
-                    self.logger.debug(f"Checking against collection: {collection}")
-                    
-                    if ref not in collection:
+                    if ref not in tables:
                         issues.append({
+                            'type': 'Table',
                             'reference': ref,
-                            'type': ref_type_value,
-                            'context': text,
-                            'message': f"Referenced {ref_type_value} {ref} not found in document"
+                            'context': para_text,
+                            'message': f"Referenced Table {ref} not found in document"
                         })
+
+                # Figure reference check
+                figure_refs = re.finditer(
+                    r'(?:see|in|refer to)?\s*(?:figure|Figure)\s+(\d{1,2}(?:[-\.]\d+)?)\b', 
+                    para_text
+                )
+                for match in figure_refs:
+                    ref = match.group(1)
+                    if ref not in figures:
+                        issues.append({
+                            'type': 'Figure',
+                            'reference': ref,
+                            'context': para_text,
+                            'message': f"Referenced Figure {ref} not found in document"
+                        })
+
+                # Section/paragraph reference check
+                section_refs = re.finditer(
+                    r'(?:paragraph|section|appendix)\s+([A-Z]?\.?\d+(?:\.\d+)*)',
+                    para_text,
+                    re.IGNORECASE
+                )
+
+                for match in section_refs:
+                    ref = match.group(1).strip('.')
+                    if not skip_regex.search(para_text):
+                        if ref not in valid_sections:
+                            found = False
+                            for valid_section in valid_sections:
+                                if valid_section.strip('.') == ref.strip('.'):
+                                    found = True
+                                    break
+                            
+                            if not found:
+                                issues.append({
+                                    'type': 'Paragraph',
+                                    'reference': ref,
+                                    'context': para_text,
+                                    'message': f"Confirm paragraph {ref} referenced in '{para_text}' exists in the document"
+                                })
+
+        except Exception as e:
+            self.logger.error(f"Error processing cross references: {str(e)}")
+            return DocumentCheckResult(
+                success=False,
+                issues=[{'type': 'error', 'message': f"Error processing cross references: {str(e)}"}],
+                details={}
+            )
 
         return DocumentCheckResult(
             success=len(issues) == 0,
@@ -2353,9 +2362,155 @@ class FAADocumentChecker(DocumentChecker):
                 'total_tables': len(tables),
                 'total_figures': len(figures),
                 'found_tables': sorted(list(tables)),
-                'found_figures': sorted(list(figures))
+                'found_figures': sorted(list(figures)),
+                'heading_structure': heading_structure,
+                'valid_sections': sorted(list(valid_sections))
             }
         )
+
+    def _extract_paragraph_numbering(self, doc: Document, in_appendix: bool = False) -> List[Tuple[str, str]]:
+        """
+        Extract paragraph numbers from document headings.
+        """
+        numbered_paragraphs = []
+        
+        try:
+            # Track heading hierarchy
+            current_numbers = {
+                1: 0,  # Heading 1: 1, 2, 3, ...
+                2: 0,  # Heading 2: 1.1, 1.2, 1.3, ...
+                3: 0,  # Heading 3: 1.1.1, 1.1.2, ...
+                4: 0,
+                5: 0,
+                6: 0,
+                7: 0
+            }
+            current_parent = {
+                2: 0,  # Parent number for level 2
+                3: 0,  # Parent number for level 3
+                4: 0,
+                5: 0,
+                6: 0,
+                7: 0
+            }
+            last_level = {
+                1: 0,  # Last number used at each level
+                2: 0,
+                3: 0,
+                4: 0,
+                5: 0,
+                6: 0,
+                7: 0
+            }
+            
+            for para in doc.paragraphs:
+                style_name = para.style.name if hasattr(para, 'style') and hasattr(para.style, 'name') else ''
+                text = para.text.strip() if hasattr(para, 'text') else ''
+                
+                # Only process if it's a heading style
+                if style_name.startswith('Heading'):
+                    try:
+                        heading_level = int(style_name.replace('Heading ', ''))
+                        
+                        if heading_level == 1:
+                            # For Heading 1, simply increment
+                            current_numbers[1] += 1
+                            last_level[1] = current_numbers[1]
+                            # Reset all lower levels
+                            for level in range(2, 8):
+                                current_numbers[level] = 0
+                                current_parent[level] = current_numbers[1]
+                                last_level[level] = 0
+                        else:
+                            # Check if we're still in the same parent section
+                            parent_changed = current_parent[heading_level] != current_numbers[heading_level - 1]
+                            
+                            if parent_changed:
+                                # Parent section changed
+                                current_numbers[heading_level] = 1
+                                current_parent[heading_level] = current_numbers[heading_level - 1]
+                            else:
+                                # Same parent, increment this level
+                                current_numbers[heading_level] += 1
+                            
+                            last_level[heading_level] = current_numbers[heading_level]
+                            
+                            # Reset all lower levels
+                            for level in range(heading_level + 1, 8):
+                                current_numbers[level] = 0
+                                current_parent[level] = 0
+                                last_level[level] = 0
+                        
+                        # Build section number
+                        section_parts = []
+                        for level in range(1, heading_level + 1):
+                            if level == 1:
+                                section_parts.append(str(current_numbers[1]))
+                            else:
+                                if current_numbers[level] > 0:
+                                    section_parts.append(str(current_numbers[level]))
+                        
+                        section_number = '.'.join(section_parts)
+                        
+                        if text:
+                            numbered_paragraphs.append((section_number, text))
+                            
+                    except ValueError:
+                        continue
+            
+        except Exception as e:
+            self.logger.error(f"Error processing document structure: {str(e)}")
+        
+        return numbered_paragraphs
+
+    def _check_heading_sequence(self, current_level: int, previous_level: int) -> Optional[str]:
+        """
+        Check if heading sequence is valid.
+        Returns error message if invalid, None if valid.
+        
+        Rules:
+        - Can go from any level to H1 or H2 (restart numbering)
+        - When going deeper, can only go one level at a time (e.g., H1 to H2, H2 to H3)
+        - Can freely go to any higher level (e.g., H3 to H1, H4 to H2)
+        """
+        # When going to a deeper level, only allow one level at a time
+        if current_level > previous_level:
+            if current_level != previous_level + 1:
+                return f"Skipped heading level(s) {previous_level + 1} - Found H{current_level} after H{previous_level}. Add H{previous_level + 1} before this section."
+            
+        # All other cases are valid:
+        # - Going to H1 (restart numbering)
+        # - Going to any higher level (e.g., H3 to H1)
+        return None
+
+    def _check_heading_structure(self, doc: Document) -> List[Dict[str, str]]:
+        """Check document heading structure."""
+        issues = []
+        previous_level = 0
+        previous_heading = ""
+        
+        for para in doc.paragraphs:
+            if para.style.name.startswith('Heading'):
+                try:
+                    current_level = int(para.style.name.replace('Heading ', ''))
+                    
+                    # Check sequence
+                    error = self._check_heading_sequence(current_level, previous_level)
+                    if error:
+                        issues.append({
+                            'category': '508_compliance_heading_structure',
+                            'message': error,
+                            'context': f"'{para.text}'",
+                            'recommendation': f"Ensure heading levels follow a logical sequence."
+                        })
+                    
+                    previous_level = current_level
+                    previous_heading = para.text
+                    
+                except ValueError:
+                    continue
+        
+        return issues
 
 class DocumentCheckResultsFormatter:
     
@@ -2521,6 +2676,15 @@ class DocumentCheckResultsFormatter:
                 'example_fix': {
                     'before': 'See https://broken-link.example.com for more details.',
                     'after': 'See https://www.faa.gov for more details.'
+                }
+            },
+            'cross_references_check': {
+                'title': 'Cross-Reference Issues',
+                'description': 'Checks for missing or invalid cross-references to paragraphs, tables, figures, and appendices within the document.',
+                'solution': 'Ensure that all referenced elements are present in the document and update or remove any incorrect references.',
+                'example_fix': {
+                    'before': 'See table 5-2 for more information. (there is no table 5-2)',
+                    'after': 'Either update the table reference or add table 5-2 if missing)'
                 }
             }
         }
