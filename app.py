@@ -419,7 +419,7 @@ class FAADocumentChecker(DocumentChecker):
     
     PREDEFINED_ACRONYMS = {
         'AGC', 'AIR', 'CFR', 'DC', 'DOT', 'FAA IR-M', 'FAQ', 'i.e.', 'e.g.', 'MA',
-        'MD', 'MIL', 'MO', 'No.', 'PDF', 'SSN', 'TX', 'U.S.', 'U.S.C.', 'USA', 'US', 
+        'MD', 'MIL', 'MO', 'No.', 'PDF', 'SAE', 'SSN', 'TX', 'U.S.', 'U.S.C.', 'USA', 'US', 
         'WA', 'XX', 'ZIP'
     }
 
