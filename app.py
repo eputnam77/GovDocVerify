@@ -2016,6 +2016,7 @@ class FAADocumentChecker(DocumentChecker):
             images_with_alt = 0
             heading_structure = {}
             heading_issues = []  # Separate list for heading-specific issues
+            hyperlink_issues = []  # New list for hyperlink issues
 
             # Image alt text check
             for shape in doc.inline_shapes:
@@ -2081,6 +2082,77 @@ class FAADocumentChecker(DocumentChecker):
                         
                     previous_heading = (text, level)
 
+            # Enhanced Hyperlink Accessibility Check
+            for paragraph in doc.paragraphs:
+                # Check both hyperlink fields and runs with hyperlink formatting
+                hyperlinks = []
+                
+                # Method 1: Check for hyperlink fields
+                if hasattr(paragraph, '_element') and hasattr(paragraph._element, 'xpath'):
+                    hyperlinks.extend(paragraph._element.xpath('.//w:hyperlink'))
+                
+                # Method 2: Check for hyperlink style runs
+                for run in paragraph.runs:
+                    if hasattr(run, '_element') and hasattr(run._element, 'rPr'):
+                        if run._element.rPr is not None:
+                            if run._element.rPr.xpath('.//w:rStyle[@w:val="Hyperlink"]'):
+                                hyperlinks.append(run)
+                    
+                    # Method 3: Check for direct hyperlink elements
+                    if hasattr(run, '_r'):
+                        if run._r.xpath('.//w:hyperlink'):
+                            hyperlinks.append(run)
+
+                # Process found hyperlinks
+                for hyperlink in hyperlinks:
+                    # Extract link text based on element type
+                    if hasattr(hyperlink, 'text'):  # For run objects
+                        link_text = hyperlink.text.strip()
+                    else:  # For hyperlink elements
+                        link_text = ''.join([t.text for t in hyperlink.xpath('.//w:t')])
+                    
+                    if not link_text:  # Skip empty links
+                        continue
+
+                    # Check for accessibility issues
+                    non_descriptive = [
+                        'click here', 'here', 'link', 'this link', 'more', 
+                        'read more', 'learn more', 'click', 'see this', 
+                        'see here', 'go', 'url', 'this', 'page'
+                    ]
+                    
+                    if any(phrase == link_text.lower() for phrase in non_descriptive):
+                        hyperlink_issues.append({
+                            'category': 'hyperlink_accessibility',
+                            'severity': 'warning',
+                            'message': 'Non-descriptive hyperlink text detected',
+                            'context': f'Link text: "{link_text}"',
+                            'recommendation': 'Replace with descriptive text that indicates the link destination',
+                            'user_message': f'Replace non-descriptive link text "{link_text}" with text that clearly indicates where the link will take the user'
+                        })
+                    elif len(link_text.strip()) < 4:  # Check for very short link text
+                        hyperlink_issues.append({
+                            'category': 'hyperlink_accessibility',
+                            'severity': 'warning',
+                            'message': 'Hyperlink text may be too short to be meaningful',
+                            'context': f'Link text: "{link_text}"',
+                            'recommendation': 'Use longer, more descriptive text that indicates the link destination',
+                            'user_message': f'Link text "{link_text}" is too short - use descriptive text that clearly indicates the link destination'
+                        })
+                    elif link_text.lower().startswith(('http', 'www', 'ftp')):
+                        hyperlink_issues.append({
+                            'category': 'hyperlink_accessibility',
+                            'severity': 'warning',
+                            'message': 'Raw URL used as link text',
+                            'context': f'Link text: "{link_text}"',
+                            'recommendation': 'Replace the URL with descriptive text that indicates the link destination',
+                            'user_message': f'Replace the URL "{link_text}" with meaningful text that describes the link destination'
+                        })
+
+            # Add hyperlink issues to main issues list
+            if hyperlink_issues:
+                issues.extend(hyperlink_issues)
+
             # Combine all issues
             if heading_issues:
                 issues.extend([{
@@ -2099,6 +2171,13 @@ class FAADocumentChecker(DocumentChecker):
                     'heading_sequence': [(text[:50] + '...' if len(text) > 50 else text, level) 
                                        for text, level in headings],
                     'issues_found': len(heading_issues)
+                },
+                'hyperlink_accessibility': {  # New details section
+                    'total_issues': len(hyperlink_issues),
+                    'non_descriptive_links': sum(1 for issue in hyperlink_issues 
+                                               if 'Non-descriptive' in issue['message']),
+                    'raw_urls': sum(1 for issue in hyperlink_issues 
+                                  if 'Raw URL' in issue['message'])
                 }
             }
 
@@ -2124,7 +2203,7 @@ class FAADocumentChecker(DocumentChecker):
         
         for issue in result.issues:
             if issue.get('category') == '508_compliance_heading_structure':
-                # Consolidate all information on one line
+                # Existing heading structure formatting...
                 message = issue.get('message', 'No description provided')
                 context = issue.get('context', 'No context provided').strip()
                 recommendation = issue.get('recommendation', 'No recommendation provided').strip()
@@ -2132,10 +2211,32 @@ class FAADocumentChecker(DocumentChecker):
                     f"    • {message}. Context: {context}. Recommendation: {recommendation}"
                 )
             elif issue.get('category') == 'image_alt_text':
-                # Simplify alt-text issues
+                # Existing alt text formatting...
                 formatted_issues.append(
-                    f"    • Image Issue: {issue.get('message', 'No description provided')}. {issue.get('context', '')}"
+                    f"    • {issue.get('message', 'No description provided')}. {issue.get('context', '')}"
                 )
+            elif issue.get('category') == 'hyperlink_accessibility':
+                # Use the new user-friendly message
+                formatted_issues.append(
+                    f"    • {issue.get('user_message', issue.get('message', 'No description provided'))}"
+                )
+            elif 'context' in issue and issue['context'].startswith('Link text:'):
+                # This catches the hyperlink issues that might not have the category set
+                link_text = issue['context'].replace('Link text:', '').strip().strip('"')
+                if any(phrase == link_text.lower() for phrase in ['here', 'click here', 'more', 'link']):
+                    formatted_issues.append(
+                        f"    • Replace non-descriptive link text \"{link_text}\" with text that clearly indicates where the link will take the user"
+                    )
+                elif link_text.lower().startswith(('http', 'www', 'ftp')):
+                    formatted_issues.append(
+                        f"    • Replace the URL \"{link_text}\" with meaningful text that describes the link destination"
+                    )
+                elif len(link_text) < 4:
+                    formatted_issues.append(
+                        f"    • Link text \"{link_text}\" is too short - use descriptive text that clearly indicates the link destination"
+                    )
+                else:
+                    formatted_issues.append(f"    • {issue.get('message', 'No description provided')} {issue['context']}")
             else:
                 # Generic formatting for other issues
                 message = issue.get('message', 'No description provided')
@@ -2658,16 +2759,18 @@ class DocumentCheckResultsFormatter:
             },
             '508_compliance_check': {
                 'title': 'Section 508 Compliance Issues',
-                'description': 'Checks document accessibility features required by Section 508 standards: Image alt text for screen readers and heading structure issues (missing heading 1, skipped heading levels, and out of sequence headings).',
-                'solution': 'Address each accessibility issue: add image alt text for screen readers and fix heading structure.',
+                'description': 'Checks document accessibility features required by Section 508 standards: Image alt text for screen readers, heading structure issues (missing heading 1, skipped heading levels, and out of sequence headings), and hyperlink accessibility (ensuring links have meaningful descriptive text).',
+                'solution': 'Address each accessibility issue: add image alt text for screen readers, fix heading structure, and ensure hyperlinks have descriptive text that indicates their destination.',
                 'example_fix': {
                     'before': [
                         'Image without alt text',
-                        'Heading sequence: H1 → H2 → H4 (skipped H3)'
+                        'Heading sequence: H1 → H2 → H4 (skipped H3)',
+                        'Link text: "click here" or "www.example.com"'
                     ],
                     'after': [
                         'Image with descriptive alt text',
-                        'Proper heading sequence: H1 → H2 → H3 → H4'
+                        'Proper heading sequence: H1 → H2 → H3 → H4',
+                        'Descriptive link text: "FAA Compliance Guidelines" or "Download the Safety Report"'
                     ]
                 }
             },
@@ -3078,6 +3181,8 @@ class DocumentCheckResultsFormatter:
                             elif issue.get('category') == 'image_alt_text':
                                 if 'context' in issue:
                                     output.append(f"    • {issue['context']}")
+                            elif issue.get('category') == 'hyperlink_accessibility':
+                                output.append(f"    • {issue.get('user_message', issue.get('message', 'No description provided'))}")
                 elif check_name == 'hyperlink_check':
                     for issue in result.issues:
                         output.append(f"    • {issue['message']}")
