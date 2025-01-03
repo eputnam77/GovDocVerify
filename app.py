@@ -2647,28 +2647,6 @@ class FAADocumentChecker(DocumentChecker):
             r'\b(?:has|have|had)\s+been\s+\w+en\b'
         ]
         passive_regex = re.compile('|'.join(passive_patterns), re.IGNORECASE)
-        
-        # Common technical jargon and suggested replacements
-        jargon_replacements = {
-            r'\boptimize\b': 'improve',
-            r'\butilize\b': 'use',
-            r'\bimplement\b': 'start/begin',
-            r'\bfacilitate\b': 'help',
-            r'\bleverage\b': 'use',
-            r'\bmitigate\b': 'reduce',
-            r'\bexpeditiously\b': 'quickly',
-            r'\bsubsequently\b': 'then/after',
-            r'\bterminology\b': 'terms',
-            r'\bmethodology\b': 'method',
-            r'\bfunctionality\b': 'features',
-            r'\boptimal\b': 'best',
-            r'\bparadigm\b': 'model/example',
-            r'\bsynergy\b': 'cooperation',
-            r'\brobust\b': 'strong/reliable',
-            r'\bscalable\b': 'adaptable',
-            r'\binterface\b': 'connect',
-            r'\bstreamline\b': 'simplify'
-        }
 
         def count_syllables(word: str) -> int:
             """Count syllables in a word using basic rules."""
@@ -2721,17 +2699,6 @@ class FAADocumentChecker(DocumentChecker):
                     
                     if syllables >= 3:
                         text_stats['complex_words'] += 1
-                
-                # Check for jargon
-                for jargon_pattern, replacement in jargon_replacements.items():
-                    matches = re.finditer(jargon_pattern, sentence, re.IGNORECASE)
-                    for match in matches:
-                        issues.append({
-                            'type': 'jargon',
-                            'word': match.group(),
-                            'suggestion': replacement,
-                            'sentence': sentence
-                        })
 
         # Calculate readability metrics
         try:
@@ -2747,7 +2714,9 @@ class FAADocumentChecker(DocumentChecker):
             # Calculate passive voice percentage
             passive_percentage = (text_stats['passive_voice_count'] / text_stats['total_sentences']) * 100 if text_stats['total_sentences'] > 0 else 0
             
-            # Add readability score issues if needed
+            # Add readability summary with high-level guidance and specific issues
+            issues = []
+            
             if flesch_ease < 50:
                 issues.append({
                     'type': 'readability_score',
@@ -2785,12 +2754,6 @@ class FAADocumentChecker(DocumentChecker):
                     'flesch_kincaid_grade': round(flesch_grade, 1),
                     'gunning_fog_index': round(fog_index, 1),
                     'passive_voice_percentage': round(passive_percentage, 1)
-                },
-                'stats': {
-                    'total_words': text_stats['total_words'],
-                    'total_sentences': text_stats['total_sentences'],
-                    'complex_words': text_stats['complex_words'],
-                    'passive_sentences': text_stats['passive_voice_count']
                 }
             }
             
@@ -2981,7 +2944,7 @@ class DocumentCheckResultsFormatter:
                 'solution': 'Ensure that all referenced elements are present in the document and update or remove any incorrect references.',
                 'example_fix': {
                     'before': 'See table 5-2 for more information. (there is no table 5-2)',
-                    'after': 'Either update the table reference or add table 5-2 if missing)'
+                    'after': 'Either update the table reference or add table 5-2 if missing'
                 }
             },
             'readability_check': {
@@ -3432,7 +3395,7 @@ class DocumentCheckResultsFormatter:
             formatted_issues.append("\n  Readability Scores:")
             formatted_issues.append(f"    • Flesch Reading Ease: {metrics['flesch_reading_ease']} (Aim for 50+; higher is easier to read)")
             formatted_issues.append(f"    • Grade Level: {metrics['flesch_kincaid_grade']} (Aim for 10 or lower; 12 acceptable for technical/legal)")
-            formatted_issues.append(f"    • Gunning Fog Index: {metrics['gunning_fog_index']} (Aim for 12 or lower; 14-18 acceptable for technical/legal)")
+            formatted_issues.append(f"    • Gunning Fog Index: {metrics['gunning_fog_index']} (Aim for 12 or lower)")
             formatted_issues.append(f"    • Passive Voice: {metrics['passive_voice_percentage']}% (Aim for less than 10%; use active voice for clarity)")
         
         if result.issues:
@@ -3583,6 +3546,60 @@ def create_interface():
             title = parts[0].strip()
             content = parts[1].strip()
             
+            # Special handling for readability metrics
+            if "Readability Issues" in title:
+                metrics_match = re.search(r'Readability Scores:(.*?)(?=Identified Issues:|$)', content, re.DOTALL)
+                issues_match = re.search(r'Identified Issues:(.*?)(?=\Z)', content, re.DOTALL)
+                
+                metrics_html = ""
+                if metrics_match:
+                    metrics = metrics_match.group(1).strip().split('\n')
+                    metrics_html = """
+                        <div class="bg-blue-50 rounded-lg p-4 mb-4">
+                            <h3 class="font-medium text-blue-800 mb-2">📊 Readability Metrics</h3>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    """
+                    for metric in metrics:
+                        if metric.strip():
+                            label, value = metric.strip('• ').split(':', 1)
+                            metrics_html += f"""
+                                <div class="flex flex-col">
+                                    <span class="text-sm text-blue-600 font-medium">{label}</span>
+                                    <span class="text-lg text-blue-900">{value}</span>
+                                </div>
+                            """
+                    metrics_html += "</div></div>"
+
+                issues_html_section = ""
+                if issues_match:
+                    issues_list = issues_match.group(1).strip().split('\n')
+                    if issues_list:
+                        issues_html_section = """
+                            <div class="mt-4">
+                                <h3 class="font-medium text-gray-800 mb-2">📝 Identified Issues:</h3>
+                                <ul class="list-none space-y-2">
+                        """
+                        for issue in issues_list:
+                            if issue.strip():
+                                issues_html_section += f"""
+                                    <li class="text-gray-600 ml-4">• {issue.strip('• ')}</li>
+                                """
+                        issues_html_section += "</ul></div>"
+
+                # Combine the readability section
+                issues_html += f"""
+                    <div class="bg-white rounded-lg shadow-sm mb-6 overflow-hidden">
+                        <div class="bg-gray-50 px-6 py-4 border-b">
+                            <h2 class="text-lg font-semibold text-gray-800">{title}</h2>
+                        </div>
+                        <div class="px-6 py-4">
+                            {metrics_html}
+                            {issues_html_section}
+                        </div>
+                    </div>
+                """
+                continue
+
             # Extract description and solution
             description_parts = content.split('How to fix:', 1)
             description = description_parts[0].strip()
@@ -3626,13 +3643,12 @@ def create_interface():
                         <h3 class="font-medium text-gray-800 mb-2">Issues found in your document:</h3>
                         <ul class="list-none space-y-2">
                 """
-                for issue in issues_match[:7]: 
-                    # Remove any existing bullet points from the issue text
+                for issue in issues_match[:7]:
                     clean_issue = issue.strip().lstrip('•').strip()
                     issues_html_section += f"""
                         <li class="text-gray-600 ml-4">• {clean_issue}</li>
                     """
-                if len(issues_match) > 7: 
+                if len(issues_match) > 7:
                     issues_html_section += f"""
                         <li class="text-gray-500 italic ml-4">... and {len(issues_match) - 7} more similar issues.</li>
                     """
@@ -3663,7 +3679,21 @@ def create_interface():
                 </div>
             """
         
-        # Format summary section
+        # Add new CSS classes for readability metrics
+        additional_styles = """
+            .bg-blue-50 { background-color: #eff6ff; }
+            .text-blue-600 { color: #2563eb; }
+            .text-blue-800 { color: #1e40af; }
+            .text-blue-900 { color: #1e3a8a; }
+            .grid { display: grid; }
+            .grid-cols-1 { grid-template-columns: repeat(1, minmax(0, 1fr)); }
+            .gap-4 { gap: 1rem; }
+            @media (min-width: 768px) {
+                .md\\:grid-cols-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+            }
+        """
+        
+        # Add summary section before the final return
         summary_html = f"""
             <div class="bg-white rounded-lg shadow-sm mb-6 overflow-hidden">
                 <div class="bg-gray-50 px-6 py-4 border-b">
@@ -3693,12 +3723,13 @@ def create_interface():
             </div>
         """
 
-        # Final HTML with styling
+        # Update the final HTML to include the summary section
         full_html = f"""
         <div class="mx-auto p-4" style="font-family: system-ui, -apple-system, sans-serif;">
             <style>
                 .text-2xl {{ font-size: 1.5rem; line-height: 2rem; }}
                 .text-lg {{ font-size: 1.125rem; }}
+                .text-sm {{ font-size: 0.875rem; }}
                 .font-bold {{ font-weight: 700; }}
                 .font-semibold {{ font-weight: 600; }}
                 .font-medium {{ font-weight: 500; }}
@@ -3730,9 +3761,7 @@ def create_interface():
                 .overflow-hidden {{ overflow: hidden; }}
                 .list-none {{ list-style-type: none; }}
                 .space-y-4 > * + * {{ margin-top: 1rem; }}
-                .text-red-600 {{ color: #dc2626; }}
-                .text-amber-600 {{ color: #d97706; }}
-                .text-green-600 {{ color: #059669; }}
+                {additional_styles}
             </style>
             {header_html}
             {issues_html}
