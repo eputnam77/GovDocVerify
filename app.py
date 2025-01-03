@@ -1432,6 +1432,7 @@ class FAADocumentChecker(DocumentChecker):
 
         # Define order of checks for better organization
         check_sequence = [
+            ('readability_check', lambda: self.check_readability(doc)),
             ('heading_title_check', lambda: self.heading_title_check(doc, doc_type)),
             ('heading_title_period_check', lambda: self.heading_title_period_check(doc, doc_type)),
             ('terminology_check', lambda: self.check_terminology(doc)),
@@ -2614,6 +2615,197 @@ class FAADocumentChecker(DocumentChecker):
                     continue
         
         return issues
+    
+    @profile_performance
+    def check_readability(self, doc: List[str]) -> DocumentCheckResult:
+        """
+        Check document readability using multiple metrics and plain language standards.
+        
+        Args:
+            doc (List[str]): List of document paragraphs
+            
+        Returns:
+            DocumentCheckResult: Results including readability scores and identified issues
+        """
+        if not self.validate_input(doc):
+            return DocumentCheckResult(success=False, issues=[{'error': 'Invalid document input'}])
+
+        issues = []
+        text_stats = {
+            'total_words': 0,
+            'total_syllables': 0,
+            'total_sentences': 0,
+            'complex_words': 0,
+            'passive_voice_count': 0
+        }
+        
+        # Patterns for identifying passive voice
+        passive_patterns = [
+            r'\b(?:am|is|are|was|were|be|been|being)\s+\w+ed\b',
+            r'\b(?:am|is|are|was|were|be|been|being)\s+\w+en\b',
+            r'\b(?:has|have|had)\s+been\s+\w+ed\b',
+            r'\b(?:has|have|had)\s+been\s+\w+en\b'
+        ]
+        passive_regex = re.compile('|'.join(passive_patterns), re.IGNORECASE)
+        
+        # Common technical jargon and suggested replacements
+        jargon_replacements = {
+            r'\boptimize\b': 'improve',
+            r'\butilize\b': 'use',
+            r'\bimplement\b': 'start/begin',
+            r'\bfacilitate\b': 'help',
+            r'\bleverage\b': 'use',
+            r'\bmitigate\b': 'reduce',
+            r'\bexpeditiously\b': 'quickly',
+            r'\bsubsequently\b': 'then/after',
+            r'\bterminology\b': 'terms',
+            r'\bmethodology\b': 'method',
+            r'\bfunctionality\b': 'features',
+            r'\boptimal\b': 'best',
+            r'\bparadigm\b': 'model/example',
+            r'\bsynergy\b': 'cooperation',
+            r'\brobust\b': 'strong/reliable',
+            r'\bscalable\b': 'adaptable',
+            r'\binterface\b': 'connect',
+            r'\bstreamline\b': 'simplify'
+        }
+
+        def count_syllables(word: str) -> int:
+            """Count syllables in a word using basic rules."""
+            word = word.lower()
+            count = 0
+            vowels = 'aeiouy'
+            on_vowel = False
+            
+            for char in word:
+                is_vowel = char in vowels
+                if is_vowel and not on_vowel:
+                    count += 1
+                on_vowel = is_vowel
+                
+            if word.endswith('e'):
+                count -= 1
+            if word.endswith('le') and len(word) > 2 and word[-3] not in vowels:
+                count += 1
+            if count == 0:
+                count = 1
+                
+            return count
+
+        # Process each paragraph
+        for paragraph in doc:
+            if not paragraph.strip():
+                continue
+                
+            # Split into sentences
+            sentences = re.split(r'(?<=[.!?])\s+', paragraph.strip())
+            text_stats['total_sentences'] += len(sentences)
+            
+            # Check each sentence
+            for sentence in sentences:
+                # Count passive voice instances
+                if passive_regex.search(sentence):
+                    text_stats['passive_voice_count'] += 1
+                    
+                # Process words
+                words = sentence.split()
+                text_stats['total_words'] += len(words)
+                
+                for word in words:
+                    word = re.sub(r'[^\w\s]', '', word.lower())
+                    if not word:
+                        continue
+                        
+                    syllables = count_syllables(word)
+                    text_stats['total_syllables'] += syllables
+                    
+                    if syllables >= 3:
+                        text_stats['complex_words'] += 1
+                
+                # Check for jargon
+                for jargon_pattern, replacement in jargon_replacements.items():
+                    matches = re.finditer(jargon_pattern, sentence, re.IGNORECASE)
+                    for match in matches:
+                        issues.append({
+                            'type': 'jargon',
+                            'word': match.group(),
+                            'suggestion': replacement,
+                            'sentence': sentence
+                        })
+
+        # Calculate readability metrics
+        try:
+            # Flesch Reading Ease
+            flesch_ease = 206.835 - 1.015 * (text_stats['total_words'] / text_stats['total_sentences']) - 84.6 * (text_stats['total_syllables'] / text_stats['total_words'])
+            
+            # Flesch-Kincaid Grade Level
+            flesch_grade = 0.39 * (text_stats['total_words'] / text_stats['total_sentences']) + 11.8 * (text_stats['total_syllables'] / text_stats['total_words']) - 15.59
+            
+            # Gunning Fog Index
+            fog_index = 0.4 * ((text_stats['total_words'] / text_stats['total_sentences']) + 100 * (text_stats['complex_words'] / text_stats['total_words']))
+            
+            # Calculate passive voice percentage
+            passive_percentage = (text_stats['passive_voice_count'] / text_stats['total_sentences']) * 100 if text_stats['total_sentences'] > 0 else 0
+            
+            # Add readability score issues if needed
+            if flesch_ease < 50:
+                issues.append({
+                    'type': 'readability_score',
+                    'metric': 'Flesch Reading Ease',
+                    'score': round(flesch_ease, 1),
+                    'message': 'Document may be too difficult for general audience. Consider simplifying language.'
+                })
+                
+            if flesch_grade > 12:
+                issues.append({
+                    'type': 'readability_score',
+                    'metric': 'Flesch-Kincaid Grade Level',
+                    'score': round(flesch_grade, 1),
+                    'message': 'Reading level is above 12th grade. Consider simplifying for broader accessibility.'
+                })
+                
+            if fog_index > 12:
+                issues.append({
+                    'type': 'readability_score',
+                    'metric': 'Gunning Fog Index',
+                    'score': round(fog_index, 1),
+                    'message': 'Text complexity may be too high. Consider using simpler words and shorter sentences.'
+                })
+                
+            if passive_percentage > 10:
+                issues.append({
+                    'type': 'passive_voice',
+                    'percentage': round(passive_percentage, 1),
+                    'message': f'Document uses {round(passive_percentage, 1)}% passive voice (target: less than 10%). Consider using more active voice.'
+                })
+            
+            details = {
+                'metrics': {
+                    'flesch_reading_ease': round(flesch_ease, 1),
+                    'flesch_kincaid_grade': round(flesch_grade, 1),
+                    'gunning_fog_index': round(fog_index, 1),
+                    'passive_voice_percentage': round(passive_percentage, 1)
+                },
+                'stats': {
+                    'total_words': text_stats['total_words'],
+                    'total_sentences': text_stats['total_sentences'],
+                    'complex_words': text_stats['complex_words'],
+                    'passive_sentences': text_stats['passive_voice_count']
+                }
+            }
+            
+            return DocumentCheckResult(
+                success=len(issues) == 0,
+                issues=issues,
+                details=details
+            )
+            
+        except Exception as e:
+            self.logger.error(f"Error calculating readability metrics: {str(e)}")
+            return DocumentCheckResult(
+                success=False,
+                issues=[{'error': f'Error calculating readability metrics: {str(e)}'}]
+            )
 
 class DocumentCheckResultsFormatter:
     
@@ -2790,6 +2982,15 @@ class DocumentCheckResultsFormatter:
                 'example_fix': {
                     'before': 'See table 5-2 for more information. (there is no table 5-2)',
                     'after': 'Either update the table reference or add table 5-2 if missing)'
+                }
+            },
+            'readability_check': {
+                'title': 'Readability Issues',
+                'description': 'Analyzes document readability using multiple metrics including Flesch Reading Ease, Flesch-Kincaid Grade Level, and Gunning Fog Index. Also checks for passive voice usage and technical jargon.',
+                'solution': 'Simplify language, reduce passive voice, and replace technical jargon with plain language alternatives.',
+                'example_fix': {
+                    'before': 'The implementation of the procedure was facilitated by technical personnel.',
+                    'after': 'Technical staff helped start the procedure.'
                 }
             }
         }
@@ -3193,6 +3394,8 @@ class DocumentCheckResultsFormatter:
                 elif check_name == 'cross_references_check':
                     for issue in result.issues:
                         output.append(f"    • Confirm {issue['type']} {issue['reference']} referenced in '{issue['context']}' exists in the document")
+                elif check_name == 'readability_check':
+                    output.extend(self._format_readability_issues(result))
                 else:
                     formatted_issues = [self._format_standard_issue(issue) for issue in result.issues[:15]]
                     output.extend(formatted_issues)
@@ -3219,6 +3422,30 @@ class DocumentCheckResultsFormatter:
                 f.write(report)
         except Exception as e:
             print(f"Error saving report: {e}")
+
+    def _format_readability_issues(self, result: DocumentCheckResult) -> List[str]:
+        """Format readability issues with clear, actionable feedback."""
+        formatted_issues = []
+        
+        if result.details and 'metrics' in result.details:
+            metrics = result.details['metrics']
+            formatted_issues.append("\n  Readability Scores:")
+            formatted_issues.append(f"    • Flesch Reading Ease: {metrics['flesch_reading_ease']} (Aim for 50+; higher is easier to read)")
+            formatted_issues.append(f"    • Grade Level: {metrics['flesch_kincaid_grade']} (Aim for 10 or lower; 12 acceptable for technical/legal)")
+            formatted_issues.append(f"    • Gunning Fog Index: {metrics['gunning_fog_index']} (Aim for 12 or lower; 14-18 acceptable for technical/legal)")
+            formatted_issues.append(f"    • Passive Voice: {metrics['passive_voice_percentage']}% (Aim for less than 10%; use active voice for clarity)")
+        
+        if result.issues:
+            formatted_issues.append("\n  Identified Issues:")
+            for issue in result.issues:
+                if issue['type'] == 'jargon':
+                    formatted_issues.append(
+                        f"    • Replace '{issue['word']}' with '{issue['suggestion']}' in: \"{issue['sentence']}\""
+                    )
+                elif issue['type'] in ['readability_score', 'passive_voice']:
+                    formatted_issues.append(f"    • {issue['message']}")
+        
+        return formatted_issues
     
 def format_markdown_results(results: Dict[str, DocumentCheckResult], doc_type: str) -> str:
     """Format check results into a Markdown string for Gradio display."""
