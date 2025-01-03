@@ -11,6 +11,7 @@ act
 action
 active
 acts
+actuator
 add
 added
 adding
@@ -19,6 +20,7 @@ address
 addressed
 addresses
 addressing
+adjudication
 advisory
 after
 again
@@ -27,6 +29,7 @@ age
 agency
 ago
 agree
+aileron
 air
 aircraft
 airframe
@@ -68,6 +71,7 @@ approach
 approval
 apron
 arrival
+assessment
 at
 atis
 attitude
@@ -82,6 +86,7 @@ balance
 ball
 bank
 barometer
+barometric
 base
 basic
 be
@@ -123,9 +128,10 @@ calc
 calcs
 call
 came
+can
 cancel
 cancellation
-can
+canopy
 capacity
 caution
 car
@@ -146,10 +152,12 @@ change
 changed
 changes
 check
+checklist
 child
 children
 chose
 circuit
+circuitry
 city
 class
 clean
@@ -221,6 +229,8 @@ desk
 detail
 develop
 different
+dimension
+dimensions
 direct
 directive
 discussion
@@ -229,6 +239,8 @@ distribution
 divert
 divide
 do
+document
+documentation
 does
 dog
 done
@@ -269,6 +281,7 @@ error
 est
 etc
 evacuation
+evaluation
 even
 evening
 event
@@ -311,6 +324,8 @@ fit
 five
 fix
 flag
+flame
+flames
 flat
 flew
 flight
@@ -331,6 +346,7 @@ fruit
 fuel
 full
 fun
+fuse
 fuselage
 game
 gate
@@ -444,6 +460,7 @@ intro
 introduction
 is
 isobar
+isobaric
 it
 its
 jack
@@ -517,6 +534,7 @@ main
 major
 make
 man
+mandate
 many
 map
 marker
@@ -533,6 +551,8 @@ me
 mean
 meant
 meat
+mechanical
+mechanism
 meet
 member
 memory
@@ -540,6 +560,7 @@ men
 mental
 met
 metal
+meteorological
 method
 microburst
 middle
@@ -673,6 +694,7 @@ please
 plenty
 point
 pole
+policy
 poor
 port
 pose
@@ -684,6 +706,7 @@ practice
 precipitation
 prep
 primary
+procedure
 procedures
 process
 produce
@@ -726,6 +749,7 @@ requirement
 requirements
 reset
 reservation
+residual
 restriction
 result
 return
@@ -869,6 +893,7 @@ spread
 spring
 square
 stand
+standardization
 star
 start
 startup
@@ -919,6 +944,7 @@ tape
 task
 tax
 taxi
+taxiway
 tbd
 tcas
 tech
@@ -927,6 +953,7 @@ temperature
 terminal
 test
 text
+thermodynamics
 thing
 things
 think
@@ -994,6 +1021,7 @@ verb
 very
 vessel
 view
+visibility
 visit
 voice
 volt
@@ -1052,6 +1080,7 @@ wonder
 wood
 word
 work
+workflow
 world
 would
 wound
