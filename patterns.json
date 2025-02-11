@@ -85,11 +85,11 @@
             }
         },
         {
-            "_comment": "Per AIR-600 Quick Reference Guide",
-            "pattern": "\\bnotice to airmen?\\b",
-            "description": "'notice to airman/airmen' should be 'notice to air missions'",
+            "_comment": "Per AIR-600 Quick Reference Guide. Changed per GENOT N 7930.114",
+            "pattern": "\\bnotice to air missions\\b",
+            "description": "'notice to air missions' should be 'notice to airmen'",
             "is_error": true,
-            "replacement": "notice to air missions"
+            "replacement": "notice to airmen"
         },
         {
             "_comment": "Per AIR-600 Quick Reference Guide",
