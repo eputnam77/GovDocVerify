@@ -1,13 +1,14 @@
 ---
-title: Document Checker Tool SANDBOX
+title: Document Checker Tool
 emoji: 🐨
 colorFrom: green
 colorTo: green
 sdk: gradio
-sdk_version: 5.9.1
+sdk_version: 5.15.0
 app_file: app.py
 pinned: false
 ---
+
 # Document Checker Tool  
 **Ensuring FAA Document Compliance and Consistency**
 
@@ -16,17 +17,15 @@ pinned: false
 ## 1. Introduction
 
 ### Purpose  
-The **Document Checker Tool** aims to:  
-- Improve consistency and compliance with FAA and regulatory guidelines.  
-- Automate tedious manual checks, providing faster and more accurate results.  
-- Enhance clarity and professionalism in FAA documentation.
+The **Document Checker Tool** streamlines the review process by:  
+- Enhancing consistency and compliance with FAA and regulatory standards.  
+- Automating manual checks for improved speed and accuracy.  
+- Improving clarity and professionalism in FAA documents.
 
-This tool provides **suggestions**, but the final editorial decisions rest with the document author.  
+This tool provides **recommendations** to aid document authors, who retain final decision-making authority.  
 
 ### Scope  
-The tool supports all FAA document types AIR-646 supports and includes multiple categories of checks. 
-
-The tool adheres to style and guidelines derived from:  
+Supports all FAA document types covered by AIR-646, with checks aligned to:  
 - GPO Style Manual  
 - FAA Orders  
 - Document Drafting Handbook  
@@ -37,78 +36,70 @@ The tool adheres to style and guidelines derived from:
 
 ## 2. Revision History
 
-x/x/2025: Added checks for image alt text and broken links. Updated acronym checker to reduce words being marked as acronyms.
-
-12/8/2024: Added checks for paragraph length and sentence length. Reordered existing checks for improved workflow. Updated the date format check to exclude certain AC numbers.
-
-11/26/2024: Initial release with 15 checks.
+- **2/10/2025:** Changed "notice to air missions" to "notice to airmen" per GENOT N 7930.114.  
+- **1/5/2025:** Added checks for 508 accessibility, heading levels, cross-references, and broken links. Updated the acronym checker for better accuracy.  
+- **12/8/2024:** Added paragraph and sentence length checks. Reorganized checks for workflow improvements. Updated the date format check to exclude certain AC numbers.  
+- **11/26/2024:** Initial release with 15 checks.  
 
 ---
 
 ## 3. Checker Categories Overview  
 
-### 19 Key Checker Categories  
-1. **Heading Title Checks**  
-2. **Heading Period Format Check**
-3. **Terminology Checks**
-4. **Acronym Check**  
-5. **Acronym Usage Check**  
-6. **Section Symbol (§) Checks**
-7. **508 Compliance Check** (alt text only)
-8. **Broken Link Check**
-9. **Date Format Check**
-10. **Placeholder Content Check**
-11. **Referenced Document Title Format Check**  
-12. **Table Caption Check**  
-13. **Figure Caption Check**  
-14. **Table/Figure Reference Check**  
-15. **Parenthesis Balance Check**
-16. **Double Period Check**
-17. **Spacing Check**  
-18. **Paragraph Length Check**  
-19. **Sentence Length Check**
+### Key Checker Categories  
+1. Readability Check
+2. Heading Title Checks  
+3. Heading Period Format Check  
+4. Terminology Checks  
+5. Acronym Check  
+6. Acronym Usage Check  
+7. Section Symbol (§) Checks  
+8. 508 Compliance Check (basic checks)  
+9. Cross Reference Check  
+10. Broken Link Check  
+11. Date Format Consistency Check  
+12. Placeholder Content Check  
+13. Referenced Document Title Format Check  
+14. Table Caption Check  
+15. Figure Caption Check  
+16. Table/Figure Reference Check  
+17. Parenthesis Balance Check  
+18. Double Period Check  
+19. Spacing Check  
+20. Paragraph Length Check
+21. Sentence Length Check
 
 ---
 
 ## 4. Details of Each Checker  
 
+### 1. Readability Check
+Analyzes document readability using multiple metrics including Flesch Reading Ease, Flesch-Kincaid Grade Level, and Gunning Fog Index. Also checks for passive voice usage and technical jargon.
+
+---
+
 ### Heading Checks  
 
-#### 1. Required Heading Title Check  
-Verifies required headings are present and properly formatted based on document type.  
+#### 2. Heading Title Check  
+Verifies required headings are present and formatted according to document type. Note that for ACs, if the AC cancels another AC, you need the Cancellation paragraph. If it doesn't cancel another AC, then you don't need it.  
 
 **Examples:**  
+- **Advisory Circulars:** Purpose, Applicability, Cancellation, Related Material, Definition of Key Terms  
+- **Federal Register Notice:** Purpose of This Notice, Audience, Where to Find This Notice  
+- **Orders:** Purpose of This Order, Audience, Where to Find This Order  
 
-- **Advisory Circulars:**  
-  - Purpose  
-  - Applicability  
-  - Cancellation  
-  - Related Material  
-  - Definition of Key Terms  
-
-- **Federal Register Notice:**  
-  - Purpose of This Notice  
-  - Audience  
-  - Where Can I Find This Notice  
-
-- **Order:**  
-  - Purpose of This Order  
-  - Audience  
-  - Where to Find This Order  
-
-#### 2. Heading Period Format Check  
-Ensures headings have or do not have periods based on document type.  
+#### 3. Heading Period Format Check  
+Verifies if headings include or omit periods based on document type.  
 
 **Examples:**  
-- **Required Period:** Advisory Circular, Order, Technical Standard Order  
-- **No Period:** All other document types  
+- **Requires Periods:** Advisory Circulars, Orders, Technical Standard Orders  
+- **No Periods:** Other document types  
 
 ---
 
 ### Terminology Checks  
 
-#### 3. Terminology Usage Check  
-Flags outdated or vague terms and enforces FAA terminology standards.  
+#### 4. Terminology Usage Check  
+Flags non-compliant or outdated terms, ensuring adherence to FAA terminology standards.  
 
 **Examples:**  
 - Replace "shall" with "must" per GPO Style Manual.  
@@ -118,131 +109,112 @@ Flags outdated or vague terms and enforces FAA terminology standards.
 
 ### Acronym and Abbreviation Checks  
 
-#### 4. Acronym Check  
-Ensures acronyms are defined at first use.  
-- **Example:** Federal Aviation Administration (FAA)  
+#### 5. Acronym Check  
+Verifies acronyms are defined upon first use.  
 
-#### 5. Acronym Usage Check  
-Identifies acronyms defined but not used.  
+**Example:** Federal Aviation Administration (FAA)  
+
+#### 6. Acronym Usage Check  
+Identifies acronyms that are defined but not subsequently used.  
 
 ---
 
 ### Section Symbol (§) Checks  
 
-#### 6. Section Symbol Usage Check  
-Ensures proper formatting for section symbols.  
+#### 7. Section Symbol Usage Check  
+Ensures section symbols are formatted correctly.  
 
 **Examples:**  
-- Replace "14 CFR § 21.21" with "14 CFR 21.21".  
-- Replace "§ 25.25 and 25.26" with "§§ 25.25 and 25.26".  
+- Use "14 CFR 21.21" instead of "14 CFR § 21.21".  
+- Use "§§ 25.25 and 25.26" for multiple references.  
 
 ---
 
 ### 508 Compliance Check  
 
-#### 7. Figure/Image Alt Text Check  
-Flags images that do not have associated alt text.
+#### 8. 508 Compliance Checks  
+- Detects images missing alternative text
+- Identifies skipped heading structures
+- Flags hyperlinks that lack descriptive text indicating their destination.
 
 ---
 
-### Link Check  
+### Reference Checks  
 
-#### 8. Broken Link Check  
-Flags if a link is broken.
+#### 9. Cross Reference Check  
+Validates that all references to paragraphs, appendices, tables, or figures exist in the document.  
+
+#### 10. Broken Link Check  
+Identifies non-functional or broken hyperlinks.  
 
 ---
 
-### Date Format and Placeholder Checks  
+### Date and Placeholder Checks  
 
-#### 9. Date Format Consistency Check  
-Ensures dates follow the "Month Day, Year" format in the document body.  
+#### 11. Date Format Consistency Check  
+Ensures date formatting matches the "Month Day, Year" convention.  
 
 **Examples:**  
-- Replace "1/15/24" with "January 15, 2024".  
+- Correct "1/15/24" to "January 15, 2024".  
 
-#### 10. Placeholder Content Check  
-Flags placeholders like "TBD" or "To be added."  
+#### 12. Placeholder Content Check  
+Flags placeholders like "TBD" or "To be added".  
 
 ---
 
 ### Document Title Checks  
 
-#### 11. Referenced Document Title Format Check  
-Verifies correct formatting of referenced document titles.  
+#### 13. Referenced Document Title Format Check  
+Checks formatting of referenced document titles.  
 
-- **Italicize:** Advisory Circulars  
-- **Quotation Marks:** All other document types
+**Examples:**  
+- **Italicized:** Advisory Circulars  
+- **Quotation Marks:** Other document types  
 
 ---
 
 ### Table and Figure Checks  
 
-#### 12 & 13. Table/Figure Caption Checks  
-Verifies captions follow correct numbering conventions based on document type.
+#### 14. Table Caption Check  
+Ensures table captions follow numbering conventions by document type.  
 
-**Examples:**  
-- Table X-Y and Figure X-Y for Advisory Circulars and Orders.  
-- Table X and Figure X for all other document types.
+#### 15. Figure Caption Check  
+Verifies figure captions adhere to proper numbering.  
 
-#### 14. Table/Figure Reference Check  
-Ensures references are lowercase mid-sentence and capitalized at the start of a sentence.  
-
----
-
-### Parenthesis Balance Check  
-
-#### 15. Parenthesis Balance Check  
-Verifies that all parentheses are properly opened and closed.  
-
-**Examples:**  
-- Add a missing closing parenthesis to "The system (as defined in AC 25-11B performs...".
+#### 16. Table/Figure Reference Check  
+Checks capitalization of references depending on placement in a sentence.  
 
 ---
 
-### Punctuation and Spacing Checks  
+### Syntax and Punctuation Checks  
 
-#### 16. Double Period Check  
-Flags unintended multiple periods.  
+#### 17. Parenthesis Balance Check  
+Ensures parentheses are properly paired.  
 
-**Example:**  
-- Corrects: "This sentence ends with two periods..".  
+**Example:** Corrects "(as defined in AC 25-11B performs..." to include a closing parenthesis.  
 
-#### 17. Spacing Check  
-Ensures proper spacing around references.  
+#### 18. Double Period Check  
+Identifies unintended multiple periods.  
+
+**Example:** Corrects "ends with two periods..".  
+
+#### 19. Spacing Check  
+Verifies consistent spacing around references and sentences.  
 
 **Examples:**  
-- Replace "AC25.1" with "AC 25.1".  
-- Remove double spaces between words or after periods.  
+- Correct "AC25.1" to "AC 25.1".  
+- Remove extra spaces after periods.  
 
 ---
 
 ### Length Checks  
 
-#### 18. Paragraph Length Check  
-Flags paragraphs exceeding 6 sentences or 8 lines.  
+#### 20. Paragraph Length Check  
+Flags paragraphs exceeding six sentences or eight lines.  
 
-#### 19. Sentence Length Check  
-Flags sentences exceeding 35 words.  
+#### 21. Sentence Length Check  
+Highlights sentences longer than 35 words.  
 
----
-
-## 5. Practical Applications  
-
-1. **Efficient Document Review:** Automated checks save time and reduce errors.  
-2. **Consistency Across Documents:** Ensures adherence to FAA standards.  
-3. **Enhanced Collaboration:** Simplifies document updates for teams.  
-
----
-
-## 6. Conclusion and Future Updates  
-
-### Key Takeaways  
-- Automated checkers enhance accuracy and compliance.  
-- Tailored for FAA documentation needs.  
-- Saves time while improving document quality.  
-
-### What's Next?  
-- Continue refining the tool to improve accuracy and functionality.  
-- Explore adding new checks based on user feedback and evolving guidelines.    
+--- 
 
 **Note:** This tool is a work in progress. Expect more features and updates in the future to meet evolving document requirements.
