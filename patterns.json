@@ -25,21 +25,47 @@
             "pattern": "\\b(?:USC|U\\.S\\.C)\\b",
             "description": "USC should be U.S.C.",
             "is_error": true,
-            "replacement": "U.S.C."
+            "replacement": "U.S.C. (per the GPO Style Manual)"
+        },
+        {
+            "_comment": "Flag U.S.C without final period",
+            "pattern": "\\bU\\.S\\.C\\b",
+            "description": "U.S.C should have a final period (U.S.C.)",
+            "is_error": true,
+            "replacement": "U.S.C. (per the GPO Style Manual)"
+        },
+        {
+            "_comment": "Handle Technical Standard Order acronyms",
+            "pattern": "\\bTechnical Standard Order \\(TSO\\)\\b",
+            "description": "Technical Standard Order (TSO) is a valid form",
+            "is_error": false
+        },
+        {
+            "_comment": "Handle Technical Standard Order with hyphen",
+            "pattern": "\\bTechnical Standard Order \\(TSO-\\)\\b",
+            "description": "Technical Standard Order (TSO-) is a valid form",
+            "is_error": false
         },
         {
             "_comment": "Per FAA Order 1320.46",
             "pattern": "\\bCFR Part\\b",
             "description": "CFR Part should be CFR part (lowercase)",
             "is_error": true,
-            "replacement": "CFR part"
+            "replacement": "CFR part (per FAA Order 1320.46)"
         },
         {
             "_comment": "Per the GPO Style Manual",
             "pattern": "\\bC\\.F\\.R\\.\\b",
-            "description": "C.F.R. should be CFR",
+            "description": "C.F.R. should be CFR (per the GPO Style Manual)",
             "is_error": true,
-            "replacement": "CFR"
+            "replacement": "CFR (per the GPO Style Manual)"
+        },
+        {
+            "_comment": "Replace ACO with Certification Branch",
+            "pattern": "\\bACO\\b",
+            "description": "ACO should be replaced with Certification Branch",
+            "is_error": true,
+            "replacement": "Certification Branch"
         },
         {
             "pattern": "\\b(?:[Ww]e)\\b",
@@ -53,23 +79,23 @@
         {
             "_comment": "Per the GPO Style Manual",
             "pattern": "\\bcancelled\\b",
-            "description": "'cancelled' should be 'canceled'",
+            "description": "'cancelled' should be 'canceled' (per the GPO Style Manual)",
             "is_error": true,
-            "replacement": "canceled"
+            "replacement": "canceled (per the GPO Style Manual)"
         },
         {
             "_comment": "Per FAA Order 1320.46",
             "pattern": "\\bshall\\b",
-            "description": "'shall' should be 'must'",
+            "description": "'shall' should be 'must' (per FAA Order 1320.46)",
             "is_error": true,
-            "replacement": "must"
+            "replacement": "must (per FAA Order 1320.46)"
         },
         {
             "_comment": "Per AIR-600 Quick Reference Guide",
             "pattern": "\\bflight crew\\b",
-            "description": "'flight crew' should be 'flightcrew'",
+            "description": "'flight crew' should be 'flightcrew' (per AIR-600 Quick Reference Guide)",
             "is_error": true,
-            "replacement": "flightcrew"
+            "replacement": "flightcrew (per AIR-600 Quick Reference Guide)"
         },
         {
             "_comment": "Per AIR-600 Quick Reference Guide",
@@ -77,26 +103,26 @@
             "description": "Replace gendered terms with their appropriate alternatives",
             "is_error": true,
             "replacements": {
-                "chairman": "chair",
-                "flagman": "flagperson",
-                "man": "person",
-                "manmade": "personmade",
-                "manpower": "labor force"
+                "chairman": "chair (per AIR-600 Quick Reference Guide)",
+                "flagman": "flagperson (per AIR-600 Quick Reference Guide)",
+                "man": "person (per AIR-600 Quick Reference Guide)",
+                "manmade": "personmade (per AIR-600 Quick Reference Guide)",
+                "manpower": "labor force (per AIR-600 Quick Reference Guide)"
             }
         },
         {
             "_comment": "Per AIR-600 Quick Reference Guide. Changed per GENOT N 7930.114",
             "pattern": "\\bnotice to air missions\\b",
-            "description": "'notice to air missions' should be 'notice to airmen'",
+            "description": "'notice to air missions' should be 'notice to airmen' (per GENOT N 7930.114)",
             "is_error": true,
-            "replacement": "notice to airmen"
+            "replacement": "notice to airmen (per GENOT N 7930.114)"
         },
         {
             "_comment": "Per AIR-600 Quick Reference Guide",
             "pattern": "\\bcockpit\\b",
-            "description": "'cockpit' should be 'flight deck'",
+            "description": "'cockpit' should be 'flight deck' (per AIR-600 Quick Reference Guide)",
             "is_error": true,
-            "replacement": "flight deck"
+                "replacement": "flight deck (per AIR-600 Quick Reference Guide)"
         },
         {
             "pattern": "\\b(in order to|for the purpose of)\\b",
@@ -232,6 +258,12 @@
             "pattern": "\\b(as stated in|refer to|see)\\b.*?(\\bAppendix\\b|\\bTable\\b|\\bSection\\b|\\bFigure\\b)",
             "description": "Ensure references are complete and properly formatted",
             "is_error": true
+        },
+        {
+            "pattern": "\\band/or\\b",
+            "description": "Avoid using 'and/or'; rewrite the sentence to be more specific about the conditions",
+            "is_error": true,
+            "replacement": "written sentence breaking up and/or (per AGC)"
         }
     ],
     "section_symbol": [
@@ -248,6 +280,11 @@
         {
             "pattern": "\\b(\\d+ U\\.S\\.C\\. §§? \\d+\\([a-zA-Z0-9]*\\)(?:\\([a-zA-Z0-9]*\\))?)\\b",
             "description": "Do not flag properly formatted citations with section symbols (e.g., '5 U.S.C. § 533(a)(1)')",
+            "is_error": false
+        },
+        {
+            "pattern": "\\b(\\d+ U\\.S\\.C\\. §§? \\d+\\([a-zA-Z0-9]*\\)(?:\\([a-zA-Z0-9]*\\))?)\\.\\b",
+            "description": "Do not flag properly formatted citations with section symbols that end sentences (e.g., '5 U.S.C. § 533(a)(1).')",
             "is_error": false
         },
         {
@@ -313,6 +350,36 @@
             "pattern": "(?<![\\w/-])(\\d{1,2}/\\d{1,2}/\\d{2,4}|\\d{1,2}-\\d{1,2}-\\d{2,4}|\\d{4}-\\d{1,2}-\\d{1,2})(?![\\w/-])",
             "description": "Use 'Month Day, Year' format instead of numeric date formats (MM/DD/YYYY, MM-DD-YYYY, YYYY-MM-DD)",
             "is_error": true
+        },
+        {
+            "_comment": "Common aviation/regulatory references that look like dates but aren't",
+            "pattern": "\\b(?:AD|SFAR|AC|Order|Notice|Policy|Memo)\\s*\\d{2,4}[-/]\\d{1,2}[-/]\\d{1,2}\\b",
+            "description": "Do not flag aviation/regulatory references as date format issues",
+            "is_error": false
+        },
+        {
+            "_comment": "Docket numbers including placeholders",
+            "pattern": "\\bDocket\\s+(?:No\\.?|Number)\\s*\\d{2,4}[-/][xX]{1,2}[-/][xX]{1,2}\\b",
+            "description": "Do not flag docket numbers with placeholders as date format issues",
+            "is_error": false
+        },
+        {
+            "_comment": "TSO references",
+            "pattern": "\\bTSO-[A-Z]?\\d{1,3}[a-zA-Z]?\\b",
+            "description": "Do not flag TSO references as date format issues",
+            "is_error": false
+        },
+        {
+            "_comment": "Part/section references",
+            "pattern": "\\b(?:Part|Section|§)\\s*\\d{1,3}[-/]\\d{1,3}\\b",
+            "description": "Do not flag part/section references as date format issues",
+            "is_error": false
+        },
+        {
+            "_comment": "Document numbers",
+            "pattern": "\\b(?:No\\.?|Number)\\s*\\d{2,4}[-/]\\d{1,2}[-/]\\d{1,2}\\b",
+            "description": "Do not flag document numbers as date format issues",
+            "is_error": false
         }
     ],
     "placeholders": [
