@@ -264,6 +264,193 @@
             "description": "Avoid using 'and/or'; rewrite the sentence to be more specific about the conditions",
             "is_error": true,
             "replacement": "written sentence breaking up and/or (per AGC)"
+        },
+        {
+            "_comment": "Per Document Drafting Handbook",
+            "pattern": "\\b(?:pursuant to|in accordance with|in compliance with)\\b",
+            "description": "Use simpler alternatives like 'under' or 'following'",
+            "is_error": true,
+            "replacement": "under (per Document Drafting Handbook)"
+        },
+        {
+            "_comment": "Per Document Drafting Handbook",
+            "pattern": "\\b(?:authority|authorized|authorizes)\\b",
+            "description": "Specify the specific authority (e.g., 'under 49 U.S.C. § 44701')",
+            "is_error": true
+        },
+        {
+            "_comment": "Per Document Drafting Handbook",
+            "pattern": "\\b(?:means|includes|does not include|includes but is not limited to)\\b",
+            "description": "Ensure proper formatting of regulatory definitions",
+            "is_error": true
+        },
+        {
+            "_comment": "Per Document Drafting Handbook",
+            "pattern": "\\b(?:amends|adds|removes|revises|replaces)\\b",
+            "description": "Ensure proper use of regulatory action terms",
+            "is_error": true
+        },
+        {
+            "_comment": "Per Document Drafting Handbook",
+            "pattern": "\\b(?:applies|applicable|covers)\\s+(?:to|for|in)\\b",
+            "description": "Ensure clear specification of regulatory scope",
+            "is_error": true
+        },
+        {
+            "_comment": "Per Document Drafting Handbook",
+            "pattern": "\\b(?:comply|compliance|noncompliance)\\b",
+            "description": "Ensure proper handling of compliance terms",
+            "is_error": true
+        },
+        {
+            "_comment": "Per Document Drafting Handbook",
+            "pattern": "\\b(?:enforce|enforcement|violation)\\b",
+            "description": "Ensure proper handling of enforcement terms",
+            "is_error": true
+        },
+        {
+            "_comment": "Per Document Drafting Handbook",
+            "pattern": "\\b(?:implement|implementation|carry out)\\b",
+            "description": "Ensure proper handling of implementation terms",
+            "is_error": true
+        },
+        {
+            "_comment": "Per Document Drafting Handbook",
+            "pattern": "\\b(?:delegated|authorized|assigned)\\s+(?:to|by)\\b",
+            "description": "Ensure proper specification of authority delegation",
+            "is_error": true
+        },
+        {
+            "_comment": "Per Document Drafting Handbook",
+            "pattern": "\\b(?:requirement|standard|specification)\\s+(?:for|of|in)\\b",
+            "description": "Ensure proper specification of requirements and standards",
+            "is_error": true
+        },
+        {
+            "_comment": "Per Document Drafting Handbook",
+            "pattern": "\\b(?:procedure|process|method)\\s+(?:for|of|in)\\b",
+            "description": "Ensure proper specification of procedures and processes",
+            "is_error": true
+        },
+        {
+            "_comment": "Per Document Drafting Handbook",
+            "pattern": "\\b(?:document|record|report)\\s+(?:required|maintained|submitted)\\b",
+            "description": "Ensure proper specification of documentation requirements",
+            "is_error": true
+        },
+        {
+            "_comment": "Per Document Drafting Handbook",
+            "pattern": "\\b(?:review|approval|authorization)\\s+(?:required|granted|denied)\\b",
+            "description": "Ensure proper specification of review and approval processes",
+            "is_error": true
+        },
+        {
+            "_comment": "Per Document Drafting Handbook",
+            "pattern": "\\b(?:violation|penalty|sanction)\\s+(?:for|of|in)\\b",
+            "description": "Ensure proper specification of violations and penalties",
+            "is_error": true
+        },
+        {
+            "_comment": "Per Document Drafting Handbook",
+            "pattern": "\\b(?:waiver|exemption|variance)\\s+(?:from|of|for)\\b",
+            "description": "Ensure proper specification of waivers and exemptions",
+            "is_error": true
+        },
+        {
+            "_comment": "Per Document Drafting Handbook",
+            "pattern": "\\b(?:compliance|implementation|enforcement)\\s+(?:date|deadline|requirement)\\b",
+            "description": "Ensure proper specification of compliance dates",
+            "is_error": true
+        },
+        {
+            "_comment": "Per Document Drafting Handbook",
+            "pattern": "\\b(?:defined|definition|term)\\s+(?:in|under|for)\\b",
+            "description": "Ensure proper formatting of regulatory definitions",
+            "is_error": true
+        },
+        {
+            "_comment": "Per Document Drafting Handbook",
+            "pattern": "\\b(?:authority|power|jurisdiction)\\s+(?:to|for|over)\\b",
+            "description": "Ensure proper specification of regulatory authority",
+            "is_error": true
+        },
+        {
+            "_comment": "Per Document Drafting Handbook",
+            "pattern": "\\b(?:compliance|enforcement)\\s+(?:with|under|of)\\b",
+            "description": "Ensure proper specification of compliance and enforcement terms",
+            "is_error": true
+        },
+        {
+            "_comment": "Per Document Drafting Handbook",
+            "pattern": "\\b(?:implementation|transition|phase-in)\\s+(?:of|for|under)\\b",
+            "description": "Ensure proper specification of implementation and transition terms",
+            "is_error": true
+        },
+        {
+            "_comment": "Per Document Drafting Handbook",
+            "pattern": "\\b(?:regulatory|economic|environmental)\\s+(?:impact|analysis|assessment)\\s+(?:of|for|under)\\b",
+            "description": "Ensure proper handling of regulatory analysis terms",
+            "is_error": true
+        },
+        {
+            "_comment": "Per Document Drafting Handbook",
+            "pattern": "\\b(?:except|unless|provided that|notwithstanding)\\s+(?:for|under|in)\\b",
+            "description": "Ensure proper formatting of regulatory exceptions",
+            "is_error": true
+        },
+        {
+            "_comment": "Per Document Drafting Handbook",
+            "pattern": "\\b(?:requirement|standard|specification)\\s+(?:for|of|in)\\b",
+            "description": "Ensure proper specification of requirements and standards",
+            "is_error": true
+        },
+        {
+            "_comment": "Per Document Drafting Handbook",
+            "pattern": "\\b(?:procedure|process|method)\\s+(?:for|of|in)\\b",
+            "description": "Ensure proper specification of procedures and processes",
+            "is_error": true
+        },
+        {
+            "_comment": "Per Document Drafting Handbook",
+            "pattern": "\\b(?:document|record|report)\\s+(?:required|maintained|submitted)\\b",
+            "description": "Ensure proper specification of documentation requirements",
+            "is_error": true
+        },
+        {
+            "_comment": "Per Document Drafting Handbook",
+            "pattern": "\\b(?:review|approval|authorization)\\s+(?:required|granted|denied)\\b",
+            "description": "Ensure proper specification of review and approval processes",
+            "is_error": true
+        },
+        {
+            "_comment": "Per Document Drafting Handbook",
+            "pattern": "\\b(?:violation|penalty|sanction)\\s+(?:for|of|in)\\b",
+            "description": "Ensure proper specification of violations and penalties",
+            "is_error": true
+        },
+        {
+            "_comment": "Per Document Drafting Handbook",
+            "pattern": "\\b(?:waiver|exemption|variance)\\s+(?:from|of|for)\\b",
+            "description": "Ensure proper specification of waivers and exemptions",
+            "is_error": true
+        },
+        {
+            "pattern": "\\bRegulatory and Guidance Library\\b",
+            "description": "Replace 'Regulatory and Guidance Library' with 'Dynamic Regulatory System'",
+            "is_error": true,
+            "replacement": "Dynamic Regulatory System"
+        },
+        {
+            "pattern": "\\bRegulatory and Guidance Library \\(RGL\\)\\b",
+            "description": "Replace 'Regulatory and Guidance Library (RGL)' with 'Dynamic Regulatory System (DRS)'",
+            "is_error": true,
+            "replacement": "Dynamic Regulatory System (DRS)"
+        },
+        {
+            "pattern": "\\bRGL\\b",
+            "description": "Replace 'RGL' with 'DRS'",
+            "is_error": true,
+            "replacement": "DRS"
         }
     ],
     "section_symbol": [
@@ -380,6 +567,18 @@
             "pattern": "\\b(?:No\\.?|Number)\\s*\\d{2,4}[-/]\\d{1,2}[-/]\\d{1,2}\\b",
             "description": "Do not flag document numbers as date format issues",
             "is_error": false
+        },
+        {
+            "_comment": "Per Document Drafting Handbook",
+            "pattern": "\\b(?:effective|commencing|beginning)\\s+(?:on|as of|from)\\s+(?:the|this)\\s+(?:date|day)\\b",
+            "description": "Specify the exact effective date",
+            "is_error": true
+        },
+        {
+            "_comment": "Per Document Drafting Handbook",
+            "pattern": "\\b(?:compliance|implementation|enforcement)\\s+(?:date|deadline)\\b",
+            "description": "Ensure proper formatting of compliance dates",
+            "is_error": true
         }
     ],
     "placeholders": [
@@ -523,13 +722,13 @@
             "pattern": "(?<!^)(?<![.!?])\\s+(Table|Figure)\\s+\\d+(?:-\\d+)?",
             "description": "'Table' and 'Figure' references within sentences should be lowercase",
             "is_error": true,
-            "enforce_case": "lowercase"
+            "replacement": "table/figure (lowercase when used within a sentence)"
         },
         {
             "pattern": "^(table|figure)\\s+\\d+(?:-\\d+)?",
             "description": "'Table' and 'Figure' references at the start of a sentence should be capitalized",
             "is_error": true,
-            "enforce_case": "capitalized"
+            "replacement": "Table/Figure (capitalized when starting a sentence)"
         }
     ],
     "parentheses": [
@@ -538,6 +737,106 @@
             "description": "Detect unmatched parentheses (missing opening or closing parenthesis)",
             "is_error": true,
             "notes": "Matches cases where a closing parenthesis is missing after an opening or an opening parenthesis is missing before a closing."
+        }
+    ],
+    "citations": [
+        {
+            "_comment": "Per GPO Style Manual",
+            "pattern": "\\b(\\d+)\\s+(?:U\\.S\\.C\\.|CFR)\\s+(§|§§)\\s+(\\d+(?:\\.\\d+)*)\\b",
+            "description": "Ensure proper formatting of legal citations",
+            "is_error": true,
+            "replacement": "$1 $2 §$3 (per GPO Style Manual)"
+        },
+        {
+            "_comment": "Per Document Drafting Handbook",
+            "pattern": "\\b(?:refer|reference|see)\\s+(?:section|paragraph|subsection|clause)\\s+(\\d+(?:\\.\\d+)*)\\b",
+            "description": "Ensure proper formatting of cross-references",
+            "is_error": true,
+            "replacement": "see §$1"
+        }
+    ],
+    "regulatory_analysis": [
+        {
+            "_comment": "Per Document Drafting Handbook",
+            "pattern": "\\b(?:comment|commenter|commenting)\\b",
+            "description": "Ensure proper handling of public comment references",
+            "is_error": true
+        },
+        {
+            "_comment": "Per Document Drafting Handbook",
+            "pattern": "\\b(?:cost-benefit|regulatory impact|economic impact)\\b",
+            "description": "Ensure proper handling of regulatory analysis terms",
+            "is_error": true
+        },
+        {
+            "_comment": "Per Document Drafting Handbook",
+            "pattern": "\\b(?:regulatory|economic|environmental)\\s+(?:impact|analysis|assessment)\\b",
+            "description": "Ensure proper handling of regulatory analysis terms",
+            "is_error": true
+        },
+        {
+            "_comment": "Per Document Drafting Handbook",
+            "pattern": "\\b(?:regulatory|economic|environmental)\\s+(?:impact|analysis|assessment)\\s+(?:of|for|under)\\b",
+            "description": "Ensure proper handling of regulatory analysis terms",
+            "is_error": true
+        }
+    ],
+    "exceptions": [
+        {
+            "_comment": "Per Document Drafting Handbook",
+            "pattern": "\\b(?:except|unless|provided that)\\b",
+            "description": "Ensure proper formatting of regulatory exceptions",
+            "is_error": true
+        },
+        {
+            "_comment": "Per Document Drafting Handbook",
+            "pattern": "\\b(?:except|unless|provided that|notwithstanding)\\b",
+            "description": "Ensure proper formatting of regulatory exceptions",
+            "is_error": true
+        },
+        {
+            "_comment": "Per Document Drafting Handbook",
+            "pattern": "\\b(?:except|unless|provided that|notwithstanding)\\s+(?:for|under|in)\\b",
+            "description": "Ensure proper formatting of regulatory exceptions",
+            "is_error": true
+        }
+    ],
+    "compliance": [
+        {
+            "_comment": "Per Document Drafting Handbook",
+            "pattern": "\\b(?:compliance|enforcement)\\s+(?:date|deadline|requirement|action)\\b",
+            "description": "Ensure proper specification of compliance and enforcement terms",
+            "is_error": true
+        },
+        {
+            "_comment": "Per Document Drafting Handbook",
+            "pattern": "\\b(?:implementation|transition|phase-in)\\s+(?:period|schedule|plan)\\b",
+            "description": "Ensure proper specification of implementation and transition terms",
+            "is_error": true
+        },
+        {
+            "_comment": "Per Document Drafting Handbook",
+            "pattern": "\\b(?:compliance|implementation|enforcement)\\s+(?:date|deadline|requirement)\\b",
+            "description": "Ensure proper specification of compliance dates",
+            "is_error": true
+        },
+        {
+            "_comment": "Per Document Drafting Handbook",
+            "pattern": "\\b(?:compliance|enforcement)\\s+(?:with|under|of)\\b",
+            "description": "Ensure proper specification of compliance and enforcement terms",
+            "is_error": true
+        },
+        {
+            "_comment": "Per Document Drafting Handbook",
+            "pattern": "\\b(?:implementation|transition|phase-in)\\s+(?:of|for|under)\\b",
+            "description": "Ensure proper specification of implementation and transition terms",
+            "is_error": true
+        },
+        {
+            "_comment": "Per Document Drafting Handbook",
+            "pattern": "\\b(?:compliance|implementation|enforcement)\\s+(?:date|deadline|requirement)\\b",
+            "description": "Ensure proper specification of compliance dates",
+            "is_error": true
         }
     ]
 }
