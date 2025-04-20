@@ -420,7 +420,7 @@ class FAADocumentChecker(DocumentChecker):
     PREDEFINED_ACRONYMS = {
         'AGC', 'AIR', 'CFR', 'DC', 'DOT', 'FAA IR-M', 'FAQ', 'i.e.', 'e.g.', 'MA',
         'MD', 'MIL', 'MO', 'No.', 'PDF', 'SAE', 'SSN', 'TX', 'U.S.', 'U.S.C.', 'USA', 'US', 
-        'WA', 'XX', 'ZIP'
+        'WA', 'XX', 'ZIP', 'ACO'  # Added ACO to ignore in acronym checks
     }
 
     # Constructor
@@ -820,17 +820,18 @@ class FAADocumentChecker(DocumentChecker):
 
                 # Check terminology patterns
                 for pattern_config in terminology_patterns:
-                    matches = list(re.finditer(pattern_config.pattern, sentence))
+                    compiled_pattern = pattern_config.compile()
+                    matches = list(compiled_pattern.finditer(sentence))
                     for match in matches:
                         if pattern_config.replacement:  # Only if there's a replacement term
                             unique_issues.add((match.group(), pattern_config.replacement))
 
                 # Check prohibited patterns
                 for pattern_config in prohibited_patterns:
-                    if re.search(pattern_config.pattern, sentence, re.IGNORECASE):
-                        if pattern_config.replacement:  # Only if there's a replacement term
-                            match_text = re.search(pattern_config.pattern, sentence, re.IGNORECASE).group()
-                            unique_issues.add((match_text, pattern_config.replacement))
+                    compiled_pattern = pattern_config.compile()
+                    match = compiled_pattern.search(sentence)
+                    if match and pattern_config.replacement:  # Only if there's a replacement term
+                        unique_issues.add((match.group(), pattern_config.replacement))
 
         # Format issues as simple replacement instructions
         formatted_issues = [
@@ -1095,10 +1096,28 @@ class FAADocumentChecker(DocumentChecker):
 
         incorrect_sentences = []
         
+        # Common abbreviations that end with a period but don't end sentences
+        abbreviations = {
+            'U.S.C.', 'U.S.', 'CFR', 'e.g.', 'i.e.', 'etc.', 'vs.', 'Dr.', 'Mr.', 
+            'Mrs.', 'Ms.', 'Prof.', 'Ph.D.', 'M.D.', 'B.A.', 'M.A.', 'Ph.D.'
+        }
+        
+        # Create a regex pattern that matches these abbreviations
+        abbr_pattern = '|'.join(re.escape(abbr) for abbr in abbreviations)
+        
         for paragraph in doc:
+            # First, protect abbreviations from being checked
+            protected_paragraph = re.sub(
+                f'({abbr_pattern})',
+                lambda m: m.group(1).replace('.', 'ABBR_DOT'),
+                paragraph
+            )
+            
             # Split the paragraph into sentences based on common sentence-ending punctuation
-            sentences = re.split(r'(?<=[.!?]) +', paragraph)
+            sentences = re.split(r'(?<=[.!?]) +', protected_paragraph)
             for sentence in sentences:
+                # Restore the periods in abbreviations
+                sentence = sentence.replace('ABBR_DOT', '.')
                 if sentence.endswith('..'):
                     incorrect_sentences.append({'sentence': sentence.strip()})
 
@@ -1440,7 +1459,7 @@ class FAADocumentChecker(DocumentChecker):
             ('acronym_usage_check', lambda: self.acronym_usage_check(doc)),
             ('section_symbol_usage_check', lambda: self.check_section_symbol_usage(doc)),
             ('508_compliance_check', lambda: self.check_508_compliance(doc_path)),
-            ('cross_references_check', lambda: self.check_cross_references(doc_path)),
+            # ('cross_references_check', lambda: self.check_cross_references(doc_path)),
             ('hyperlink_check', lambda: self.check_hyperlinks(doc)),
             ('date_formats_check', lambda: self.check_date_formats(doc)),
             ('placeholders_check', lambda: self.check_placeholders(doc)),
@@ -1516,6 +1535,24 @@ class FAADocumentChecker(DocumentChecker):
             List of tuples containing (sentence, parent_paragraph)
         """
         sentences = []
+        
+        # Common abbreviations that end with a period but don't end sentences
+        abbreviations = {
+            'U.S.C.', 'U.S.', 'CFR', 'e.g.', 'i.e.', 'etc.', 'vs.', 'Dr.', 'Mr.', 
+            'Mrs.', 'Ms.', 'Prof.', 'Ph.D.', 'M.D.', 'B.A.', 'M.A.', 'Ph.D.'
+        }
+        
+        # Legal citation patterns that shouldn't be split
+        legal_citations = [
+            r'\d+ U\.S\.C\. § \d+\([a-zA-Z0-9]*\)(?:\([a-zA-Z0-9]*\))?',  # e.g., 5 U.S.C. § 533(a)(1)
+            r'\d+ CFR § \d+\.\d+',  # e.g., 14 CFR § 1.1
+            r'\d+ CFR part \d+'  # e.g., 14 CFR part 1
+        ]
+        
+        # Create a regex pattern that matches these abbreviations
+        abbr_pattern = '|'.join(re.escape(abbr) for abbr in abbreviations)
+        legal_pattern = '|'.join(legal_citations)
+        
         for paragraph in doc:
             paragraph = paragraph.strip()
             
@@ -1527,17 +1564,34 @@ class FAADocumentChecker(DocumentChecker):
                 ):
                     continue
             
+            # First, protect legal citations from being split
+            protected_paragraph = re.sub(
+                f'({legal_pattern})',
+                lambda m: m.group(1).replace('.', 'LEGAL_DOT'),
+                paragraph
+            )
+            
+            # Then protect abbreviations from being split
+            protected_paragraph = re.sub(
+                f'({abbr_pattern})',
+                lambda m: m.group(1).replace('.', 'ABBR_DOT'),
+                protected_paragraph
+            )
+            
             # Split paragraph into sentences
-            para_sentences = re.split(r'(?<=[.!?])\s+', paragraph)
+            para_sentences = re.split(r'(?<=[.!?])\s+', protected_paragraph)
             
             # Process each sentence
             for sentence in para_sentences:
+                # Restore the periods in legal citations and abbreviations
+                sentence = sentence.replace('LEGAL_DOT', '.')
+                sentence = sentence.replace('ABBR_DOT', '.')
                 sentence = sentence.strip()
                 if skip_empty and not sentence:
                     continue
                 sentences.append((sentence, paragraph))
                 
-        return sentences  
+        return sentences
 
     @profile_performance
     def check_parentheses(self, doc: List[str]) -> DocumentCheckResult:
@@ -3363,8 +3417,8 @@ class DocumentCheckResultsFormatter:
                     formatted_issues = [self._format_standard_issue(issue) for issue in result.issues[:15]]
                     output.extend(formatted_issues)
                     
-                    if len(result.issues) > 10:
-                        output.append(f"\n    ... and {len(result.issues) - 15} more similar issues.")
+                    if len(result.issues) > 30:
+                        output.append(f"\n    ... and {len(result.issues) - 30} more similar issues.")
         
         return '\n'.join(output)
 
@@ -3465,7 +3519,7 @@ def format_markdown_results(results: Dict[str, DocumentCheckResult], doc_type: s
             output.append(f"### {category['title']}")
             
             if isinstance(result.issues, list):
-                for issue in result.issues[:5]:
+                for issue in result.issues[:30]:
                     if isinstance(issue, dict):
                         for key, value in issue.items():
                             if isinstance(value, list):
@@ -3475,8 +3529,8 @@ def format_markdown_results(results: Dict[str, DocumentCheckResult], doc_type: s
                     else:
                         output.append(f"- {issue}")
                 
-                if len(result.issues) > 5:
-                    output.append(f"\n*...and {len(result.issues) - 5} more similar issues*")
+                if len(result.issues) > 30:
+                    output.append(f"\n*...and {len(result.issues) - 30} more similar issues*")
             
             output.append("")
 
@@ -3643,14 +3697,14 @@ def create_interface():
                         <h3 class="font-medium text-gray-800 mb-2">Issues found in your document:</h3>
                         <ul class="list-none space-y-2">
                 """
-                for issue in issues_match[:7]:
+                for issue in issues_match[:30]:
                     clean_issue = issue.strip().lstrip('•').strip()
                     issues_html_section += f"""
                         <li class="text-gray-600 ml-4">• {clean_issue}</li>
                     """
-                if len(issues_match) > 7:
+                if len(issues_match) > 30:
                     issues_html_section += f"""
-                        <li class="text-gray-500 italic ml-4">... and {len(issues_match) - 7} more similar issues.</li>
+                        <li class="text-gray-500 italic ml-4">... and {len(issues_match) - 30} more similar issues.</li>
                     """
                 issues_html_section += "</ul></div>"
             
