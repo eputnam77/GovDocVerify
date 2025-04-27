@@ -118,12 +118,23 @@ class DocumentChecker:
 
     @classmethod
     def extract_paragraphs(cls, doc_path: str) -> List[str]:
+        """Extract paragraphs from a document."""
         try:
             doc = Document(doc_path)
-            return [para.text for para in doc.paragraphs if para.text.strip()]
+            if not doc.paragraphs:
+                raise DocumentCheckError("Document appears to be empty or invalid")
+            
+            paragraphs = []
+            for para in doc.paragraphs:
+                if para.text and para.text.strip():
+                    paragraphs.append(para.text.strip())
+            
+            if not paragraphs:
+                raise DocumentCheckError("No text content found in document")
+            
+            return paragraphs
         except Exception as e:
-            logging.error(f"Error extracting paragraphs: {e}")
-            return []
+            raise DocumentCheckError(f"Error processing document: {str(e)}\n\nPlease ensure the file is a valid .docx document and try again.")
 
     @staticmethod
     def validate_input(doc: List[str]) -> bool:
@@ -253,50 +264,48 @@ class DocumentCheckerConfig:
         return self.default_config.copy()
 
     def _validate_config(self, config: Dict[str, Any]) -> None:
-        """Validate configuration structure."""
-        # Check required top-level keys
+        """Validate the configuration structure."""
+        # Check for required top-level keys
         missing_keys = self.REQUIRED_CONFIG_KEYS - set(config.keys())
         if missing_keys:
             raise ConfigurationError(f"Missing required configuration keys: {missing_keys}")
-        
+            
         # Validate logging configuration
-        missing_logging = self.REQUIRED_LOGGING_KEYS - set(config['logging'].keys())
-        if missing_logging:
-            raise ConfigurationError(f"Missing required logging keys: {missing_logging}")
-        
+        if 'logging' in config:
+            missing_logging_keys = self.REQUIRED_LOGGING_KEYS - set(config['logging'].keys())
+            if missing_logging_keys:
+                raise ConfigurationError(f"Missing required logging configuration keys: {missing_logging_keys}")
+                
         # Validate checks configuration
-        missing_checks = self.REQUIRED_CHECKS_KEYS - set(config['checks'].keys())
-        if missing_checks:
-            raise ConfigurationError(f"Missing required checks keys: {missing_checks}")
-        
-        # Validate document types
-        if not isinstance(config['document_types'], dict):
-            raise ConfigurationError("Document types must be a dictionary")
-        
-        # Validate each document type's configuration
-        for doc_type, type_config in config['document_types'].items():
-            if not isinstance(type_config, dict):
-                raise ConfigurationError(f"Invalid configuration for document type {doc_type}")
+        if 'checks' in config:
+            missing_checks_keys = self.REQUIRED_CHECKS_KEYS - set(config['checks'].keys())
+            if missing_checks_keys:
+                raise ConfigurationError(f"Missing required checks configuration keys: {missing_checks_keys}")
+                
+        # Validate document types configuration
+        if 'document_types' not in config:
+            raise ConfigurationError("Missing document_types configuration")
             
-            # Check for required keys in each document type
-            required_keys = {'required_headings', 'skip_title_check'}
-            missing_type_keys = required_keys - set(type_config.keys())
-            if missing_type_keys:
-                raise ConfigurationError(
-                    f"Missing required keys {missing_type_keys} for document type {doc_type}"
-                )
-            
-            # Validate required_headings is a list
-            if not isinstance(type_config['required_headings'], list):
-                raise ConfigurationError(
-                    f"required_headings must be a list for document type {doc_type}"
-                )
-            
-            # Validate skip_title_check is boolean
-            if not isinstance(type_config['skip_title_check'], bool):
-                raise ConfigurationError(
-                    f"skip_title_check must be a boolean for document type {doc_type}"
-                )
+        # Validate patterns configuration if present
+        if 'patterns' in config:
+            if not isinstance(config['patterns'], dict):
+                raise ConfigurationError("Patterns configuration must be a dictionary")
+                
+            # Validate boilerplate patterns if present
+            if 'boilerplate' in config['patterns']:
+                if not isinstance(config['patterns']['boilerplate'], dict):
+                    raise ConfigurationError("Boilerplate patterns must be a dictionary")
+                for doc_type, patterns in config['patterns']['boilerplate'].items():
+                    if not isinstance(patterns, list):
+                        raise ConfigurationError(f"Boilerplate patterns for {doc_type} must be a list")
+                        
+            # Validate required language patterns if present
+            if 'required_language' in config['patterns']:
+                if not isinstance(config['patterns']['required_language'], dict):
+                    raise ConfigurationError("Required language patterns must be a dictionary")
+                for doc_type, patterns in config['patterns']['required_language'].items():
+                    if not isinstance(patterns, list):
+                        raise ConfigurationError(f"Required language patterns for {doc_type} must be a list")
 
     def _deep_merge(self, base: Dict[str, Any], update: Dict[str, Any]) -> Dict[str, Any]:
         """
@@ -339,40 +348,50 @@ class DocumentCheckerConfig:
         return logger
     
     def _setup_patterns(self) -> Dict[str, List[PatternConfig]]:
-        """
-        Set up comprehensive pattern registry for all document checks.
+        """Set up pattern configurations for document checking."""
+        patterns = {}
         
-        Returns:
-            Dict[str, List[PatternConfig]]: Dictionary of pattern configurations by category
-        """
+        # Load patterns from JSON file
         try:
-            # Get the directory containing the current file
             current_dir = os.path.dirname(os.path.abspath(__file__))
             patterns_file = os.path.join(current_dir, 'patterns.json')
             
-            # Load patterns from JSON file
             with open(patterns_file, 'r') as f:
                 patterns_data = json.load(f)
                 
             # Convert JSON data to PatternConfig objects
-            patterns = {}
             for category, pattern_list in patterns_data.items():
-                patterns[category] = [
-                    PatternConfig(
-                        pattern=p['pattern'],
-                        description=p['description'],
-                        is_error=p['is_error'],
-                        replacement=p.get('replacement'),
-                        keep_together=p.get('keep_together', False)
-                    ) for p in pattern_list
-                ]
-                
-            return patterns
-            
+                if category in ['boilerplate', 'required_language']:
+                    # Handle document type specific patterns
+                    patterns[category] = []
+                    for doc_type, type_patterns in pattern_list.items():
+                        for pattern in type_patterns:
+                            patterns[category].append(
+                                PatternConfig(
+                                    pattern=pattern,
+                                    description=f"{category} text for {doc_type}",
+                                    is_error=category == 'required_language',
+                                    keep_together=True
+                                )
+                            )
+                else:
+                    # Handle regular patterns
+                    patterns[category] = [
+                        PatternConfig(
+                            pattern=p['pattern'],
+                            description=p['description'],
+                            is_error=p.get('is_error', False),
+                            replacement=p.get('replacement'),
+                            keep_together=p.get('keep_together', False)
+                        ) for p in pattern_list
+                    ]
+                    
         except Exception as e:
             self.logger.error(f"Error loading patterns: {e}")
             # Return empty patterns dictionary if file loading fails
             return {}
+            
+        return patterns
 
 def profile_performance(func):
     """Decorator to profile function performance."""
@@ -423,9 +442,135 @@ class FAADocumentChecker(DocumentChecker):
         'WA', 'XX', 'ZIP', 'ACO', 'RGL'
     }
 
+    # Boilerplate text patterns to ignore in length checks
+    BOILERPLATE_PATTERNS = {
+        DocumentType.ADVISORY_CIRCULAR: [
+            r"This is a guidance document\. Its content is not legally binding in its own right",
+            r"The guidance provided in this AC is for manufacturers, modifiers, foreign regulatory authorities",
+            r"The contents of this AC do not have the force and effect of law",
+            r"This material does not change or create any additional regulatory requirements",
+            r"If you find an error in this Advisory Circular",
+            r"For your convenience, the AC Feedback Form is the last page of this AC"
+        ],
+        DocumentType.POLICY_STATEMENT: [
+            r"The contents of this policy statement do not have the force and effect of law",
+            r"This policy statement does not constitute a new regulation",
+            r"If a proposed method of compliance appears to differ from the guidance expressed in this policy statement",
+            r"Additional information on the effect of FAA policy statements may be found in FAA Order IR 8100\.16"
+        ],
+        DocumentType.FEDERAL_REGISTER_NOTICE: [
+            r"Except for Confidential Business Information \(CBI\) as described in the following paragraph",
+            r"Confidential Business Information \(CBI\) is commercial or financial information",
+            r"Paperwork Reduction Act Burden Statement",
+            r"The FAA invites interested people to take part in this rulemaking",
+            r"The FAA will consider all comments received by the closing date for comments"
+        ],
+        DocumentType.SPECIAL_CONDITION: [
+            r"Except for Confidential Business Information \(CBI\) as described in the following paragraph",
+            r"Confidential Business Information \(CBI\) is commercial or financial information",
+            r"Paperwork Reduction Act Burden Statement",
+            r"The FAA invites interested people to take part in this rulemaking",
+            r"The FAA will consider all comments received by the closing date for comments"
+        ]
+    }
+
+    # Required language patterns for different document types
+    REQUIRED_LANGUAGE_PATTERNS = {
+        DocumentType.ADVISORY_CIRCULAR: [
+            r"This is a guidance document\. Its content is not legally binding in its own right",
+            r"The guidance provided in this AC is for manufacturers, modifiers, foreign regulatory authorities",
+            r"The contents of this AC do not have the force and effect of law",
+            r"This material does not change or create any additional regulatory requirements",
+            r"If you find an error in this Advisory Circular",
+            r"For your convenience, the AC Feedback Form is the last page of this AC"
+        ],
+        DocumentType.POLICY_STATEMENT: [
+            r"The contents of this policy statement do not have the force and effect of law",
+            r"This policy statement does not constitute a new regulation",
+            r"If a proposed method of compliance appears to differ from the guidance expressed in this policy statement",
+            r"Additional information on the effect of FAA policy statements may be found in FAA Order IR 8100\.16"
+        ],
+        DocumentType.FEDERAL_REGISTER_NOTICE: [
+            r"Except for Confidential Business Information \(CBI\) as described in the following paragraph",
+            r"Confidential Business Information \(CBI\) is commercial or financial information",
+            r"Paperwork Reduction Act Burden Statement",
+            r"The FAA invites interested people to take part in this rulemaking",
+            r"The FAA will consider all comments received by the closing date for comments"
+        ],
+        DocumentType.SPECIAL_CONDITION: [
+            r"Except for Confidential Business Information \(CBI\) as described in the following paragraph",
+            r"Confidential Business Information \(CBI\) is commercial or financial information",
+            r"Paperwork Reduction Act Burden Statement",
+            r"The FAA invites interested people to take part in this rulemaking",
+            r"The FAA will consider all comments received by the closing date for comments"
+        ]
+    }
+
     # Constructor
     def __init__(self, config_path: Optional[str] = None):
         super().__init__(config_path)
+        self.patterns = self._setup_patterns()
+        self.boilerplate_patterns = self._compile_patterns('boilerplate')
+        self.required_language_patterns = self._compile_patterns('required_language')
+
+    def _setup_patterns(self) -> Dict[str, List[PatternConfig]]:
+        """Set up pattern configurations for document checking."""
+        patterns = {}
+        
+        # Load patterns from JSON file
+        try:
+            current_dir = os.path.dirname(os.path.abspath(__file__))
+            patterns_file = os.path.join(current_dir, 'patterns.json')
+            
+            with open(patterns_file, 'r') as f:
+                patterns_data = json.load(f)
+                
+            # Convert JSON data to PatternConfig objects
+            for category, pattern_list in patterns_data.items():
+                if category in ['boilerplate', 'required_language']:
+                    # Handle document type specific patterns
+                    patterns[category] = []
+                    for doc_type, type_patterns in pattern_list.items():
+                        for pattern in type_patterns:
+                            patterns[category].append(
+                                PatternConfig(
+                                    pattern=pattern,
+                                    description=f"{category} text for {doc_type}",
+                                    is_error=category == 'required_language',
+                                    keep_together=True
+                                )
+                            )
+                else:
+                    # Handle regular patterns
+                    patterns[category] = [
+                        PatternConfig(
+                            pattern=p['pattern'],
+                            description=p['description'],
+                            is_error=p.get('is_error', False),
+                            replacement=p.get('replacement'),
+                            keep_together=p.get('keep_together', False)
+                        ) for p in pattern_list
+                    ]
+                    
+        except Exception as e:
+            self.logger.error(f"Error loading patterns: {e}")
+            # Return empty patterns dictionary if file loading fails
+            return {}
+            
+        return patterns
+    
+    def _compile_patterns(self, pattern_type: str) -> Dict[DocumentType, List[Pattern]]:
+        """Compile patterns for a specific type."""
+        patterns = {}
+        for pattern_config in self.patterns.get(pattern_type, []):
+            try:
+                doc_type = DocumentType.from_string(pattern_config.description.split()[-1])
+                if doc_type not in patterns:
+                    patterns[doc_type] = []
+                patterns[doc_type].append(re.compile(pattern_config.pattern, re.IGNORECASE))
+            except (ValueError, re.error) as e:
+                self.logger.warning(f"Failed to compile pattern for {pattern_type}: {e}")
+        return patterns
 
     def _get_doc_type_config(self, doc_type: str) -> Tuple[Dict[str, Any], bool]:
         """
@@ -804,13 +949,14 @@ class FAADocumentChecker(DocumentChecker):
         """Check document terminology and output only unique term replacements needed."""
         if not self.validate_input(doc):
             return DocumentCheckResult(success=False, issues=[{'error': 'Invalid document input'}])
-
-        terminology_patterns = self.config_manager.pattern_registry.get('terminology', [])
-        prohibited_patterns = self.config_manager.pattern_registry.get('reference_terms', [])
+            
+        terminology_patterns = self.patterns.get('terminology', [])
+        prohibited_patterns = self.patterns.get('reference_terms', [])
 
         unique_issues = set()  # Using a set to avoid duplicate replacements
+        issues = []  # For detailed issue reporting
 
-        # Process each sentence
+        # Process each sentence for better context
         for paragraph in doc:
             sentences = re.split(r'(?<=[.!?])\s+', paragraph)
             for sentence in sentences:
@@ -820,26 +966,109 @@ class FAADocumentChecker(DocumentChecker):
 
                 # Check terminology patterns
                 for pattern_config in terminology_patterns:
-                    compiled_pattern = pattern_config.compile()
-                    matches = list(compiled_pattern.finditer(sentence))
+                    # Skip patterns that are too vague or generate false positives
+                    if pattern_config.description in [
+                        "Ensure proper use of 'must' instead of 'shall' for requirements",
+                        "Ensure proper handling of compliance terms",
+                        "Ensure proper handling of enforcement terms",
+                        "Ensure proper handling of implementation terms",
+                        "Ensure proper specification of requirements and standards",
+                        "Ensure proper specification of procedures and processes",
+                        "Ensure proper specification of documentation requirements",
+                        "Ensure proper specification of review and approval processes",
+                        "Ensure proper specification of violations and penalties",
+                        "Ensure proper specification of waivers and exemptions",
+                        "Ensure proper specification of compliance dates",
+                        "Ensure proper formatting of regulatory definitions",
+                        "Ensure proper specification of regulatory authority",
+                        "Ensure proper specification of compliance and enforcement terms",
+                        "Ensure proper specification of implementation and transition terms",
+                        "Ensure proper handling of regulatory analysis terms",
+                        "Replace gendered terms with their appropriate alternatives"  # Skip generic gendered terms message
+                    ]:
+                        continue
+
+                    pattern = re.compile(pattern_config.pattern, re.IGNORECASE)
+                    matches = list(pattern.finditer(sentence))
+                    
                     for match in matches:
-                        if pattern_config.replacement:  # Only if there's a replacement term
-                            unique_issues.add((match.group(), pattern_config.replacement))
+                        matched_text = match.group(0)
+                        
+                        # Skip matches that are part of larger words or in specific contexts
+                        if any(context in sentence.lower() for context in [
+                            "technical standard order",
+                            "federal register",
+                            "advisory circular",
+                            "policy statement",
+                            "special condition"
+                        ]):
+                            continue
+                            
+                        # For simple replacements, add to unique_issues
+                        if pattern_config.replacement:
+                            # Skip if it's a generic gendered terms replacement
+                            if isinstance(pattern_config.replacement, dict) and "gendered terms" in pattern_config.description.lower():
+                                continue
+                            unique_issues.add((matched_text, pattern_config.replacement))
+                            
+                        # For detailed issues, add to issues list
+                        if pattern_config.is_error:
+                            # Skip if it's a generic gendered terms issue
+                            if "gendered terms" in pattern_config.description.lower():
+                                continue
+                            issue = {
+                                'text': matched_text,
+                                'description': pattern_config.description,
+                                'replacement': pattern_config.replacement,
+                                'context': sentence  # Include sentence context
+                            }
+                            issues.append(issue)
 
                 # Check prohibited patterns
                 for pattern_config in prohibited_patterns:
-                    compiled_pattern = pattern_config.compile()
-                    match = compiled_pattern.search(sentence)
-                    if match and pattern_config.replacement:  # Only if there's a replacement term
-                        unique_issues.add((match.group(), pattern_config.replacement))
+                    pattern = re.compile(pattern_config.pattern, re.IGNORECASE)
+                    match = pattern.search(sentence)
+                    if match and pattern_config.replacement:
+                        matched_text = match.group(0)
+                        
+                        # Skip matches that are part of larger words or in specific contexts
+                        if any(context in sentence.lower() for context in [
+                            "technical standard order",
+                            "federal register",
+                            "advisory circular",
+                            "policy statement",
+                            "special condition"
+                        ]):
+                            continue
+                            
+                        # Skip if it's a generic gendered terms replacement
+                        if isinstance(pattern_config.replacement, dict) and "gendered terms" in pattern_config.description.lower():
+                            continue
+                            
+                        unique_issues.add((matched_text, pattern_config.replacement))
+                        
+                        if pattern_config.is_error:
+                            # Skip if it's a generic gendered terms issue
+                            if "gendered terms" in pattern_config.description.lower():
+                                continue
+                            issue = {
+                                'text': matched_text,
+                                'description': pattern_config.description,
+                                'replacement': pattern_config.replacement,
+                                'context': sentence
+                            }
+                            issues.append(issue)
 
-        # Format issues as simple replacement instructions
+        # Format simple replacement issues
         formatted_issues = [
             {'incorrect_term': incorrect, 'correct_term': correct}
-            for incorrect, correct in sorted(unique_issues)  # Sort for consistent output
+            for incorrect, correct in sorted(unique_issues)
         ]
+        
+        # Combine both types of issues
+        all_issues = formatted_issues + issues
 
-        return DocumentCheckResult(success=not formatted_issues, issues=formatted_issues)
+        return DocumentCheckResult(success=not all_issues, issues=all_issues)
 
     @profile_performance
     def check_section_symbol_usage(self, doc: List[str]) -> DocumentCheckResult:
@@ -1440,14 +1669,13 @@ class FAADocumentChecker(DocumentChecker):
         """
         # Read the document
         doc = self.extract_paragraphs(doc_path)
-
+        
         # Retrieve any specific flags
         checks_config = self.config_manager.config['document_types'].get(doc_type, {})
         skip_title_check = checks_config.get('skip_title_check', False)
 
         # Initialize results dictionary
         results = {}
-
 
         # Define order of checks for better organization
         check_sequence = [
@@ -1459,7 +1687,6 @@ class FAADocumentChecker(DocumentChecker):
             ('acronym_usage_check', lambda: self.acronym_usage_check(doc)),
             ('section_symbol_usage_check', lambda: self.check_section_symbol_usage(doc)),
             ('508_compliance_check', lambda: self.check_508_compliance(doc_path)),
-            # ('cross_references_check', lambda: self.check_cross_references(doc_path)),
             ('hyperlink_check', lambda: self.check_hyperlinks(doc)),
             ('date_formats_check', lambda: self.check_date_formats(doc)),
             ('placeholders_check', lambda: self.check_placeholders(doc)),
@@ -1472,6 +1699,7 @@ class FAADocumentChecker(DocumentChecker):
             ('spacing_check', lambda: self.spacing_check(doc)),
             ('paragraph_length_check', lambda: self.check_paragraph_length(doc)),
             ('sentence_length_check', lambda: self.check_sentence_length(doc)),
+            ('phone_format_check', lambda: self.check_phone_number_format(doc))
         ]
 
         # Run each check and store results
@@ -1934,22 +2162,17 @@ class FAADocumentChecker(DocumentChecker):
 
     @profile_performance
     def check_paragraph_length(self, doc: List[str]) -> DocumentCheckResult:
-        """
-        Check for overly long paragraphs that may need to be split up.
-        
-        Args:
-            doc (List[str]): List of document paragraphs
-            
-        Returns:
-            DocumentCheckResult: Results of paragraph length check
-        """
+        """Check paragraph lengths, ignoring boilerplate text."""
         if not self.validate_input(doc):
             return DocumentCheckResult(success=False, issues=[{'error': 'Invalid document input'}])
             
         issues = []
+        doc_type = self._get_doc_type(doc)
+        boilerplate_patterns = self.boilerplate_patterns.get(doc_type, [])
         
-        for paragraph in doc:
-            if not paragraph.strip():  # Skip empty paragraphs
+        for i, paragraph in enumerate(doc, 1):
+            # Skip if paragraph matches any boilerplate pattern
+            if any(pattern.search(paragraph) for pattern in boilerplate_patterns):
                 continue
                 
             # Count sentences (split on period, exclamation, question mark followed by space)
@@ -1977,87 +2200,38 @@ class FAADocumentChecker(DocumentChecker):
     
     @profile_performance
     def check_sentence_length(self, doc: List[str]) -> DocumentCheckResult:
-        """
-        Check for overly long sentences that may need to be split for clarity.
-        
-        Args:
-            doc (List[str]): List of document paragraphs
-            
-        Returns:
-            DocumentCheckResult: Results of sentence length check including:
-                - success: Boolean indicating if all sentences are acceptable length
-                - issues: List of dicts with long sentence details
-                - details: Additional statistics about sentence lengths
-        """
+        """Check sentence lengths, ignoring boilerplate text."""
         if not self.validate_input(doc):
             return DocumentCheckResult(success=False, issues=[{'error': 'Invalid document input'}])
             
         issues = []
-        sentence_stats = {
-            'total_sentences': 0,
-            'long_sentences': 0,
-            'max_length': 0,
-            'avg_length': 0
-        }
+        doc_type = self._get_doc_type(doc)
+        boilerplate_patterns = self.boilerplate_patterns.get(doc_type, [])
         
-        # Skip patterns for technical content that might naturally be longer
-        skip_patterns = [
-            r'^(?:Note:|Warning:|Caution:)',  # Notes and warnings
-            r'^\d+\.',  # Numbered lists
-            r'^\([a-z]\)',  # Letter lists
-            r'^\([0-9]\)',  # Number lists in parentheses
-            r'^Table \d',  # Table captions
-            r'^Figure \d',  # Figure captions
-            r'(?:e\.g\.|i\.e\.|viz\.,)',  # Latin abbreviations often used in complex sentences
-            r'\b(?:AC|AD|TSO|SFAR)\s+\d',  # Technical references
-            r'\d+\s*(?:CFR|U\.S\.C\.)',  # Regulatory references
-        ]
-        skip_regex = re.compile('|'.join(skip_patterns), re.IGNORECASE)
-        
-        total_words = 0
-        
-        for paragraph in doc:
-            if not paragraph.strip():
+        for i, (sentence, paragraph) in enumerate(self._process_sentences(doc), 1):
+            # Skip if sentence matches any boilerplate pattern
+            if any(pattern.search(sentence) for pattern in boilerplate_patterns):
                 continue
                 
-            # Skip if paragraph matches any skip patterns
-            if skip_regex.search(paragraph):
-                continue
-                
-            # Split into sentences while preserving punctuation
-            sentences = re.split(r'(?<=[.!?])\s+', paragraph.strip())
+            # Count words (splitting on whitespace)
+            words = sentence.split()
+            word_count = len(words)
             
-            for sentence in sentences:
-                sentence = sentence.strip()
-                if not sentence:
-                    continue
-                    
-                # Count words (splitting on whitespace)
-                words = sentence.split()
-                word_count = len(words)
-                
-                sentence_stats['total_sentences'] += 1
-                total_words += word_count
-                
-                if word_count > sentence_stats['max_length']:
-                    sentence_stats['max_length'] = word_count
-                
-                # Flag sentences over 35 words
-                if word_count > 35:
-                    sentence_stats['long_sentences'] += 1
-                    issues.append({
-                        'sentence': sentence,
-                        'word_count': word_count
-                    })
-        
-        # Calculate average sentence length
-        if sentence_stats['total_sentences'] > 0:
-            sentence_stats['avg_length'] = round(total_words / sentence_stats['total_sentences'], 1)
+            if word_count > 35:
+                issues.append({
+                    'sentence': sentence,
+                    'word_count': word_count
+                })
         
         return DocumentCheckResult(
             success=len(issues) == 0,
             issues=issues,
-            details=sentence_stats
+            details={
+                'total_sentences': len(issues),
+                'long_sentences': len(issues),
+                'max_length': max(issue['word_count'] for issue in issues) if issues else 0,
+                'avg_length': sum(issue['word_count'] for issue in issues) / len(issues) if issues else 0
+            }
         )
     
     @profile_performance
@@ -2824,6 +2998,183 @@ class FAADocumentChecker(DocumentChecker):
                 issues=[{'error': f'Error calculating readability metrics: {str(e)}'}]
             )
 
+    @profile_performance
+    def check_required_language(self, doc: List[str]) -> DocumentCheckResult:
+        """
+        Check if the document contains all required language based on its type.
+        
+        Args:
+            doc (List[str]): List of document paragraphs
+            
+        Returns:
+            DocumentCheckResult: Results of required language check
+        """
+        if not self.validate_input(doc):
+            return DocumentCheckResult(success=False, issues=[{'error': 'Invalid document input'}])
+            
+        issues = []
+        doc_type = self._get_doc_type(doc)
+        required_patterns = self.required_language_patterns.get(doc_type, [])
+        
+        if not required_patterns:
+            return DocumentCheckResult(success=True, issues=[])
+            
+        # Combine all paragraphs for searching
+        full_text = ' '.join(doc)
+        
+        # Check for each required pattern
+        for pattern in required_patterns:
+            if not pattern.search(full_text):
+                # Extract the first few words of the pattern for context
+                context = pattern.pattern.split('\\')[0].strip()
+                issues.append(f"Required language not found: \"{context}...\"")
+        
+        return DocumentCheckResult(success=len(issues) == 0, issues=issues)
+
+    def _get_doc_type(self, doc: List[str]) -> DocumentType:
+        """
+        Determine the document type from the first paragraph.
+        
+        Args:
+            doc (List[str]): List of document paragraphs
+            
+        Returns:
+            DocumentType: The determined document type
+            
+        Raises:
+            DocumentTypeError: If document type cannot be determined
+        """
+        if not doc:
+            raise DocumentTypeError("Empty document")
+            
+        first_paragraph = doc[0].strip().lower()
+        
+        # Check for document type indicators
+        if "advisory circular" in first_paragraph:
+            return DocumentType.ADVISORY_CIRCULAR
+        elif "policy statement" in first_paragraph:
+            return DocumentType.POLICY_STATEMENT
+        elif "federal register" in first_paragraph:
+            return DocumentType.FEDERAL_REGISTER_NOTICE
+        elif "special condition" in first_paragraph:
+            return DocumentType.SPECIAL_CONDITION
+        elif "airworthiness criteria" in first_paragraph:
+            return DocumentType.AIRWORTHINESS_CRITERIA
+        elif "deviation memo" in first_paragraph:
+            return DocumentType.DEVIATION_MEMO
+        elif "exemption" in first_paragraph:
+            return DocumentType.EXEMPTION
+        elif "order" in first_paragraph:
+            return DocumentType.ORDER
+        elif "rule" in first_paragraph:
+            return DocumentType.RULE
+        elif "technical standard order" in first_paragraph:
+            return DocumentType.TECHNICAL_STANDARD_ORDER
+        else:
+            return DocumentType.OTHER
+
+    @profile_performance
+    def check_phone_number_format(self, doc: List[str]) -> DocumentCheckResult:
+        """Check for consistent phone number formatting throughout the document."""
+        issues = []
+        phone_formats = set()
+        phone_numbers = []
+        
+        # Compile all phone number patterns
+        patterns = self.patterns.get('phone_numbers', [])
+        compiled_patterns = [(re.compile(p.pattern), p.format_name) for p in patterns]
+        
+        # Find all phone numbers and their formats
+        for paragraph in doc:
+            for pattern, format_name in compiled_patterns:
+                matches = pattern.finditer(paragraph)
+                for match in matches:
+                    phone_number = match.group(0)
+                    phone_numbers.append((phone_number, format_name))
+                    phone_formats.add(format_name)
+        
+        # If we found phone numbers and more than one format is used
+        if phone_numbers and len(phone_formats) > 1:
+            format_counts = {}
+            for _, format_name in phone_numbers:
+                format_counts[format_name] = format_counts.get(format_name, 0) + 1
+            
+            # Create a detailed message showing the inconsistency
+            format_details = []
+            for format_name, count in format_counts.items():
+                format_pattern = next(p for p in patterns if p.format_name == format_name)
+                format_details.append(f"{count} in {format_pattern.description}")
+            
+            issues.append({
+                'type': 'phone_format_inconsistency',
+                'message': f"Inconsistent phone number formats found: {', '.join(format_details)}. Please use a single consistent format throughout the document.",
+                'details': {
+                    'phone_numbers': [num for num, _ in phone_numbers],
+                    'formats_used': list(phone_formats)
+                }
+            })
+        
+        return DocumentCheckResult(
+            success=len(issues) == 0,
+            issues=issues
+        )
+
+    def _format_phone_format_issues(self, result: DocumentCheckResult) -> List[str]:
+        """Format phone number format consistency issues."""
+        output = []
+        for issue in result.issues:
+            if issue['type'] == 'phone_format_inconsistency':
+                output.append(f"- {issue['message']}")
+                if 'details' in issue and 'phone_numbers' in issue['details']:
+                    output.append("  Found phone numbers:")
+                    for phone in issue['details']['phone_numbers']:
+                        output.append(f"    • {phone}")
+        return output
+
+    def format_results(self, results: Dict[str, Any], doc_type: str) -> str:
+        """Format the check results into a readable string."""
+        output = []
+        
+        # Add header
+        output.append(f"Document Check Results for {doc_type}")
+        output.append("=" * 50)
+        output.append("")
+        
+        # Format each result
+        for check_name, result in results.items():
+            if not result.success:
+                output.append(f"{check_name.replace('_', ' ').title()} Issues:")
+                output.append("-" * 30)
+                
+                if check_name == 'heading_title':
+                    output.extend(self._format_heading_issues(result, doc_type))
+                elif check_name == 'heading_title_period':
+                    output.extend(self._format_period_issues(result))
+                elif check_name == 'caption':
+                    output.extend(self._format_caption_issues(result.issues, doc_type))
+                elif check_name == 'table_figure_reference':
+                    output.extend(self._format_reference_issues(result))
+                elif check_name == 'terminology':
+                    output.extend(self._format_standard_issue(issue) for issue in result.issues)
+                elif check_name == 'acronyms':
+                    output.extend(self._format_unused_acronym_issues(result))
+                elif check_name == 'parentheses':
+                    output.extend(self._format_parentheses_issues(result))
+                elif check_name == 'section_symbol':
+                    output.extend(self._format_section_symbol_issues(result))
+                elif check_name == 'spacing':
+                    output.extend(self._format_spacing_issues(result))
+                elif check_name == 'readability':
+                    output.extend(self._format_readability_issues(result))
+                elif check_name == 'phone_format_check':
+                    output.extend(self._format_phone_format_issues(result))
+                else:
+                    output.extend(self._format_standard_issue(issue) for issue in result.issues)
+                
+                output.append("")
+        
+        return '\n'.join(output)
+
 class DocumentCheckResultsFormatter:
     
     def __init__(self):
@@ -3009,6 +3360,15 @@ class DocumentCheckResultsFormatter:
                     'before': 'The implementation of the procedure was facilitated by technical personnel.',
                     'after': 'Technical staff helped start the procedure.'
                 }
+            },
+            'phone_format_check': {
+                'title': 'Phone Number Format',
+                'description': 'Checks for consistent phone number formatting throughout the document. The checker looks for phone numbers in various formats and flags inconsistencies.',
+                'solution': 'Choose one phone number format and use it consistently throughout the document. Common formats include (xxx) xxx-xxxx, xxx-xxx-xxxx, xxx.xxx.xxxx, or xxxxxxxxxx.',
+                'example_fix': {
+                    'before': 'Dial (603) 333-3456 and then dial 606-354-2456',
+                    'after': 'Dial (603) 333-3456 and then dial (606) 354-2456'
+                },
             }
         }
 
@@ -3417,8 +3777,8 @@ class DocumentCheckResultsFormatter:
                     formatted_issues = [self._format_standard_issue(issue) for issue in result.issues[:15]]
                     output.extend(formatted_issues)
                     
-                    if len(result.issues) > 30:
-                        output.append(f"\n    ... and {len(result.issues) - 30} more similar issues.")
+                    if len(result.issues) > 50:
+                        output.append(f"\n    ... and {len(result.issues) - 50} more similar issues.")
         
         return '\n'.join(output)
 
@@ -3502,6 +3862,7 @@ def format_markdown_results(results: Dict[str, DocumentCheckResult], doc_type: s
         'parentheses_check': {'title': '🔗 Parentheses Usage', 'priority': 4},
         'double_period_check': {'title': '⚡ Double Periods', 'priority': 4},
         'spacing_check': {'title': '⌨️ Spacing Issues', 'priority': 4},
+        'phone_format_check': {'title': '🔗 Phone Number Format', 'priority': 4},
         'paragraph_length_check': {'title': '📏 Paragraph Length', 'priority': 5},
         'sentence_length_check': {'title': '📏 Sentence Length', 'priority': 5},
         
@@ -3529,8 +3890,8 @@ def format_markdown_results(results: Dict[str, DocumentCheckResult], doc_type: s
                     else:
                         output.append(f"- {issue}")
                 
-                if len(result.issues) > 30:
-                    output.append(f"\n*...and {len(result.issues) - 30} more similar issues*")
+                if len(result.issues) > 50:
+                    output.append(f"\n*...and {len(result.issues) - 50} more similar issues*")
             
             output.append("")
 
@@ -3702,9 +4063,9 @@ def create_interface():
                     issues_html_section += f"""
                         <li class="text-gray-600 ml-4">• {clean_issue}</li>
                     """
-                if len(issues_match) > 30:
+                if len(issues_match) > 50:
                     issues_html_section += f"""
-                        <li class="text-gray-500 italic ml-4">... and {len(issues_match) - 30} more similar issues.</li>
+                        <li class="text-gray-500 italic ml-4">... and {len(issues_match) - 50} more similar issues.</li>
                     """
                 issues_html_section += "</ul></div>"
             
@@ -3851,7 +4212,7 @@ def create_interface():
                 2. Select the document type.
                 3. Click **Check Document**.
 
-                > **Note:** Please ensure your document is clean (no track changes or comments).
+                > **Note:** Please ensure your document is clean (no track changes or comments). If your document has track changes or comments, you might get several false positives.
                 """
                 )
                 
