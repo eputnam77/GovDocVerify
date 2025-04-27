@@ -1,3 +1,6 @@
-gradio>=4.0.0
+gradio==4.19.2
 python-docx
+nltk
+pandas
+numpy
 colorama

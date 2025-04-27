@@ -1,16 +1,17 @@
 ---
 title: Document Checker Tool
-emoji: 🐨
-colorFrom: green
-colorTo: green
+emoji: 🔍
+colorFrom: blue
+colorTo: purple
 sdk: gradio
-sdk_version: 5.15.0
+sdk_version: 4.19.2
 app_file: app.py
 pinned: false
 ---
 
-# Document Checker Tool  
-**Ensuring FAA Document Compliance and Consistency**
+# Document Checker Tool
+
+A tool for checking documents against FAA style guidelines.
 
 ---
 
