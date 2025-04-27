@@ -3083,35 +3083,39 @@ class FAADocumentChecker(DocumentChecker):
         
         # Compile all phone number patterns
         patterns = self.patterns.get('phone_numbers', [])
-        compiled_patterns = [(re.compile(p.pattern), p.format_name) for p in patterns]
+        compiled_patterns = [(re.compile(p.pattern), p.format_name, p.description) for p in patterns]
         
         # Find all phone numbers and their formats
         for paragraph in doc:
-            for pattern, format_name in compiled_patterns:
+            for pattern, format_name, description in compiled_patterns:
                 matches = pattern.finditer(paragraph)
                 for match in matches:
                     phone_number = match.group(0)
-                    phone_numbers.append((phone_number, format_name))
+                    phone_numbers.append((phone_number, format_name, description))
                     phone_formats.add(format_name)
         
         # If we found phone numbers and more than one format is used
         if phone_numbers and len(phone_formats) > 1:
             format_counts = {}
-            for _, format_name in phone_numbers:
+            format_examples = {}
+            for number, format_name, description in phone_numbers:
                 format_counts[format_name] = format_counts.get(format_name, 0) + 1
+                if format_name not in format_examples:
+                    format_examples[format_name] = number
             
             # Create a detailed message showing the inconsistency
             format_details = []
             for format_name, count in format_counts.items():
-                format_pattern = next(p for p in patterns if p.format_name == format_name)
-                format_details.append(f"{count} in {format_pattern.description}")
+                example = format_examples[format_name]
+                format_details.append(f"{count} in {format_name} format (e.g., {example})")
             
             issues.append({
                 'type': 'phone_format_inconsistency',
                 'message': f"Inconsistent phone number formats found: {', '.join(format_details)}. Please use a single consistent format throughout the document.",
                 'details': {
-                    'phone_numbers': [num for num, _ in phone_numbers],
-                    'formats_used': list(phone_formats)
+                    'phone_numbers': [num for num, _, _ in phone_numbers],
+                    'formats_used': list(phone_formats),
+                    'format_examples': format_examples
                 }
             })
         
@@ -3130,6 +3134,7 @@ class FAADocumentChecker(DocumentChecker):
                     output.append("  Found phone numbers:")
                     for phone in issue['details']['phone_numbers']:
                         output.append(f"    • {phone}")
+                    output.append("  Please choose one format and use it consistently throughout the document.")
         return output
 
     def format_results(self, results: Dict[str, Any], doc_type: str) -> str:

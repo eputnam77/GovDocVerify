@@ -665,19 +665,28 @@
     },
     "phone_numbers": [
         {
-            "_comment": "Common phone number formats to check for consistency",
-            "pattern": "\\(?\\d{3}\\)?[\\s-]?\\d{3}[\\s-]?\\d{4}",
-            "description": "Phone number in various formats (xxx) xxx-xxxx, xxx-xxx-xxxx, etc.",
+            "_comment": "Phone number with parentheses and hyphens",
+            "pattern": "\\(\\d{3}\\)\\s*\\d{3}-\\d{4}",
+            "description": "Phone number in format (xxx) xxx-xxxx",
             "is_error": false,
-            "format_name": "mixed_format"
+            "format_name": "parentheses_format"
         },
         {
+            "_comment": "Phone number with hyphens only",
+            "pattern": "\\d{3}-\\d{3}-\\d{4}",
+            "description": "Phone number in format xxx-xxx-xxxx",
+            "is_error": false,
+            "format_name": "hyphen_format"
+        },
+        {
+            "_comment": "Phone number with dots",
             "pattern": "\\d{3}\\.\\d{3}\\.\\d{4}",
             "description": "Phone number in format xxx.xxx.xxxx",
             "is_error": false,
             "format_name": "dot_format"
         },
         {
+            "_comment": "Plain phone number",
             "pattern": "\\d{10}",
             "description": "Phone number in format xxxxxxxxxx",
             "is_error": false,
