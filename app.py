@@ -3129,12 +3129,16 @@ class FAADocumentChecker(DocumentChecker):
         output = []
         for issue in result.issues:
             if issue['type'] == 'phone_format_inconsistency':
-                output.append(f"- {issue['message']}")
+                output.append(f"    • {issue['message']}")
                 if 'details' in issue and 'phone_numbers' in issue['details']:
-                    output.append("  Found phone numbers:")
+                    output.append("      Found phone numbers:")
                     for phone in issue['details']['phone_numbers']:
-                        output.append(f"    • {phone}")
-                    output.append("  Please choose one format and use it consistently throughout the document.")
+                        output.append(f"        • {phone}")
+                    output.append("      Please choose one format and use it consistently throughout the document.")
+                    if 'format_examples' in issue['details']:
+                        output.append("      Example formats found:")
+                        for format_name, example in issue['details']['format_examples'].items():
+                            output.append(f"        • {format_name}: {example}")
         return output
 
     def format_results(self, results: Dict[str, Any], doc_type: str) -> str:
