@@ -17,4 +17,4 @@ jobs:
       - name: Push to hub
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
-        run: git push https://eputnam77:$HF_TOKEN@huggingface.co/spaces/eputnam77/DocumentCheckerToolv1Gradio main 
+        run: git push https://Hoctar77:$HF_TOKEN@huggingface.co/spaces/Hoctar77/DocumentCheckerToolSandbox main 
