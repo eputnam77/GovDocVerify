@@ -52,6 +52,7 @@ class PatternConfig:
     is_error: bool
     replacement: Optional[str] = None
     keep_together: bool = False
+    format_name: Optional[str] = None
     
     def compile(self) -> Pattern:
         """Compile the pattern."""
@@ -4344,7 +4345,7 @@ def create_interface():
                     - The tool provides suggestions but final editorial decisions rest with the document author
                     - For questions or feedback on the FAA documentation standards, contact the AIR-646 Senior Technical Writers
                     - For questions or feedback on the tool, contact Eric Putnam
-                    - Results are not stored or saved - TEST
+                    - Results are not stored or saved
                     """
                 )
             
