@@ -17,4 +17,6 @@ jobs:
       - name: Push to hub
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
-        run: git push https://Hoctar77:$HF_TOKEN@huggingface.co/spaces/Hoctar77/DocumentCheckerToolSandbox main 
+        run: |
+          git remote add space https://Hoctar77:$HF_TOKEN@huggingface.co/spaces/Hoctar77/DocumentCheckerToolSandbox
+          git push space HEAD:main --force 
