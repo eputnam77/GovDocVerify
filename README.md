@@ -65,9 +65,10 @@ Supports all FAA document types covered by AIR-646, with checks aligned to:
 16. Table/Figure Reference Check  
 17. Parenthesis Balance Check  
 18. Double Period Check  
-19. Spacing Check  
-20. Paragraph Length Check
-21. Sentence Length Check
+19. Spacing Check 
+20. Phone Number Format Check 
+21. Paragraph Length Check
+22. Sentence Length Check
 
 ---
 

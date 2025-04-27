@@ -665,32 +665,39 @@
     },
     "phone_numbers": [
         {
-            "_comment": "Phone number with parentheses and hyphens",
-            "pattern": "\\(\\d{3}\\)\\s*\\d{3}-\\d{4}",
-            "description": "Phone number in format (xxx) xxx-xxxx",
+            "_comment": "Phone number with parentheses and hyphens, with optional spaces",
+            "pattern": "\\(\\s*\\d{3}\\s*\\)\\s*\\d{3}\\s*-\\s*\\d{4}",
+            "description": "Phone number in format (xxx) xxx-xxxx with optional spaces",
             "is_error": false,
             "format_name": "parentheses_format"
         },
         {
-            "_comment": "Phone number with hyphens only",
-            "pattern": "\\d{3}-\\d{3}-\\d{4}",
-            "description": "Phone number in format xxx-xxx-xxxx",
+            "_comment": "Phone number with hyphens only, with optional spaces",
+            "pattern": "\\d{3}\\s*-\\s*\\d{3}\\s*-\\s*\\d{4}",
+            "description": "Phone number in format xxx-xxx-xxxx with optional spaces",
             "is_error": false,
             "format_name": "hyphen_format"
         },
         {
-            "_comment": "Phone number with dots",
-            "pattern": "\\d{3}\\.\\d{3}\\.\\d{4}",
-            "description": "Phone number in format xxx.xxx.xxxx",
+            "_comment": "Phone number with dots, with optional spaces",
+            "pattern": "\\d{3}\\s*\\.\\s*\\d{3}\\s*\\.\\s*\\d{4}",
+            "description": "Phone number in format xxx.xxx.xxxx with optional spaces",
             "is_error": false,
             "format_name": "dot_format"
         },
         {
-            "_comment": "Plain phone number",
-            "pattern": "\\d{10}",
-            "description": "Phone number in format xxxxxxxxxx",
+            "_comment": "Plain phone number with optional spaces",
+            "pattern": "\\d{3}\\s*\\d{3}\\s*\\d{4}",
+            "description": "Phone number in format xxxxxxxxxx with optional spaces",
             "is_error": false,
             "format_name": "plain_format"
+        },
+        {
+            "_comment": "Phone number with country code",
+            "pattern": "\\+1\\s*\\(?\\d{3}\\)?\\s*\\d{3}\\s*-?\\s*\\d{4}",
+            "description": "Phone number with country code +1",
+            "is_error": false,
+            "format_name": "country_code_format"
         }
     ]
 }

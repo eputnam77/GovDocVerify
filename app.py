@@ -3085,20 +3085,33 @@ class FAADocumentChecker(DocumentChecker):
         patterns = self.patterns.get('phone_numbers', [])
         compiled_patterns = [(re.compile(p.pattern), p.format_name, p.description) for p in patterns]
         
+        # Log the patterns being used
+        self.logger.debug(f"Checking phone numbers with {len(patterns)} patterns")
+        
         # Find all phone numbers and their formats
-        for paragraph in doc:
+        for paragraph_num, paragraph in enumerate(doc, 1):
+            paragraph_has_phone = False
             for pattern, format_name, description in compiled_patterns:
-                matches = pattern.finditer(paragraph)
-                for match in matches:
-                    phone_number = match.group(0)
-                    phone_numbers.append((phone_number, format_name, description))
-                    phone_formats.add(format_name)
+                matches = list(pattern.finditer(paragraph))
+                if matches:
+                    paragraph_has_phone = True
+                    for match in matches:
+                        phone_number = match.group(0)
+                        phone_numbers.append((phone_number, format_name, description, paragraph_num))
+                        phone_formats.add(format_name)
+                        self.logger.debug(f"Found phone number '{phone_number}' in format '{format_name}' in paragraph {paragraph_num}")
+            
+            if paragraph_has_phone:
+                self.logger.debug(f"Paragraph {paragraph_num} contains phone numbers")
+        
+        # Log summary of found phone numbers
+        self.logger.debug(f"Found {len(phone_numbers)} phone numbers in {len(phone_formats)} different formats")
         
         # If we found phone numbers and more than one format is used
         if phone_numbers and len(phone_formats) > 1:
             format_counts = {}
             format_examples = {}
-            for number, format_name, description in phone_numbers:
+            for number, format_name, description, _ in phone_numbers:
                 format_counts[format_name] = format_counts.get(format_name, 0) + 1
                 if format_name not in format_examples:
                     format_examples[format_name] = number
@@ -3109,15 +3122,21 @@ class FAADocumentChecker(DocumentChecker):
                 example = format_examples[format_name]
                 format_details.append(f"{count} in {format_name} format (e.g., {example})")
             
+            # Add paragraph numbers to the details
+            paragraph_numbers = sorted(set(p_num for _, _, _, p_num in phone_numbers))
+            
             issues.append({
                 'type': 'phone_format_inconsistency',
                 'message': f"Inconsistent phone number formats found: {', '.join(format_details)}. Please use a single consistent format throughout the document.",
                 'details': {
-                    'phone_numbers': [num for num, _, _ in phone_numbers],
+                    'phone_numbers': [num for num, _, _, _ in phone_numbers],
                     'formats_used': list(phone_formats),
-                    'format_examples': format_examples
+                    'format_examples': format_examples,
+                    'paragraph_numbers': paragraph_numbers
                 }
             })
+            
+            self.logger.info(f"Found inconsistent phone number formats in paragraphs {paragraph_numbers}")
         
         return DocumentCheckResult(
             success=len(issues) == 0,
