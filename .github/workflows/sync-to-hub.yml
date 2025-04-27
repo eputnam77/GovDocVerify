@@ -18,5 +18,7 @@ jobs:
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: |
-          git remote add space https://Hoctar77:$HF_TOKEN@huggingface.co/spaces/Hoctar77/DocumentCheckerToolSandbox
-          git push space HEAD:main --force 
+          echo "Setting up remote..."
+          git remote add space https://Hoctar77:${{ secrets.HF_TOKEN }}@huggingface.co/spaces/Hoctar77/DocumentCheckerToolSandbox
+          echo "Pushing to Hugging Face..."
+          git push space HEAD:main --force
