@@ -135,11 +135,6 @@
             "is_error": true
         },
         {
-            "pattern": "\\b(aircraft|airplane|flightcrew|flight deck|maintenance technician)\\b",
-            "description": "Ensure consistent use of defined aviation terms",
-            "is_error": true
-        },
-        {
             "pattern": "\\b(shall|will|may|must)\\b",
             "description": "Ensure proper use of 'must' instead of 'shall' for requirements",
             "is_error": true
@@ -152,16 +147,6 @@
         {
             "pattern": "\\b(data are|criteria is|phenomena is)\\b",
             "description": "Ensure consistent singular/plural usage (e.g., 'data is,' 'criteria are,' 'phenomena are')",
-            "is_error": true
-        },
-        {
-            "pattern": "\\bappropriate\\b",
-            "description": "Avoid vague terms like 'appropriate'; specify conditions or criteria",
-            "is_error": true
-        },
-        {
-            "pattern": "\\b(is|was|were|are|be|been|being)\\s+(\\w+ed)\\b",
-            "description": "Flag likely passive constructions even if no agent ('by') is present",
             "is_error": true
         },
         {
@@ -185,11 +170,6 @@
             "is_error": true
         },
         {
-            "pattern": "\\bfollowing\\b",
-            "description": "Avoid using 'following' for references; specify the section or item explicitly",
-            "is_error": true
-        },
-        {
             "pattern": "\\blatter\\b",
             "description": "Avoid using 'latter'; specify the item explicitly",
             "is_error": true
@@ -197,26 +177,6 @@
         {
             "pattern": "\\bformer\\b",
             "description": "Avoid using 'former'; specify the item explicitly",
-            "is_error": true
-        },
-        {
-            "pattern": "\\bthis\\b",
-            "description": "Avoid using 'this' without a clear antecedent",
-            "is_error": true
-        },
-        {
-            "pattern": "\\bit\\b",
-            "description": "Avoid using 'it' without a clear antecedent",
-            "is_error": true
-        },
-        {
-            "pattern": "\\bthese\\b",
-            "description": "Avoid using 'these' without a clear antecedent",
-            "is_error": true
-        },
-        {
-            "pattern": "\\bsuch\\b",
-            "description": "Avoid using 'such' without a clear antecedent",
             "is_error": true
         },
         {
@@ -245,21 +205,6 @@
             "is_error": true
         },
         {
-            "pattern": "\\bafore\\b",
-            "description": "Avoid using archaic terms like 'afore'; specify the item explicitly",
-            "is_error": true
-        },
-        {
-            "pattern": "\\b(may|might|could|should|possibly|likely)\\b",
-            "description": "Avoid vague terms; use definitive language unless conditional meaning is intended",
-            "is_error": true
-        },
-        {
-            "pattern": "\\b(as stated in|refer to|see)\\b.*?(\\bAppendix\\b|\\bTable\\b|\\bSection\\b|\\bFigure\\b)",
-            "description": "Ensure references are complete and properly formatted",
-            "is_error": true
-        },
-        {
             "pattern": "\\band/or\\b",
             "description": "Avoid using 'and/or'; rewrite the sentence to be more specific about the conditions",
             "is_error": true,
@@ -270,169 +215,7 @@
             "pattern": "\\b(?:pursuant to|in accordance with|in compliance with)\\b",
             "description": "Use simpler alternatives like 'under' or 'following'",
             "is_error": true,
-            "replacement": "under (per Document Drafting Handbook)"
-        },
-        {
-            "_comment": "Per Document Drafting Handbook",
-            "pattern": "\\b(?:authority|authorized|authorizes)\\b",
-            "description": "Specify the specific authority (e.g., 'under 49 U.S.C. § 44701')",
-            "is_error": true
-        },
-        {
-            "_comment": "Per Document Drafting Handbook",
-            "pattern": "\\b(?:means|includes|does not include|includes but is not limited to)\\b",
-            "description": "Ensure proper formatting of regulatory definitions",
-            "is_error": true
-        },
-        {
-            "_comment": "Per Document Drafting Handbook",
-            "pattern": "\\b(?:amends|adds|removes|revises|replaces)\\b",
-            "description": "Ensure proper use of regulatory action terms",
-            "is_error": true
-        },
-        {
-            "_comment": "Per Document Drafting Handbook",
-            "pattern": "\\b(?:applies|applicable|covers)\\s+(?:to|for|in)\\b",
-            "description": "Ensure clear specification of regulatory scope",
-            "is_error": true
-        },
-        {
-            "_comment": "Per Document Drafting Handbook",
-            "pattern": "\\b(?:comply|compliance|noncompliance)\\b",
-            "description": "Ensure proper handling of compliance terms",
-            "is_error": true
-        },
-        {
-            "_comment": "Per Document Drafting Handbook",
-            "pattern": "\\b(?:enforce|enforcement|violation)\\b",
-            "description": "Ensure proper handling of enforcement terms",
-            "is_error": true
-        },
-        {
-            "_comment": "Per Document Drafting Handbook",
-            "pattern": "\\b(?:implement|implementation|carry out)\\b",
-            "description": "Ensure proper handling of implementation terms",
-            "is_error": true
-        },
-        {
-            "_comment": "Per Document Drafting Handbook",
-            "pattern": "\\b(?:delegated|authorized|assigned)\\s+(?:to|by)\\b",
-            "description": "Ensure proper specification of authority delegation",
-            "is_error": true
-        },
-        {
-            "_comment": "Per Document Drafting Handbook",
-            "pattern": "\\b(?:requirement|standard|specification)\\s+(?:for|of|in)\\b",
-            "description": "Ensure proper specification of requirements and standards",
-            "is_error": true
-        },
-        {
-            "_comment": "Per Document Drafting Handbook",
-            "pattern": "\\b(?:procedure|process|method)\\s+(?:for|of|in)\\b",
-            "description": "Ensure proper specification of procedures and processes",
-            "is_error": true
-        },
-        {
-            "_comment": "Per Document Drafting Handbook",
-            "pattern": "\\b(?:document|record|report)\\s+(?:required|maintained|submitted)\\b",
-            "description": "Ensure proper specification of documentation requirements",
-            "is_error": true
-        },
-        {
-            "_comment": "Per Document Drafting Handbook",
-            "pattern": "\\b(?:review|approval|authorization)\\s+(?:required|granted|denied)\\b",
-            "description": "Ensure proper specification of review and approval processes",
-            "is_error": true
-        },
-        {
-            "_comment": "Per Document Drafting Handbook",
-            "pattern": "\\b(?:violation|penalty|sanction)\\s+(?:for|of|in)\\b",
-            "description": "Ensure proper specification of violations and penalties",
-            "is_error": true
-        },
-        {
-            "_comment": "Per Document Drafting Handbook",
-            "pattern": "\\b(?:waiver|exemption|variance)\\s+(?:from|of|for)\\b",
-            "description": "Ensure proper specification of waivers and exemptions",
-            "is_error": true
-        },
-        {
-            "_comment": "Per Document Drafting Handbook",
-            "pattern": "\\b(?:compliance|implementation|enforcement)\\s+(?:date|deadline|requirement)\\b",
-            "description": "Ensure proper specification of compliance dates",
-            "is_error": true
-        },
-        {
-            "_comment": "Per Document Drafting Handbook",
-            "pattern": "\\b(?:defined|definition|term)\\s+(?:in|under|for)\\b",
-            "description": "Ensure proper formatting of regulatory definitions",
-            "is_error": true
-        },
-        {
-            "_comment": "Per Document Drafting Handbook",
-            "pattern": "\\b(?:authority|power|jurisdiction)\\s+(?:to|for|over)\\b",
-            "description": "Ensure proper specification of regulatory authority",
-            "is_error": true
-        },
-        {
-            "_comment": "Per Document Drafting Handbook",
-            "pattern": "\\b(?:compliance|enforcement)\\s+(?:with|under|of)\\b",
-            "description": "Ensure proper specification of compliance and enforcement terms",
-            "is_error": true
-        },
-        {
-            "_comment": "Per Document Drafting Handbook",
-            "pattern": "\\b(?:implementation|transition|phase-in)\\s+(?:of|for|under)\\b",
-            "description": "Ensure proper specification of implementation and transition terms",
-            "is_error": true
-        },
-        {
-            "_comment": "Per Document Drafting Handbook",
-            "pattern": "\\b(?:regulatory|economic|environmental)\\s+(?:impact|analysis|assessment)\\s+(?:of|for|under)\\b",
-            "description": "Ensure proper handling of regulatory analysis terms",
-            "is_error": true
-        },
-        {
-            "_comment": "Per Document Drafting Handbook",
-            "pattern": "\\b(?:except|unless|provided that|notwithstanding)\\s+(?:for|under|in)\\b",
-            "description": "Ensure proper formatting of regulatory exceptions",
-            "is_error": true
-        },
-        {
-            "_comment": "Per Document Drafting Handbook",
-            "pattern": "\\b(?:requirement|standard|specification)\\s+(?:for|of|in)\\b",
-            "description": "Ensure proper specification of requirements and standards",
-            "is_error": true
-        },
-        {
-            "_comment": "Per Document Drafting Handbook",
-            "pattern": "\\b(?:procedure|process|method)\\s+(?:for|of|in)\\b",
-            "description": "Ensure proper specification of procedures and processes",
-            "is_error": true
-        },
-        {
-            "_comment": "Per Document Drafting Handbook",
-            "pattern": "\\b(?:document|record|report)\\s+(?:required|maintained|submitted)\\b",
-            "description": "Ensure proper specification of documentation requirements",
-            "is_error": true
-        },
-        {
-            "_comment": "Per Document Drafting Handbook",
-            "pattern": "\\b(?:review|approval|authorization)\\s+(?:required|granted|denied)\\b",
-            "description": "Ensure proper specification of review and approval processes",
-            "is_error": true
-        },
-        {
-            "_comment": "Per Document Drafting Handbook",
-            "pattern": "\\b(?:violation|penalty|sanction)\\s+(?:for|of|in)\\b",
-            "description": "Ensure proper specification of violations and penalties",
-            "is_error": true
-        },
-        {
-            "_comment": "Per Document Drafting Handbook",
-            "pattern": "\\b(?:waiver|exemption|variance)\\s+(?:from|of|for)\\b",
-            "description": "Ensure proper specification of waivers and exemptions",
-            "is_error": true
+            "replacement": "under or following (per Document Drafting Handbook)"
         },
         {
             "pattern": "\\bRegulatory and Guidance Library\\b",
@@ -451,6 +234,13 @@
             "description": "Replace 'RGL' with 'DRS'",
             "is_error": true,
             "replacement": "DRS"
+        },
+        {
+            "_comment": "Check for incorrect authority citation in Special Conditions",
+            "pattern": "\\b106\\(g\\).*?(?:\\.|$)",
+            "description": "49 U.S.C. 106(g) should not be included in Special Conditions authority citations. The correct citation is: Authority: 49 U.S.C. 106(f), 40113, 44701, 44702, and 44704",
+            "is_error": true,
+            "replacement": "Authority: 49 U.S.C. 106(f), 40113, 44701, 44702, and 44704"
         }
     ],
     "section_symbol": [
@@ -534,13 +324,13 @@
     ],
     "dates": [
         {
-            "pattern": "(?<![\\w/-])(\\d{1,2}/\\d{1,2}/\\d{2,4}|\\d{1,2}-\\d{1,2}-\\d{2,4}|\\d{4}-\\d{1,2}-\\d{1,2})(?![\\w/-])",
-            "description": "Use 'Month Day, Year' format instead of numeric date formats (MM/DD/YYYY, MM-DD-YYYY, YYYY-MM-DD)",
-            "is_error": true
+            "pattern": "(?<![\\w/-])(?!TSO-[A-Z]?\\d)(\\d{1,2}/\\d{1,2}/\\d{2,4}|\\d{1,2}-\\d{1,2}-\\d{2,4}|\\d{4}-\\d{1,2}-\\d{1,2})(?![\\w/-])",
+            "description": "Do not flag TSO references as date format issues",
+            "is_error": false
         },
         {
             "_comment": "Common aviation/regulatory references that look like dates but aren't",
-            "pattern": "\\b(?:AD|SFAR|AC|Order|Notice|Policy|Memo)\\s*\\d{2,4}[-/]\\d{1,2}[-/]\\d{1,2}\\b",
+            "pattern": "\\b(?:AD|SFAR|AC|Order|Notice|Policy|Memo|TSO)\\s*\\d{2,4}[-/]\\d{1,2}[-/]\\d{1,2}\\b|\\bTSO-[A-Z]?\\d{1,3}[a-zA-Z]?\\b",
             "description": "Do not flag aviation/regulatory references as date format issues",
             "is_error": false
         },
@@ -548,12 +338,6 @@
             "_comment": "Docket numbers including placeholders",
             "pattern": "\\bDocket\\s+(?:No\\.?|Number)\\s*\\d{2,4}[-/][xX]{1,2}[-/][xX]{1,2}\\b",
             "description": "Do not flag docket numbers with placeholders as date format issues",
-            "is_error": false
-        },
-        {
-            "_comment": "TSO references",
-            "pattern": "\\bTSO-[A-Z]?\\d{1,3}[a-zA-Z]?\\b",
-            "description": "Do not flag TSO references as date format issues",
             "is_error": false
         },
         {
@@ -755,33 +539,13 @@
             "replacement": "see §$1"
         }
     ],
-    "regulatory_analysis": [
-        {
-            "_comment": "Per Document Drafting Handbook",
-            "pattern": "\\b(?:comment|commenter|commenting)\\b",
-            "description": "Ensure proper handling of public comment references",
-            "is_error": true
-        },
-        {
-            "_comment": "Per Document Drafting Handbook",
-            "pattern": "\\b(?:cost-benefit|regulatory impact|economic impact)\\b",
-            "description": "Ensure proper handling of regulatory analysis terms",
-            "is_error": true
-        },
-        {
-            "_comment": "Per Document Drafting Handbook",
-            "pattern": "\\b(?:regulatory|economic|environmental)\\s+(?:impact|analysis|assessment)\\b",
-            "description": "Ensure proper handling of regulatory analysis terms",
-            "is_error": true
-        },
-        {
-            "_comment": "Per Document Drafting Handbook",
-            "pattern": "\\b(?:regulatory|economic|environmental)\\s+(?:impact|analysis|assessment)\\s+(?:of|for|under)\\b",
-            "description": "Ensure proper handling of regulatory analysis terms",
-            "is_error": true
-        }
-    ],
     "exceptions": [
+        {
+            "_comment": "TSO references - catch all formats",
+            "pattern": "TSO-[A-Z]?\\d{1,3}[a-zA-Z]?",
+            "description": "Do not flag TSO references",
+            "is_error": false
+        },
         {
             "_comment": "Per Document Drafting Handbook",
             "pattern": "\\b(?:except|unless|provided that)\\b",
@@ -837,6 +601,87 @@
             "pattern": "\\b(?:compliance|implementation|enforcement)\\s+(?:date|deadline|requirement)\\b",
             "description": "Ensure proper specification of compliance dates",
             "is_error": true
+        }
+    ],
+    "boilerplate": {
+        "ADVISORY_CIRCULAR": [
+            "This is a guidance document\\. Its content is not legally binding in its own right",
+            "The guidance provided in this AC is for manufacturers, modifiers, foreign regulatory authorities",
+            "The contents of this AC do not have the force and effect of law",
+            "This material does not change or create any additional regulatory requirements",
+            "If you find an error in this Advisory Circular",
+            "For your convenience, the AC Feedback Form is the last page of this AC"
+        ],
+        "POLICY_STATEMENT": [
+            "The contents of this policy statement do not have the force and effect of law",
+            "This policy statement does not constitute a new regulation",
+            "If a proposed method of compliance appears to differ from the guidance expressed in this policy statement",
+            "Additional information on the effect of FAA policy statements may be found in FAA Order IR 8100\\.16"
+        ],
+        "FEDERAL_REGISTER_NOTICE": [
+            "Except for Confidential Business Information \\(CBI\\) as described in the following paragraph",
+            "Confidential Business Information \\(CBI\\) is commercial or financial information",
+            "Paperwork Reduction Act Burden Statement",
+            "The FAA invites interested people to take part in this rulemaking",
+            "The FAA will consider all comments received by the closing date for comments"
+        ],
+        "SPECIAL_CONDITION": [
+            "Except for Confidential Business Information \\(CBI\\) as described in the following paragraph",
+            "Confidential Business Information \\(CBI\\) is commercial or financial information",
+            "Paperwork Reduction Act Burden Statement",
+            "The FAA invites interested people to take part in this rulemaking",
+            "The FAA will consider all comments received by the closing date for comments"
+        ]
+    },
+    "required_language": {
+        "ADVISORY_CIRCULAR": [
+            "This is a guidance document\\. Its content is not legally binding in its own right",
+            "The guidance provided in this AC is for manufacturers, modifiers, foreign regulatory authorities",
+            "The contents of this AC do not have the force and effect of law",
+            "This material does not change or create any additional regulatory requirements",
+            "If you find an error in this Advisory Circular",
+            "For your convenience, the AC Feedback Form is the last page of this AC"
+        ],
+        "POLICY_STATEMENT": [
+            "The contents of this policy statement do not have the force and effect of law",
+            "This policy statement does not constitute a new regulation",
+            "If a proposed method of compliance appears to differ from the guidance expressed in this policy statement",
+            "Additional information on the effect of FAA policy statements may be found in FAA Order IR 8100\\.16"
+        ],
+        "FEDERAL_REGISTER_NOTICE": [
+            "Except for Confidential Business Information \\(CBI\\) as described in the following paragraph",
+            "Confidential Business Information \\(CBI\\) is commercial or financial information",
+            "Paperwork Reduction Act Burden Statement",
+            "The FAA invites interested people to take part in this rulemaking",
+            "The FAA will consider all comments received by the closing date for comments"
+        ],
+        "SPECIAL_CONDITION": [
+            "Except for Confidential Business Information \\(CBI\\) as described in the following paragraph",
+            "Confidential Business Information \\(CBI\\) is commercial or financial information",
+            "Paperwork Reduction Act Burden Statement",
+            "The FAA invites interested people to take part in this rulemaking",
+            "The FAA will consider all comments received by the closing date for comments"
+        ]
+    },
+    "phone_numbers": [
+        {
+            "_comment": "Common phone number formats to check for consistency",
+            "pattern": "\\(?\\d{3}\\)?[\\s-]?\\d{3}[\\s-]?\\d{4}",
+            "description": "Phone number in various formats (xxx) xxx-xxxx, xxx-xxx-xxxx, etc.",
+            "is_error": false,
+            "format_name": "mixed_format"
+        },
+        {
+            "pattern": "\\d{3}\\.\\d{3}\\.\\d{4}",
+            "description": "Phone number in format xxx.xxx.xxxx",
+            "is_error": false,
+            "format_name": "dot_format"
+        },
+        {
+            "pattern": "\\d{10}",
+            "description": "Phone number in format xxxxxxxxxx",
+            "is_error": false,
+            "format_name": "plain_format"
         }
     ]
 }
