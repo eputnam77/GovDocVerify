@@ -2,28 +2,36 @@
 
 import unittest
 import os
+import tempfile
 from typing import List, Dict, Any
 from docx import Document
-from app import FAADocumentChecker, DocumentType, DocumentCheckResult
+from document_checker import FAADocumentChecker
+from models import DocumentType, DocumentCheckResult
 
 class TestBase(unittest.TestCase):
-    """Base class for all document checker tests."""
+    """Base test class with common test functionality."""
     
-    @classmethod
-    def setUpClass(cls):
-        """Set up test fixtures before running tests."""
-        cls.checker = FAADocumentChecker()
-        cls.test_data_dir = os.path.join(os.path.dirname(__file__), 'test_data')
-        os.makedirs(cls.test_data_dir, exist_ok=True)
+    def setUp(self):
+        """Set up test environment."""
+        self.checker = FAADocumentChecker()
+        self.temp_files = []
+    
+    def tearDown(self):
+        """Clean up test environment."""
+        for file_path in self.temp_files:
+            if os.path.exists(file_path):
+                os.unlink(file_path)
     
     def create_test_docx(self, content: List[str], filename: str) -> str:
-        """Create a test DOCX file with the given content."""
+        """Create a temporary DOCX file with given content."""
         doc = Document()
         for paragraph in content:
             doc.add_paragraph(paragraph)
-        filepath = os.path.join(self.test_data_dir, filename)
-        doc.save(filepath)
-        return filepath
+        
+        temp_path = os.path.join(tempfile.gettempdir(), filename)
+        doc.save(temp_path)
+        self.temp_files.append(temp_path)
+        return temp_path
     
     def assert_check_result(self, result: DocumentCheckResult, expected_success: bool, 
                           expected_issue_count: int = 0):
@@ -31,18 +39,18 @@ class TestBase(unittest.TestCase):
         self.assertEqual(result.success, expected_success)
         self.assertEqual(len(result.issues), expected_issue_count)
     
-    def assert_issue_contains(self, result: DocumentCheckResult, expected_text: str):
-        """Assert that at least one issue contains the expected text."""
-        issue_texts = [issue.get('text', '') for issue in result.issues]
-        self.assertTrue(any(expected_text in text for text in issue_texts),
-                       f"Expected text '{expected_text}' not found in issues: {issue_texts}")
-    
     def assert_no_issues(self, result: DocumentCheckResult):
-        """Assert that there are no issues in the result."""
-        self.assertTrue(result.success)
-        self.assertEqual(len(result.issues), 0)
+        """Assert that a check result has no issues."""
+        self.assertTrue(result.success, f"Expected no issues but found: {result.issues}")
+        self.assertEqual(len(result.issues), 0, f"Expected no issues but found: {result.issues}")
     
-    def assert_has_issues(self, result: DocumentCheckResult, min_issues: int = 1):
-        """Assert that there are at least the minimum number of issues."""
-        self.assertFalse(result.success)
-        self.assertGreaterEqual(len(result.issues), min_issues) 
+    def assert_has_issues(self, result: DocumentCheckResult):
+        """Assert that a check result has issues."""
+        self.assertFalse(result.success, "Expected issues but found none")
+        self.assertGreater(len(result.issues), 0, "Expected issues but found none")
+    
+    def assert_issue_contains(self, result: DocumentCheckResult, text: str):
+        """Assert that a check result contains an issue with the given text."""
+        self.assertFalse(result.success, "Expected issues but found none")
+        self.assertTrue(any(text in issue.get('message', '') for issue in result.issues),
+                       f"Expected to find issue containing '{text}' but found: {result.issues}") 
