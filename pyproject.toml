@@ -1,50 +1,70 @@
 [build-system]
-requires = ["setuptools>=42", "wheel"]
-build-backend = "setuptools.build_meta"
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
 
-[project]
+[tool.poetry]
 name = "document-checker-tool"
-version = "1.0.0"
-description = "A tool for checking document formatting and compliance"
-authors = [
-    {name = "Your Name", email = "your.email@example.com"}
-]
-dependencies = [
-    "python-docx>=0.8.11",
-    "gradio>=3.50.2",
-    "pydantic>=2.0.0",
-    "typing-extensions>=4.0.0",
-    "regex>=2023.0.0"
-]
-requires-python = ">=3.8"
+version = "0.1.0"
+description = "A tool for checking and validating documents"
+authors = ["Your Name <your.email@example.com>"]
+readme = "README.md"
+packages = [{include = "documentcheckertool"}]
 
-[tool.flake8]
-max-line-length = 120
-ignore = E203, W503, E501
-per-file-ignores =
-    __init__.py:F401
-    tests/*:D100,D101,D102,D103,D104,D105,D106,D107
-exclude = .git,__pycache__,build,dist
-docstring-convention = google
-import-order-style = google
-select = E,F,W,B,C,N,D
-extend-ignore = E203,W503
-extend-select = B,C,N,D
+[tool.poetry.dependencies]
+python = "^3.10"
+numpy = "1.24.3"
+pandas = "2.2.1"
+openai = "1.12.0"
+chromadb = "0.4.24"
+tiktoken = "0.7.0"
+typer = "0.12.0"
+fastapi = "0.115.12"
+uvicorn = "0.34.2"
+gradio = "5.28.0"
+gradio-client = "1.10.0"
+python-docx = "1.1.2"
+nltk = "3.9.1"
+bcrypt = "4.3.0"
+python-jose = "3.4.0"
+passlib = "1.7.4"
+pydantic = "2.11.4"
+pydantic-core = "2.33.2"
+typing-extensions = "4.13.2"
+typing-inspection = "0.4.0"
+filetype = "1.2.0"
+python-multipart = "0.0.20"
+httpx = "0.28.1"
+safehttpx = "0.1.6"
 
-[tool.black]
+[tool.poetry.group.dev.dependencies]
+bandit = "1.8.3"
+mypy = "1.15.0"
+ruff = "0.11.8"
+vulture = "2.14"
+pytest = "8.3.5"
+pytest-asyncio = "0.26.0"
+pre-commit = "4.2.0"
+identify = "2.6.10"
+cfgv = "3.4.0"
+pytest-cov = "4.1.0"
+
+[tool.ruff]
 line-length = 120
-target-version = ['py38']
-include = '\.pyi?$'
+target-version = "py39"
+select = ["E", "F", "B", "I", "N", "UP", "PL", "RUF"]
+ignore = []
+exclude = [
+    ".git",
+    ".ruff_cache",
+    "__pycache__",
+    "build",
+    "dist",
+    "venv",
+]
 
-[tool.isort]
-profile = "black"
-multi_line_output = 3
-include_trailing_comma = true
-force_grid_wrap = 0
-use_parentheses = true
-line_length = 120
-known_first_party = ["documentchecker"]
-known_third_party = ["gradio", "docx", "colorama"]
+[tool.ruff.isort]
+known-first-party = ["documentcheckertool"]
+known-third-party = ["gradio", "docx", "colorama", "nltk", "pydantic"]
 
 [tool.mypy]
 python_version = "3.9"
@@ -59,25 +79,16 @@ warn_redundant_casts = true
 warn_unused_ignores = true
 warn_no_return = true
 warn_unreachable = true
+ignore_missing_imports = true
 
 [tool.pytest.ini_options]
-minversion = "6.0"
-addopts = "-ra -q"
-testpaths = [
-    "tests",
-]
+asyncio_mode = "auto"
+testpaths = ["tests"]
 python_files = ["test_*.py"]
-markers = [
-    "integration: marks tests that require external services",
-    "slow: marks tests that are slow to run",
-]
-filterwarnings = [
-    "ignore::DeprecationWarning",
-    "ignore::UserWarning",
-]
+addopts = "-v --cov=documentcheckertool --cov-report=term-missing"
 
 [tool.coverage.run]
-source = ["documentchecker"]
+source = ["documentcheckertool"]
 omit = [
     "*/tests/*",
     "*/setup.py",
@@ -92,12 +103,6 @@ exclude_lines = [
     "if False:",
     "if TYPE_CHECKING:",
 ]
-
-[tool.ruff]
-line-length = 100
-target-version = "py39"
-select = ["E", "F", "B", "I", "N", "UP", "PL", "RUF"]
-ignore = []
 
 [tool.bandit]
 exclude_dirs = ["tests"]

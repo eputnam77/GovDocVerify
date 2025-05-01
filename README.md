@@ -9,6 +9,8 @@ app_file: app.py
 pinned: false
 ---
 
+# ERIC - 5/1/2025: NEED to determine best approach when deploying this app: conda, pip (requirements.txt), other
+
 # Document Checker Tool
 
 A tool for checking documents against FAA style guidelines.
@@ -220,3 +222,49 @@ Highlights sentences longer than 35 words.
 --- 
 
 **Note:** This tool is a work in progress. Expect more features and updates in the future to meet evolving document requirements.
+
+## Development Setup with Poetry
+
+This project uses [Poetry](https://python-poetry.org/) for dependency management. Follow these steps to set up your development environment:
+
+1. Install Poetry:
+   ```bash
+   # Windows (PowerShell)
+   (Invoke-WebRequest -Uri https://install.python-poetry.org -UseBasicParsing).Content | python -
+
+   # macOS/Linux
+   curl -sSL https://install.python-poetry.org | python3 -
+   ```
+
+2. Install dependencies:
+   ```bash
+   poetry install
+   ```
+
+3. Activate the virtual environment:
+   ```bash
+   poetry shell
+   ```
+
+4. Run the application:
+   ```bash
+   poetry run python -m document_checker.main
+   ```
+
+### Development Tools
+
+The project includes several development tools configured in Poetry:
+
+- **Linting**: `poetry run ruff check .`
+- **Type Checking**: `poetry run mypy .`
+- **Security Scanning**: `poetry run bandit -r .`
+- **Testing**: `poetry run pytest`
+- **Dead Code Detection**: `poetry run vulture .`
+
+### Pre-commit Hooks
+
+Pre-commit hooks are configured to run checks before each commit:
+
+```bash
+poetry run pre-commit install
+```
