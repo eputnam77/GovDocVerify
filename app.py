@@ -4,7 +4,6 @@ import os
 import re
 import json
 import time
-import textwrap
 import logging
 import traceback
 from datetime import datetime
@@ -12,15 +11,16 @@ from enum import Enum, auto
 from typing import Dict, List, Any, Tuple, Optional, Pattern, Callable, Set
 from dataclasses import dataclass
 from functools import wraps
-from abc import ABC, abstractmethod
-# import tempfile  # For creating temporary files
 import requests
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
+from types import MappingProxyType
 
 # Third-party imports
 import gradio as gr
 from docx import Document
+from docx.opc.exceptions import PackageNotFoundError, PackageInvalidError
+from docx.exceptions import InvalidFileFormatError
 from colorama import init, Fore, Style
 # from weasyprint import HTML  # PDF generation related import
 
@@ -134,8 +134,12 @@ class DocumentChecker:
                 raise DocumentCheckError("No text content found in document")
             
             return paragraphs
-        except Exception as e:
-            raise DocumentCheckError(f"Error processing document: {str(e)}\n\nPlease ensure the file is a valid .docx document and try again.")
+        except (PackageNotFoundError, PackageInvalidError) as e:
+            raise DocumentCheckError(f"Invalid document format: {str(e)}")
+        except InvalidFileFormatError as e:
+            raise DocumentCheckError(f"Invalid file format: {str(e)}")
+        except (IOError, OSError) as e:
+            raise DocumentCheckError(f"Error reading document: {str(e)}")
 
     @staticmethod
     def validate_input(doc: List[str]) -> bool:
@@ -387,7 +391,7 @@ class DocumentCheckerConfig:
                         ) for p in pattern_list
                     ]
                     
-        except Exception as e:
+        except (json.JSONDecodeError, IOError) as e:
             self.logger.error(f"Error loading patterns: {e}")
             # Return empty patterns dictionary if file loading fails
             return {}
@@ -414,7 +418,7 @@ class FAADocumentChecker(DocumentChecker):
     """Document checker implementation for FAA documents."""
     
     # Class Constants
-    PERIOD_REQUIRED = {
+    PERIOD_REQUIRED = MappingProxyType({
         DocumentType.ADVISORY_CIRCULAR: True,
         DocumentType.AIRWORTHINESS_CRITERIA: False,
         DocumentType.DEVIATION_MEMO: False,
@@ -426,54 +430,54 @@ class FAADocumentChecker(DocumentChecker):
         DocumentType.SPECIAL_CONDITION: False,
         DocumentType.TECHNICAL_STANDARD_ORDER: True,
         DocumentType.OTHER: False
-    }
+    })
     
-    HEADING_WORDS = {
+    HEADING_WORDS = frozenset({
         'APPLICABILITY', 'APPENDIX', 'AUTHORITY', 'BACKGROUND', 'CANCELLATION', 'CAUTION',
         'CHAPTER', 'CONCLUSION', 'DEPARTMENT', 'DEFINITION', 'DEFINITIONS', 'DISCUSSION',
         'DISTRIBUTION', 'EXCEPTION', 'EXPLANATION', 'FIGURE', 'GENERAL', 'GROUPS', 
         'INFORMATION', 'INSERT', 'INTRODUCTION', 'MATERIAL', 'NOTE', 'PARTS', 'PAST', 
         'POLICY', 'PRACTICE', 'PROCEDURES', 'PURPOSE', 'RELEVANT', 'RELATED', 
         'REQUIREMENTS', 'REPORT', 'SCOPE', 'SECTION', 'SUMMARY', 'TABLE', 'WARNING'
-    }
+    })
     
-    PREDEFINED_ACRONYMS = {
+    PREDEFINED_ACRONYMS = frozenset({
         'AGC', 'AIR', 'CFR', 'DC', 'DOT', 'FAA IR-M', 'FAQ', 'i.e.', 'e.g.', 'MA',
         'MD', 'MIL', 'MO', 'No.', 'PDF', 'SAE', 'SSN', 'TX', 'U.S.', 'U.S.C.', 'USA', 'US', 
         'WA', 'XX', 'ZIP', 'ACO', 'RGL'
-    }
+    })
 
     # Boilerplate text patterns to ignore in length checks
-    BOILERPLATE_PATTERNS = {
-        DocumentType.ADVISORY_CIRCULAR: [
+    BOILERPLATE_PATTERNS = MappingProxyType({
+        DocumentType.ADVISORY_CIRCULAR: (
             r"This is a guidance document\. Its content is not legally binding in its own right",
             r"The guidance provided in this AC is for manufacturers, modifiers, foreign regulatory authorities",
             r"The contents of this AC do not have the force and effect of law",
             r"This material does not change or create any additional regulatory requirements",
             r"If you find an error in this Advisory Circular",
             r"For your convenience, the AC Feedback Form is the last page of this AC"
-        ],
-        DocumentType.POLICY_STATEMENT: [
+        ),
+        DocumentType.POLICY_STATEMENT: (
             r"The contents of this policy statement do not have the force and effect of law",
             r"This policy statement does not constitute a new regulation",
             r"If a proposed method of compliance appears to differ from the guidance expressed in this policy statement",
             r"Additional information on the effect of FAA policy statements may be found in FAA Order IR 8100\.16"
-        ],
-        DocumentType.FEDERAL_REGISTER_NOTICE: [
+        ),
+        DocumentType.FEDERAL_REGISTER_NOTICE: (
             r"Except for Confidential Business Information \(CBI\) as described in the following paragraph",
             r"Confidential Business Information \(CBI\) is commercial or financial information",
             r"Paperwork Reduction Act Burden Statement",
             r"The FAA invites interested people to take part in this rulemaking",
             r"The FAA will consider all comments received by the closing date for comments"
-        ],
-        DocumentType.SPECIAL_CONDITION: [
+        ),
+        DocumentType.SPECIAL_CONDITION: (
             r"Except for Confidential Business Information \(CBI\) as described in the following paragraph",
             r"Confidential Business Information \(CBI\) is commercial or financial information",
             r"Paperwork Reduction Act Burden Statement",
             r"The FAA invites interested people to take part in this rulemaking",
             r"The FAA will consider all comments received by the closing date for comments"
-        ]
-    }
+        )
+    })
 
     # Required language patterns for different document types
     REQUIRED_LANGUAGE_PATTERNS = {
@@ -553,7 +557,7 @@ class FAADocumentChecker(DocumentChecker):
                         ) for p in pattern_list
                     ]
                     
-        except Exception as e:
+        except (json.JSONDecodeError, IOError) as e:
             self.logger.error(f"Error loading patterns: {e}")
             # Return empty patterns dictionary if file loading fails
             return {}
@@ -678,126 +682,145 @@ class FAADocumentChecker(DocumentChecker):
     @profile_performance
     def heading_title_period_check(self, doc: List[str], doc_type: str) -> DocumentCheckResult:
         """
-        Check if headings end with periods according to document type requirements.
-        Enforces both required periods and no periods based on document type.
-        
-        Args:
-            doc (List[str]): List of document paragraphs
-            doc_type (str): Type of document being checked
-                
-        Returns:
-            DocumentCheckResult: Result of the heading period check including:
-                - success: Boolean indicating if all headings follow period rules
-                - issues: List of dicts with heading format issues
-                - details: Additional information about the check
+        Check if headings have the correct period usage based on document type.
         """
         if not self.validate_input(doc):
-            self.logger.error("Invalid document input for period check")
             return DocumentCheckResult(success=False, issues=[{'error': 'Invalid document input'}])
 
-        # Validate document type exists in configuration
-        doc_type_config = self.config_manager.config['document_types'].get(doc_type)
-        if not doc_type_config:
-            self.logger.error(f"Unsupported document type: {doc_type}")
-            return DocumentCheckResult(
-                success=False, 
-                issues=[{'error': f'Unsupported document type: {doc_type}'}]
-            )
+        issues = []
+        doc_type_enum = DocumentType.from_string(doc_type)
+        requires_period = self.PERIOD_REQUIRED.get(doc_type_enum, False)
 
-        # Define document types requiring periods in headings
-        period_required = {
-            "Advisory Circular": True,
-            "Airworthiness Criteria": False,
-            "Deviation Memo": False,
-            "Exemption": False,
-            "Federal Register Notice": False,
-            "Order": True,
-            "Policy Statement": False,
-            "Rule": False,
-            "Special Condition": False,
-            "Technical Standard Order": True,
-            "Other": False
-        }
+        for paragraph in doc:
+            # Skip empty paragraphs
+            if not paragraph.strip():
+                continue
 
-        should_have_period = period_required.get(doc_type)
-        if should_have_period is None:
-            self.logger.error(f"Period requirement not defined for document type: {doc_type}")
-            return DocumentCheckResult(
-                success=False, 
-                issues=[{'error': f'Period requirement not defined for document type: {doc_type}'}]
-            )
+            # Check if this is a heading (starts with a number followed by a period)
+            match = re.match(r'^(\d+\.)\s*(.*)', paragraph.strip())
+            if match:
+                number, heading_text = match.groups()
+                heading_text = heading_text.strip()
+
+                # Check if heading ends with a period
+                has_period = heading_text.endswith('.')
+                
+                if requires_period and not has_period:
+                    issues.append({
+                        'heading': heading_text,
+                        'message': f"Heading '{heading_text}' should end with a period"
+                    })
+                elif not requires_period and has_period:
+                    issues.append({
+                        'heading': heading_text,
+                        'message': f"Heading '{heading_text}' should not end with a period"
+                    })
+
+        return DocumentCheckResult(success=len(issues) == 0, issues=issues)
+
+    @profile_performance
+    def spacing_check(self, doc: List[str]) -> DocumentCheckResult:
+        """Check for correct spacing in the document."""
+        if not self.validate_input(doc):
+            return DocumentCheckResult(success=False, issues=[{'error': 'Invalid document input'}])
+
+        spacing_patterns = self.config_manager.pattern_registry.get('spacing', [])
+        issues = []
         
-        # Get the headings configuration for this document type
-        required_headings = doc_type_config.get('required_headings', [])
+        try:
+            for paragraph in doc:
+                if not paragraph.strip() or '\t' in paragraph:
+                    continue
+
+                for pattern_config in spacing_patterns:
+                    matches = re.finditer(pattern_config.pattern, paragraph)
+                    for match in matches:
+                        groups = match.groups()
+                        description = pattern_config.description.replace('{0}', groups[0]).replace('{1}', groups[1])
+                        
+                        context_start = max(0, match.start() - 20)
+                        context_end = min(len(paragraph), match.end() + 20)
+                        context = paragraph[context_start:context_end].strip()
+                        
+                        issues.append({
+                            'type': 'spacing',
+                            'incorrect': match.group(),
+                            'context': context,
+                            'description': description
+                        })
+
+        except (re.error, AttributeError) as e:
+            self.logger.error(f"Error in spacing check: {str(e)}")
+            return DocumentCheckResult(success=False, issues=[{'error': f'Spacing check failed: {str(e)}'}])
+
+        return DocumentCheckResult(success=len(issues) == 0, issues=issues)
+
+    def _format_spacing_issues(self, result: DocumentCheckResult) -> List[str]:
+        """Format spacing issues with clear instructions for fixing."""
+        formatted_issues = []
         
-        if not required_headings:
-            return DocumentCheckResult(
-                success=True, 
-                issues=[], 
-                details={'message': f'No required headings defined for {doc_type}'}
-            )
+        if result.issues:
+            for issue in result.issues:
+                if 'error' in issue:
+                    formatted_issues.append(f"    • {issue['error']}")
+                else:
+                    formatted_issues.append(
+                        f"    • {issue['description']} in: \"{issue['context']}\""
+                    )
+        
+        return formatted_issues
+
+    @profile_performance
+    def check_parentheses(self, doc: List[str]) -> DocumentCheckResult:
+        """
+        Check for matching parentheses in the document.
+
+        Args:
+            doc (List[str]): List of document paragraphs
+
+        Returns:
+            DocumentCheckResult: Result containing any mismatched parentheses issues
+        """
+        if not self.validate_input(doc):
+            return DocumentCheckResult(success=False, issues=[{'error': 'Invalid document input'}])
 
         issues = []
-        checked_headings = []
-
-        # Create a set of normalized required headings (without periods)
-        # Strip periods from the required headings to allow for flexible matching
-        required_headings_set = {h.rstrip('.') for h in required_headings}
-
-        for para in doc:
-            para_strip = para.strip()
-            para_base = para_strip.rstrip('.')
+        
+        for i, paragraph in enumerate(doc, 1):
+            if not paragraph.strip():  # Skip empty paragraphs
+                continue
             
-            # Check only if paragraph is a heading (comparing without periods)
-            if para_base in required_headings_set:
-                ends_with_period = para_strip.endswith('.')
-                
-                # Check for both cases:
-                # 1. Should have period but doesn't
-                # 2. Shouldn't have period but does
-                if should_have_period and not ends_with_period:
-                    issues.append({
-                        'heading': para_strip,
-                        'issue': 'missing_period',
-                        'message': f"Heading should end with a period: '{para_strip}'"
-                    })
-                elif not should_have_period and ends_with_period:
-                    issues.append({
-                        'heading': para_strip,
-                        'issue': 'unexpected_period',
-                        'message': f"Heading should not have a period: '{para_strip}'"
-                    })
+            stack = []  # Track unmatched opening parentheses
+            sentences = re.split(r'(?<=[.!?])\s+', paragraph)  # Split paragraph into sentences
+            for sentence in sentences:
+                for j, char in enumerate(sentence):
+                    if char == '(':
+                        stack.append((sentence, j))  # Store sentence and character position
+                    elif char == ')':
+                        if stack:
+                            stack.pop()  # Remove matching opening parenthesis
+                        else:
+                            # No matching opening parenthesis
+                            issues.append({
+                                'type': 'missing_opening',
+                                'paragraph': i,  # Still tracked but not included in the message
+                                'position': j,
+                                'text': sentence,
+                                'message': f"Add an opening parenthesis to the sentence: \"{sentence.strip()}\""
+                            })
 
-                checked_headings.append({
-                    'heading': para_strip,
-                    'has_period': ends_with_period,
-                    'needs_period': should_have_period
+            # Check for any unmatched opening parentheses left in the stack
+            for unmatched in stack:
+                sentence, pos = unmatched
+                issues.append({
+                    'type': 'missing_closing',
+                    'paragraph': i,  # Still tracked but not included in the message
+                    'position': pos,
+                    'text': sentence,
+                    'message': f"Add a closing parenthesis to the sentence: \"{sentence.strip()}\""
                 })
 
-        # Calculate statistics for the details
-        total_checked = len(checked_headings)
-        total_issues = len(issues)
-        incorrect_period_count = sum(1 for h in checked_headings 
-                                if h['has_period'] != h['needs_period'])
-
-        # Detailed results for debugging and reporting
-        details = {
-            'document_type': doc_type,
-            'periods_required': should_have_period,
-            'checked_headings': checked_headings,
-            'total_checked': total_checked,
-            'total_issues': total_issues,
-            'incorrect_period_count': incorrect_period_count
-        }
-
-        success = len(issues) == 0
-
-        # Log summary for debugging
-        self.logger.debug(f"Period check for {doc_type}: "
-                        f"checked {total_checked} headings, "
-                        f"found {total_issues} issues")
-
-        return DocumentCheckResult(success=success, issues=issues, details=details)
+        return DocumentCheckResult(success=len(issues) == 0, issues=issues)
 
     @profile_performance
     def acronym_check(self, doc: List[str]) -> DocumentCheckResult:
@@ -1356,71 +1379,6 @@ class FAADocumentChecker(DocumentChecker):
         return DocumentCheckResult(success=success, issues=incorrect_sentences)
 
     @profile_performance
-    def spacing_check(self, doc: List[str]) -> DocumentCheckResult:
-        """Check for correct spacing in the document."""
-        if not self.validate_input(doc):
-            return DocumentCheckResult(success=False, issues=[{'error': 'Invalid document input'}])
-
-        issues = []
-        
-        try:
-            for paragraph in doc:
-                # Skip empty paragraphs
-                if not paragraph.strip():
-                    continue
-                    
-                # Skip paragraphs with tabs
-                if '\t' in paragraph:
-                    continue
-                    
-                # Check for multiple spaces between words, but ignore spaces around parentheses
-                # First, temporarily replace valid parenthetical patterns to protect them
-                working_text = paragraph
-                
-                # Protect common regulatory reference patterns
-                patterns_to_ignore = [
-                    r'\d+\(\d+\)\([a-z]\)',  # matches patterns like 25(1)(a)
-                    r'\d+\([a-z]\)',         # matches patterns like 25(a)
-                    r'\([a-z]\)\(\d+\)',     # matches patterns like (a)(1)
-                    r'\(\d+\)\([a-z]\)',     # matches patterns like (1)(a)
-                    r'\([a-z]\)',            # matches single letter references like (a)
-                    r'\(\d+\)',              # matches number references like (1)
-                ]
-                
-                for pattern in patterns_to_ignore:
-                    working_text = re.sub(pattern, lambda m: 'PROTECTED' + str(hash(m.group())), working_text)
-                
-                # Now check for multiple spaces
-                matches = re.finditer(r'[ ]{2,}', working_text)
-                for match in matches:
-                    issues.append({
-                        'incorrect': match.group(),
-                        'context': paragraph.strip(),
-                        'description': "Remove extra spaces"
-                    })
-
-        except Exception as e:
-            self.logger.error(f"Error in spacing check: {str(e)}")
-            return DocumentCheckResult(success=False, issues=[{'error': f'Spacing check failed: {str(e)}'}])
-
-        return DocumentCheckResult(success=len(issues) == 0, issues=issues)
-
-    def _format_spacing_issues(self, result: DocumentCheckResult) -> List[str]:
-        """Format spacing issues with clear instructions for fixing."""
-        formatted_issues = []
-        
-        if result.issues:
-            for issue in result.issues:
-                if 'error' in issue:
-                    formatted_issues.append(f"    • {issue['error']}")
-                else:
-                    formatted_issues.append(
-                        f"    • {issue['description']} in: \"{issue['context']}\""
-                    )
-        
-        return formatted_issues
-
-    @profile_performance
     def check_abbreviation_usage(self, doc: List[str]) -> DocumentCheckResult:
         """Check for abbreviation consistency after first definition."""
         if not self.validate_input(doc):
@@ -1755,13 +1713,22 @@ class FAADocumentChecker(DocumentChecker):
         """
         Process document paragraphs into sentences with their parent paragraphs.
         
+        This method splits each paragraph into sentences and maintains the relationship
+        between each sentence and its parent paragraph for context preservation.
+        
         Args:
-            doc: List of document paragraphs
-            skip_empty: Whether to skip empty sentences
-            skip_headings: Whether to skip lines that appear to be headings
+            doc: List of document paragraphs to process.
+            skip_empty: Whether to skip empty sentences (default: True).
+            skip_headings: Whether to skip lines that appear to be headings (default: False).
             
         Returns:
-            List of tuples containing (sentence, parent_paragraph)
+            List[Tuple[str, str]]: A list of tuples where each tuple contains:
+                - The sentence text
+                - The parent paragraph text
+                
+        Note:
+            Empty sentences are defined as those containing only whitespace or punctuation.
+            Heading detection is based on capitalization and presence of heading words.
         """
         sentences = []
         
@@ -1873,58 +1840,6 @@ class FAADocumentChecker(DocumentChecker):
                 })
 
         return DocumentCheckResult(success=len(issues) == 0, issues=issues)
-
-    @profile_performance
-    def spacing_check(self, doc: List[str]) -> DocumentCheckResult:
-        """Check for correct spacing in the document."""
-        if not self.validate_input(doc):
-            return DocumentCheckResult(success=False, issues=[{'error': 'Invalid document input'}])
-
-        spacing_patterns = self.config_manager.pattern_registry.get('spacing', [])
-        issues = []
-        
-        try:
-            for paragraph in doc:
-                if not paragraph.strip() or '\t' in paragraph:
-                    continue
-
-                for pattern_config in spacing_patterns:
-                    matches = re.finditer(pattern_config.pattern, paragraph)
-                    for match in matches:
-                        groups = match.groups()
-                        description = pattern_config.description.replace('{0}', groups[0]).replace('{1}', groups[1])
-                        
-                        context_start = max(0, match.start() - 20)
-                        context_end = min(len(paragraph), match.end() + 20)
-                        context = paragraph[context_start:context_end].strip()
-                        
-                        issues.append({
-                            'type': 'spacing',
-                            'incorrect': match.group(),
-                            'context': context,
-                            'description': description
-                        })
-
-        except Exception as e:
-            self.logger.error(f"Error in spacing check: {str(e)}")
-            return DocumentCheckResult(success=False, issues=[{'error': f'Spacing check failed: {str(e)}'}])
-
-        return DocumentCheckResult(success=len(issues) == 0, issues=issues)
-
-    def _format_spacing_issues(self, result: DocumentCheckResult) -> List[str]:
-        """Format spacing issues with clear instructions for fixing."""
-        formatted_issues = []
-        
-        if result.issues:
-            for issue in result.issues:
-                if 'error' in issue:
-                    formatted_issues.append(f"    • {issue['error']}")
-                else:
-                    formatted_issues.append(
-                        f"    • {issue['description']} in: \"{issue['context']}\""
-                    )
-        
-        return formatted_issues
 
     @profile_performance
     def check_abbreviation_usage(self, doc: List[str]) -> DocumentCheckResult:
@@ -2088,78 +2003,6 @@ class FAADocumentChecker(DocumentChecker):
             return DocumentCheckResult(success=len(issues) == 0, issues=issues, details=details)
 
         return self._process_patterns(doc, 'placeholders', process_placeholders)
-
-    @profile_performance
-    def _process_patterns(
-        self,
-        doc: List[str],
-        pattern_category: str,
-        process_func: Optional[Callable] = None
-    ) -> DocumentCheckResult:
-        """
-        Process document text against patterns from a specific category.
-        
-        Args:
-            doc: List of document paragraphs
-            pattern_category: Category of patterns to check against
-            process_func: Optional custom processing function
-            
-        Returns:
-            DocumentCheckResult with processed issues
-        """
-        if not self.validate_input(doc):
-            self.logger.error("Invalid document input for pattern check")
-            return DocumentCheckResult(
-                success=False, 
-                issues=[{'error': 'Invalid document input'}]
-            )
-
-        # Get patterns from registry
-        patterns = self.config_manager.pattern_registry.get(pattern_category, [])
-        if not patterns:
-            self.logger.warning(f"No patterns found for category: {pattern_category}")
-            return DocumentCheckResult(
-                success=True,
-                issues=[],
-                details={'message': f'No patterns defined for {pattern_category}'}
-            )
-
-        # Use custom processing function if provided
-        if process_func:
-            return process_func(doc, patterns)
-
-        # Default processing with deduplication
-        unique_issues = set()  # Using a set to track unique issues
-
-        for paragraph in doc:
-            sentences = re.split(r'(?<=[.!?])\s+', paragraph)
-            for sentence in sentences:
-                sentence = sentence.strip()
-                if not sentence:
-                    continue
-                    
-                for pattern_config in patterns:
-                    matches = list(re.finditer(pattern_config.pattern, sentence))
-                    if matches:
-                        # Add each match as a tuple to ensure uniqueness
-                        for match in matches:
-                            unique_issues.add((
-                                match.group(),  # The matched text
-                                pattern_config.description,  # The issue description
-                                pattern_config.replacement if hasattr(pattern_config, 'replacement') else None
-                            ))
-
-        # Convert unique issues back to the expected format
-        formatted_issues = [
-            {
-                'incorrect': issue[0],
-                'description': issue[1],
-                'replacement': issue[2]
-            }
-            for issue in sorted(unique_issues)  # Sort for consistent output
-        ]
-
-        return DocumentCheckResult(success=len(formatted_issues) == 0, issues=formatted_issues)
 
     @profile_performance
     def check_paragraph_length(self, doc: List[str]) -> DocumentCheckResult:
@@ -2500,7 +2343,17 @@ class FAADocumentChecker(DocumentChecker):
         )
         
         # Helper function to check a single URL
-        def check_url(url):
+        def check_url(url: str) -> Optional[Dict[str, str]]:
+            """
+            Check if a URL is accessible and return any issues found.
+            
+            Args:
+                url: The URL to check for accessibility.
+                
+            Returns:
+                Optional[Dict[str, str]]: A dictionary containing the URL and error message if the URL is
+                inaccessible, or None if the URL is accessible.
+            """
             try:
                 response = requests.head(url, timeout=5, allow_redirects=True, headers={'User-Agent': 'CheckerTool/1.0'})
                 if response.status_code >= 400:
@@ -2511,7 +2364,7 @@ class FAADocumentChecker(DocumentChecker):
             except requests.RequestException:
                 return {
                     'url': url,
-                    'message': f"Check the link or internet connection: {url} (connection error)"
+                    'message': f"Failed to access URL: {url}"
                 }
             return None
 
@@ -2878,7 +2731,19 @@ class FAADocumentChecker(DocumentChecker):
         passive_regex = re.compile('|'.join(passive_patterns), re.IGNORECASE)
 
         def count_syllables(word: str) -> int:
-            """Count syllables in a word using basic rules."""
+            """
+            Count the number of syllables in a word using basic vowel counting rules.
+            
+            Args:
+                word: The word to count syllables in.
+                
+            Returns:
+                int: The number of syllables in the word.
+                
+            Note:
+                This is a simplified syllable counter that may not be accurate for all words.
+                It counts vowel groups and handles some common exceptions.
+            """
             word = word.lower()
             count = 0
             vowels = 'aeiouy'
@@ -3208,6 +3073,7 @@ class DocumentCheckResultsFormatter:
     
     def __init__(self):
         init()  # Initialize colorama
+        self.logger = logging.getLogger(__name__)
         
         # Enhanced issue categories with examples and specific fixes
         self.issue_categories = {
@@ -3827,7 +3693,7 @@ class DocumentCheckResultsFormatter:
                 
                 f.write(report)
         except Exception as e:
-            print(f"Error saving report: {e}")
+            self.logger.error(f"Error saving report: {e}")
 
     def _format_readability_issues(self, result: DocumentCheckResult) -> List[str]:
         """Format readability issues with clear, actionable feedback."""
