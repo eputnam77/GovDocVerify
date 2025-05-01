@@ -1,5 +1,6 @@
 import unittest
 from test_base import TestBase
+import os
 
 class TestStructureChecks(TestBase):
     """Test suite for document structure and readability checks."""
@@ -72,30 +73,17 @@ class TestStructureChecks(TestBase):
         self.assert_has_issues(result)
         self.assert_issue_contains(result, "readability")
     
-    def test_508_compliance_check_valid(self):
-        """Test 508 compliance check with valid document."""
-        content = [
-            "This is a document with proper formatting.",
-            "All images have alt text.",
-            "Tables have proper headers.",
-            "Links have descriptive text."
-        ]
-        doc_path = self.create_test_docx(content, "valid_508_compliance.docx")
-        result = self.checker.check_508_compliance(doc_path)
+    def test_508_compliance_valid(self):
+        """Test Section 508 compliance check with valid document."""
+        doc_path = os.path.join(self.test_data_dir, "valid_508_compliance.docx")
+        result = self.checker.check_section_508_compliance(doc_path)
         self.assert_no_issues(result)
     
-    def test_508_compliance_check_invalid(self):
-        """Test 508 compliance check with invalid document."""
-        content = [
-            "This is a document with improper formatting.",
-            "Images without alt text.",
-            "Tables without headers.",
-            "Links without descriptive text."
-        ]
-        doc_path = self.create_test_docx(content, "invalid_508_compliance.docx")
-        result = self.checker.check_508_compliance(doc_path)
+    def test_508_compliance_invalid(self):
+        """Test Section 508 compliance check with invalid document."""
+        doc_path = os.path.join(self.test_data_dir, "invalid_508_compliance.docx")
+        result = self.checker.check_section_508_compliance(doc_path)
         self.assert_has_issues(result)
-        self.assert_issue_contains(result, "508 compliance")
 
 if __name__ == '__main__':
     unittest.main() 

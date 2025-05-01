@@ -1,6 +1,8 @@
 gradio==4.19.2
-python-docx
-nltk
-pandas
-numpy
-colorama
+python-docx==0.8.11
+nltk==3.8.1
+pandas==2.2.1
+numpy==1.26.4
+colorama==0.4.6
+pytest==8.3.4
+pytest-asyncio==0.25.0

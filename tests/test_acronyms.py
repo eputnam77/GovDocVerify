@@ -1,4 +1,4 @@
-# python test_acronyms.py
+# python -m pytest tests/test_acronyms.py -v
 
 import unittest
 from test_base import TestBase

@@ -73,5 +73,47 @@ class TestFormatChecks(TestBase):
         self.assert_has_issues(result)
         self.assert_issue_contains(result, "placeholder")
 
+    def test_phone_number_format_usage(self):
+        """Test phone number format usage check."""
+        content = ["Call (123) 456-7890 for support", "Contact us at 123-456-7890"]
+        result = self.checker.check_phone_number_format_usage(content)
+        self.assertTrue(result.success)
+        self.assertEqual(len(result.issues), 0)
+
+    def test_phone_number_format_usage_inconsistent(self):
+        """Test phone number format usage check with inconsistent formats."""
+        content = ["Call (123) 456-7890 for support", "Contact us at 123.456.7890"]
+        result = self.checker.check_phone_number_format_usage(content)
+        self.assertFalse(result.success)
+        self.assertGreater(len(result.issues), 0)
+
+    def test_date_format_usage(self):
+        """Test date format usage check."""
+        content = ["The meeting is on January 1, 2023", "Deadline: 01/01/2023"]
+        result = self.checker.check_date_format_usage(content)
+        self.assertTrue(result.success)
+        self.assertEqual(len(result.issues), 0)
+
+    def test_date_format_usage_inconsistent(self):
+        """Test date format usage check with inconsistent formats."""
+        content = ["The meeting is on January 1, 2023", "Deadline: 1/1/23"]
+        result = self.checker.check_date_format_usage(content)
+        self.assertFalse(result.success)
+        self.assertGreater(len(result.issues), 0)
+
+    def test_placeholder_usage(self):
+        """Test placeholder usage check."""
+        content = ["This is a complete sentence.", "No placeholders here."]
+        result = self.checker.check_placeholder_usage(content)
+        self.assertTrue(result.success)
+        self.assertEqual(len(result.issues), 0)
+
+    def test_placeholder_usage_with_placeholders(self):
+        """Test placeholder usage check with placeholders."""
+        content = ["This is a complete sentence.", "TBD: Add more content here."]
+        result = self.checker.check_placeholder_usage(content)
+        self.assertFalse(result.success)
+        self.assertGreater(len(result.issues), 0)
+
 if __name__ == '__main__':
     unittest.main() 

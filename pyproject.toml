@@ -1,0 +1,94 @@
+[build-system]
+requires = ["setuptools>=42", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "document-checker-tool"
+version = "1.0.0"
+description = "A tool for checking document formatting and compliance"
+authors = [
+    {name = "Your Name", email = "your.email@example.com"}
+]
+dependencies = [
+    "python-docx>=0.8.11",
+    "gradio>=3.50.2",
+    "pydantic>=2.0.0",
+    "typing-extensions>=4.0.0",
+    "regex>=2023.0.0"
+]
+requires-python = ">=3.8"
+
+[tool.flake8]
+max-line-length = 120
+ignore = E203, W503, E501
+per-file-ignores =
+    __init__.py:F401
+    tests/*:D100,D101,D102,D103,D104,D105,D106,D107
+exclude = .git,__pycache__,build,dist
+docstring-convention = google
+import-order-style = google
+select = E,F,W,B,C,N,D
+extend-ignore = E203,W503
+extend-select = B,C,N,D
+
+[tool.black]
+line-length = 120
+target-version = ['py38']
+include = '\.pyi?$'
+
+[tool.isort]
+profile = "black"
+multi_line_output = 3
+include_trailing_comma = true
+force_grid_wrap = 0
+use_parentheses = true
+line_length = 120
+known_first_party = ["documentchecker"]
+known_third_party = ["gradio", "docx", "colorama"]
+
+[tool.mypy]
+python_version = "3.8"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
+check_untyped_defs = true
+disallow_untyped_decorators = true
+no_implicit_optional = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+warn_no_return = true
+warn_unreachable = true
+
+[tool.pytest.ini_options]
+minversion = "6.0"
+addopts = "-ra -q"
+testpaths = [
+    "tests",
+]
+python_files = ["test_*.py"]
+markers = [
+    "integration: marks tests that require external services",
+    "slow: marks tests that are slow to run",
+]
+filterwarnings = [
+    "ignore::DeprecationWarning",
+    "ignore::UserWarning",
+]
+
+[tool.coverage.run]
+source = ["documentchecker"]
+omit = [
+    "*/tests/*",
+    "*/setup.py",
+]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "if __name__ == .__main__.:",
+    "raise NotImplementedError",
+    "if False:",
+    "if TYPE_CHECKING:",
+] 
