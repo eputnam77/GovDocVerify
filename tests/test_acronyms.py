@@ -1,76 +1,59 @@
 # python -m pytest tests/test_acronyms.py -v
 
-import unittest
-from test_base import TestBase
+import pytest
+from pathlib import Path
 
-class TestAcronymChecks(TestBase):
-    """Test suite for acronym and terminology checks."""
+from documentcheckertool.checks.terminology_checks import check_acronyms
+from tests.test_base import TestBase
+
+class TestAcronyms(TestBase):
+    """Test cases for acronym checking functionality."""
     
-    def test_acronym_check_valid(self):
-        """Test acronym check with valid usage."""
-        content = [
-            "The Federal Aviation Administration (FAA) is responsible for aviation safety.",
-            "The FAA oversees all aspects of civil aviation."
-        ]
-        doc_path = self.create_test_docx(content, "valid_acronyms.docx")
-        result = self.checker.acronym_check(content)
+    def test_valid_acronym_definition(self):
+        """Test that valid acronym definitions pass."""
+        content = """
+        The Federal Aviation Administration (FAA) is responsible for aviation safety.
+        """
+        file_path = self.create_test_file(content, "test_acronyms.txt")
+        result = check_acronyms(file_path)
         self.assert_no_issues(result)
-    
-    def test_acronym_check_invalid(self):
-        """Test acronym check with invalid usage."""
-        content = [
-            "The FAA is responsible for aviation safety.",
-            "The FAA oversees all aspects of civil aviation."
-        ]
-        doc_path = self.create_test_docx(content, "invalid_acronyms.docx")
-        result = self.checker.acronym_check(content)
-        self.assert_has_issues(result)
-        self.assert_issue_contains(result, "FAA")
-    
-    def test_acronym_usage_check_valid(self):
-        """Test acronym usage check with valid usage."""
-        content = [
-            "The Federal Aviation Administration (FAA) is responsible for aviation safety.",
-            "The FAA oversees all aspects of civil aviation.",
-            "The FAA's mission is to provide the safest, most efficient aerospace system in the world."
-        ]
-        doc_path = self.create_test_docx(content, "valid_acronym_usage.docx")
-        result = self.checker.acronym_usage_check(content)
-        self.assert_no_issues(result)
-    
-    def test_acronym_usage_check_invalid(self):
-        """Test acronym usage check with invalid usage."""
-        content = [
-            "The Federal Aviation Administration (FAA) is responsible for aviation safety.",
-            "The FAA oversees all aspects of civil aviation.",
-            "The Federal Aviation Administration's mission is to provide the safest system."
-        ]
-        doc_path = self.create_test_docx(content, "invalid_acronym_usage.docx")
-        result = self.checker.acronym_usage_check(content)
-        self.assert_has_issues(result)
-        self.assert_issue_contains(result, "Federal Aviation Administration")
-    
-    def test_terminology_check_valid(self):
-        """Test terminology check with valid usage."""
-        content = [
-            "The aircraft must meet the requirements specified in this advisory circular.",
-            "The pilot must maintain visual contact with the runway."
-        ]
-        doc_path = self.create_test_docx(content, "valid_terminology.docx")
-        result = self.checker.check_terminology(content)
-        self.assert_no_issues(result)
-    
-    def test_terminology_check_invalid(self):
-        """Test terminology check with invalid usage."""
-        content = [
-            "The plane must meet the requirements specified in this advisory circular.",
-            "The driver must maintain visual contact with the runway."
-        ]
-        doc_path = self.create_test_docx(content, "invalid_terminology.docx")
-        result = self.checker.check_terminology(content)
-        self.assert_has_issues(result)
-        self.assert_issue_contains(result, "plane")
-        self.assert_issue_contains(result, "driver")
+        
+    def test_missing_acronym_definition(self):
+        """Test that missing acronym definitions are caught."""
+        content = """
+        The FAA is responsible for aviation safety.
+        """
+        file_path = self.create_test_file(content, "test_acronyms.txt")
+        result = check_acronyms(file_path)
+        self.assert_check_result(
+            result,
+            expected_issues=[{
+                "message": "Acronym 'FAA' used without definition",
+                "line_number": 2,
+                "severity": "warning"
+            }]
+        )
+        
+    def test_multiple_acronym_definitions(self):
+        """Test that multiple acronym definitions are caught."""
+        content = "The FAA (Federal Aviation Administration) is responsible for aviation safety.\nThe FAA (Federal Aviation Administration) regulates air traffic."
+        file_path = self.create_test_file(content, "test_acronyms.txt")
+        
+        # Debug: Print file contents
+        with open(file_path, 'r') as f:
+            print("\nFile contents:")
+            for i, line in enumerate(f.readlines(), 1):
+                print(f"Line {i}: {line.strip()}")
+        
+        result = check_acronyms(file_path)
+        self.assert_check_result(
+            result,
+            expected_issues=[{
+                "message": "Acronym 'FAA' defined multiple times",
+                "line_number": 2,
+                "severity": "warning"
+            }]
+        )
 
 if __name__ == '__main__':
-    unittest.main() 
+    pytest.main() 

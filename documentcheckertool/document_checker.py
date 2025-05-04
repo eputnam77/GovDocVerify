@@ -1,12 +1,12 @@
 from typing import List, Dict, Any, Optional
-from models import DocumentCheckResult, DocumentType
-from checks.heading_checks import HeadingChecks
-from checks.accessibility_checks import AccessibilityChecks
-from checks.format_checks import FormatChecks
-from checks.structure_checks import StructureChecks
-from checks.terminology_checks import TerminologyChecks
-from utils.text_utils import split_sentences, count_words, normalize_reference
-from utils.pattern_cache import PatternCache
+from documentcheckertool.models import DocumentCheckResult, DocumentType
+from documentcheckertool.checks.heading_checks import HeadingChecks
+from documentcheckertool.checks.accessibility_checks import AccessibilityChecks
+from documentcheckertool.checks.format_checks import FormatChecks
+from documentcheckertool.checks.structure_checks import StructureChecks
+from documentcheckertool.checks.terminology_checks import TerminologyChecks
+from documentcheckertool.utils.text_utils import split_sentences, count_words, normalize_reference
+from documentcheckertool.utils.pattern_cache import PatternCache
 
 class FAADocumentChecker:
     """Main document checker class that coordinates various checks."""

@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 from enum import Enum, auto
 from typing import List, Dict, Any, Optional
+from pydantic import BaseModel
 
 class DocumentCheckError(Exception):
     """Base exception for document checking errors."""
@@ -46,9 +47,21 @@ class DocumentType(Enum):
         except KeyError:
             raise DocumentTypeError(f"Invalid document type: {doc_type}")
 
-@dataclass
-class DocumentCheckResult:
-    """Result of a document check."""
+class Issue(BaseModel):
+    """Represents an issue found during document checking."""
+    message: str
+    line_number: Optional[int] = None
+    severity: str = "warning"
+    suggestion: Optional[str] = None
+
+class DocumentCheckResult(BaseModel):
+    """Represents the result of a document check."""
     success: bool
-    issues: List[Dict[str, Any]]
-    details: Optional[Dict[str, Any]] = None 
+    issues: List[Dict] = []
+    score: float = 0.0
+
+class DocumentType(BaseModel):
+    """Represents a document type with its associated rules."""
+    name: str
+    description: str
+    rules: List[str] 

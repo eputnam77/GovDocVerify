@@ -58,5 +58,48 @@ class TestTerminologyChecks(TestBase):
         self.assert_issue_contains(result, "Avoid using 'earlier'")
         self.assert_issue_contains(result, "Avoid using 'aforementioned'")
 
+    def test_additionally_usage(self):
+        """Test checking for sentences beginning with 'Additionally' per DOT OGC Style Guide."""
+        content = [
+            "Additionally, the FAA requires compliance.",
+            "The FAA requires compliance. Additionally, it must be documented.",
+            "In addition, the FAA requires compliance.",  # Correct usage
+            "The FAA requires compliance. In addition, it must be documented."  # Correct usage
+        ]
+        result = self.terminology_checks.check_abbreviation_usage(content)
+        self.assertFalse(result.success)
+        self.assert_issue_contains(result, "Avoid using 'Additionally'")
+        self.assert_issue_contains(result, "Replace with 'In addition'")
+
+    def test_split_infinitives(self):
+        """Test checking for split infinitives."""
+        content = [
+            "The FAA needs to completely review the application.",
+            "The applicant must to thoroughly document the process.",
+            "The inspector will to carefully examine the evidence.",
+            "The regulation requires to properly maintain records.",
+            "The FAA needs to review the application completely.",  # Correct usage
+            "The applicant must document the process thoroughly."  # Correct usage
+        ]
+        result = self.terminology_checks.check_split_infinitives(content)
+        self.assertTrue(result.success)  # Should be True since these are style suggestions
+        self.assert_issue_contains(result, "Split infinitive detected")
+        self.assert_issue_contains(result, "style choice rather than a grammatical error")
+
+    def test_multi_word_split_infinitives(self):
+        """Test checking for split infinitives with multi-word phrases."""
+        content = [
+            "The FAA needs to more than double its efforts.",
+            "The applicant must to as well as document the process.",
+            "The inspector will to in addition to examine the evidence.",
+            "The regulation requires to in order to maintain records.",
+            "The FAA needs to double its efforts more than.",  # Correct usage
+            "The applicant must document the process as well as."  # Correct usage
+        ]
+        result = self.terminology_checks.check_split_infinitives(content)
+        self.assertTrue(result.success)  # Should be True since these are style suggestions
+        self.assert_issue_contains(result, "Split infinitive detected")
+        self.assert_issue_contains(result, "style choice rather than a grammatical error")
+
 if __name__ == '__main__':
     unittest.main() 

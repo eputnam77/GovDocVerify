@@ -1,9 +1,10 @@
 import unittest
-from test_base import TestBase
-from checks.accessibility_checks import AccessibilityChecks
+from pathlib import Path
+from tests.test_base import TestBase
+from documentcheckertool.checks.accessibility_checks import AccessibilityChecks
 
 class TestAccessibilityChecks(TestBase):
-    """Test suite for accessibility-related checks."""
+    """Test cases for accessibility checking functionality."""
     
     def setUp(self):
         super().setUp()
@@ -44,6 +45,27 @@ class TestAccessibilityChecks(TestBase):
         result = self.accessibility_checks.check_readability(content)
         self.assertFalse(result.success)
         self.assert_issue_contains(result, "Sentence too long")
+
+    def test_image_alt_text(self):
+        """Test checking for image alt text."""
+        content = """
+        ![Image with alt text](image.png "Alt text here")
+        """
+        file_path = self.create_test_file(content, "test_accessibility.md")
+        checker = AccessibilityChecks()
+        result = checker.check_document(file_path)
+        self.assert_no_issues(result)
+        
+    def test_missing_alt_text(self):
+        """Test detection of missing alt text."""
+        content = """
+        ![](image.png)
+        """
+        file_path = self.create_test_file(content, "test_accessibility.md")
+        checker = AccessibilityChecks()
+        result = checker.check_document(file_path)
+        self.assert_has_issues(result)
+        self.assert_issue_contains(result, "Missing alt text")
 
 if __name__ == '__main__':
     unittest.main() 
