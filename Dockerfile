@@ -5,13 +5,18 @@ WORKDIR /app
 # Install system dependencies
 RUN apt-get update && apt-get install -y \
     build-essential \
+    curl \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy requirements first to leverage Docker cache
-COPY requirements.txt requirements-dev.txt ./
+# Install Poetry
+RUN curl -sSL https://install.python-poetry.org | python3 -
+
+# Copy poetry files
+COPY pyproject.toml poetry.lock ./
 
 # Install Python dependencies
-RUN pip install --no-cache-dir -r requirements.txt
+RUN poetry config virtualenvs.create false \
+    && poetry install --no-interaction --no-ansi
 
 # Copy the rest of the application
 COPY . .
@@ -24,4 +29,4 @@ ENV PYTHONUNBUFFERED=1
 EXPOSE 7860
 
 # Command to run the application
-CMD ["python", "-m", "documentcheckertool.app"] 
+CMD ["poetry", "run", "python", "-m", "documentcheckertool.app"] 

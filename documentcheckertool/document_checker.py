@@ -46,6 +46,8 @@ class FAADocumentChecker:
         results['abbreviation'] = self.terminology_checks.check_abbreviation_usage(doc)
         results['cross_reference'] = self.terminology_checks.check_cross_reference_usage(doc)
         results['required_language'] = self.terminology_checks.check_required_language(doc, doc_type)
+        results['pronouns'] = self.terminology_checks.check_pronouns(doc)
+        results['split_infinitives'] = self.terminology_checks.check_split_infinitives(doc)
         
         # Add other checks here
         

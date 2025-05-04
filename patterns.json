@@ -51,7 +51,7 @@
             "pattern": "\\bCFR Part\\b",
             "description": "CFR Part should be CFR part (lowercase)",
             "is_error": true,
-            "replacement": "CFR part (per FAA Order 1320.46)"
+            "replacement": "CFR part (per FAA Order 1320.46). However, you should use CFR Part if your document needs DOT OGC approval."
         },
         {
             "_comment": "Per the GPO Style Manual",
@@ -241,6 +241,158 @@
             "description": "49 U.S.C. 106(g) should not be included in Special Conditions authority citations. The correct citation is: Authority: 49 U.S.C. 106(f), 40113, 44701, 44702, and 44704",
             "is_error": true,
             "replacement": "Authority: 49 U.S.C. 106(f), 40113, 44701, 44702, and 44704"
+        },
+        {
+            "_comment": "Per DOT OGC Style Guide",
+            "pattern": "\\balthough\\b",
+            "description": "'although' should be 'though' (per DOT OGC Style Guide)",
+            "is_error": true,
+            "replacement": "though (per DOT OGC Style Guide)"
+        },
+        {
+            "_comment": "Per DOT OGC Style Guide",
+            "pattern": "^Additionally\\b",
+            "description": "Sentences should not begin with 'Additionally'. Use 'In addition' instead (per DOT OGC Style Guide)",
+            "is_error": true,
+            "replacement": "In addition"
+        },
+        {
+            "_comment": "Per DOT OGC Style Guide",
+            "pattern": "\\s+Additionally\\b",
+            "description": "Avoid using 'Additionally' within sentences. Use 'In addition' instead (per DOT OGC Style Guide)",
+            "is_error": true,
+            "replacement": "In addition"
+        },
+        {
+            "_comment": "Per DOT OGC Style Guide",
+            "pattern": "\\bDC\\b",
+            "description": "DC should be D.C. (per DOT OGC Style Guide)",
+            "is_error": true,
+            "replacement": "D.C."
+        },
+        {
+            "_comment": "Per DOT OGC Style Guide",
+            "pattern": "\\bUS\\b",
+            "description": "US should be U.S. (per DOT OGC Style Guide)",
+            "is_error": true,
+            "replacement": "U.S."
+        },
+        {
+            "_comment": "Per DOT OGC Style Guide",
+            "pattern": "\\bSE\\b",
+            "description": "SE should be S.E. (per DOT OGC Style Guide)",
+            "is_error": true,
+            "replacement": "S.E."
+        },
+        {
+            "_comment": "Per DOT OGC Style Guide",
+            "pattern": "\\bEO\\b",
+            "description": "EO should be E.O. (per DOT OGC Style Guide)",
+            "is_error": true,
+            "replacement": "E.O."
+        },
+        {
+            "_comment": "Per GPO Style Manual",
+            "pattern": "\\bD\\.C\\.\\b",
+            "description": "D.C. is the correct format (per GPO Style Manual)",
+            "is_error": false
+        },
+        {
+            "_comment": "Per GPO Style Manual",
+            "pattern": "\\bU\\.S\\.\\b",
+            "description": "U.S. is the correct format (per GPO Style Manual)",
+            "is_error": false
+        },
+        {
+            "_comment": "Per GPO Style Manual",
+            "pattern": "\\bS\\.E\\.\\b",
+            "description": "S.E. is the correct format (per GPO Style Manual)",
+            "is_error": false
+        },
+        {
+            "_comment": "Per GPO Style Manual",
+            "pattern": "\\bE\\.O\\.\\b",
+            "description": "E.O. is the correct format (per GPO Style Manual)",
+            "is_error": false
+        }
+    ],
+    "pronouns": [
+        {
+            "_comment": "Personal pronouns that should be replaced with specific entities",
+            "pattern": "\\b(I|me|my|mine)\\b",
+            "description": "Replace first-person singular pronouns with specific entities",
+            "is_error": true,
+            "replacement": "The FAA"
+        },
+        {
+            "_comment": "First-person plural pronouns",
+            "pattern": "\\b(we|us|our|ours)\\b",
+            "description": "Replace first-person plural pronouns with 'The FAA'",
+            "is_error": true,
+            "replacements": {
+                "we": "The FAA",
+                "us": "The FAA",
+                "our": "The FAA's",
+                "ours": "The FAA's"
+            }
+        },
+        {
+            "_comment": "Second-person pronouns",
+            "pattern": "\\b(you|your|yours)\\b",
+            "description": "Replace second-person pronouns with specific entities or passive voice",
+            "is_error": true,
+            "replacement": "specific entity or passive voice construction"
+        },
+        {
+            "_comment": "Third-person singular pronouns",
+            "pattern": "\\b(he|she|it|him|her|his|hers|its)\\b",
+            "description": "Replace third-person singular pronouns with specific entities",
+            "is_error": true,
+            "replacement": "specific entity"
+        },
+        {
+            "_comment": "Third-person plural pronouns",
+            "pattern": "\\b(they|them|their|theirs)\\b",
+            "description": "Replace third-person plural pronouns with specific entities",
+            "is_error": true,
+            "replacement": "specific entities"
+        },
+        {
+            "_comment": "Relative pronouns that can make text less direct",
+            "pattern": "\\b(who|whom|whose|which|that)\\b",
+            "description": "Consider replacing relative pronouns with more direct language",
+            "is_error": true,
+            "replacement": "more direct language"
+        },
+        {
+            "_comment": "Demonstrative pronouns that can be ambiguous",
+            "pattern": "\\b(this|that|these|those)\\b",
+            "description": "Replace demonstrative pronouns with specific references",
+            "is_error": true,
+            "replacement": "specific reference"
+        },
+        {
+            "_comment": "Indefinite pronouns that can be vague",
+            "pattern": "\\b(anyone|anybody|anything|someone|somebody|something|everyone|everybody|everything|no one|nobody|nothing)\\b",
+            "description": "Replace indefinite pronouns with specific entities",
+            "is_error": true,
+            "replacement": "specific entity"
+        }
+    ],
+    "split_infinitives": [
+        {
+            "_comment": "Common adverbs that split infinitives",
+            "pattern": "\\bto\\s+(?:not|never|always|completely|fully|partially|really|simply|totally|truly|utterly|virtually|actually|basically|clearly|definitely|effectively|entirely|especially|essentially|exactly|fairly|generally|greatly|hardly|highly|largely|mainly|mostly|nearly|particularly|perfectly|practically|precisely|primarily|purely|quite|rather|readily|relatively|slightly|somewhat|strongly|sufficiently|thoroughly|ultimately|usually|widely)\\s+\\w+\\b",
+            "description": "Split infinitive detected. Consider whether to keep or rewrite the sentence.",
+            "is_error": false,
+            "suggestion": "You may want to consider rewriting the sentence to avoid the split infinitive, but this is a style choice rather than a grammatical error."
+        },
+        {
+            "_comment": "Multiple word adverbs that split infinitives",
+            "pattern": "\\bto\\s+(?:more than|less than|as well as|in addition to|in order to|so as to)\\s+\\w+\\b",
+            "description": "Split infinitive detected with multi-word adverb. Consider whether to keep or rewrite the sentence.",
+            "is_error": false,
+            "suggestion": "You may want to consider rewriting the sentence to avoid the split infinitive, but this is a style choice rather than a grammatical error."
         }
     ],
     "section_symbol": [

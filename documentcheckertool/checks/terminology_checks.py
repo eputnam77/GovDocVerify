@@ -89,4 +89,91 @@ class TerminologyChecks:
                     'message': str(e),
                     'suggestion': 'Please check the logs for details'
                 }]
+            )
+
+    def check_pronouns(self, doc: List[str]) -> DocumentCheckResult:
+        """Check for inappropriate pronoun usage in the document."""
+        issues = []
+        logger.info("Checking for inappropriate pronoun usage")
+        
+        try:
+            # Get pre-compiled patterns from cache
+            patterns = self.pattern_cache.get_patterns('pronouns')
+            if not patterns:
+                logger.warning("No pronoun patterns found")
+                return DocumentCheckResult(success=True, issues=[])
+            
+            # Check each line against the patterns
+            for line in doc:
+                for pattern in patterns:
+                    matches = pattern.search(line)
+                    if matches:
+                        pronoun = matches.group(0)
+                        replacement = pattern.get('replacement', 'specific entity')
+                        if isinstance(replacement, dict):
+                            replacement = replacement.get(pronoun.lower(), 'specific entity')
+                        
+                        issues.append({
+                            'line': line,
+                            'message': f'Avoid using pronoun "{pronoun}"',
+                            'suggestion': f'Replace with {replacement}'
+                        })
+            
+            logger.info(f"Pronoun check completed with {len(issues)} issues found")
+            return DocumentCheckResult(
+                success=len(issues) == 0,
+                issues=issues
+            )
+            
+        except Exception as e:
+            logger.error(f"Error in check_pronouns: {str(e)}")
+            return DocumentCheckResult(
+                success=False,
+                issues=[{
+                    'line': 'Error in pronoun check',
+                    'message': str(e),
+                    'suggestion': 'Please check the logs for details'
+                }]
+            )
+
+    def check_split_infinitives(self, doc: List[str]) -> DocumentCheckResult:
+        """Check for split infinitives in the document."""
+        issues = []
+        logger.info("Checking for split infinitives")
+        
+        try:
+            # Get pre-compiled patterns from cache
+            patterns = self.pattern_cache.get_patterns('split_infinitives')
+            if not patterns:
+                logger.warning("No split infinitive patterns found")
+                return DocumentCheckResult(success=True, issues=[])
+            
+            # Check each line against the patterns
+            for line in doc:
+                for pattern in patterns:
+                    matches = pattern.search(line)
+                    if matches:
+                        split_infinitive = matches.group(0)
+                        issues.append({
+                            'line': line,
+                            'message': 'Split infinitive detected',
+                            'suggestion': pattern.get('suggestion', 'Consider rewriting to avoid the split infinitive'),
+                            'is_error': False  # Mark as non-error since it's a style choice
+                        })
+            
+            logger.info(f"Split infinitive check completed with {len(issues)} instances found")
+            return DocumentCheckResult(
+                success=True,  # Always return success since these are style suggestions
+                issues=issues
+            )
+            
+        except Exception as e:
+            logger.error(f"Error in check_split_infinitives: {str(e)}")
+            return DocumentCheckResult(
+                success=False,
+                issues=[{
+                    'line': 'Error in split infinitive check',
+                    'message': str(e),
+                    'suggestion': 'Please check the logs for details'
+                }]
             ) 
