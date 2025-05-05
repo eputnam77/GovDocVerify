@@ -9,25 +9,25 @@ The Document Checker Tool can be run in two ways:
 ## Prerequisites
 
 Before running the tool, ensure you have:
-1. Python 3.8 or higher installed
-2. Poetry package manager installed
-3. All dependencies installed via `poetry install`
+1. Python 3.9 or higher installed
+2. pip (Python package installer)
+3. All dependencies installed via `pip install -r requirements.txt`
 
 ## Web Interface (Gradio)
 
 ### Starting the Web Server
 
-1. Set up and activate the conda environment:
+1. Install dependencies:
 ```bash
-conda create -n doc-checker python=3.10
-conda activate doc-checker
 pip install -r requirements.txt
 ```
 
 2. Start the Gradio server:
 ```bash
-python -m documentcheckertool.interfaces
+python app.py
 ```
+
+The server will start at `http://0.0.0.0:7860` by default.
 
 ### Web Interface Features
 
@@ -45,19 +45,28 @@ The web interface supports additional options when starting the server:
 
 ```bash
 # Enable debugging and detailed logging
-poetry run python -m documentcheckertool.interfaces.gradio_ui --debug
+python app.py --debug
 
 # Start with specific checks enabled
-poetry run python -m documentcheckertool.interfaces.gradio_ui --enabled-checks readability,spelling
+python app.py --enabled-checks readability,spelling
 
 # Set custom check configurations
-poetry run python -m documentcheckertool.interfaces.gradio_ui --config path/to/config.yaml
+python app.py --config path/to/config.yaml
 
 # Enable development mode with hot-reloading
-poetry run python -m documentcheckertool.interfaces.gradio_ui --dev
+python app.py --dev
 
 # Set maximum file size (in MB)
-poetry run python -m documentcheckertool.interfaces.gradio_ui --max-file-size 50
+python app.py --max-file-size 50
+
+# Run in CLI mode with specific file
+python app.py --cli --file path/to/document.docx --type "Advisory Circular"
+
+# Run web interface with custom host and port
+python app.py --host 0.0.0.0 --port 8000
+
+# Enable debug mode
+python app.py --debug
 ```
 
 ### Gradio UI Debugging
@@ -68,13 +77,13 @@ For troubleshooting the web interface:
 # Enable verbose logging
 export GRADIO_DEBUG=True
 export DOC_CHECKER_LOG_LEVEL=DEBUG
-poetry run python -m documentcheckertool.interfaces.gradio_ui
+python app.py --debug
 
 # Save server logs to file
-poetry run python -m documentcheckertool.interfaces.gradio_ui --log-file ui_debug.log
+python app.py --log-file ui_debug.log
 
 # Enable performance profiling
-poetry run python -m documentcheckertool.interfaces.gradio_ui --profile
+python app.py --profile
 ```
 
 ### Browser Console Debugging
@@ -103,30 +112,30 @@ export DOC_CHECKER_DEBUG=True      # Enable debug mode
 
 Run checks on a single file:
 ```bash
-poetry run doc-checker check path/to/document.docx
+python app.py --cli --file path/to/document.docx --type "Advisory Circular"
 ```
 
 ### Advanced CLI Options
 
 ```bash
 # Run specific checks only
-poetry run doc-checker check --checks readability,acronyms path/to/document.docx
+python app.py --cli --file path/to/document.docx --checks readability,acronyms
 
 # Output results in different formats
-poetry run doc-checker check --format json path/to/document.docx
-poetry run doc-checker check --format csv path/to/document.docx
+python app.py --cli --file path/to/document.docx --format json
+python app.py --cli --file path/to/document.docx --format csv
 
 # Generate a detailed report
-poetry run doc-checker check --report detailed path/to/document.docx
+python app.py --cli --file path/to/document.docx --report detailed
 
 # Process multiple files
-poetry run doc-checker check path/to/doc1.docx path/to/doc2.docx
+python app.py --cli --file path/to/doc1.docx path/to/doc2.docx
 
 # Exclude specific checks
-poetry run doc-checker check --exclude heading,spacing path/to/document.docx
+python app.py --cli --file path/to/document.docx --exclude heading,spacing
 
 # Set custom severity levels
-poetry run doc-checker check --min-severity WARNING path/to/document.docx
+python app.py --cli --file path/to/document.docx --min-severity WARNING
 ```
 
 ### Configuration File
@@ -166,28 +175,38 @@ For batch processing multiple documents:
 
 ```bash
 # Process all documents in a directory
-poetry run doc-checker batch ./docs/
+python app.py --batch ./docs/
 
 # Process with specific patterns
-poetry run doc-checker batch --pattern "*.docx" ./docs/
+python app.py --batch --pattern "*.docx" ./docs/
 
 # Generate summary report
-poetry run doc-checker batch --summary-only ./docs/
+python app.py --batch --summary-only ./docs/
 ```
 
 ## API Usage
 
-The checker can also be used programmatically:
+The checker can be used programmatically:
 
 ```python
-from document_checker import DocumentChecker
+from documentcheckertool.document_checker import FAADocumentChecker
+from documentcheckertool.utils.formatting import format_results_to_html
 
-checker = DocumentChecker()
-results = checker.check_file("document.docx")
+# Initialize the checker
+checker = FAADocumentChecker()
 
-# Access results
+# Run checks on a document
+results = checker.run_all_document_checks(
+    document_path="document.docx",
+    doc_type="Advisory Circular"
+)
+
+# Format results as HTML
+html_output = format_results_to_html(results)
+
+# Access individual issues
 for issue in results.issues:
-    print(f"{issue.severity}: {issue.message} at line {issue.line_number}")
+    print(f"{issue['severity']}: {issue['message']} at line {issue.get('line_number', 'unknown')}")
 ```
 
 ## Development Notes
@@ -196,14 +215,14 @@ for issue in results.issues:
 
 ```bash
 # Run all tests
-poetry run pytest
+pytest
 
 # Run specific test categories
-poetry run pytest tests/test_readability.py
-poetry run pytest tests/test_acronyms.py
+pytest tests/test_readability.py
+pytest tests/test_acronyms.py
 
 # Run with coverage
-poetry run pytest --cov=document_checker
+pytest --cov=document_checker
 ```
 
 ### Debug Mode
@@ -212,7 +231,7 @@ For detailed logging during development:
 
 ```bash
 export DOC_CHECKER_DEBUG=True
-poetry run doc-checker check --verbose path/to/document.docx
+python app.py --verbose --file path/to/document.docx
 ```
 
 ### Contributing

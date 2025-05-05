@@ -1,4 +1,4 @@
-# python -m pytest tests/test_accessibility_checks.py -v
+# Run test: pytest tests/test_accessibility_checks.py -v
 
 import unittest
 from pathlib import Path
@@ -70,4 +70,4 @@ class TestAccessibilityChecks(TestBase):
         self.assert_issue_contains(result, "Missing alt text")
 
 if __name__ == '__main__':
-    unittest.main() 
+    unittest.main()
