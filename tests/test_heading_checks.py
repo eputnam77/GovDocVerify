@@ -1,6 +1,8 @@
+# python -m pytest tests/test_heading_checks.py -v
+
 import unittest
 from test_base import TestBase
-from checks.heading_checks import HeadingChecks
+from documentcheckertool.checks.heading_checks import HeadingChecks
 
 class TestHeadingChecks(TestBase):
     """Test suite for heading-related checks."""
@@ -60,4 +62,4 @@ class TestHeadingChecks(TestBase):
         self.assertTrue(result.success)
 
 if __name__ == '__main__':
-    unittest.main() 
+    unittest.main()

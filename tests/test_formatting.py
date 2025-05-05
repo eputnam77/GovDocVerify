@@ -1,3 +1,5 @@
+# python -m pytest tests/test_formatting.py -v
+
 import unittest
 from test_base import TestBase
 

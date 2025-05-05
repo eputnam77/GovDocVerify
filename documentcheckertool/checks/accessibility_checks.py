@@ -2,10 +2,13 @@ from typing import List, Dict, Any
 from documentcheckertool.utils.text_utils import count_words, count_syllables, split_sentences
 from documentcheckertool.models import DocumentCheckResult
 import logging
+from docx import Document
+from .base_checker import BaseChecker
+from documentcheckertool.models import DocumentCheckResult, Severity
 
 logger = logging.getLogger(__name__)
 
-class AccessibilityChecks:
+class AccessibilityChecks(BaseChecker):
     """Class for handling accessibility-related checks."""
     
     def __init__(self, pattern_cache):
@@ -80,4 +83,34 @@ class AccessibilityChecks:
                     'message': f'Error in Section 508 compliance check: {str(e)}',
                     'suggestion': 'Please check the logs for details'
                 }]
-            ) 
+            )
+
+    def run_checks(self, document: Document, doc_type: str, results: DocumentCheckResult) -> None:
+        """Run all accessibility-related checks."""
+        logger.info(f"Running accessibility checks for document type: {doc_type}")
+        
+        self._check_alt_text(document, results)
+        self._check_color_contrast(document, results)
+        
+    def _check_alt_text(self, document: Document, results: DocumentCheckResult):
+        """Check for missing alt text in images."""
+        for shape in document.inline_shapes:
+            if not hasattr(shape, '_inline') or not hasattr(shape._inline, 'docPr'):
+                continue
+            if not shape._inline.docPr.get('descr'):
+                results.add_issue(
+                    message="Image missing alt text",
+                    severity=Severity.HIGH
+                )
+    
+    def _check_color_contrast(self, document: Document, results: DocumentCheckResult):
+        """Check for potential color contrast issues."""
+        # Basic check for now - to be expanded
+        for paragraph in document.paragraphs:
+            if hasattr(paragraph, '_element'):
+                if hasattr(paragraph._element, 'rPr'):
+                    if hasattr(paragraph._element.rPr, 'color'):
+                        results.add_issue(
+                            message="Potential color contrast issue detected",
+                            severity=Severity.MEDIUM
+                        )

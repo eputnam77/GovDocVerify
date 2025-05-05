@@ -1,6 +1,8 @@
+# python -m pytest tests/test_terminology_checks.py -v
+
 import unittest
 from test_base import TestBase
-from checks.terminology_checks import TerminologyChecks
+from documentcheckertool.checks.terminology_checks import TerminologyChecks
 
 class TestTerminologyChecks(TestBase):
     """Test suite for terminology-related checks."""
@@ -102,4 +104,4 @@ class TestTerminologyChecks(TestBase):
         self.assert_issue_contains(result, "style choice rather than a grammatical error")
 
 if __name__ == '__main__':
-    unittest.main() 
+    unittest.main()

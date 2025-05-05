@@ -1,6 +1,8 @@
+# python -m pytest tests/test_format_checks.py -v
+
 import unittest
 from test_base import TestBase
-from checks.format_checks import FormatChecks
+from documentcheckertool.checks.format_checks import FormatChecks
 
 class TestFormatChecks(TestBase):
     """Test suite for format-related checks."""
@@ -43,4 +45,4 @@ class TestFormatChecks(TestBase):
         self.assert_issue_contains(result, "Placeholder found")
 
 if __name__ == '__main__':
-    unittest.main() 
+    unittest.main()

@@ -1,7 +1,9 @@
 import gradio as gr
-from document_checker import FAADocumentChecker
-from utils.formatting import format_results_to_html
-from utils.security import validate_file, SecurityError
+from documentcheckertool.document_checker import FAADocumentChecker
+from documentcheckertool.utils.formatting import format_results_to_html
+from documentcheckertool.utils.security import validate_file, SecurityError
+from documentcheckertool.models import DocumentCheckResult
+from documentcheckertool.constants import DOCUMENT_TYPES
 import logging
 import tempfile
 import os
@@ -21,19 +23,7 @@ def create_interface():
                     file_count="single"
                 )
                 doc_type = gr.Dropdown(
-                    choices=[
-                        "Advisory Circular",
-                        "Airworthiness Criteria",
-                        "Deviation Memo",
-                        "Exemption",
-                        "Federal Register Notice",
-                        "Order",
-                        "Policy Statement",
-                        "Rule",
-                        "Special Condition",
-                        "Technical Standard Order",
-                        "Other"
-                    ],
+                    choices=DOCUMENT_TYPES,
                     label="Document Type"
                 )
                 check_btn = gr.Button("Check Document")
@@ -48,15 +38,25 @@ def create_interface():
                 
                 # Create a temporary file for validation
                 with tempfile.NamedTemporaryFile(delete=False, suffix=os.path.splitext(file_obj.name)[1]) as temp_file:
-                    temp_file.write(file_obj.read())
+                    # Read file content in binary mode
+                    if hasattr(file_obj, 'name'):  # If it's a path
+                        with open(file_obj.name, 'rb') as f:
+                            content = f.read()
+                    else:  # If it's file-like object
+                        content = file_obj
+                    
+                    temp_file.write(content)
                     temp_file_path = temp_file.name
                 
                 try:
                     # Validate the file
                     validate_file(temp_file_path)
                     
-                    # Process the document
-                    results_data = checker.run_all_document_checks(file_obj, doc_type_value)
+                    # Process the document using the temp file path and doc_type
+                    results_data = checker.run_all_document_checks(
+                        document_path=temp_file_path,
+                        doc_type=doc_type_value  # Pass doc_type as template_type
+                    )
                     html_results = format_results_to_html(results_data)
                     return html_results
                     
@@ -81,4 +81,4 @@ def create_interface():
             outputs=results
         )
     
-    return interface 
+    return interface

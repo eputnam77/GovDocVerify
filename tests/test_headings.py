@@ -2,10 +2,10 @@
 
 import unittest
 from .test_base import TestBase
-from app import DOCUMENT_TYPES
+from documentcheckertool.app import DOCUMENT_TYPES
 from docx import Document
-from checks.heading_checks import HeadingChecks
-from utils.pattern_cache import PatternCache
+from documentcheckertool.checks.heading_checks import HeadingChecks
+from documentcheckertool.utils.pattern_cache import PatternCache
 
 class TestHeadingChecks(TestBase):
     """Test suite for heading and title checks."""
@@ -93,4 +93,4 @@ class TestHeadingChecks(TestBase):
         self.assertTrue(any("skipped level" in issue.get('message', '') for issue in result))
 
 if __name__ == '__main__':
-    unittest.main() 
+    unittest.main()

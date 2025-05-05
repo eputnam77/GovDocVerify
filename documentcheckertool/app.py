@@ -6,22 +6,9 @@ from document_checker import FAADocumentChecker
 from interfaces.gradio_ui import create_interface
 from utils.formatting import format_results_to_html
 import logging
+from documentcheckertool.constants import DOCUMENT_TYPES
 
 logger = logging.getLogger(__name__)
-
-DOCUMENT_TYPES = [
-    "Advisory Circular",
-    "Airworthiness Criteria",
-    "Deviation Memo",
-    "Exemption",
-    "Federal Register Notice",
-    "Order",
-    "Policy Statement",
-    "Rule",
-    "Special Condition",
-    "Technical Standard Order",
-    "Other"
-]
 
 def process_document(file_path: str, doc_type: str) -> str:
     """Process a document and return formatted results."""

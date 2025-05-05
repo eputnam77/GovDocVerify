@@ -11,41 +11,16 @@ readme = "README.md"
 packages = [{include = "documentcheckertool"}]
 
 [tool.poetry.dependencies]
-python = "^3.10"
-numpy = "1.24.3"
-pandas = "2.2.1"
-openai = "1.12.0"
-chromadb = "0.4.24"
-tiktoken = "0.7.0"
-typer = "0.12.0"
-fastapi = "0.115.12"
-uvicorn = "0.34.2"
-gradio = "5.28.0"
-gradio-client = "1.10.0"
+python = ">=3.9,<3.13"
+gradio = "4.19.2"
 python-docx = "1.1.2"
 nltk = "3.9.1"
-bcrypt = "4.3.0"
-python-jose = "3.4.0"
-passlib = "1.7.4"
+pandas = "2.2.1"
+numpy = "1.24.3"
 pydantic = "2.11.4"
-pydantic-core = "2.33.2"
-typing-extensions = "4.13.2"
-typing-inspection = "0.4.0"
-filetype = "1.2.0"
-python-multipart = "0.0.20"
-httpx = "0.28.1"
-safehttpx = "0.1.6"
 
 [tool.poetry.group.dev.dependencies]
-bandit = "1.8.3"
-mypy = "1.15.0"
-ruff = "0.11.8"
-vulture = "2.14"
 pytest = "8.3.5"
-pytest-asyncio = "0.26.0"
-pre-commit = "4.2.0"
-identify = "2.6.10"
-cfgv = "3.4.0"
 pytest-cov = "4.1.0"
 
 [tool.ruff]
@@ -110,4 +85,4 @@ skips = ["B101"]
 
 [tool.vulture]
 exclude = ["tests/*", "setup.py"]
-min-confidence = 100 
+min-confidence = 100

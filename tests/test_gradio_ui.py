@@ -1,10 +1,12 @@
+# python -m pytest tests/test_gradio_ui.py -v
+
 import unittest
 import tempfile
 import os
 import gradio as gr
-from interfaces.gradio_ui import create_interface
-from document_checker import FAADocumentChecker
-from app import DOCUMENT_TYPES
+from documentcheckertool.interfaces.gradio_ui import create_interface
+from documentcheckertool.document_checker import FAADocumentChecker
+from documentcheckertool.constants import DOCUMENT_TYPES
 
 class TestGradioUI(unittest.TestCase):
     """Test suite for Gradio UI functionality."""
@@ -48,4 +50,4 @@ class TestGradioUI(unittest.TestCase):
             os.unlink(temp_path)
 
 if __name__ == '__main__':
-    unittest.main() 
+    unittest.main()

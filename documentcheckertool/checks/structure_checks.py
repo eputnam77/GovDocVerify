@@ -1,91 +1,93 @@
 from typing import List, Dict, Any
 from documentcheckertool.utils.text_utils import split_sentences, count_words
 from documentcheckertool.models import DocumentCheckResult
+from docx import Document
+from .base_checker import BaseChecker
+from documentcheckertool.models import DocumentCheckResult, Severity
 import logging
 
 logger = logging.getLogger(__name__)
 
-class StructureChecks:
-    """Class for handling document structure checks."""
+class StructureChecks(BaseChecker):
+    def run_checks(self, document: Document, doc_type: str, results: DocumentCheckResult) -> None:
+        """Run all structure-related checks."""
+        logger.info(f"Running structure checks for document type: {doc_type}")
+        
+        paragraphs = document.paragraphs
+        self._check_paragraph_length(paragraphs, results)
+        self._check_sentence_length(paragraphs, results)
+        self._check_section_balance(paragraphs, results)
+        self._check_list_formatting(paragraphs, results)
     
-    def __init__(self, pattern_cache):
-        self.pattern_cache = pattern_cache
-        logger.info("Initialized StructureChecks with pattern cache")
-
-    def check_paragraph_length(self, doc: List[str]) -> DocumentCheckResult:
-        """Check paragraph length."""
-        issues = []
-        logger.info("Starting paragraph length check")
+    def _check_paragraph_length(self, paragraphs, results):
+        """Check for overly long paragraphs."""
+        MAX_WORDS = 150
+        for i, para in enumerate(paragraphs):
+            words = len(para.text.split())
+            if words > MAX_WORDS:
+                results.add_issue(
+                    message=f"Paragraph exceeds {MAX_WORDS} words ({words} words)",
+                    severity=Severity.MEDIUM,
+                    line_number=i+1
+                )
+    
+    def _check_sentence_length(self, paragraphs, results):
+        """Check for overly long sentences."""
+        MAX_WORDS = 30
+        for i, para in enumerate(paragraphs):
+            sentences = para.text.split('. ')
+            for sentence in sentences:
+                words = len(sentence.split())
+                if words > MAX_WORDS:
+                    results.add_issue(
+                        message=f"Sentence exceeds {MAX_WORDS} words ({words} words)",
+                        severity=Severity.LOW,
+                        line_number=i+1
+                    )
+    
+    def _check_section_balance(self, paragraphs, results):
+        """Check for balanced section lengths."""
+        current_section = []
+        section_lengths = []
         
-        for i, paragraph in enumerate(doc, 1):
-            logger.debug(f"Checking paragraph {i}: {paragraph}")
-            word_count = count_words(paragraph)
-            logger.debug(f"Paragraph {i} has {word_count} words")
-            
-            if word_count > 150:
-                logger.warning(f"Long paragraph found in paragraph {i}: {word_count} words")
-                issues.append({
-                    'line': paragraph,
-                    'message': 'Paragraph too long',
-                    'suggestion': 'Consider breaking into shorter paragraphs'
-                })
+        for para in paragraphs:
+            if para.style.name.startswith('Heading'):
+                if current_section:
+                    section_lengths.append(len(current_section))
+                current_section = []
+            else:
+                current_section.append(para)
         
-        logger.info(f"Paragraph length check completed. Found {len(issues)} issues")
-        return DocumentCheckResult(
-            success=len(issues) == 0,
-            issues=issues
-        )
-
-    def check_sentence_length(self, doc: List[str]) -> DocumentCheckResult:
-        """Check sentence length."""
-        issues = []
-        logger.info("Starting sentence length check")
+        # Add last section
+        if current_section:
+            section_lengths.append(len(current_section))
         
-        for i, paragraph in enumerate(doc, 1):
-            logger.debug(f"Processing paragraph {i}: {paragraph}")
-            sentences = split_sentences(paragraph)
-            logger.debug(f"Found {len(sentences)} sentences in paragraph {i}")
-            
-            for j, sentence in enumerate(sentences, 1):
-                logger.debug(f"Checking sentence {j} in paragraph {i}: {sentence}")
-                word_count = count_words(sentence)
-                logger.debug(f"Sentence {j} has {word_count} words")
-                
-                if word_count > 25:
-                    logger.warning(f"Long sentence found in paragraph {i}, sentence {j}: {word_count} words")
-                    issues.append({
-                        'line': sentence,
-                        'message': 'Sentence too long',
-                        'suggestion': 'Consider breaking into shorter sentences'
-                    })
+        # Check for significant imbalance
+        if section_lengths:
+            avg_length = sum(section_lengths) / len(section_lengths)
+            for i, length in enumerate(section_lengths):
+                if length > avg_length * 2:
+                    results.add_issue(
+                        message=f"Section {i+1} is significantly longer than average",
+                        severity=Severity.LOW
+                    )
+    
+    def _check_list_formatting(self, paragraphs, results):
+        """Check for consistent list formatting."""
+        list_markers = ['•', '-', '*', '1.', 'a.', 'i.']
+        current_list_style = None
         
-        logger.info(f"Sentence length check completed. Found {len(issues)} issues")
-        return DocumentCheckResult(
-            success=len(issues) == 0,
-            issues=issues
-        )
-
-    def check_parentheses(self, doc: List[str]) -> DocumentCheckResult:
-        """Check parentheses usage."""
-        issues = []
-        logger.info("Starting parentheses check")
-        
-        for i, line in enumerate(doc, 1):
-            logger.debug(f"Checking line {i} for parentheses: {line}")
-            open_count = line.count('(')
-            close_count = line.count(')')
-            logger.debug(f"Line {i} has {open_count} opening and {close_count} closing parentheses")
-            
-            if open_count != close_count:
-                logger.warning(f"Mismatched parentheses in line {i}: {open_count} opening, {close_count} closing")
-                issues.append({
-                    'line': line,
-                    'message': 'Mismatched parentheses',
-                    'suggestion': 'Check and fix parentheses pairs'
-                })
-        
-        logger.info(f"Parentheses check completed. Found {len(issues)} issues")
-        return DocumentCheckResult(
-            success=len(issues) == 0,
-            issues=issues
-        ) 
+        for i, para in enumerate(paragraphs):
+            text = para.text.strip()
+            for marker in list_markers:
+                if text.startswith(marker):
+                    if current_list_style and marker != current_list_style:
+                        results.add_issue(
+                            message="Inconsistent list formatting detected",
+                            severity=Severity.LOW,
+                            line_number=i+1
+                        )
+                    current_list_style = marker
+                    break
+            else:
+                current_list_style = None

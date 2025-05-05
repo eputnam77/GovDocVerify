@@ -3,10 +3,13 @@ from documentcheckertool.utils.text_utils import normalize_heading
 from documentcheckertool.models import DocumentCheckResult, DocumentType
 import re
 import logging
+from docx import Document
+from .base_checker import BaseChecker
+from documentcheckertool.models import DocumentCheckResult, Severity
 
 logger = logging.getLogger(__name__)
 
-class HeadingChecks:
+class HeadingChecks(BaseChecker):
     """Class for handling heading-related checks."""
     
     HEADING_WORDS = frozenset({
@@ -159,4 +162,39 @@ class HeadingChecks:
             prev_numbers = numbers
             
         logger.info(f"Heading structure check completed. Found {len(issues)} issues")
-        return issues 
+        return issues
+
+    def run_checks(self, document: Document, doc_type: str, results: DocumentCheckResult) -> None:
+        """Run all heading-related checks."""
+        logger.info(f"Running heading checks for document type: {doc_type}")
+        
+        # Get all paragraphs with heading style
+        headings = [p for p in document.paragraphs if p.style.name.startswith('Heading')]
+        
+        # Check heading structure
+        self._check_heading_hierarchy(headings, results)
+        self._check_heading_format(headings, results)
+        
+    def _check_heading_hierarchy(self, headings, results):
+        """Check if headings follow proper hierarchy."""
+        current_level = 0
+        for heading in headings:
+            level = int(heading.style.name.replace('Heading ', ''))
+            if level > current_level + 1:
+                results.add_issue(
+                    message=f"Invalid heading hierarchy: {heading.text}",
+                    severity=Severity.HIGH,
+                    line_number=heading._element.sourceline
+                )
+            current_level = level
+    
+    def _check_heading_format(self, headings, results):
+        """Check heading format (capitalization, punctuation, etc)."""
+        for heading in headings:
+            text = heading.text.strip()
+            if text.endswith('.'):
+                results.add_issue(
+                    message=f"Heading should not end with period: {text}",
+                    severity=Severity.MEDIUM,
+                    line_number=heading._element.sourceline
+                )

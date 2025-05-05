@@ -1,3 +1,5 @@
+# python -m pytest tests/test_accessibility_checks.py -v
+
 import unittest
 from pathlib import Path
 from tests.test_base import TestBase

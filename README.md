@@ -9,8 +9,6 @@ app_file: app.py
 pinned: false
 ---
 
-# ERIC - 5/1/2025: NEED to determine best approach when deploying this app: conda, pip (requirements.txt), other
-
 # Document Checker Tool
 
 A tool for checking documents against FAA style guidelines.

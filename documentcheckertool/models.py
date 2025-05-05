@@ -60,8 +60,63 @@ class DocumentCheckResult(BaseModel):
     issues: List[Dict] = []
     score: float = 0.0
 
+class Severity(Enum):
+    LOW = "LOW"
+    MEDIUM = "MEDIUM"
+    HIGH = "HIGH"
+
+    def to_color(self) -> str:
+        return {
+            "LOW": "blue",
+            "MEDIUM": "orange",
+            "HIGH": "red"
+        }[self.value]
+
+class DocumentCheckResult:
+    def __init__(self, success: bool = True, issues: List[Dict[str, Any]] = None):
+        self.success = success
+        self.issues = issues or []
+
+    def add_issue(self, message: str, severity: Severity, line_number: int = None):
+        self.issues.append({
+            "message": message,
+            "severity": severity,
+            "line_number": line_number
+        })
+        if severity in [Severity.MEDIUM, Severity.HIGH]:
+            self.success = False
+
+    def to_html(self) -> str:
+        if not self.issues:
+            return "<div style='color: green;'>✓ No issues found</div>"
+
+        html = ["<div style='padding: 10px;'>"]
+        
+        # Group issues by severity
+        by_severity = {}
+        for issue in self.issues:
+            sev = issue["severity"]
+            if sev not in by_severity:
+                by_severity[sev] = []
+            by_severity[sev].append(issue)
+
+        # Generate HTML for each severity group
+        for severity in sorted(by_severity.keys(), key=lambda x: x.value):
+            issues = by_severity[severity]
+            color = severity.to_color()
+            
+            html.append(f"<h3 style='color: {color};'>{severity.value} Severity Issues:</h3>")
+            html.append("<ul>")
+            for issue in issues:
+                line_info = f" (line {issue['line_number']})" if issue.get('line_number') else ""
+                html.append(f"<li>{issue['message']}{line_info}</li>")
+            html.append("</ul>")
+
+        html.append("</div>")
+        return "\n".join(html)
+
 class DocumentType(BaseModel):
     """Represents a document type with its associated rules."""
     name: str
     description: str
-    rules: List[str] 
+    rules: List[str]

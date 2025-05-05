@@ -1,4 +1,6 @@
+import logging
 from typing import List, Dict, Any, Optional
+from docx import Document
 from documentcheckertool.models import DocumentCheckResult, DocumentType
 from documentcheckertool.checks.heading_checks import HeadingChecks
 from documentcheckertool.checks.accessibility_checks import AccessibilityChecks
@@ -7,6 +9,8 @@ from documentcheckertool.checks.structure_checks import StructureChecks
 from documentcheckertool.checks.terminology_checks import TerminologyChecks
 from documentcheckertool.utils.text_utils import split_sentences, count_words, normalize_reference
 from documentcheckertool.utils.pattern_cache import PatternCache
+
+logger = logging.getLogger(__name__)
 
 class FAADocumentChecker:
     """Main document checker class that coordinates various checks."""
@@ -20,35 +24,21 @@ class FAADocumentChecker:
         self.terminology_checks = TerminologyChecks(self.pattern_cache)
         # Initialize other check modules here
 
-    def run_all_document_checks(self, doc: List[str], doc_type: str, template_type: str) -> Dict[str, DocumentCheckResult]:
-        """Run all document checks and return results."""
-        results = {}
-        
-        # Run heading checks
-        results['heading_title'] = self.heading_checks.check_heading_title(doc, doc_type)
-        results['heading_period'] = self.heading_checks.check_heading_period(doc, doc_type)
-        
-        # Run accessibility checks
-        results['readability'] = self.accessibility_checks.check_readability(doc)
-        results['section_508'] = self.accessibility_checks.check_section_508_compliance(doc)
-        
-        # Run format checks
-        results['date_format'] = self.format_checks.check_date_format_usage(doc)
-        results['phone_format'] = self.format_checks.check_phone_number_format_usage(doc)
-        results['placeholder'] = self.format_checks.check_placeholder_usage(doc)
-        
-        # Run structure checks
-        results['paragraph_length'] = self.structure_checks.check_paragraph_length(doc)
-        results['sentence_length'] = self.structure_checks.check_sentence_length(doc)
-        results['parentheses'] = self.structure_checks.check_parentheses(doc)
-        
-        # Run terminology checks
-        results['abbreviation'] = self.terminology_checks.check_abbreviation_usage(doc)
-        results['cross_reference'] = self.terminology_checks.check_cross_reference_usage(doc)
-        results['required_language'] = self.terminology_checks.check_required_language(doc, doc_type)
-        results['pronouns'] = self.terminology_checks.check_pronouns(doc)
-        results['split_infinitives'] = self.terminology_checks.check_split_infinitives(doc)
-        
-        # Add other checks here
-        
-        return results 
+    def run_all_document_checks(self, document_path: str, doc_type: str = None) -> DocumentCheckResult:
+        """Run all document checks."""
+        try:
+            doc = Document(document_path)
+            results = DocumentCheckResult()
+            
+            # Run all check types
+            self.heading_checks.run_checks(doc, doc_type, results)
+            self.accessibility_checks.run_checks(doc, doc_type, results)
+            self.format_checks.run_checks(doc, doc_type, results)
+            self.structure_checks.run_checks(doc, doc_type, results)
+            self.terminology_checks.run_checks(doc, doc_type, results)
+            
+            return results
+            
+        except Exception as e:
+            logger.error(f"Error running checks: {str(e)}")
+            raise

@@ -1,6 +1,8 @@
+# python -m pytest tests/test_structure_checks.py -v
+
 import unittest
 from test_base import TestBase
-from checks.structure_checks import StructureChecks
+from documentcheckertool.checks.structure_checks import StructureChecks
 
 class TestStructureChecks(TestBase):
     """Test suite for structure-related checks."""
@@ -46,4 +48,4 @@ class TestStructureChecks(TestBase):
         self.assert_issue_contains(result, "Mismatched parentheses")
 
 if __name__ == '__main__':
-    unittest.main() 
+    unittest.main()
