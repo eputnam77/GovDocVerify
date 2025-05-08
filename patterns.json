@@ -21,6 +21,12 @@
             "is_error": false
         },
         {
+            "_comment": "RTCA is no longer an acronym since 1990",
+            "pattern": "\\bRTCA\\b",
+            "description": "RTCA is no longer an acronym since 1990",
+            "is_error": false
+        },
+        {
             "_comment": "Per the GPO Style Manual",
             "pattern": "\\b(?:USC|U\\.S\\.C)\\b",
             "description": "USC should be U.S.C.",

@@ -21,6 +21,20 @@ class HeadingChecks(BaseChecker):
         'REQUIREMENTS', 'REPORT', 'SCOPE', 'SECTION', 'SUMMARY', 'TABLE', 'WARNING'
     })
 
+    PERIOD_REQUIRED = {
+        DocumentType.ADVISORY_CIRCULAR: True,
+        DocumentType.AIRWORTHINESS_CRITERIA: False,
+        DocumentType.DEVIATION_MEMO: False,
+        DocumentType.EXEMPTION: False,
+        DocumentType.FEDERAL_REGISTER_NOTICE: False,
+        DocumentType.ORDER: True,
+        DocumentType.POLICY_STATEMENT: False,
+        DocumentType.RULE: False,
+        DocumentType.SPECIAL_CONDITION: False,
+        DocumentType.TECHNICAL_STANDARD_ORDER: True,
+        DocumentType.OTHER: False
+    }
+
     def __init__(self, pattern_cache):
         self.pattern_cache = pattern_cache
         logger.info("Initialized HeadingChecks with pattern cache")
@@ -74,11 +88,7 @@ class HeadingChecks(BaseChecker):
         issues = []
         logger.info(f"Starting heading period check for document type: {doc_type}")
         doc_type_enum = DocumentType.from_string(doc_type)
-        requires_period = doc_type_enum in {
-            DocumentType.ADVISORY_CIRCULAR,
-            DocumentType.ORDER,
-            DocumentType.TECHNICAL_STANDARD_ORDER
-        }
+        requires_period = self.PERIOD_REQUIRED.get(doc_type_enum, False)
         logger.debug(f"Document type {doc_type} {'requires' if requires_period else 'does not require'} periods")
         
         for i, line in enumerate(doc, 1):
