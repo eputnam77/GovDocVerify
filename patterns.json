@@ -75,12 +75,13 @@
         },
         {
             "pattern": "\\b(?:[Ww]e)\\b",
-            "description": "'We' or 'we' should be replaced with 'The FAA' or 'the FAA', depending on case",
+            "description": "'We' or 'we' should be replaced with 'The FAA' or 'the FAA', depending on case (except in Technical Standard Orders)",
             "is_error": true,
             "replacements": {
                 "We": "The FAA",
                 "we": "the FAA"
-            }
+            },
+            "document_type_exceptions": ["Technical Standard Order"]
         },
         {
             "_comment": "Per the GPO Style Manual",

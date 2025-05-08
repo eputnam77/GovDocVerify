@@ -1,4 +1,4 @@
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 from documentcheckertool.utils.text_utils import normalize_heading
 from documentcheckertool.models import DocumentCheckResult, DocumentType
 import re
@@ -185,18 +185,41 @@ class HeadingChecks(BaseChecker):
         self._check_heading_hierarchy(headings, results)
         self._check_heading_format(headings, results)
         
+    def _check_heading_sequence(self, current_level: int, previous_level: int) -> Optional[str]:
+        """
+        Check if heading sequence is valid.
+        Returns error message if invalid, None if valid.
+        
+        Rules:
+        - Can go from any level to H1 or H2 (restart numbering)
+        - When going deeper, can only go one level at a time (e.g., H1 to H2, H2 to H3)
+        - Can freely go to any higher level (e.g., H3 to H1, H4 to H2)
+        """
+        # When going to a deeper level, only allow one level at a time
+        if current_level > previous_level:
+            if current_level != previous_level + 1:
+                return f"Skipped heading level(s) {previous_level + 1} - Found H{current_level} after H{previous_level}. Add H{previous_level + 1} before this section."
+            
+        # All other cases are valid:
+        # - Going to H1 (restart numbering)
+        # - Going to any higher level (e.g., H3 to H1)
+        return None
+
     def _check_heading_hierarchy(self, headings, results):
         """Check if headings follow proper hierarchy."""
-        current_level = 0
+        previous_level = 0
         for heading in headings:
             level = int(heading.style.name.replace('Heading ', ''))
-            if level > current_level + 1:
+            error_message = self._check_heading_sequence(level, previous_level)
+            
+            if error_message:
                 results.add_issue(
-                    message=f"Invalid heading hierarchy: {heading.text}",
+                    message=error_message,
                     severity=Severity.HIGH,
-                    line_number=heading._element.sourceline
+                    line_number=heading._element.sourceline,
+                    context=f"Current heading: {heading.text}"
                 )
-            current_level = level
+            previous_level = level
     
     def _check_heading_format(self, headings, results):
         """Check heading format (capitalization, punctuation, etc)."""

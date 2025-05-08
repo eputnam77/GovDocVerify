@@ -223,9 +223,11 @@ def create_interface():
                                     checker = FAADocumentChecker()
                                     
                                     logger.info(f"Running checks for document type: {doc_type_value}")
+                                    # Pass template type for AC documents
                                     results_data = checker.run_all_document_checks(
                                         document_path=temp_file_path,
-                                        doc_type=doc_type_value
+                                        doc_type=doc_type_value,
+                                        template_type=template_type_value if doc_type_value == "Advisory Circular" else None
                                     )
                                     
                                     logger.info(f"Number of issues found: {len(results_data.issues) if results_data and results_data.issues else 0}")
@@ -257,13 +259,7 @@ def create_interface():
                                         
                             except Exception as e:
                                 logger.error(f"Error processing document: {str(e)}", exc_info=True)
-                                return f"""
-                                    <div style="color: red; padding: 1rem;">
-                                        ❌ Error processing document: {str(e)}
-                                        <br><br>
-                                        Please ensure the file is a valid .docx document and try again.
-                                    </div>
-                                """
+                                return format_error_message(str(e))
 
                         def format_html_from_text(text_results: str) -> str:
                             """Convert formatted text results to HTML with proper styling."""
@@ -277,6 +273,24 @@ def create_interface():
                             # Remove ANSI color codes
                             ansi_escape = re.compile(r'\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])')
                             text_results = ansi_escape.sub('', text_results)
+                            
+                            # Update sections to include all check types
+                            sections = {
+                                'Readability Issues': 'text-blue-600',
+                                'Heading Structure': 'text-amber-600',
+                                'Accessibility': 'text-green-600',
+                                'Cross References': 'text-purple-600',
+                                'Document Structure': 'text-indigo-600'
+                            }
+                            
+                            # Add section icons
+                            section_icons = {
+                                'Readability Issues': '📊',
+                                'Heading Structure': '📝',
+                                'Accessibility': '♿',
+                                'Cross References': '🔗',
+                                'Document Structure': '📑'
+                            }
                             
                             # Split into sections while preserving the header
                             sections = text_results.split('■')
