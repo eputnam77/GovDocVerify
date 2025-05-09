@@ -13,6 +13,7 @@ import traceback
 import pkg_resources
 from pprint import pformat
 from enum import Enum
+from datetime import datetime
 
 logger = logging.getLogger(__name__)
 GRADIO_VERSION = pkg_resources.get_distribution('gradio').version
@@ -186,6 +187,10 @@ def create_interface():
                                 
                                 with gr.Column(scale=2):
                                     results = gr.HTML(elem_classes="results-container")
+                                    with gr.Row():
+                                        download_docx = gr.Button("📄 Download Report (DOCX)", visible=False)
+                                        download_pdf = gr.Button("📑 Download Report (PDF)", visible=False)
+                                    report_file = gr.File(label="Download Report", visible=False)
 
                         def process_and_format(file_obj, doc_type_value, template_type_value):
                             """Process document and format results as HTML."""
@@ -255,12 +260,39 @@ def create_interface():
                             outputs=[template_type]
                         )
 
+                        def generate_report_file(results_data, doc_type_value, format="docx"):
+                            """Generate downloadable report file."""
+                            if not results_data:
+                                return None
+                                
+                            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                            filename = f"document_check_report_{timestamp}.{format}"
+                            
+                            formatter = ResultFormatter(style=format)
+                            formatted_results = formatter.format_results({"document_check": results_data}, doc_type_value)
+                            
+                            with tempfile.NamedTemporaryFile(delete=False, suffix=f".{format}", mode="w", encoding="utf-8") as temp_file:
+                                temp_file.write(formatted_results)
+                                return temp_file.name
+
                         submit_btn.click(
                             fn=process_and_format,
                             inputs=[file_input, doc_type, template_type],
-                            outputs=[results]
+                            outputs=[results, download_docx, download_pdf, report_file]
                         )
                         
+                        download_docx.click(
+                            fn=generate_report_file,
+                            inputs=[results, doc_type],
+                            outputs=[report_file]
+                        )
+                        
+                        download_pdf.click(
+                            fn=generate_report_file,
+                            inputs=[results, doc_type],
+                            outputs=[report_file]
+                        )
+
                         gr.Markdown(
                             """
                             ### 📌 Important Notes
