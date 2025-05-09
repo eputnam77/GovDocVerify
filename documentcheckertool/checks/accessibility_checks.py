@@ -9,6 +9,8 @@ import requests
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from docx import Document
 from .base_checker import BaseChecker
+from documentcheckertool.formatters.document_formatter import DocumentFormatter
+from documentcheckertool.utils.formatting import ResultFormatter
 
 logger = logging.getLogger(__name__)
 
@@ -22,8 +24,10 @@ def profile_performance(func):
 class AccessibilityChecks(BaseChecker):
     """Class for handling accessibility-related checks."""
     
-    def __init__(self, pattern_cache):
+    def __init__(self, pattern_cache=None):
+        super().__init__()
         self.pattern_cache = pattern_cache
+        self.formatter = ResultFormatter()
         logger.info("Initialized AccessibilityChecks with pattern cache")
         # Add passive voice patterns
         self.passive_patterns = [
@@ -306,55 +310,6 @@ class AccessibilityChecks(BaseChecker):
                 'recommendation': 'Check the link manually'
             }
         return None
-
-    def _format_compliance_issues(self, result: DocumentCheckResult) -> List[str]:
-        """Format compliance issues with clear, user-friendly descriptions."""
-        formatted_issues = []
-        
-        for issue in result.issues:
-            if issue.get('category') == '508_compliance_heading_structure':
-                message = issue.get('message', 'No description provided')
-                context = issue.get('context', 'No context provided').strip()
-                recommendation = issue.get('recommendation', 'No recommendation provided').strip()
-                formatted_issues.append(
-                    f"    • {message}. Context: {context}. Recommendation: {recommendation}"
-                )
-            elif issue.get('category') == 'image_alt_text':
-                formatted_issues.append(
-                    f"    • {issue.get('message', 'No description provided')}. {issue.get('context', '')}"
-                )
-            elif issue.get('category') == 'hyperlink_validity':
-                formatted_issues.append(
-                    f"    • {issue.get('message', 'No description provided')} - {issue.get('context', '')}. {issue.get('recommendation', '')}"
-                )
-            elif issue.get('category') == 'hyperlink_accessibility':
-                formatted_issues.append(
-                    f"    • {issue.get('user_message', issue.get('message', 'No description provided'))}"
-                )
-            elif 'context' in issue and issue['context'].startswith('Link text:'):
-                link_text = issue['context'].replace('Link text:', '').strip().strip('"')
-                if any(phrase == link_text.lower() for phrase in ['here', 'click here', 'more', 'link']):
-                    formatted_issues.append(
-                        f"    • Replace non-descriptive link text \"{link_text}\" with text that clearly indicates where the link will take the user"
-                    )
-                elif link_text.lower().startswith(('http', 'www', 'ftp')):
-                    formatted_issues.append(
-                        f"    • Replace the URL \"{link_text}\" with meaningful text that describes the link destination"
-                    )
-                elif len(link_text) < 4:
-                    formatted_issues.append(
-                        f"    • Link text \"{link_text}\" is too short - use descriptive text that clearly indicates the link destination"
-                    )
-                else:
-                    formatted_issues.append(f"    • {issue.get('message', 'No description provided')} {issue['context']}")
-            else:
-                message = issue.get('message', 'No description provided')
-                context = issue.get('context', '').strip()
-                formatted_issues.append(
-                    f"    • {message} {context}"
-                )
-
-        return formatted_issues
 
     def run_checks(self, document: Document, doc_type: str, results: DocumentCheckResult) -> None:
         """Run all accessibility-related checks."""

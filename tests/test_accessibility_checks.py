@@ -18,12 +18,13 @@ class TestAccessibilityChecks(TestBase):
             "Short sentence.",
             "This is a very long sentence that exceeds the recommended word count limit and "
             "should be broken down into multiple shorter sentences for better readability.",
-            "Another short sentence."
+            "Another short sentence with a total word count of exactly twenty-five words here."
         ]
         result = self.accessibility_checks.check_readability(content)
         self.assertFalse(result.success)
         self.assert_issue_contains(result, "Sentence too long")
-    
+        self.assert_issue_contains(result, "Word count exceeds")
+
     def test_section_508_compliance(self):
         """Test Section 508 compliance checking."""
         content = [
@@ -48,15 +49,27 @@ class TestAccessibilityChecks(TestBase):
         self.assertFalse(result.success)
         self.assert_issue_contains(result, "Sentence too long")
 
+    def test_heading_structure(self):
+        """Test heading structure checking."""
+        content = """
+        # Main Heading
+        ## Subheading
+        ### Skip level heading
+        # Another Main
+        #### Too deep
+        """
+        result = self.accessibility_checks.check_heading_structure(content.split('\n'))
+        self.assertFalse(result.success)
+        self.assert_issue_contains(result, "Inconsistent heading structure")
+
     def test_image_alt_text(self):
         """Test checking for image alt text."""
         content = """
-        ![Image with alt text](image.png "Alt text here")
+        ![Descriptive alt text](image.png "Image title")
+        ![Another image](photo.jpg "Photo description")
         """
-        file_path = self.create_test_file(content, "test_accessibility.md")
-        checker = AccessibilityChecks()
-        result = checker.check_document(file_path)
-        self.assert_no_issues(result)
+        result = self.accessibility_checks.check_image_accessibility(content.split('\n'))
+        self.assertTrue(result.success)
         
     def test_missing_alt_text(self):
         """Test detection of missing alt text."""
@@ -68,6 +81,16 @@ class TestAccessibilityChecks(TestBase):
         result = checker.check_document(file_path)
         self.assert_has_issues(result)
         self.assert_issue_contains(result, "Missing alt text")
+
+    def test_color_contrast(self):
+        """Test color contrast checking."""
+        content = """
+        <span style="color: #777777">Low contrast text</span>
+        <div style="background-color: #FFFF00; color: #FFFFFF">Poor contrast background</div>
+        """
+        result = self.accessibility_checks.check_color_contrast(content.split('\n'))
+        self.assertFalse(result.success)
+        self.assert_issue_contains(result, "Insufficient color contrast")
 
 if __name__ == '__main__':
     unittest.main()

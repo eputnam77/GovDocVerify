@@ -2,64 +2,61 @@
 
 import unittest
 from test_base import TestBase
-from documentcheckertool.checks.heading_checks import HeadingChecks
+from documentcheckertool.checks.heading_checks import HeadingChecker
 
 class TestHeadingChecks(TestBase):
     """Test suite for heading-related checks."""
     
     def setUp(self):
         super().setUp()
-        self.heading_checks = HeadingChecks(self.checker.pattern_cache)
-    
-    def test_heading_title(self):
-        """Test heading title checking."""
+        self.heading_checker = HeadingChecker()
+
+    def test_heading_hierarchy(self):
+        """Test heading hierarchy checking."""
+        content = [
+            "# Main Heading",
+            "## Subheading 1",
+            "### Section 1.1",
+            "## Subheading 2",
+            "#### Invalid Skip Level"  # Should trigger warning
+        ]
+        result = self.heading_checker.check_hierarchy(content)
+        self.assert_has_issues(result)
+        self.assert_issue_contains(result, "Heading level skipped")
+
+    def test_custom_heading_format(self):
+        """Test custom heading format checking."""
+        self.heading_checker.set_heading_format(r"^\d+\.\d*\s+[A-Z]")
+        content = [
+            "1. INTRODUCTION",
+            "1.1 BACKGROUND",
+            "1.2 SCOPE",
+            "2. REQUIREMENTS"
+        ]
+        result = self.heading_checker.check_format(content)
+        self.assert_no_issues(result)
+
+    def test_heading_consistency(self):
+        """Test heading format consistency."""
         content = [
             "1. Introduction",
-            "2. Background",
+            "2) Background",  # Inconsistent format
             "3. Requirements"
         ]
-        result = self.heading_checks.check_heading_title(content)
-        self.assertTrue(result.success)
-    
-    def test_heading_period(self):
-        """Test heading period checking."""
+        result = self.heading_checker.check_format(content)
+        self.assert_has_issues(result)
+        self.assert_issue_contains(result, "Inconsistent heading format")
+
+    def test_duplicate_headings(self):
+        """Test duplicate heading detection."""
         content = [
-            "1. Introduction.",
-            "2. Background.",
-            "3. Requirements."
+            "# Introduction",
+            "## Overview",
+            "## Overview"  # Duplicate
         ]
-        result = self.heading_checks.check_heading_period(content)
-        self.assertFalse(result.success)
-        self.assert_issue_contains(result, "Heading ends with period")
-    
-    def test_heading_format(self):
-        """Test heading format checking."""
-        content = [
-            "1. Introduction",
-            "2. Background",
-            "3. Requirements",
-            "4. Implementation",
-            "5. Conclusion"
-        ]
-        result = self.heading_checks.check_heading_title(content)
-        self.assertTrue(result.success)
-    
-    def test_invalid_headings(self):
-        """Test handling of invalid headings."""
-        content = [
-            "1. Introduction",
-            "2. Background",
-            "3. Requirements",
-            "4. Implementation",
-            "5. Conclusion",
-            "6. References",
-            "7. Appendix",
-            "8. Glossary",
-            "9. Index",
-            "10. About"
-        ]
-        result = self.heading_checks.check_heading_title(content)
-        self.assertTrue(result.success)
+        result = self.heading_checker.check_duplicates(content)
+        self.assert_has_issues(result)
+        self.assert_issue_contains(result, "Duplicate heading")
 
 if __name__ == '__main__':
     unittest.main()

@@ -1,12 +1,21 @@
-from typing import Dict, List, Any
+from typing import Dict, List, Any, Optional, Union
+from enum import Enum
 from colorama import Fore, Style
 from documentcheckertool.models import DocumentCheckResult
 
+class FormatStyle(Enum):
+    """Output format styles."""
+    PLAIN = "plain"
+    MARKDOWN = "markdown"
+    HTML = "html"
+
 class ResultFormatter:
-    """Handles formatting of document check results."""
+    """Unified formatter for all document check results."""
     
-    def __init__(self):
-        """Initialize the formatter with issue categories."""
+    def __init__(self, style: Union[str, FormatStyle] = FormatStyle.PLAIN):
+        self._style = FormatStyle(style) if isinstance(style, str) else style
+        self._setup_style()
+
         self.issue_categories = {
             'heading_title_check': {
                 'title': 'Required Headings Check',
@@ -186,10 +195,32 @@ class ResultFormatter:
                     'before': 'The implementation of the procedure was facilitated by technical personnel.',
                     'after': 'Technical staff helped start the procedure.'
                 }
+            },
+            'accessibility': {
+                'title': 'Accessibility Issues',
+                'description': 'Checks document accessibility including alt text, heading structure, and hyperlinks.',
+                'solution': 'Add missing accessibility features and fix structural issues.',
+                'example_fix': {
+                    'before': 'Image without alt text, skipped heading levels',
+                    'after': 'Added alt text, fixed heading hierarchy'
+                }
             }
         }
 
         # Add these two helper methods here, after __init__ and before other methods
+    def _setup_style(self):
+        """Configure formatting style."""
+        style_configs = {
+            FormatStyle.PLAIN: ("•", 4),
+            FormatStyle.MARKDOWN: ("-", 2),
+            FormatStyle.HTML: ("<li>", 0, "</li>")
+        }
+        self.bullet_style, self.indent, *self.suffix = style_configs.get(
+            self._style, 
+            style_configs[FormatStyle.PLAIN]
+        )
+        self.suffix = self.suffix[0] if self.suffix else ""
+
     def _format_colored_text(self, text: str, color: str) -> str:
         """Helper method to format colored text with reset.
         
@@ -391,6 +422,39 @@ class ResultFormatter:
         
         return formatted_issues
 
+    def _format_accessibility_issues(self, result: DocumentCheckResult) -> List[str]:
+        """Format accessibility-specific issues."""
+        formatted_issues = []
+        
+        for issue in result.issues:
+            if issue.get('category') == '508_compliance_heading_structure':
+                formatted_issues.append(f"    • {issue['message']}")
+                if 'context' in issue:
+                    formatted_issues.append(f"      Context: {issue['context']}")
+                if 'recommendation' in issue:
+                    formatted_issues.append(f"      Recommendation: {issue['recommendation']}")
+            elif issue.get('category') == 'image_alt_text':
+                formatted_issues.append(f"    • Missing alt text: {issue.get('context', '')}")
+            elif issue.get('category') == 'hyperlink_accessibility':
+                formatted_issues.append(
+                    f"    • {issue.get('user_message', issue.get('message', 'No description provided'))}"
+                )
+            elif issue.get('category') == 'color_contrast':
+                formatted_issues.append(f"    • {issue.get('message', '')}")
+                
+        return formatted_issues
+
+    def _format_alt_text_issues(self, issue: Dict) -> str:
+        """Format image alt text issues."""
+        return f"    • {issue.get('message', 'Missing alt text')}: {issue.get('context', '')}"
+
+    def _format_heading_structure_issues(self, issue: Dict) -> str:
+        """Format heading structure issues."""
+        msg = issue.get('message', '')
+        ctx = issue.get('context', '')
+        rec = issue.get('recommendation', '')
+        return f"    • {msg}" + (f"\n      Context: {ctx}" if ctx else "") + (f"\n      Fix: {rec}" if rec else "")
+
     def format_results(self, results: Dict[str, Any], doc_type: str) -> str:
         """
         Format check results into a detailed, user-friendly report.
@@ -590,6 +654,13 @@ class ResultFormatter:
                         output.append(f"    • Confirm {issue['type']} {issue['reference']} referenced in '{issue['context']}' exists in the document")
                 elif check_name == 'readability_check':
                     output.extend(self._format_readability_issues(result))
+                # Add accessibility-specific handling
+                elif check_name == 'accessibility_check':
+                    output.extend(self._format_accessibility_issues(result))
+                elif check_name == 'alt_text_check':
+                    output.extend([self._format_alt_text_issues(issue) for issue in result.issues])
+                elif check_name == 'heading_structure_check':
+                    output.extend([self._format_heading_structure_issues(issue) for issue in result.issues])
                 else:
                     formatted_issues = [self._format_standard_issue(issue) for issue in result.issues[:15]]
                     output.extend(formatted_issues)
