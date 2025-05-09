@@ -17,7 +17,8 @@ TERM_REPLACEMENTS = {
     'chairman': 'chair (per AIR-600 Quick Reference Guide)',
     'flagman': 'flagperson (per AIR-600 Quick Reference Guide)',
     'manmade': 'personmade (per AIR-600 Quick Reference Guide)',
-    'manpower': 'labor force (per AIR-600 Quick Reference Guide)'
+    'manpower': 'labor force (per AIR-600 Quick Reference Guide)',
+    'European Aviation Safety Agency': 'European Union Aviation Safety Agency (EASA)'
 }
 
 # Terms to avoid (with explanations)
