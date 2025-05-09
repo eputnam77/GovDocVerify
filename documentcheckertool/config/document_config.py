@@ -4,6 +4,16 @@ from pathlib import Path
 # Configuration file paths
 VALID_WORDS_PATH = Path(__file__).parent / 'valid_words.txt'
 
+# Common heading words used in FAA documents
+HEADING_WORDS = {
+    'APPLICABILITY', 'APPENDIX', 'AUTHORITY', 'BACKGROUND', 'CANCELLATION', 'CAUTION',
+    'CHAPTER', 'CONCLUSION', 'DEPARTMENT', 'DEFINITION', 'DEFINITIONS', 'DISCUSSION',
+    'DISTRIBUTION', 'EXCEPTION', 'EXPLANATION', 'FIGURE', 'GENERAL', 'GROUPS', 
+    'INFORMATION', 'INSERT', 'INTRODUCTION', 'MATERIAL', 'NOTE', 'PARTS', 'PAST', 
+    'POLICY', 'PRACTICE', 'PROCEDURES', 'PURPOSE', 'RELEVANT', 'RELATED', 
+    'REQUIREMENTS', 'REPORT', 'SCOPE', 'SECTION', 'SUMMARY', 'TABLE', 'WARNING'
+}
+
 # Document type configurations
 DOC_TYPE_CONFIG = {
     'Advisory Circular': {

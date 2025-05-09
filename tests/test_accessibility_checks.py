@@ -1,9 +1,10 @@
-# Run test: pytest tests/test_accessibility_checks.py -v
+# Run test: pytest -v
 
 import unittest
 from pathlib import Path
 from tests.test_base import TestBase
 from documentcheckertool.checks.accessibility_checks import AccessibilityChecks
+from documentcheckertool.models import DocumentCheckResult
 
 class TestAccessibilityChecks(TestBase):
     """Test cases for accessibility checking functionality."""
@@ -33,7 +34,6 @@ class TestAccessibilityChecks(TestBase):
             "Accessible document elements."
         ]
         result = self.accessibility_checks.check_section_508_compliance(content)
-        # Note: This test will need to be updated once the implementation is complete
         self.assertTrue(result.success)
     
     def test_complex_sentences(self):
@@ -77,7 +77,7 @@ class TestAccessibilityChecks(TestBase):
         ![](image.png)
         """
         file_path = self.create_test_file(content, "test_accessibility.md")
-        checker = AccessibilityChecks()
+        checker = AccessibilityChecks(pattern_cache=self.checker.pattern_cache)
         result = checker.check_document(file_path)
         self.assert_has_issues(result)
         self.assert_issue_contains(result, "Missing alt text")
@@ -88,9 +88,10 @@ class TestAccessibilityChecks(TestBase):
         <span style="color: #777777">Low contrast text</span>
         <div style="background-color: #FFFF00; color: #FFFFFF">Poor contrast background</div>
         """
-        result = self.accessibility_checks.check_color_contrast(content.split('\n'))
-        self.assertFalse(result.success)
-        self.assert_issue_contains(result, "Insufficient color contrast")
+        results = DocumentCheckResult()
+        self.accessibility_checks._check_color_contrast(content.split('\n'), results)
+        self.assertFalse(results.success)
+        self.assert_issue_contains(results, "Insufficient color contrast")
 
 if __name__ == '__main__':
     unittest.main()

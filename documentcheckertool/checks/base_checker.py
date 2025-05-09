@@ -1,7 +1,7 @@
 from typing import Any, Dict
 from documentcheckertool.models import DocumentCheckResult
 from documentcheckertool.utils.formatting import ResultFormatter
-from ..formatters.document_formatter import DocumentFormatter
+from ..utils.formatting import DocumentFormatter
 
 class BaseChecker:
     """Base class for all document checkers."""

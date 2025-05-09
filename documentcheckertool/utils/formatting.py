@@ -785,3 +785,21 @@ def format_results_to_text(results: Dict[str, Any], doc_type: str) -> str:
     """
     formatter = ResultFormatter()
     return formatter.format_results(results, doc_type)
+
+class DocumentFormatter:
+    """Handles document formatting operations."""
+    
+    @staticmethod
+    def format_heading(heading: str) -> str:
+        """Format a heading according to standards."""
+        return heading.strip()
+
+    @staticmethod
+    def normalize_text(text: str) -> str:
+        """Normalize text for comparison."""
+        return text.strip().lower()
+
+    @staticmethod
+    def format_message(template: str, **kwargs) -> str:
+        """Format error/warning messages."""
+        return template.format(**kwargs)

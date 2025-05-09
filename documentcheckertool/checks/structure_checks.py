@@ -6,6 +6,7 @@ from docx import Document
 from .base_checker import BaseChecker
 import re
 import logging
+from functools import wraps
 
 logger = logging.getLogger(__name__)
 

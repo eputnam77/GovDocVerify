@@ -2,7 +2,8 @@
 
 import unittest
 from test_base import TestBase
-from documentcheckertool.checks.format_checks import FormatChecks
+from documentcheckertool.checks.format_checks import FormatChecks, FormatChecker
+from documentcheckertool.models import DocumentType
 
 class TestFormatChecks(TestBase):
     """Test suite for format-related checks."""
@@ -10,6 +11,7 @@ class TestFormatChecks(TestBase):
     def setUp(self):
         super().setUp()
         self.format_checks = FormatChecks(self.checker.pattern_cache)
+        self.checker = FormatChecker()
     
     def test_date_format_usage(self):
         """Test date format checking."""
@@ -76,6 +78,24 @@ class TestFormatChecks(TestBase):
         result = self.format_checks.check_placeholder_usage(content)
         self.assertFalse(result.success)
         self.assert_issue_contains(result, "Placeholder found")
+
+    def test_caption_format(self):
+        """Test caption format checking."""
+        # Test AC format (requires chapter-based numbering)
+        ac_content = """
+        Table 2-1. Example table
+        Figure 3-2. Example figure
+        """
+        result = self.checker.check_caption_format(ac_content.split('\n'), DocumentType.ADVISORY_CIRCULAR)
+        self.assertTrue(result.success)
+
+        # Test FR Notice format (requires sequential numbering)
+        fr_content = """
+        Table 1. First table
+        Figure 2. Second figure
+        """
+        result = self.checker.check_caption_format(fr_content.split('\n'), DocumentType.FEDERAL_REGISTER_NOTICE)
+        self.assertTrue(result.success)
 
 if __name__ == '__main__':
     unittest.main()

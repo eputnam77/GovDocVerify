@@ -7,6 +7,8 @@ from documentcheckertool.config.terminology_rules import (
     TERMINOLOGY_VARIANTS
 )
 from documentcheckertool.config.validation_patterns import ACRONYM_PATTERNS
+from typing import List, Dict, Any, Optional
+from ..utils.decorators import profile_performance
 import re
 import logging
 

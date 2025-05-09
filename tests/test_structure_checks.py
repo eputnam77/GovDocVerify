@@ -2,7 +2,7 @@
 
 import unittest
 from test_base import TestBase
-from documentcheckertool.checks.structure_checks import StructureChecks
+from documentcheckertool.checks.structure_checks import StructureChecks, StructureChecker
 
 class TestStructureChecks(TestBase):
     """Test suite for structure-related checks."""
@@ -10,7 +10,8 @@ class TestStructureChecks(TestBase):
     def setUp(self):
         super().setUp()
         self.structure_checks = StructureChecks(self.checker.pattern_cache)
-    
+        self.checker = StructureChecker()
+
     def test_paragraph_length(self):
         """Test paragraph length checking."""
         content = [
@@ -46,6 +47,22 @@ class TestStructureChecks(TestBase):
         result = self.structure_checks.check_parentheses(content)
         self.assertFalse(result.success)
         self.assert_issue_contains(result, "Mismatched parentheses")
+
+    def test_watermark_validation(self):
+        """Test watermark validation for different document stages."""
+        doc_with_watermark = """
+        DRAFT - FOR INTERNAL FAA REVIEW
+        Some document content.
+        """
+        result = self.checker.check_watermark(doc_with_watermark.split('\n'), 'internal_review')
+        self.assertTrue(result.success)
+
+        doc_without_watermark = """
+        Some document content without watermark.
+        """
+        result = self.checker.check_watermark(doc_without_watermark.split('\n'), 'internal_review')
+        self.assertFalse(result.success)
+        self.assertTrue(any("Missing required watermark" in str(issue) for issue in result.issues))
 
 if __name__ == '__main__':
     unittest.main()

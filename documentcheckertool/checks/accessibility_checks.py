@@ -1,4 +1,4 @@
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Union
 from documentcheckertool.utils.text_utils import count_words, count_syllables, split_sentences
 from documentcheckertool.models import DocumentCheckResult, Severity
 from documentcheckertool.config.document_config import VALIDATION_CONFIG
@@ -8,9 +8,10 @@ import re
 import requests
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from docx import Document
+from ..utils.formatting import DocumentFormatter
 from .base_checker import BaseChecker
-from documentcheckertool.formatters.document_formatter import DocumentFormatter
 from documentcheckertool.utils.formatting import ResultFormatter
+from docx.document import Document as DocxDocument
 
 logger = logging.getLogger(__name__)
 
@@ -25,8 +26,8 @@ class AccessibilityChecks(BaseChecker):
     """Class for handling accessibility-related checks."""
     
     def __init__(self, pattern_cache=None):
-        super().__init__()
-        self.pattern_cache = pattern_cache
+        # Pass pattern_cache to parent class
+        super().__init__(pattern_cache=pattern_cache)
         self.formatter = ResultFormatter()
         logger.info("Initialized AccessibilityChecks with pattern cache")
         # Add passive voice patterns
@@ -39,45 +40,33 @@ class AccessibilityChecks(BaseChecker):
         self.passive_regex = re.compile('|'.join(self.passive_patterns), re.IGNORECASE)
         logger.debug("Initialized passive voice detection patterns")
 
+    def validate_input(self, doc: List[str]) -> bool:
+        """Validate input document content."""
+        return isinstance(doc, list) and all(isinstance(line, str) for line in doc)
+
     def check_readability(self, doc: List[str]) -> DocumentCheckResult:
         """Check document readability using multiple metrics and plain language standards."""
-        if not self.validate_input(doc):
-            return DocumentCheckResult(success=False, issues=[{'error': 'Invalid document input'}])
-
-        text_stats = {
-            'total_words': 0,
-            'total_syllables': 0,
-            'total_sentences': 0,
-            'complex_words': 0,
-            'passive_voice_count': 0
-        }
+        results = DocumentCheckResult()
         
-        # Process each paragraph
-        for paragraph in doc:
-            if not paragraph.strip():
-                continue
-                
-            sentences = re.split(r'(?<=[.!?])\s+', paragraph.strip())
-            text_stats['total_sentences'] += len(sentences)
-            
-            for sentence in sentences:
-                if self.passive_regex.search(sentence):
-                    text_stats['passive_voice_count'] += 1
-                    
-                words = sentence.split()
-                text_stats['total_words'] += len(words)
-                
-                for word in words:
-                    word = re.sub(r'[^\w\s]', '', word.lower())
-                    if not word:
-                        continue
-                    
-                    syllables = self._count_syllables(word)
-                    text_stats['total_syllables'] += syllables
-                    if syllables >= 3:
-                        text_stats['complex_words'] += 1
+        if not self.validate_input(doc):
+            results.add_issue({
+                'message': 'Invalid input format for readability check',
+                'recommendation': 'Ensure input is a list of strings'
+            })
+            return results
 
-        return self._calculate_readability_metrics(text_stats)
+        for line in doc:
+            words = line.split()
+            if len(words) > 25:  # Check sentence length
+                results.add_issue({
+                    'type': 'sentence_length',
+                    'message': 'Sentence too long',
+                    'sentence': line,
+                    'word_count': len(words),
+                    'recommendation': 'Break into shorter sentences'
+                })
+
+        return results
 
     def _count_syllables(self, word: str) -> int:
         """Count syllables in a word using basic rules."""
@@ -329,14 +318,40 @@ class AccessibilityChecks(BaseChecker):
                     severity=Severity.HIGH
                 )
     
-    def _check_color_contrast(self, document: Document, results: DocumentCheckResult):
+    def _check_color_contrast(self, content: Union[List[str], DocxDocument], results: DocumentCheckResult):
         """Check for potential color contrast issues."""
-        # Basic check for now - to be expanded
-        for paragraph in document.paragraphs:
-            if hasattr(paragraph, '_element'):
-                if hasattr(paragraph._element, 'rPr'):
-                    if hasattr(paragraph._element.rPr, 'color'):
-                        results.add_issue(
-                            message="Potential color contrast issue detected",
-                            severity=Severity.MEDIUM
-                        )
+        if isinstance(content, DocxDocument):
+            lines = [paragraph.text for paragraph in content.paragraphs]
+        else:
+            lines = content
+
+        color_pattern = re.compile(r'(?:color|background-color):\s*#([A-Fa-f0-9]{6})')
+        
+        def relative_luminance(hex_color: str) -> float:
+            """Calculate relative luminance from hex color."""
+            r = int(hex_color[0:2], 16) / 255
+            g = int(hex_color[2:4], 16) / 255
+            b = int(hex_color[4:6], 16) / 255
+            return 0.2126 * r + 0.7152 * g + 0.0722 * b
+
+        def contrast_ratio(l1: float, l2: float) -> float:
+            """Calculate contrast ratio between two luminance values."""
+            lighter = max(l1, l2)
+            darker = min(l1, l2)
+            return (lighter + 0.05) / (darker + 0.05)
+
+        for line in lines:
+            colors = color_pattern.findall(line)
+            if len(colors) >= 2:  # If we found both foreground and background colors
+                ratio = contrast_ratio(
+                    relative_luminance(colors[0]),
+                    relative_luminance(colors[1])
+                )
+                if ratio < 4.5:  # WCAG AA standard minimum contrast
+                    results.add_issue({
+                        'message': f"Insufficient color contrast ratio ({ratio:.2f}:1)",
+                        'line': line,
+                        'recommendation': 'Ensure contrast ratio is at least 4.5:1 for normal text'
+                    })
+
+        return results

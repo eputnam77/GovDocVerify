@@ -57,27 +57,8 @@ warn_unreachable = true
 ignore_missing_imports = true
 
 [tool.pytest.ini_options]
-asyncio_mode = "auto"
 testpaths = ["tests"]
-python_files = ["test_*.py"]
-addopts = "-v --cov=documentcheckertool --cov-report=term-missing"
-
-[tool.coverage.run]
-source = ["documentcheckertool"]
-omit = [
-    "*/tests/*",
-    "*/setup.py",
-]
-
-[tool.coverage.report]
-exclude_lines = [
-    "pragma: no cover",
-    "def __repr__",
-    "if __name__ == .__main__.:",
-    "raise NotImplementedError",
-    "if False:",
-    "if TYPE_CHECKING:",
-]
+python_files = "test_*.py"
 
 [tool.bandit]
 exclude_dirs = ["tests"]
