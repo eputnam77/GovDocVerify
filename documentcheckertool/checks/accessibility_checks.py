@@ -131,12 +131,18 @@ class AccessibilityChecks(BaseChecker):
     def _add_readability_issues(self, issues: List[Dict], flesch_ease: float, flesch_grade: float, 
                               fog_index: float, passive_percentage: float) -> None:
         """Add readability issues based on metrics."""
+        # Add disclaimer about readability metrics being guidelines
+        issues.append({
+            'type': 'readability_info',
+            'message': 'Note: Readability metrics are guidelines to help improve clarity. Not all documents will meet all targets, and that\'s okay. Use these suggestions to identify areas for potential improvement.'
+        })
+            
         if flesch_ease < 50:
             issues.append({
                 'type': 'readability_score',
                 'metric': 'Flesch Reading Ease',
                 'score': round(flesch_ease, 1),
-                'message': 'Document may be too difficult for general audience. Consider simplifying language.'
+                'message': 'Consider simplifying language where possible to improve readability, but maintain necessary technical terminology.'
             })
             
         if flesch_grade > 12:
@@ -144,7 +150,7 @@ class AccessibilityChecks(BaseChecker):
                 'type': 'readability_score',
                 'metric': 'Flesch-Kincaid Grade Level',
                 'score': round(flesch_grade, 1),
-                'message': 'Reading level is above 12th grade. Consider simplifying for broader accessibility.'
+                'message': 'The reading level may be high for some audiences. Where appropriate, consider simpler alternatives while preserving technical accuracy.'
             })
             
         if fog_index > 12:
@@ -152,14 +158,14 @@ class AccessibilityChecks(BaseChecker):
                 'type': 'readability_score',
                 'metric': 'Gunning Fog Index',
                 'score': round(fog_index, 1),
-                'message': 'Text complexity may be too high. Consider using simpler words and shorter sentences.'
+                'message': 'Text complexity is high but may be necessary for your content. Review for opportunities to clarify without oversimplifying.'
             })
             
         if passive_percentage > 10:
             issues.append({
                 'type': 'passive_voice',
                 'percentage': round(passive_percentage, 1),
-                'message': f'Document uses {round(passive_percentage, 1)}% passive voice (target: less than 10%). Consider using more active voice.'
+                'message': f'Document uses {round(passive_percentage, 1)}% passive voice. While some passive voice is acceptable and sometimes necessary, consider active voice where it improves clarity.'
             })
 
     @profile_performance
