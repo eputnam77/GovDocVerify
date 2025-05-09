@@ -19,8 +19,8 @@ class ResultFormatter:
         self.issue_categories = {
             'heading_title_check': {
                 'title': 'Required Headings Check',
-                'description': 'Verifies that your document includes all mandatory section headings, with requirements varying by document type. For example, long-template Advisory Circulars require headings like "Purpose." and "Applicability." with initial caps and periods, while Federal Register Notices use ALL CAPS headings like "SUMMARY" and "BACKGROUND" without periods. This check ensures both the presence of required headings and their correct capitalization format based on document type.',
-                'solution': 'Add all required headings in the correct order using the correct capitalization format.',
+                'description': 'Verifies that your document includes all mandatory section headings. Note: The "Cancellation." heading is only required if this document cancels or replaces an existing document. If your document is new or doesn\'t cancel anything, you can ignore the Cancellation heading warning.',
+                'solution': 'Add all required headings in the correct order using the correct capitalization format. For cancellation warnings, only add the heading if you are actually canceling a document.',
                 'example_fix': {
                     'before': 'Missing required heading "PURPOSE."',
                     'after': 'Added heading "PURPOSE." at the beginning of the document'
@@ -203,6 +203,42 @@ class ResultFormatter:
                 'example_fix': {
                     'before': 'Image without alt text, skipped heading levels',
                     'after': 'Added alt text, fixed heading hierarchy'
+                }
+            },
+            'watermark_check': {
+                'title': 'Document Watermark Issues',
+                'description': 'Verifies that the document has the appropriate watermark for its current stage (internal review, public comment, AGC review, or final issuance).',
+                'solution': 'Add or update the watermark to match the document\'s current stage.',
+                'example_fix': {
+                    'before': 'Missing watermark or incorrect watermark "draft"',
+                    'after': 'Added correct watermark "draft for public comment"'
+                }
+            },
+            'boilerplate_check': {
+                'title': 'Required Boilerplate Text Issues',
+                'description': 'Ensures that all required standard text sections are present based on document type (like required disclaimers in ACs and Policy Statements).',
+                'solution': 'Add all required boilerplate text sections from the document template.',
+                'example_fix': {
+                    'before': 'Missing required disclaimer text for Advisory Circular',
+                    'after': 'Added "This AC is not mandatory and does not constitute a regulation."'
+                }
+            },
+            'required_language_check': {
+                'title': 'Required Language Issues',
+                'description': 'Verifies that document contains all required standardized language based on document type (like specific statements required in Federal Register notices).',
+                'solution': 'Add all required standard statements for the document type.',
+                'example_fix': {
+                    'before': 'Missing Paperwork Reduction Act statement in Federal Register notice',
+                    'after': 'Added complete Paperwork Reduction Act statement'
+                }
+            },
+            'caption_format_check': {
+                'title': 'Table/Figure Caption Format Issues',
+                'description': 'Checks that table and figure captions follow proper numbering format based on document type (chapter-based for ACs/Orders, sequential for other documents).',
+                'solution': 'Format captions according to document type requirements.',
+                'example_fix': {
+                    'before': 'Table 5.',
+                    'after': 'Table 5-1.' # For ACs and Orders
                 }
             }
         }
@@ -711,6 +747,19 @@ class ResultFormatter:
                     formatted_issues.append(f"    • {issue['message']}")
         
         return formatted_issues
+
+class ValidationFormatting:
+    """Handles formatting of validation messages for consistency and clarity."""
+    
+    WATERMARK_VALIDATION = {
+        'missing': 'Document is missing required watermark',
+        'incorrect': 'Incorrect watermark for {stage} stage. Found: "{found}", Expected: "{expected}"',
+        'success': 'Watermark validation passed: {watermark}'
+    }
+
+    def format_watermark_message(self, result_type: str, **kwargs) -> str:
+        """Format watermark validation messages."""
+        return self.WATERMARK_VALIDATION[result_type].format(**kwargs)
 
 def format_results_to_html(results: DocumentCheckResult) -> str:
     """Format check results as HTML.

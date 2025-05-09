@@ -134,3 +134,16 @@ READABILITY_CONFIG = {
     'max_fog_index': 12,
     'max_passive_voice_percentage': 10
 }
+
+class ValidationFormatting:
+    # ...existing code...
+    
+    WATERMARK_VALIDATION = {
+        'missing': 'Document is missing required watermark',
+        'incorrect': 'Incorrect watermark for {stage} stage. Found: "{found}", Expected: "{expected}"',
+        'success': 'Watermark validation passed: {watermark}'
+    }
+
+    def format_watermark_message(self, result_type: str, **kwargs) -> str:
+        """Format watermark validation messages."""
+        return self.WATERMARK_VALIDATION[result_type].format(**kwargs)

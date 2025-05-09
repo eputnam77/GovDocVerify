@@ -1,6 +1,7 @@
 import re
 import unicodedata
 from typing import Dict, List, Optional, Set
+from documentcheckertool.config.document_config import VALID_WORDS_PATH
 
 def split_sentences(text: str) -> List[str]:
     """Split text into sentences while handling common abbreviations."""
@@ -192,3 +193,13 @@ def calculate_readability_metrics(word_count: int, sentence_count: int, syllable
             'flesch_kincaid_grade': 0,
             'gunning_fog_index': 0
         }
+
+_valid_words_cache = None
+
+def get_valid_words():
+    """Load valid words from file, using cache if available."""
+    global _valid_words_cache
+    if _valid_words_cache is None:
+        with open(VALID_WORDS_PATH, 'r') as f:
+            _valid_words_cache = frozenset(word.strip().upper() for word in f)
+    return _valid_words_cache
