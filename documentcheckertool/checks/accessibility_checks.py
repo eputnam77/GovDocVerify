@@ -1,6 +1,7 @@
 from typing import List, Dict, Any
 from documentcheckertool.utils.text_utils import count_words, count_syllables, split_sentences
 from documentcheckertool.models import DocumentCheckResult, Severity
+from documentcheckertool.config.document_config import VALIDATION_CONFIG
 from functools import wraps
 import logging
 import re

@@ -3,6 +3,7 @@ from documentcheckertool.document_checker import FAADocumentChecker
 from documentcheckertool.utils.formatting import format_results_to_html, format_results_to_text
 from documentcheckertool.utils.security import validate_file, SecurityError
 from documentcheckertool.models import DocumentCheckResult, Severity
+from documentcheckertool.constants import DOCUMENT_TYPES
 import logging
 import tempfile
 import os
@@ -113,20 +114,6 @@ def create_interface():
     }
     """
     
-    document_types = [
-        "Advisory Circular",
-        "Airworthiness Criteria",
-        "Deviation Memo",
-        "Exemption",
-        "Federal Register Notice",
-        "Order",
-        "Policy Statement",
-        "Rule",
-        "Special Condition",
-        "Technical Standard Order",
-        "Other"
-    ]
-    
     template_types = ["Short AC template AC", "Long AC template AC"]
 
     def get_readme_content():
@@ -176,7 +163,7 @@ def create_interface():
                                     )
                                     
                                     doc_type = gr.Dropdown(
-                                        choices=document_types,
+                                        choices=DOCUMENT_TYPES,
                                         label="📋 Document Type",
                                         value="Advisory Circular",
                                         info="Select the type of document you're checking",

@@ -2,6 +2,11 @@ import re
 from docx import Document
 from .base_checker import BaseChecker
 from documentcheckertool.models import DocumentCheckResult, Severity
+from documentcheckertool.config.validation_patterns import (
+    PHONE_PATTERNS,
+    PLACEHOLDER_PATTERNS,
+    DATE_PATTERNS
+)
 import logging
 
 logger = logging.getLogger(__name__)
@@ -18,47 +23,55 @@ class FormatChecks(BaseChecker):
         self._check_date_formats(paragraphs, results)
         self._check_phone_numbers(paragraphs, results)
         self._check_placeholders(paragraphs, results)
+        self._check_dash_spacing(paragraphs, results)
     
     def _check_date_formats(self, paragraphs: list, results: DocumentCheckResult):
         """Check for incorrect date formats."""
-        incorrect_date_pattern = r'\b\d{1,2}/\d{1,2}/\d{2,4}\b'
         for i, text in enumerate(paragraphs):
-            if re.search(incorrect_date_pattern, text):
+            if re.search(DATE_PATTERNS['incorrect'], text):
                 results.add_issue(
-                    message="Incorrect date format found. Use YYYY-MM-DD format",
+                    message="Incorrect date format. Use YYYY-MM-DD format",
                     severity=Severity.MEDIUM,
                     line_number=i+1
                 )
     
     def _check_phone_numbers(self, paragraphs: list, results: DocumentCheckResult):
         """Check for inconsistent phone number formats."""
-        phone_patterns = [
-            r'\b\d{3}[-\.]\d{3}[-\.]\d{4}\b',
-            r'\b\(\d{3}\)\s*\d{3}[-\.]\d{4}\b'
-        ]
         for i, text in enumerate(paragraphs):
-            for pattern in phone_patterns:
+            for pattern in PHONE_PATTERNS:
                 if re.search(pattern, text):
                     results.add_issue(
-                        message="Inconsistent phone number format. Use (XXX) XXX-XXXX format",
+                        message="Inconsistent phone number format",
                         severity=Severity.LOW,
                         line_number=i+1
                     )
     
     def _check_placeholders(self, paragraphs: list, results: DocumentCheckResult):
         """Check for placeholder text."""
-        placeholder_patterns = [
-            r'\bTBD\b',
-            r'\bto be determined\b',
-            r'\bXXX\b',
-            r'\[.*?\]',
-            r'\{.*?\}'
-        ]
         for i, text in enumerate(paragraphs):
-            for pattern in placeholder_patterns:
+            for pattern in PLACEHOLDER_PATTERNS:
                 if re.search(pattern, text, re.IGNORECASE):
                     results.add_issue(
-                        message="Placeholder text found. Replace with actual content",
+                        message="Placeholder text found",
                         severity=Severity.HIGH,
                         line_number=i+1
                     )
+    
+    def _check_dash_spacing(self, paragraphs: list, results: DocumentCheckResult):
+        """Check for incorrect spacing around hyphens, en-dashes, and em-dashes."""
+        dash_patterns = [
+            (r'\s+[-–—]\s+', "Remove spaces around dash"),  # Spaces before and after
+            (r'\s+[-–—](?!\s)', "Remove space before dash"),  # Space only before
+            (r'(?<!\s)[-–—]\s+', "Remove space after dash")  # Space only after
+        ]
+        
+        for i, text in enumerate(paragraphs):
+            for pattern, message in dash_patterns:
+                if matches := re.finditer(pattern, text):
+                    for match in matches:
+                        results.add_issue(
+                            message=f"{message}: '{match.group(0)}'",
+                            severity=Severity.LOW,
+                            line_number=i+1,
+                            suggestion=f"Replace with '{match.group(0).strip()}'"
+                        )

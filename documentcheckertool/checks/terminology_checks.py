@@ -1,20 +1,25 @@
 from docx import Document
 from .base_checker import BaseChecker
 from documentcheckertool.models import DocumentCheckResult, Severity
+from documentcheckertool.config.terminology_rules import (
+    TERM_REPLACEMENTS,
+    FORBIDDEN_TERMS,
+    TERMINOLOGY_VARIANTS
+)
+from documentcheckertool.config.validation_patterns import ACRONYM_PATTERNS
 import re
 import logging
 
 logger = logging.getLogger(__name__)
 
 class TerminologyChecks(BaseChecker):
-    # Class constants
-    HEADING_WORDS = {'SECTION', 'CHAPTER', 'APPENDIX', 'PART', 'TABLE', 'FIGURE'}
-    PREDEFINED_ACRONYMS = {
-        'AGC', 'AIR', 'CFR', 'DC', 'DOT', 'FAA IR-M', 'FAQ', 'i.e.', 'e.g.', 'MA',
-        'MD', 'MIL', 'MO', 'No.', 'PDF', 'RTCA', 'SAE', 'SSN', 'TX', 'U.S.', 'U.S.C.', 'USA', 'US', 
-        'WA', 'XX', 'ZIP', 'ACO', 'RGL'
-    }
-
+    """Class for handling terminology-related checks."""
+    
+    def __init__(self, pattern_cache):
+        self.pattern_cache = pattern_cache
+        logger.info("Initialized TerminologyChecks with pattern cache")
+        # Remove hardcoded patterns since they're now in config files
+    
     def run_checks(self, document: Document, doc_type: str, results: DocumentCheckResult) -> None:
         """Run all terminology-related checks."""
         logger.info(f"Running terminology checks for document type: {doc_type}")
@@ -58,30 +63,15 @@ class TerminologyChecks(BaseChecker):
         # Standard acronyms that don't need to be defined
         predefined_acronyms = self.config_manager.config.get('predefined_acronyms', self.PREDEFINED_ACRONYMS)
 
-        # Patterns for references that contain acronyms but should be ignored
-        ignore_patterns = [
-            r'FAA-\d{4}-\d+',              # FAA docket numbers
-            r'\d{2}-\d{2}-\d{2}-SC',       # Special condition numbers
-            r'AC\s*\d+(?:[-.]\d+)*[A-Z]*', # Advisory circular numbers
-            r'AD\s*\d{4}-\d{2}-\d{2}',     # Airworthiness directive numbers
-            r'\d{2}-[A-Z]{2,}',            # Other reference numbers with acronyms
-            r'[A-Z]+-\d+',                 # Generic reference numbers
-            r'§\s*[A-Z]+\.\d+',            # Section references
-            r'Part\s*[A-Z]+',              # Part references
-        ]
+        # Use patterns from config
+        ignore_pattern = re.compile('|'.join(f'(?:{pattern})' for pattern in ACRONYM_PATTERNS['ignore_patterns']))
+        defined_pattern = re.compile(ACRONYM_PATTERNS['defined'])
+        acronym_pattern = re.compile(ACRONYM_PATTERNS['usage'])
         
-        # Combine ignore patterns
-        ignore_regex = '|'.join(f'(?:{pattern})' for pattern in ignore_patterns)
-        ignore_pattern = re.compile(ignore_regex)
-
         # Tracking structures
         defined_acronyms = {}  # Stores definition info
         used_acronyms = set()  # Stores acronyms used after definition
         reported_acronyms = set()  # Stores acronyms that have already been noted as issues
-
-        # Patterns
-        defined_pattern = re.compile(r'\b([\w\s&]+?)\s*\((\b[A-Z]{2,}\b)\)')
-        acronym_pattern = re.compile(r'(?<!\()\b[A-Z]{2,}\b(?!\s*[:.]\s*)')
 
         issues = []
 
@@ -191,17 +181,10 @@ class TerminologyChecks(BaseChecker):
 
     def _check_consistency(self, paragraphs, results):
         """Check for consistent terminology usage."""
-        # Use raw strings for regex patterns
-        variants = {
-            r'website': ['web site', 'web-site'],
-            r'online': ['on-line', 'on line'],
-            r'email': ['e-mail', 'Email'],
-        }
-        
         for i, text in enumerate(paragraphs):
-            for standard, variants_list in variants.items():
+            for standard, variants in TERMINOLOGY_VARIANTS.items():
                 pattern = fr'\b{standard}\b'
-                for variant in variants_list:
+                for variant in variants:
                     if re.search(variant, text, re.IGNORECASE):
                         results.add_issue(
                             message=f"Inconsistent terminology: use '{standard}' instead of '{variant}'",
@@ -211,16 +194,8 @@ class TerminologyChecks(BaseChecker):
     
     def _check_forbidden_terms(self, paragraphs, results):
         """Check for forbidden or discouraged terms."""
-        # Use raw strings for regex patterns
-        forbidden_terms = {
-            r'must': "Consider using 'shall' for requirements",
-            r'should': "Use 'shall' for requirements or 'may' for recommendations",
-            r'clearly': "Avoid using 'clearly' as it's subjective",
-            r'obviously': "Avoid using 'obviously' as it's subjective",
-        }
-        
         for i, text in enumerate(paragraphs):
-            for term, message in forbidden_terms.items():
+            for term, message in FORBIDDEN_TERMS.items():
                 pattern = fr'\b{term}\b'
                 if re.search(pattern, text, re.IGNORECASE):
                     results.add_issue(

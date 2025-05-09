@@ -1,6 +1,6 @@
 import re
 import unicodedata
-from typing import List, Optional, Set
+from typing import Dict, List, Optional, Set
 
 def split_sentences(text: str) -> List[str]:
     """Split text into sentences while handling common abbreviations."""
@@ -163,4 +163,32 @@ def find_acronym_definition(text: str, acronym: str) -> Optional[str]:
     """Find the definition of an acronym in text."""
     pattern = f"{acronym}\\s*\\(([^)]+)\\)"
     match = re.search(pattern, text)
-    return match.group(1) if match else None 
+    return match.group(1) if match else None
+
+def normalize_document_type(doc_type: str) -> str:
+    """Normalize document type string."""
+    return ' '.join(word.capitalize() for word in doc_type.lower().split())
+
+def calculate_readability_metrics(word_count: int, sentence_count: int, syllable_count: int) -> Dict[str, float]:
+    """Calculate various readability metrics."""
+    try:
+        # Flesch Reading Ease
+        flesch_ease = 206.835 - 1.015 * (word_count / sentence_count) - 84.6 * (syllable_count / word_count)
+        
+        # Flesch-Kincaid Grade Level
+        flesch_grade = 0.39 * (word_count / sentence_count) + 11.8 * (syllable_count / word_count) - 15.59
+        
+        # Gunning Fog Index
+        fog_index = 0.4 * ((word_count / sentence_count) + 100 * (syllable_count / word_count))
+        
+        return {
+            'flesch_reading_ease': round(flesch_ease, 1),
+            'flesch_kincaid_grade': round(flesch_grade, 1),
+            'gunning_fog_index': round(fog_index, 1)
+        }
+    except ZeroDivisionError:
+        return {
+            'flesch_reading_ease': 0,
+            'flesch_kincaid_grade': 0,
+            'gunning_fog_index': 0
+        }

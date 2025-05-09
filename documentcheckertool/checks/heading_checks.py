@@ -1,49 +1,72 @@
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, Tuple
+from functools import wraps
 from documentcheckertool.utils.text_utils import normalize_heading
-from documentcheckertool.models import DocumentCheckResult, DocumentType
+from documentcheckertool.models import DocumentCheckResult, DocumentType, Severity
+from documentcheckertool.config.document_config import (
+    HEADING_WORDS,
+    DOC_TYPE_CONFIG,
+    PERIOD_REQUIRED
+)
 import re
 import logging
 from docx import Document
 from .base_checker import BaseChecker
-from documentcheckertool.models import DocumentCheckResult, Severity
 
 logger = logging.getLogger(__name__)
+
+def profile_performance(func):
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        # Add performance profiling logic here if needed
+        return func(*args, **kwargs)
+    return wrapper
 
 class HeadingChecks(BaseChecker):
     """Class for handling heading-related checks."""
     
-    HEADING_WORDS = frozenset({
-        'APPLICABILITY', 'APPENDIX', 'AUTHORITY', 'BACKGROUND', 'CANCELLATION', 'CAUTION',
-        'CHAPTER', 'CONCLUSION', 'DEPARTMENT', 'DEFINITION', 'DEFINITIONS', 'DISCUSSION',
-        'DISTRIBUTION', 'EXCEPTION', 'EXPLANATION', 'FIGURE', 'GENERAL', 'GROUPS', 
-        'INFORMATION', 'INSERT', 'INTRODUCTION', 'MATERIAL', 'NOTE', 'PARTS', 'PAST', 
-        'POLICY', 'PRACTICE', 'PROCEDURES', 'PURPOSE', 'RELEVANT', 'RELATED', 
-        'REQUIREMENTS', 'REPORT', 'SCOPE', 'SECTION', 'SUMMARY', 'TABLE', 'WARNING'
-    })
-
-    PERIOD_REQUIRED = {
-        DocumentType.ADVISORY_CIRCULAR: True,
-        DocumentType.AIRWORTHINESS_CRITERIA: False,
-        DocumentType.DEVIATION_MEMO: False,
-        DocumentType.EXEMPTION: False,
-        DocumentType.FEDERAL_REGISTER_NOTICE: False,
-        DocumentType.ORDER: True,
-        DocumentType.POLICY_STATEMENT: False,
-        DocumentType.RULE: False,
-        DocumentType.SPECIAL_CONDITION: False,
-        DocumentType.TECHNICAL_STANDARD_ORDER: True,
-        DocumentType.OTHER: False
-    }
-
     def __init__(self, pattern_cache):
         self.pattern_cache = pattern_cache
         logger.info("Initialized HeadingChecks with pattern cache")
         self.heading_pattern = re.compile(r'^(\d+\.)+\s')
         logger.debug(f"Using heading pattern: {self.heading_pattern.pattern}")
 
+    def _get_doc_type_config(self, doc_type: str) -> Tuple[Dict, str]:
+        """Get configuration for document type."""
+        normalized_type = doc_type.strip().lower()
+        for known_type, config in DOC_TYPE_CONFIG.items():
+            if known_type.lower() == normalized_type:
+                return config, known_type
+        return {}, doc_type
+
+    def validate_input(self, doc: List[str]) -> bool:
+        """Validate document input."""
+        return bool(doc and all(isinstance(p, str) for p in doc))
+
+    @profile_performance
     def check_heading_title(self, doc: List[str], doc_type: str) -> DocumentCheckResult:
         """Check heading title formatting."""
+        if not self.validate_input(doc):
+            logger.error("Invalid document input for heading check")
+            return DocumentCheckResult(success=False, issues=[{'error': 'Invalid document input'}])
+
+        try:
+            doc_type_config, normalized_type = self._get_doc_type_config(doc_type)
+        except Exception as e:
+            logger.error(f"Error getting document type configuration: {str(e)}")
+            return DocumentCheckResult(success=False, issues=[{'error': str(e)}])
+
+        # Add skip title check logic
+        if doc_type_config.get('skip_title_check', False):
+            return DocumentCheckResult(
+                success=True,
+                issues=[],
+                details={'message': f'Title check skipped for document type: {doc_type}'}
+            )
+            
+        required_headings = doc_type_config.get('required_headings', [])
         issues = []
+        headings_found = set()
+        
         logger.info(f"Starting heading title check for document type: {doc_type}")
         
         for i, line in enumerate(doc, 1):
@@ -58,12 +81,12 @@ class HeadingChecks(BaseChecker):
             logger.debug(f"Found heading text: {heading_text}")
             
             # Check if the heading text contains any of the valid heading words
-            if not any(word in heading_text.upper() for word in self.HEADING_WORDS):
+            if not any(word in heading_text.upper() for word in HEADING_WORDS):
                 logger.warning(f"Invalid heading word in line {i}: {heading_text}")
                 issues.append({
                     'line': line,
                     'message': 'Heading formatting issue',
-                    'suggestion': f'Use a valid heading word from: {", ".join(sorted(self.HEADING_WORDS))}'
+                    'suggestion': f'Use a valid heading word from: {", ".join(sorted(HEADING_WORDS))}'
                 })
             else:
                 normalized = normalize_heading(line)
@@ -76,11 +99,31 @@ class HeadingChecks(BaseChecker):
                         'message': 'Heading formatting issue',
                         'suggestion': normalized
                     })
+            
+            headings_found.add(heading_text.upper())
         
+        # Additional required headings check
+        if required_headings:
+            missing_headings = set(required_headings) - headings_found
+            if missing_headings:
+                issues.append({
+                    'type': 'missing_headings',
+                    'missing': list(missing_headings),
+                    'message': f'Missing required headings: {", ".join(missing_headings)}'
+                })
+
+        details = {
+            'found_headings': list(headings_found),
+            'required_headings': required_headings,
+            'document_type': normalized_type,
+            'missing_count': len(missing_headings) if required_headings else 0
+        }
+
         logger.info(f"Heading title check completed. Found {len(issues)} issues")
         return DocumentCheckResult(
             success=len(issues) == 0,
-            issues=issues
+            issues=issues,
+            details=details
         )
 
     def check_heading_period(self, doc: List[str], doc_type: str) -> DocumentCheckResult:
@@ -88,12 +131,12 @@ class HeadingChecks(BaseChecker):
         issues = []
         logger.info(f"Starting heading period check for document type: {doc_type}")
         doc_type_enum = DocumentType.from_string(doc_type)
-        requires_period = self.PERIOD_REQUIRED.get(doc_type_enum, False)
+        requires_period = PERIOD_REQUIRED.get(doc_type_enum, False)
         logger.debug(f"Document type {doc_type} {'requires' if requires_period else 'does not require'} periods")
         
         for i, line in enumerate(doc, 1):
             logger.debug(f"Checking line {i} for heading period: {line}")
-            if any(word in line.upper() for word in self.HEADING_WORDS):
+            if any(word in line.upper() for word in HEADING_WORDS):
                 has_period = line.strip().endswith('.')
                 logger.debug(f"Line {i} has period: {has_period}")
                 if requires_period and not has_period:
