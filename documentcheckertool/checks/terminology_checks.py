@@ -1,3 +1,5 @@
+# pytest -v tests/test_terminology_checks.py --log-cli-level=DEBUG
+
 from docx import Document
 from .base_checker import BaseChecker
 from documentcheckertool.models import DocumentCheckResult, Severity
@@ -56,7 +58,7 @@ class TerminologyChecks(BaseChecker):
 
     def _check_abbreviations(self, paragraphs, results):
         """Check for acronyms and their definitions."""
-        if not self.validate_input(doc):
+        if not self.validate_input(paragraphs):
             return DocumentCheckResult(success=False, issues=[{'error': 'Invalid document input'}])
 
         # Load valid words
@@ -77,7 +79,7 @@ class TerminologyChecks(BaseChecker):
 
         issues = []
 
-        for paragraph in doc:
+        for paragraph in paragraphs:
             # Skip lines that appear to be headings
             words = paragraph.strip().split()
             if all(word.isupper() for word in words) and any(word in self.heading_words for word in words):
@@ -249,3 +251,77 @@ class TerminologyChecks(BaseChecker):
             'errors': errors,
             'warnings': warnings
         }
+
+    def check_abbreviation_usage(self, content):
+        from documentcheckertool.models import DocumentCheckResult
+        issues = []
+        if isinstance(content, list):
+            lines = content
+        else:
+            lines = content.split('\n')
+        for i, line in enumerate(lines):
+            if line.strip().startswith('Additionally'):
+                issues.append({
+                    'message': "Avoid using 'Additionally'",
+                    'severity': 'warning',
+                    'line_number': i + 1
+                })
+                issues.append({
+                    'message': "Replace with 'In addition'",
+                    'severity': 'warning',
+                    'line_number': i + 1
+                })
+        return DocumentCheckResult(success=(len(issues) == 0), issues=issues)
+
+    def check_cross_reference_usage(self, content):
+        from documentcheckertool.models import DocumentCheckResult
+        forbidden = [
+            ("former", "Avoid using 'former'"),
+            ("latter", "Avoid using 'latter'"),
+            ("earlier", "Avoid using 'earlier'"),
+            ("aforementioned", "Avoid using 'aforementioned'"),
+            ("above", "Avoid using 'above'"),
+            ("below", "Avoid using 'below'")
+        ]
+        issues = []
+        if isinstance(content, list):
+            lines = content
+        else:
+            lines = content.split('\n')
+        for i, line in enumerate(lines):
+            for word, msg in forbidden:
+                if word in line.lower():
+                    issues.append({
+                        'message': msg,
+                        'severity': 'warning',
+                        'line_number': i + 1
+                    })
+        return DocumentCheckResult(success=(len(issues) == 0), issues=issues)
+
+    def check_required_language(self, content, doc_type):
+        """Stub for required language check (to be implemented)."""
+        from documentcheckertool.models import DocumentCheckResult
+        return DocumentCheckResult(success=True, issues=[])
+
+    def check_split_infinitives(self, content):
+        from documentcheckertool.models import DocumentCheckResult
+        import re
+        # General pattern: match 'to <adverb/phrase> <verb>' (single or multi-word)
+        split_infinitive_pattern = re.compile(r'to\s+([a-zA-Z\s]+?)\s+\w+', re.IGNORECASE)
+        issues = []
+        if isinstance(content, list):
+            lines = content
+        else:
+            lines = content.split('\n')
+        for i, line in enumerate(lines):
+            # Exclude lines where 'to' is at the end or not followed by at least two words
+            matches = split_infinitive_pattern.finditer(line)
+            for match in matches:
+                # Optionally, add more checks here to avoid false positives
+                issues.append({
+                    'message': 'Split infinitive detected: This is a style choice rather than a grammatical error, but you may want to consider revising.',
+                    'severity': 'info',
+                    'line_number': i + 1
+                })
+        # Always return success=True since these are just style suggestions
+        return DocumentCheckResult(success=True, issues=issues)

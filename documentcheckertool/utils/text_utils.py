@@ -18,8 +18,9 @@ def split_sentences(text: str) -> List[str]:
         'prof.', 'rev.', 'hon.', 'st.', 'ave.', 'blvd.', 'rd.'
     })
 
-    # Add uppercase versions of abbreviations
-    abbreviations.update(abbr.upper() for abbr in abbreviations)
+    # Create a new set for uppercase versions
+    upper_abbreviations = {abbr.upper() for abbr in abbreviations}
+    abbreviations.update(upper_abbreviations)
 
     # Create regex pattern for abbreviations
     abbr_pattern = '|'.join(map(re.escape, sorted(abbreviations, key=len, reverse=True)))

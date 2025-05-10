@@ -6,11 +6,12 @@ from ..utils.formatting import DocumentFormatter
 class BaseChecker:
     """Base class for all document checkers."""
 
-    def __init__(self):
+    def __init__(self, terminology_manager=None):
         self.name = self.__class__.__name__
         self.pattern_cache = None
         self._formatter = DocumentFormatter()
         self.formatter = ResultFormatter()
+        self.terminology_manager = terminology_manager
 
     def run_checks(self, document: Any, doc_type: str, results: DocumentCheckResult) -> None:
         """Base method to run all checks for this checker."""

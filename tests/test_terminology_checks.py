@@ -6,11 +6,11 @@ from documentcheckertool.checks.terminology_checks import TerminologyChecks
 
 class TestTerminologyChecks(TestBase):
     """Test suite for terminology-related checks."""
-    
+
     def setUp(self):
         super().setUp()
-        self.terminology_checks = TerminologyChecks(self.checker.pattern_cache)
-    
+        self.terminology_checks = TerminologyChecks(self.terminology_manager)
+
     def test_abbreviation_usage(self):
         """Test abbreviation usage checking."""
         content = [
@@ -21,7 +21,7 @@ class TestTerminologyChecks(TestBase):
         result = self.terminology_checks.check_abbreviation_usage(content)
         # Note: This test will need to be updated once the implementation is complete
         self.assertTrue(result.success)
-    
+
     def test_cross_reference_usage(self):
         """Test cross-reference checking."""
         content = [
@@ -33,7 +33,7 @@ class TestTerminologyChecks(TestBase):
         self.assertFalse(result.success)
         self.assert_issue_contains(result, "Avoid using 'above'")
         self.assert_issue_contains(result, "Avoid using 'below'")
-    
+
     def test_required_language(self):
         """Test required language checking."""
         content = [
@@ -44,7 +44,7 @@ class TestTerminologyChecks(TestBase):
         result = self.terminology_checks.check_required_language(content, "Advisory Circular")
         # Note: This test will need to be updated once the implementation is complete
         self.assertTrue(result.success)
-    
+
     def test_invalid_references(self):
         """Test various invalid reference patterns."""
         content = [

@@ -21,13 +21,13 @@ class StructureChecks(BaseChecker):
     def run_checks(self, document: Document, doc_type: str, results: DocumentCheckResult) -> None:
         """Run all structure-related checks."""
         logger.info(f"Running structure checks for document type: {doc_type}")
-        
+
         paragraphs = document.paragraphs
         self._check_paragraph_length(paragraphs, results)
         self._check_sentence_length(paragraphs, results)
         self._check_section_balance(paragraphs, results)
         self._check_list_formatting(paragraphs, results)
-    
+
     def _check_paragraph_length(self, paragraphs, results):
         """Check for overly long paragraphs."""
         MAX_WORDS = 150
@@ -39,7 +39,7 @@ class StructureChecks(BaseChecker):
                     severity=Severity.MEDIUM,
                     line_number=i+1
                 )
-    
+
     def _check_sentence_length(self, paragraphs, results):
         """Check for overly long sentences."""
         MAX_WORDS = 30
@@ -53,12 +53,12 @@ class StructureChecks(BaseChecker):
                         severity=Severity.LOW,
                         line_number=i+1
                     )
-    
+
     def _check_section_balance(self, paragraphs, results):
         """Check for balanced section lengths."""
         current_section = []
         section_lengths = []
-        
+
         for para in paragraphs:
             if para.style.name.startswith('Heading'):
                 if current_section:
@@ -66,11 +66,11 @@ class StructureChecks(BaseChecker):
                 current_section = []
             else:
                 current_section.append(para)
-        
+
         # Add last section
         if current_section:
             section_lengths.append(len(current_section))
-        
+
         # Check for significant imbalance
         if section_lengths:
             avg_length = sum(section_lengths) / len(section_lengths)
@@ -80,12 +80,12 @@ class StructureChecks(BaseChecker):
                         message=f"Section {i+1} is significantly longer than average",
                         severity=Severity.LOW
                     )
-    
+
     def _check_list_formatting(self, paragraphs, results):
         """Check for consistent list formatting."""
         list_markers = ['•', '-', '*', '1.', 'a.', 'i.']
         current_list_style = None
-        
+
         for i, para in enumerate(paragraphs):
             text = para.text.strip()
             for marker in list_markers:
@@ -144,7 +144,7 @@ class StructureChecks(BaseChecker):
             # Extract tables and figures
             for para in doc.paragraphs:
                 text = para.text.strip() if hasattr(para, 'text') else ''
-                
+
                 if text.lower().startswith('table'):
                     matches = [
                         re.match(r'^table\s+(\d{1,2}(?:-\d+)?)\b', text, re.IGNORECASE),
@@ -198,7 +198,7 @@ class StructureChecks(BaseChecker):
     def _check_table_references(self, para_text: str, tables: set, issues: list):
         """Check table references."""
         table_refs = re.finditer(
-            r'(?:see|in|refer to)?\s*(?:table|Table)\s+(\d{1,2}(?:[-\.]\d+)?)\b', 
+            r'(?:see|in|refer to)?\s*(?:table|Table)\s+(\d{1,2}(?:[-\.]\d+)?)\b',
             para_text
         )
         for match in table_refs:
@@ -214,7 +214,7 @@ class StructureChecks(BaseChecker):
     def _check_figure_references(self, para_text: str, figures: set, issues: list):
         """Check figure references."""
         figure_refs = re.finditer(
-            r'(?:see|in|refer to)?\s*(?:figure|Figure)\s+(\d{1,2}(?:[-\.]\d+)?)\b', 
+            r'(?:see|in|refer to)?\s*(?:figure|Figure)\s+(\d{1,2}(?:[-\.]\d+)?)\b',
             para_text
         )
         for match in figure_refs:
@@ -231,7 +231,7 @@ class StructureChecks(BaseChecker):
         """Check section references."""
         if skip_regex.search(para_text):
             return
-            
+
         section_refs = re.finditer(
             r'(?:paragraph|section|appendix)\s+([A-Z]?\.?\d+(?:\.\d+)*)',
             para_text,
@@ -246,7 +246,7 @@ class StructureChecks(BaseChecker):
                     if valid_section.strip('.') == ref.strip('.'):
                         found = True
                         break
-                
+
                 if not found:
                     issues.append({
                         'type': 'Paragraph',
@@ -254,3 +254,39 @@ class StructureChecks(BaseChecker):
                         'context': para_text,
                         'message': f"Confirm paragraph {ref} referenced in '{para_text}' exists in the document"
                     })
+
+    def check(self, content):
+        """Run structure checks on a list of strings and return a dict with has_errors, warnings, and errors."""
+        warnings = []
+        errors = []
+        has_errors = False
+
+        # Check paragraph length
+        for i, paragraph in enumerate(content):
+            word_count = len(paragraph.split())
+            if word_count > 150:
+                warnings.append({
+                    'line': i + 1,
+                    'message': 'Paragraph is too long',
+                    'severity': 'warning'
+                })
+
+        # Check sentence length
+        for i, paragraph in enumerate(content):
+            sentences = paragraph.split('. ')
+            for sentence in sentences:
+                word_count = len(sentence.split())
+                if word_count > 30:
+                    warnings.append({
+                        'line': i + 1,
+                        'message': 'Sentence is too long',
+                        'severity': 'warning'
+                    })
+
+        # Add other checks as needed
+
+        return {
+            'has_errors': has_errors,
+            'warnings': warnings,
+            'errors': errors
+        }

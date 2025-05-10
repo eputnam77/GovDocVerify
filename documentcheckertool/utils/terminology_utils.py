@@ -197,3 +197,17 @@ class TerminologyManager:
                 json.dump(self.terminology_data, f, indent=4)
         except Exception as e:
             raise IOError(f"Failed to save terminology data: {str(e)}")
+
+    def extract_acronyms(self, text: str) -> list:
+        """Extract all acronyms from the given text."""
+        # Acronyms are defined as two or more uppercase letters
+        return re.findall(r'\b[A-Z]{2,}\b', text)
+
+    def find_acronym_definition(self, text: str, acronym: str) -> str:
+        """Find the definition of an acronym in the given text."""
+        # Look for patterns like 'Full Term (ACRONYM)'
+        pattern = re.compile(rf'([A-Za-z\s]+)\s*\(\s*{re.escape(acronym)}\s*\)')
+        match = pattern.search(text)
+        if match:
+            return match.group(1).strip()
+        return self.get_acronym_definition(acronym)
