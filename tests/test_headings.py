@@ -1,96 +1,110 @@
 # python -m unittest tests/test_headings.py -v
 
-import unittest
-from .test_base import TestBase
-from documentcheckertool.app import DOCUMENT_TYPES
-from docx import Document
+import pytest
 from documentcheckertool.checks.heading_checks import HeadingChecks
-from documentcheckertool.utils.pattern_cache import PatternCache
+from documentcheckertool.utils.terminology_utils import TerminologyManager
 
-class TestHeadingChecks(TestBase):
-    """Test suite for heading and title checks."""
-    
-    def setUp(self):
-        """Set up test environment."""
-        super().setUp()
-        self.pattern_cache = PatternCache()
-        self.heading_checks = HeadingChecks(self.pattern_cache)
-    
-    def test_heading_title_check_valid(self):
-        """Test heading title check with valid headings."""
-        content = [
-            "1. Purpose",
-            "2. Applicability",
-            "3. Background",
-            "4. Discussion"
-        ]
-        doc_path = self.create_test_docx(content, "valid_headings.docx")
-        result = self.heading_checks.check_heading_title(content, "Advisory Circular")
-        self.assert_no_issues(result)
-    
-    def test_heading_title_check_invalid(self):
-        """Test heading title check with invalid headings."""
-        content = [
-            "1. Invalid Heading",
-            "2. Another Invalid Heading",
-            "3. Yet Another Invalid Heading"
-        ]
-        doc_path = self.create_test_docx(content, "invalid_headings.docx")
-        result = self.heading_checks.check_heading_title(content, "Advisory Circular")
-        self.assert_has_issues(result)
-        self.assert_issue_contains(result, "Heading formatting issue")
-    
-    def test_heading_title_period_check_valid(self):
-        """Test heading title period check with valid headings."""
-        content = [
-            "1. Purpose.",
-            "2. Applicability.",
-            "3. Background.",
-            "4. Discussion."
-        ]
-        doc_path = self.create_test_docx(content, "valid_period_headings.docx")
-        result = self.heading_checks.check_heading_period(content, "Advisory Circular")
-        self.assert_no_issues(result)
-    
-    def test_heading_title_period_check_invalid(self):
-        """Test heading title period check with invalid headings."""
-        content = [
-            "1. Purpose",
-            "2. Applicability",
-            "3. Background",
-            "4. Discussion"
-        ]
-        doc_path = self.create_test_docx(content, "invalid_period_headings.docx")
-        result = self.heading_checks.check_heading_period(content, "Advisory Circular")
-        self.assert_has_issues(result)
-        self.assert_issue_contains(result, "Heading missing required period")
-    
-    def test_heading_sequence_check_valid(self):
-        """Test heading sequence check with valid sequence."""
-        content = [
-            "1. First Level",
-            "1.1 Second Level",
-            "1.1.1 Third Level",
-            "2. First Level",
-            "2.1 Second Level"
-        ]
-        doc_path = self.create_test_docx(content, "valid_sequence.docx")
-        result = self.heading_checks.check_heading_structure(Document(doc_path))
-        self.assertEqual(len(result), 0)
-    
-    def test_heading_sequence_check_invalid(self):
-        """Test heading sequence check with invalid sequence."""
-        content = [
-            "1. First Level",
-            "1.1 Second Level",
-            "1.1.1 Third Level",
-            "1.1.1.1 Fourth Level",  # Invalid: skipped level
-            "2. First Level"
-        ]
-        doc_path = self.create_test_docx(content, "invalid_sequence.docx")
-        result = self.heading_checks.check_heading_structure(Document(doc_path))
-        self.assertGreater(len(result), 0)
-        self.assertTrue(any("skipped level" in issue.get('message', '') for issue in result))
+class TestHeadingChecks:
+    @pytest.fixture(autouse=True)
+    def setup(self):
+        self.terminology_manager = TerminologyManager()
+        self.heading_checks = HeadingChecks(self.terminology_manager)
 
-if __name__ == '__main__':
-    unittest.main()
+    def test_valid_heading_titles(self):
+        content = [
+            "PURPOSE.",
+            "BACKGROUND.",
+            "DEFINITIONS.",
+            "APPLICABILITY.",
+            "REQUIREMENTS."
+        ]
+        result = self.heading_checks.check(content)
+        assert not result['has_errors']
+        assert len(result['warnings']) == 0
+
+    def test_invalid_heading_titles(self):
+        content = [
+            "INVALID HEADING.",
+            "ANOTHER INVALID HEADING.",
+            "YET ANOTHER INVALID HEADING."
+        ]
+        result = self.heading_checks.check(content)
+        assert not result['has_errors']
+        assert any("Invalid heading title" in issue['message'] for issue in result['warnings'])
+
+    def test_heading_periods(self):
+        content = [
+            "PURPOSE",
+            "BACKGROUND",
+            "DEFINITIONS",
+            "APPLICABILITY",
+            "REQUIREMENTS"
+        ]
+        result = self.heading_checks.check(content)
+        assert not result['has_errors']
+        assert any("Missing period" in issue['message'] for issue in result['warnings'])
+
+    def test_heading_sequence(self):
+        content = [
+            "PURPOSE.",
+            "BACKGROUND.",
+            "DEFINITIONS.",
+            "APPLICABILITY.",
+            "REQUIREMENTS.",
+            "PURPOSE.",  # Duplicate heading
+            "BACKGROUND."  # Out of sequence
+        ]
+        result = self.heading_checks.check(content)
+        assert not result['has_errors']
+        assert any("Duplicate heading" in issue['message'] for issue in result['warnings'])
+        assert any("Out of sequence" in issue['message'] for issue in result['warnings'])
+
+    def test_heading_case(self):
+        content = [
+            "Purpose.",
+            "Background.",
+            "Definitions.",
+            "Applicability.",
+            "Requirements."
+        ]
+        result = self.heading_checks.check(content)
+        assert not result['has_errors']
+        assert any("Heading should be uppercase" in issue['message'] for issue in result['warnings'])
+
+    def test_heading_spacing(self):
+        content = [
+            "PURPOSE.",
+            "This is some content.",
+            "BACKGROUND.",
+            "More content here.",
+            "DEFINITIONS.",
+            "Even more content."
+        ]
+        result = self.heading_checks.check(content)
+        assert not result['has_errors']
+        assert len(result['warnings']) == 0  # No spacing issues
+
+    def test_heading_with_content(self):
+        content = [
+            "PURPOSE.",
+            "This document establishes requirements for...",
+            "BACKGROUND.",
+            "The Federal Aviation Administration...",
+            "DEFINITIONS.",
+            "For the purpose of this document..."
+        ]
+        result = self.heading_checks.check(content)
+        assert not result['has_errors']
+        assert len(result['warnings']) == 0  # No issues with headings and content
+
+    def test_mixed_case_headings(self):
+        content = [
+            "PURPOSE.",
+            "Background.",
+            "DEFINITIONS.",
+            "Applicability.",
+            "REQUIREMENTS."
+        ]
+        result = self.heading_checks.check(content)
+        assert not result['has_errors']
+        assert any("Heading should be uppercase" in issue['message'] for issue in result['warnings'])

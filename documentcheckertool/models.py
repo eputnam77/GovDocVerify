@@ -25,19 +25,13 @@ class PatternConfig:
     keep_together: bool = False
     format_name: Optional[str] = None
 
-class DocumentType(Enum):
-    """Enumeration of supported document types."""
-    ADVISORY_CIRCULAR = auto()
-    AIRWORTHINESS_CRITERIA = auto()
-    DEVIATION_MEMO = auto()
-    EXEMPTION = auto()
-    FEDERAL_REGISTER_NOTICE = auto()
-    ORDER = auto()
-    POLICY_STATEMENT = auto()
-    RULE = auto()
-    SPECIAL_CONDITION = auto()
-    TECHNICAL_STANDARD_ORDER = auto()
-    OTHER = auto()
+class DocumentType(str, Enum):
+    """Supported document types."""
+    AC = "Advisory Circular"
+    ORDER = "Order"
+    NOTICE = "Notice"
+    NPRM = "Notice of Proposed Rulemaking"
+    FR = "Federal Register Notice"
 
     @classmethod
     def from_string(cls, doc_type: str) -> 'DocumentType':
@@ -54,11 +48,18 @@ class Issue(BaseModel):
     severity: str = "warning"
     suggestion: Optional[str] = None
 
-class DocumentCheckResult(BaseModel):
-    """Represents the result of a document check."""
+@dataclass
+class DocumentCheckResult:
+    """Result of a document check."""
     success: bool
-    issues: List[Dict] = []
-    score: float = 0.0
+    issues: List[Dict[str, Any]]
+    checker_name: Optional[str] = None
+    score: float = 1.0
+
+    def __post_init__(self):
+        """Calculate score based on issues."""
+        if self.issues:
+            self.score = max(0.0, 1.0 - (len(self.issues) * 0.1))
 
 class Severity(Enum):
     LOW = "LOW"
@@ -91,7 +92,7 @@ class DocumentCheckResult:
             return "<div style='color: green;'>✓ No issues found</div>"
 
         html = ["<div style='padding: 10px;'>"]
-        
+
         # Group issues by severity
         by_severity = {}
         for issue in self.issues:
@@ -104,7 +105,7 @@ class DocumentCheckResult:
         for severity in sorted(by_severity.keys(), key=lambda x: x.value):
             issues = by_severity[severity]
             color = severity.to_color()
-            
+
             html.append(f"<h3 style='color: {color};'>{severity.value} Severity Issues:</h3>")
             html.append("<ul>")
             for issue in issues:

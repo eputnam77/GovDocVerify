@@ -1,0 +1,167 @@
+{
+    "acronyms": {
+        "standard": {
+            "FAA": "Federal Aviation Administration",
+            "AC": "Advisory Circular",
+            "CFR": "Code of Federal Regulations",
+            "NPRM": "Notice of Proposed Rulemaking",
+            "FR": "Federal Register",
+            "TSO": "Technical Standard Order",
+            "PMA": "Parts Manufacturer Approval",
+            "U.S.": "United States",
+            "U.S.C.": "United States Code"
+        },
+        "custom": {}
+    },
+    "patterns": {
+        "terminology": [
+            {
+                "pattern": "\\btitle (\\d+) of the United States Code \\((\\d+ U\\.S\\.C\\.)\\)\\b",
+                "description": "Ensure proper formatting for United States Code references",
+                "is_error": false
+            },
+            {
+                "pattern": "\\btitle (\\d+) of the Code of Federal Regulations \\((\\d+ CFR)\\)\\b",
+                "description": "Ensure proper formatting for Code of Federal Regulations references",
+                "is_error": false
+            }
+        ],
+        "pronouns": [
+            {
+                "pattern": "\\b(I|me|my|mine)\\b",
+                "description": "Replace first-person singular pronouns with specific entities",
+                "is_error": true,
+                "replacement": "The FAA"
+            },
+            {
+                "pattern": "\\b(we|us|our|ours)\\b",
+                "description": "Replace first-person plural pronouns with 'The FAA'",
+                "is_error": true,
+                "replacements": {
+                    "we": "The FAA",
+                    "us": "The FAA",
+                    "our": "The FAA's",
+                    "ours": "The FAA's"
+                }
+            }
+        ],
+        "citations": [
+            {
+                "pattern": "\\b(\\d+)\\s+(?:U\\.S\\.C\\.|CFR)\\s+(§|§§)\\s+(\\d+(?:\\.\\d+)*)\\b",
+                "description": "Ensure proper formatting of legal citations",
+                "is_error": true,
+                "replacement": "$1 $2 §$3 (per GPO Style Manual)"
+            }
+        ],
+        "section_symbol": [
+            {
+                "pattern": "\\b(section|subsection|paragraph|clause)\\b",
+                "description": "Ensure proper use of '§' or '§§' instead of spelled-out 'section'",
+                "is_error": true
+            }
+        ],
+        "dates": [
+            {
+                "pattern": "(?<![\\w/-])(?!TSO-[A-Z]?\\d)(\\d{1,2}/\\d{1,2}/\\d{2,4}|\\d{1,2}-\\d{1,2}-\\d{2,4}|\\d{4}-\\d{1,2}-\\d{1,2})(?![\\w/-])",
+                "description": "Do not flag TSO references as date format issues",
+                "is_error": false
+            }
+        ],
+        "placeholders": [
+            {
+                "pattern": "\\bTBD\\b",
+                "description": "Remove TBD placeholder",
+                "is_error": true
+            },
+            {
+                "pattern": "\\bTo be determined\\b",
+                "description": "Remove 'To be determined' placeholder",
+                "is_error": true
+            }
+        ]
+    },
+    "required_language": {
+        "ADVISORY_CIRCULAR": [
+            "This is a guidance document\\. Its content is not legally binding in its own right",
+            "The guidance provided in this AC is for manufacturers, modifiers, foreign regulatory authorities",
+            "The contents of this AC do not have the force and effect of law"
+        ],
+        "POLICY_STATEMENT": [
+            "The contents of this policy statement do not have the force and effect of law",
+            "This policy statement does not constitute a new regulation"
+        ],
+        "FEDERAL_REGISTER_NOTICE": [
+            "Except for Confidential Business Information \\(CBI\\) as described in the following paragraph",
+            "Confidential Business Information \\(CBI\\) is commercial or financial information"
+        ]
+    },
+    "valid_words": {
+        "standard": [],
+        "custom": []
+    },
+    "heading_words": [
+        "PURPOSE",
+        "BACKGROUND",
+        "DEFINITIONS",
+        "APPLICABILITY",
+        "REFERENCES",
+        "CANCELLATION",
+        "EFFECTIVE DATE",
+        "FOR FURTHER INFORMATION CONTACT"
+    ],
+    "heading_periods": {
+        "ADVISORY_CIRCULAR": true,
+        "POLICY_STATEMENT": true,
+        "FEDERAL_REGISTER_NOTICE": true
+    },
+    "document_types": {
+        "ADVISORY_CIRCULAR": {
+            "required_headings": [
+                "PURPOSE",
+                "BACKGROUND",
+                "DEFINITIONS",
+                "APPLICABILITY"
+            ],
+            "skip_title_check": false
+        },
+        "POLICY_STATEMENT": {
+            "required_headings": [
+                "PURPOSE",
+                "BACKGROUND",
+                "DEFINITIONS",
+                "APPLICABILITY"
+            ],
+            "skip_title_check": false
+        },
+        "FEDERAL_REGISTER_NOTICE": {
+            "required_headings": [
+                "PURPOSE",
+                "BACKGROUND",
+                "DEFINITIONS",
+                "APPLICABILITY"
+            ],
+            "skip_title_check": false
+        }
+    },
+    "accessibility": {
+        "required_alt_text": true,
+        "heading_structure": {
+            "sequential": true,
+            "max_depth": 6
+        },
+        "color_contrast": {
+            "minimum_ratio": 4.5,
+            "large_text_ratio": 3.0
+        }
+    },
+    "readability": {
+        "max_sentence_length": 20,
+        "max_paragraph_sentences": 5,
+        "passive_voice_patterns": [
+            "\\b(?:am|is|are|was|were|be|been|being)\\s+\\w+ed\\b",
+            "\\b(?:am|is|are|was|were|be|been|being)\\s+\\w+en\\b",
+            "\\b(?:has|have|had)\\s+been\\s+\\w+ed\\b",
+            "\\b(?:has|have|had)\\s+been\\s+\\w+en\\b"
+        ]
+    }
+}

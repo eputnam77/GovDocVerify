@@ -1,161 +1,104 @@
 # python -m pytest tests/test_formatting.py -v
 
-import unittest
-from test_base import TestBase
-try:
-    from documentcheckertool.checks import FormattingChecker
-except ImportError:
-    from documentcheckertool.formatting.checker import FormattingChecker
-from documentcheckertool.formatters.document_formatter import DocumentFormatter, FormatStyle
+# NOTE: Refactored to use FormatChecks, as formatting_checks.py does not exist.
+import pytest
+from documentcheckertool.checks.format_checks import FormatChecks
+from documentcheckertool.utils.terminology_utils import TerminologyManager
 
-class TestFormatting(TestBase):
-    """Test suite for formatting and style checks."""
-    
-    def setUp(self):
-        super().setUp()
-        self.formatter = DocumentFormatter()
+class TestFormattingChecks:
+    @pytest.fixture(autouse=True)
+    def setup(self):
+        self.terminology_manager = TerminologyManager()
+        self.format_checks = FormatChecks(self.terminology_manager)
 
-    def test_format_styles(self):
-        """Test different formatting styles."""
-        issue = {
-            'message': 'Test issue',
-            'context': 'Test context'
-        }
-        result = DocumentCheckResult(success=False, issues=[issue])
-        
-        plain = DocumentFormatter.create('plain')
-        markdown = DocumentFormatter.create('markdown')
-        html = DocumentFormatter.create('html')
-        
-        self.assertIn('•', plain.format_issues(result)[0])
-        self.assertIn('-', markdown.format_issues(result)[0])
-        self.assertIn('<li>', html.format_issues(result)[0])
+    def test_font_consistency(self):
+        content = [
+            "This is normal text.",
+            "This is BOLD text.",
+            "This is italic text.",
+            "This is normal text again."
+        ]
+        result = self.format_checks.check(content)
+        assert not result['has_errors']
+        assert any("Inconsistent font usage" in issue['message'] for issue in result['warnings'])
 
-    def test_double_period_check_valid(self):
-        """Test double period check with valid text."""
+    def test_spacing_consistency(self):
         content = [
-            "This is a valid sentence.",
-            "This is another valid sentence.",
-            "This is a third valid sentence."
+            "This is a paragraph with single spacing.",
+            "This is a paragraph with  double  spacing.",
+            "This is a paragraph with   triple   spacing.",
+            "This is a paragraph with single spacing again."
         ]
-        result = self.formatting_checker.check_punctuation(content)
-        self.assert_no_issues(result)
-    
-    def test_double_period_check_invalid(self):
-        """Test double period check with invalid text."""
-        content = [
-            "This is a sentence with double periods..",
-            "This is another sentence with double periods..",
-            "This is a third sentence with double periods.."
-        ]
-        result = self.formatting_checker.check_punctuation(content)
-        self.assert_has_issues(result)
-        self.assert_issue_contains(result, "double periods")
-    
-    def test_spacing_check_valid(self):
-        """Test spacing check with valid text."""
-        content = [
-            "This is a sentence with proper spacing.",
-            "This is another sentence with proper spacing.",
-            "This is a third sentence with proper spacing."
-        ]
-        result = self.formatting_checker.check_spacing(content)
-        self.assert_no_issues(result)
-    
-    def test_spacing_check_invalid(self):
-        """Test spacing check with invalid text."""
-        content = [
-            "This is a sentence with  extra  spacing.",
-            "This is another sentence with  extra  spacing.",
-            "This is a third sentence with  extra  spacing."
-        ]
-        result = self.formatting_checker.check_spacing(content)
-        self.assert_has_issues(result)
-        self.assert_issue_contains(result, "extra spaces")
-    
-    def test_parentheses_check_valid(self):
-        """Test parentheses check with valid text."""
-        content = [
-            "This is a sentence with (proper) parentheses.",
-            "This is another sentence with (proper) parentheses.",
-            "This is a third sentence with (proper) parentheses."
-        ]
-        result = self.formatting_checker.check_parentheses(content)
-        self.assert_no_issues(result)
-    
-    def test_parentheses_check_invalid(self):
-        """Test parentheses check with invalid text."""
-        content = [
-            "This is a sentence with (unmatched parentheses.",
-            "This is another sentence with unmatched) parentheses.",
-            "This is a third sentence with (unmatched parentheses."
-        ]
-        result = self.formatting_checker.check_parentheses(content)
-        self.assert_has_issues(result)
-        self.assert_issue_contains(result, "unmatched parentheses")
-    
-    def test_section_symbol_check_valid(self):
-        """Test section symbol check with valid text."""
-        content = [
-            "This is a sentence with § 1.1.",
-            "This is another sentence with § 2.1.",
-            "This is a third sentence with § 3.1."
-        ]
-        result = self.formatting_checker.check_section_symbol_usage(content)
-        self.assert_no_issues(result)
-    
-    def test_section_symbol_check_invalid(self):
-        """Test section symbol check with invalid text."""
-        content = [
-            "This is a sentence with §1.1.",
-            "This is another sentence with §2.1.",
-            "This is a third sentence with §3.1."
-        ]
-        result = self.formatting_checker.check_section_symbol_usage(content)
-        self.assert_has_issues(result)
-        self.assert_issue_contains(result, "section symbol")
+        result = self.format_checks.check(content)
+        assert not result['has_errors']
+        assert any("Inconsistent spacing" in issue['message'] for issue in result['warnings'])
 
-    def test_list_formatting_valid(self):
-        """Test list formatting with valid text."""
+    def test_margin_consistency(self):
         content = [
+            "This is a paragraph with normal margins.",
+            "    This is a paragraph with indented margins.",
+            "This is a paragraph with normal margins again.",
+            "        This is another paragraph with indented margins."
+        ]
+        result = self.format_checks.check(content)
+        assert not result['has_errors']
+        assert any("Inconsistent margins" in issue['message'] for issue in result['warnings'])
+
+    def test_list_formatting(self):
+        content = [
+            "The following items are required:",
             "1. First item",
             "2. Second item",
+            "a. Sub-item",
+            "b. Another sub-item",
             "3. Third item"
         ]
-        result = self.formatting_checker.check_list_formatting(content)
-        self.assert_no_issues(result)
+        result = self.format_checks.check(content)
+        assert not result['has_errors']
+        assert len(result['warnings']) == 0  # No formatting issues
 
-    def test_list_formatting_invalid(self):
-        """Test list formatting with invalid text."""
+    def test_table_formatting(self):
         content = [
-            "1.First item",  # Missing space
-            "2.  Second item",  # Extra space
-            "3 Third item"  # Missing period
+            "Table 1. Sample Table",
+            "Column 1 | Column 2 | Column 3",
+            "---------|----------|----------",
+            "Data 1   | Data 2   | Data 3",
+            "Data 4   | Data 5   | Data 6"
         ]
-        result = self.formatting_checker.check_list_formatting(content)
-        self.assert_has_issues(result)
-        self.assert_issue_contains(result, "inconsistent list formatting")
+        result = self.format_checks.check(content)
+        assert not result['has_errors']
+        assert len(result['warnings']) == 0  # No formatting issues
 
-    def test_quotation_marks(self):
-        """Test quotation marks consistency."""
+    def test_heading_formatting(self):
         content = [
-            'Using "straight quotes" instead of "curly quotes"',
-            "Mix of 'single' and "double" quotes"
+            "PURPOSE.",
+            "This is the purpose section.",
+            "BACKGROUND.",
+            "This is the background section.",
+            "DEFINITIONS.",
+            "This is the definitions section."
         ]
-        result = self.formatting_checker.check_quotation_marks(content)
-        self.assert_has_issues(result)
-        self.assert_issue_contains(result, "inconsistent quotation marks")
+        result = self.format_checks.check(content)
+        assert not result['has_errors']
+        assert len(result['warnings']) == 0  # No formatting issues
 
-    def test_bullet_list_formatting(self):
-        """Test bullet list formatting."""
+    def test_reference_formatting(self):
         content = [
-            "• First bullet",
-            "•Second bullet",  # Missing space
-            "•  Third bullet"  # Extra space
+            "See paragraph 5.2.3 for more information.",
+            "Refer to section 4.1.2 for details.",
+            "As discussed in paragraph 3.4.5"
         ]
-        result = self.formatting_checker.check_list_formatting(content)
-        self.assert_has_issues(result)
-        self.assert_issue_contains(result, "inconsistent bullet spacing")
+        result = self.format_checks.check(content)
+        assert not result['has_errors']
+        assert any("Inconsistent reference format" in issue['message'] for issue in result['warnings'])
 
-if __name__ == '__main__':
-    unittest.main()
+    def test_figure_formatting(self):
+        content = [
+            "Figure 1. Sample Figure",
+            "This is a figure caption.",
+            "Figure 2. Another Sample Figure",
+            "This is another figure caption."
+        ]
+        result = self.format_checks.check(content)
+        assert not result['has_errors']
+        assert len(result['warnings']) == 0  # No formatting issues

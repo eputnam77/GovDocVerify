@@ -1,245 +1,166 @@
-# Developer Documentation
+# Document Checker Tool Developer Documentation
 
-## Running the Document Checker Tool
+## Project Structure
 
-The Document Checker Tool can be run in two ways:
-1. Web Interface (Gradio UI)
-2. Command Line Interface (CLI)
-
-## Prerequisites
-
-Before running the tool, ensure you have:
-1. Python 3.9 or higher installed
-2. pip (Python package installer)
-3. All dependencies installed via `pip install -r requirements.txt`
-
-## Web Interface (Gradio)
-
-### Starting the Web Server
-
-1. Install dependencies:
-```bash
-pip install -r requirements.txt
+```
+documentcheckertool/
+├── config/
+│   └── terminology.json    # Single source of truth for all terminology and patterns
+├── utils/
+│   ├── terminology_utils.py  # Terminology management and validation
+│   ├── text_utils.py        # General text processing utilities
+│   └── ...
+├── checks/
+│   ├── acronym_checks.py    # Acronym-specific checks
+│   └── ...
+└── models/
+    └── document_check.py    # Data models for check results
 ```
 
-2. Start the Gradio server:
-```bash
-python app.py
-```
+## Terminology Management
 
-The server will start at `http://0.0.0.0:7860` by default.
+### Single Source of Truth
 
-### Web Interface Features
+All terminology, patterns, and validation rules are stored in `config/terminology.json`. This includes:
 
-- **Document Upload**: Supports .docx, .pdf, and .txt files
-- **Check Selection**: Choose which checks to run
-- **Results Display**: Interactive results panel showing:
-  - Check results categorized by severity
-  - Suggested fixes
-  - Line numbers and context
-  - Export options for results
+1. **Acronyms**
+   - Standard acronyms (e.g., FAA, CFR)
+   - Custom acronyms (document-specific)
+   - Definitions and usage rules
 
-### Advanced Gradio UI Options
+2. **Patterns**
+   - Terminology patterns
+   - Pronoun usage
+   - Citation formats
+   - Section symbol usage
+   - Date formats
+   - Placeholder text
 
-The web interface supports additional options when starting the server:
+3. **Required Language**
+   - Document-type specific required text
+   - Boilerplate language
+   - Standard disclaimers
 
-```bash
-# Enable debugging and detailed logging
-python app.py --debug
+4. **Valid Words**
+   - Standard valid words
+   - Custom valid words
 
-# Start with specific checks enabled
-python app.py --enabled-checks readability,spelling
+### TerminologyManager
 
-# Set custom check configurations
-python app.py --config path/to/config.yaml
+The `TerminologyManager` class in `utils/terminology_utils.py` provides:
 
-# Enable development mode with hot-reloading
-python app.py --dev
+1. **Data Management**
+   - Loading terminology from JSON
+   - Saving changes back to JSON
+   - Managing custom acronyms
 
-# Set maximum file size (in MB)
-python app.py --max-file-size 50
+2. **Validation Methods**
+   - Checking acronym usage
+   - Validating patterns
+   - Verifying required language
+   - Managing valid words
 
-# Run in CLI mode with specific file
-python app.py --cli --file path/to/document.docx --type "Advisory Circular"
+3. **Access Methods**
+   - Getting standard/custom acronyms
+   - Retrieving patterns by category
+   - Accessing required language
 
-# Run web interface with custom host and port
-python app.py --host 0.0.0.0 --port 8000
-
-# Enable debug mode
-python app.py --debug
-```
-
-### Gradio UI Debugging
-
-For troubleshooting the web interface:
-
-```bash
-# Enable verbose logging
-export GRADIO_DEBUG=True
-export DOC_CHECKER_LOG_LEVEL=DEBUG
-python app.py --debug
-
-# Save server logs to file
-python app.py --log-file ui_debug.log
-
-# Enable performance profiling
-python app.py --profile
-```
-
-### Browser Console Debugging
-
-The web interface exposes debugging information in the browser console:
-- Network requests and responses
-- Check execution times
-- Memory usage statistics
-- Error traces
-
-Access these by opening your browser's developer tools (F12) and checking the console tab.
-
-### Configuration Options
-
-The web interface can be configured via environment variables:
-
-```bash
-export DOC_CHECKER_PORT=8000       # Change default port
-export DOC_CHECKER_HOST=0.0.0.0    # Allow external access
-export DOC_CHECKER_DEBUG=True      # Enable debug mode
-```
-
-## Command Line Interface
-
-### Basic Usage
-
-Run checks on a single file:
-```bash
-python app.py --cli --file path/to/document.docx --type "Advisory Circular"
-```
-
-### Advanced CLI Options
-
-```bash
-# Run specific checks only
-python app.py --cli --file path/to/document.docx --checks readability,acronyms
-
-# Output results in different formats
-python app.py --cli --file path/to/document.docx --format json
-python app.py --cli --file path/to/document.docx --format csv
-
-# Generate a detailed report
-python app.py --cli --file path/to/document.docx --report detailed
-
-# Process multiple files
-python app.py --cli --file path/to/doc1.docx path/to/doc2.docx
-
-# Exclude specific checks
-python app.py --cli --file path/to/document.docx --exclude heading,spacing
-
-# Set custom severity levels
-python app.py --cli --file path/to/document.docx --min-severity WARNING
-```
-
-### Configuration File
-
-Create a `.doc-checker.yaml` in your project root to set default options:
-
-```yaml
-checks:
-  enabled:
-    - readability
-    - acronyms
-    - headings
-  disabled:
-    - spacing
-
-output:
-  format: json
-  report_type: detailed
-  min_severity: WARNING
-
-paths:
-  exclude:
-    - "**/draft/*"
-    - "**/archive/*"
-```
-
-### Exit Codes
-
-- 0: All checks passed
-- 1: Some checks failed
-- 2: Configuration error
-- 3: File access error
-
-### Batch Processing
-
-For batch processing multiple documents:
-
-```bash
-# Process all documents in a directory
-python app.py --batch ./docs/
-
-# Process with specific patterns
-python app.py --batch --pattern "*.docx" ./docs/
-
-# Generate summary report
-python app.py --batch --summary-only ./docs/
-```
-
-## API Usage
-
-The checker can be used programmatically:
+### Usage Example
 
 ```python
-from documentcheckertool.document_checker import FAADocumentChecker
-from documentcheckertool.utils.formatting import format_results_to_html
+from documentcheckertool.utils.terminology_utils import TerminologyManager
 
-# Initialize the checker
-checker = FAADocumentChecker()
+# Initialize manager
+manager = TerminologyManager()
 
-# Run checks on a document
-results = checker.run_all_document_checks(
-    document_path="document.docx",
-    doc_type="Advisory Circular"
-)
+# Check text for issues
+result = manager.check_text("The FAA issued an AC...")
 
-# Format results as HTML
-html_output = format_results_to_html(results)
-
-# Access individual issues
-for issue in results.issues:
-    print(f"{issue['severity']}: {issue['message']} at line {issue.get('line_number', 'unknown')}")
+# Add custom acronym
+manager.add_custom_acronym("AC", "Advisory Circular")
+manager.save_changes()
 ```
 
-## Development Notes
+## Text Processing
 
-### Running Tests
+The `text_utils.py` module provides general text processing utilities:
 
-```bash
-# Run all tests
-pytest
+1. **Sentence Splitting**
+   - Handles abbreviations
+   - Maintains proper sentence boundaries
 
-# Run specific test categories
-pytest tests/test_readability.py
-pytest tests/test_acronyms.py
+2. **Word Counting**
+   - Handles hyphenated words
+   - Processes email addresses
+   - Counts syllables
 
-# Run with coverage
-pytest --cov=document_checker
+3. **Text Normalization**
+   - Reference text normalization
+   - Heading text normalization
+   - Document type normalization
+
+## Adding New Patterns
+
+To add new patterns or terminology:
+
+1. Edit `config/terminology.json`
+2. Add new entries to appropriate sections
+3. Use the TerminologyManager to access new patterns
+
+Example:
+```json
+{
+    "patterns": {
+        "new_category": [
+            {
+                "pattern": "regex_pattern",
+                "description": "Description of the pattern",
+                "is_error": true,
+                "replacement": "Optional replacement text"
+            }
+        ]
+    }
+}
 ```
 
-### Debug Mode
+## Best Practices
 
-For detailed logging during development:
+1. **Terminology Management**
+   - Always use TerminologyManager for acronym handling
+   - Save changes after adding custom acronyms
+   - Use standard patterns when possible
 
-```bash
-export DOC_CHECKER_DEBUG=True
-python app.py --verbose --file path/to/document.docx
-```
+2. **Pattern Development**
+   - Test patterns thoroughly
+   - Include clear descriptions
+   - Specify error status and replacements
 
-### Contributing
+3. **Code Organization**
+   - Keep text processing separate from terminology management
+   - Use appropriate utility functions
+   - Follow established patterns
 
-1. Create a new branch for your feature
-2. Ensure all tests pass
-3. Add new tests for new functionality
-4. Update documentation
-5. Submit a pull request
+## Testing
 
-For more information, see CONTRIBUTING.md
+1. **Unit Tests**
+   - Test individual pattern matching
+   - Verify acronym handling
+   - Check text processing functions
+
+2. **Integration Tests**
+   - Test full document checking
+   - Verify pattern combinations
+   - Check error reporting
+
+## Contributing
+
+1. **Adding New Features**
+   - Update terminology.json
+   - Add appropriate tests
+   - Update documentation
+
+2. **Bug Fixes**
+   - Reproduce the issue
+   - Fix in terminology.json if pattern-related
+   - Update affected code
+   - Add regression tests

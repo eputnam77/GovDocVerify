@@ -5,14 +5,16 @@ from pathlib import Path
 from tests.test_base import TestBase
 from documentcheckertool.checks.accessibility_checks import AccessibilityChecks
 from documentcheckertool.models import DocumentCheckResult
+from documentcheckertool.utils.terminology_utils import TerminologyManager
 
 class TestAccessibilityChecks(TestBase):
     """Test cases for accessibility checking functionality."""
-    
+
     def setUp(self):
         super().setUp()
-        self.accessibility_checks = AccessibilityChecks(self.checker.pattern_cache)
-    
+        self.terminology_manager = TerminologyManager()
+        self.accessibility_checks = AccessibilityChecks(self.terminology_manager)
+
     def test_readability(self):
         """Test readability checking."""
         content = [
@@ -35,7 +37,7 @@ class TestAccessibilityChecks(TestBase):
         ]
         result = self.accessibility_checks.check_section_508_compliance(content)
         self.assertTrue(result.success)
-    
+
     def test_complex_sentences(self):
         """Test handling of complex sentences."""
         content = [
@@ -70,14 +72,14 @@ class TestAccessibilityChecks(TestBase):
         """
         result = self.accessibility_checks.check_image_accessibility(content.split('\n'))
         self.assertTrue(result.success)
-        
+
     def test_missing_alt_text(self):
         """Test detection of missing alt text."""
         content = """
         ![](image.png)
         """
         file_path = self.create_test_file(content, "test_accessibility.md")
-        checker = AccessibilityChecks(pattern_cache=self.checker.pattern_cache)
+        checker = AccessibilityChecks(terminology_manager=self.terminology_manager)
         result = checker.check_document(file_path)
         self.assert_has_issues(result)
         self.assert_issue_contains(result, "Missing alt text")

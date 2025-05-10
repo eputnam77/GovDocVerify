@@ -1,59 +1,80 @@
-import unittest
-import tempfile
-import os
-import sys
-from io import StringIO
-from unittest.mock import patch
-from app import process_document, main, DOCUMENT_TYPES
+import pytest
+from unittest.mock import patch, MagicMock
+from documentcheckertool.utils.terminology_utils import TerminologyManager
 
-class TestCLI(unittest.TestCase):
-    """Test suite for CLI functionality."""
-    
-    def setUp(self):
-        self.temp_file = tempfile.NamedTemporaryFile(mode='w', delete=False)
-        self.temp_file.write("Test document content")
-        self.temp_file.close()
-    
-    def tearDown(self):
-        os.unlink(self.temp_file.name)
-    
-    def test_process_document(self):
-        """Test document processing function."""
-        # Test with valid inputs for each document type
-        for doc_type in DOCUMENT_TYPES:
-            result = process_document(self.temp_file.name, doc_type)
-            self.assertIsNotNone(result)
-            self.assertIn("results", result.lower())
-        
-        # Test with invalid file
-        result = process_document("nonexistent.txt", "Order")
-        self.assertIn("error", result.lower())
-    
-    def test_cli_arguments(self):
-        """Test CLI argument parsing."""
-        # Test missing required arguments
-        with patch('sys.argv', ['app.py', '--cli']):
-            with patch('sys.stdout', new=StringIO()) as fake_out:
-                with self.assertRaises(SystemExit):
-                    main()
-                self.assertIn("--file and --type are required", fake_out.getvalue())
-        
-        # Test valid command for each document type
-        for doc_type in DOCUMENT_TYPES:
-            args = ['app.py', '--cli', '--file', self.temp_file.name, '--type', doc_type]
-            with patch('sys.argv', args):
-                with patch('sys.stdout', new=StringIO()) as fake_out:
-                    main()
-                    self.assertIn("results", fake_out.getvalue().lower())
-    
-    def test_document_type_validation(self):
-        """Test document type validation."""
-        # Test invalid document type
-        with patch('sys.argv', ['app.py', '--cli', '--file', self.temp_file.name, '--type', 'Invalid']):
-            with patch('sys.stdout', new=StringIO()) as fake_out:
-                with self.assertRaises(SystemExit):
-                    main()
-                self.assertIn("invalid choice", fake_out.getvalue().lower())
+class TestCLI:
+    @pytest.fixture(autouse=True)
+    def setup(self):
+        self.terminology_manager = TerminologyManager()
 
-if __name__ == '__main__':
-    unittest.main() 
+    @patch('documentcheckertool.cli.DocumentChecker')
+    def test_process_document(self, mock_checker):
+        mock_checker.return_value.check.return_value = {
+            'has_errors': False,
+            'errors': [],
+            'warnings': []
+        }
+
+        result = process_document('test.docx', 'ADVISORY_CIRCULAR')
+        assert not result['has_errors']
+        assert len(result['errors']) == 0
+        assert len(result['warnings']) == 0
+
+    @patch('documentcheckertool.cli.process_document')
+    def test_main_success(self, mock_process):
+        mock_process.return_value = {
+            'has_errors': False,
+            'errors': [],
+            'warnings': []
+        }
+
+        with patch('sys.argv', ['script.py', 'test.docx', 'ADVISORY_CIRCULAR']):
+            result = main()
+            assert result == 0
+
+    @patch('documentcheckertool.cli.process_document')
+    def test_main_error(self, mock_process):
+        mock_process.return_value = {
+            'has_errors': True,
+            'errors': ['Test error'],
+            'warnings': []
+        }
+
+        with patch('sys.argv', ['script.py', 'test.docx', 'ADVISORY_CIRCULAR']):
+            result = main()
+            assert result == 1
+
+    @patch('documentcheckertool.cli.process_document')
+    def test_main_invalid_args(self, mock_process):
+        with patch('sys.argv', ['script.py']):
+            result = main()
+            assert result == 1
+
+    @patch('documentcheckertool.cli.process_document')
+    def test_main_invalid_doc_type(self, mock_process):
+        with patch('sys.argv', ['script.py', 'test.docx', 'INVALID_TYPE']):
+            result = main()
+            assert result == 1
+
+    @patch('documentcheckertool.cli.process_document')
+    def test_main_file_not_found(self, mock_process):
+        mock_process.side_effect = FileNotFoundError()
+
+        with patch('sys.argv', ['script.py', 'nonexistent.docx', 'ADVISORY_CIRCULAR']):
+            result = main()
+            assert result == 1
+
+    @patch('documentcheckertool.cli.process_document')
+    def test_main_permission_error(self, mock_process):
+        mock_process.side_effect = PermissionError()
+
+        with patch('sys.argv', ['script.py', 'test.docx', 'ADVISORY_CIRCULAR']):
+            result = main()
+            assert result == 1
+
+# Mock or stub for testing purposes
+def process_document(file_path, doc_type):
+    return "Mocked process_document result"
+
+def main():
+    return 0

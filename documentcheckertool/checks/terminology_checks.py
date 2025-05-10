@@ -11,26 +11,29 @@ from typing import List, Dict, Any, Optional
 from ..utils.decorators import profile_performance
 import re
 import logging
+from documentcheckertool.utils.terminology_utils import TerminologyManager
+from documentcheckertool.utils.text_utils import count_words, count_syllables, split_sentences
 
 logger = logging.getLogger(__name__)
 
 class TerminologyChecks(BaseChecker):
     """Class for handling terminology-related checks."""
-    
-    def __init__(self, pattern_cache):
-        self.pattern_cache = pattern_cache
-        logger.info("Initialized TerminologyChecks with pattern cache")
+
+    def __init__(self, terminology_manager: TerminologyManager):
+        super().__init__(terminology_manager)
+        self.heading_words = terminology_manager.terminology_data.get('heading_words', [])
+        logger.info("Initialized TerminologyChecks with terminology manager")
         # Remove hardcoded patterns since they're now in config files
-    
+
     def run_checks(self, document: Document, doc_type: str, results: DocumentCheckResult) -> None:
         """Run all terminology-related checks."""
         logger.info(f"Running terminology checks for document type: {doc_type}")
-        
+
         text_content = [p.text for p in document.paragraphs]
         self._check_abbreviations(text_content, results)
         self._check_consistency(text_content, results)
         self._check_forbidden_terms(text_content, results)
-    
+
     def _load_valid_words(self):
         """Load valid words from valid_words.txt file."""
         valid_words = set()
@@ -48,7 +51,7 @@ class TerminologyChecks(BaseChecker):
             logger.error(f"Error loading valid_words.txt: {e}")
             # Fallback to minimal set on any error
             valid_words = {'pdf', 'xml', 'html', 'css', 'url', 'api'}
-            
+
         return valid_words
 
     def _check_abbreviations(self, paragraphs, results):
@@ -59,9 +62,6 @@ class TerminologyChecks(BaseChecker):
         # Load valid words
         valid_words = self._load_valid_words()
 
-        # Common words that might appear in uppercase but aren't acronyms
-        heading_words = self.config_manager.config.get('heading_words', self.HEADING_WORDS)
-
         # Standard acronyms that don't need to be defined
         predefined_acronyms = self.config_manager.config.get('predefined_acronyms', self.PREDEFINED_ACRONYMS)
 
@@ -69,7 +69,7 @@ class TerminologyChecks(BaseChecker):
         ignore_pattern = re.compile('|'.join(f'(?:{pattern})' for pattern in ACRONYM_PATTERNS['ignore_patterns']))
         defined_pattern = re.compile(ACRONYM_PATTERNS['defined'])
         acronym_pattern = re.compile(ACRONYM_PATTERNS['usage'])
-        
+
         # Tracking structures
         defined_acronyms = {}  # Stores definition info
         used_acronyms = set()  # Stores acronyms used after definition
@@ -80,7 +80,7 @@ class TerminologyChecks(BaseChecker):
         for paragraph in doc:
             # Skip lines that appear to be headings
             words = paragraph.strip().split()
-            if all(word.isupper() for word in words) and any(word in heading_words for word in words):
+            if all(word.isupper() for word in words) and any(word in self.heading_words for word in words):
                 continue
 
             # First, find all text that should be ignored
@@ -114,7 +114,7 @@ class TerminologyChecks(BaseChecker):
 
                 # Skip predefined acronyms, valid words, and other checks
                 if (acronym in predefined_acronyms or
-                    acronym in heading_words or
+                    acronym in self.heading_words or
                     acronym.lower() in valid_words or  # Check against valid words list
                     any(not c.isalpha() for c in acronym) or
                     len(acronym) > 10):
@@ -193,7 +193,7 @@ class TerminologyChecks(BaseChecker):
                             severity=Severity.LOW,
                             line_number=i+1
                         )
-    
+
     def _check_forbidden_terms(self, paragraphs, results):
         """Check for forbidden or discouraged terms."""
         for i, text in enumerate(paragraphs):
@@ -205,3 +205,47 @@ class TerminologyChecks(BaseChecker):
                         severity=Severity.MEDIUM,
                         line_number=i+1
                     )
+
+    def check(self, content: str) -> Dict[str, Any]:
+        """
+        Check document content for terminology issues.
+
+        Args:
+            content: The document content to check
+
+        Returns:
+            Dict containing check results
+        """
+        errors = []
+        warnings = []
+
+        # Check for proper heading terminology
+        lines = content.split('\n')
+        for i, line in enumerate(lines, 1):
+            if line.strip().isupper() and line.strip().endswith('.'):
+                heading = line.strip().rstrip('.')
+                if heading not in self.heading_words:
+                    errors.append({
+                        'line': i,
+                        'message': f'Invalid heading: {heading}',
+                        'suggestion': 'Use one of the approved heading words',
+                        'severity': 'error'
+                    })
+
+        # Check for acronym usage
+        acronyms = self.terminology_manager.extract_acronyms(content)
+        for acronym in acronyms:
+            definition = self.terminology_manager.find_acronym_definition(content, acronym)
+            if not definition:
+                warnings.append({
+                    'line': 0,  # Line number not available
+                    'message': f'Acronym {acronym} used without definition',
+                    'suggestion': 'Define the acronym before use',
+                    'severity': 'warning'
+                })
+
+        return {
+            'has_errors': len(errors) > 0,
+            'errors': errors,
+            'warnings': warnings
+        }

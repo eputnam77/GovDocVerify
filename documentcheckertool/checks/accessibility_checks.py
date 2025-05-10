@@ -1,7 +1,6 @@
 from typing import List, Dict, Any, Union
 from documentcheckertool.utils.text_utils import count_words, count_syllables, split_sentences
 from documentcheckertool.models import DocumentCheckResult, Severity
-from documentcheckertool.config.document_config import VALIDATION_CONFIG
 from functools import wraps
 import logging
 import re
@@ -12,6 +11,8 @@ from ..utils.formatting import DocumentFormatter
 from .base_checker import BaseChecker
 from documentcheckertool.utils.formatting import ResultFormatter
 from docx.document import Document as DocxDocument
+from documentcheckertool.checks.base_checker import BaseChecker
+from documentcheckertool.utils.terminology_utils import TerminologyManager
 
 logger = logging.getLogger(__name__)
 
@@ -24,12 +25,12 @@ def profile_performance(func):
 
 class AccessibilityChecks(BaseChecker):
     """Class for handling accessibility-related checks."""
-    
-    def __init__(self, pattern_cache=None):
-        # Pass pattern_cache to parent class
-        super().__init__(pattern_cache=pattern_cache)
+
+    def __init__(self, terminology_manager: TerminologyManager):
+        super().__init__(terminology_manager)
+        self.validation_config = terminology_manager.terminology_data.get('accessibility', {})
         self.formatter = ResultFormatter()
-        logger.info("Initialized AccessibilityChecks with pattern cache")
+        logger.info("Initialized AccessibilityChecks with terminology manager")
         # Add passive voice patterns
         self.passive_patterns = [
             r'\b(?:am|is|are|was|were|be|been|being)\s+\w+ed\b',
@@ -47,7 +48,7 @@ class AccessibilityChecks(BaseChecker):
     def check_readability(self, doc: List[str]) -> DocumentCheckResult:
         """Check document readability using multiple metrics and plain language standards."""
         results = DocumentCheckResult()
-        
+
         if not self.validate_input(doc):
             results.add_issue({
                 'message': 'Invalid input format for readability check',
@@ -74,20 +75,20 @@ class AccessibilityChecks(BaseChecker):
         count = 0
         vowels = 'aeiouy'
         on_vowel = False
-        
+
         for char in word:
             is_vowel = char in vowels
             if is_vowel and not on_vowel:
                 count += 1
             on_vowel = is_vowel
-            
+
         if word.endswith('e'):
             count -= 1
         if word.endswith('le') and len(word) > 2 and word[-3] not in vowels:
             count += 1
         if count == 0:
             count = 1
-            
+
         return count
 
     def _calculate_readability_metrics(self, stats: Dict[str, int]) -> DocumentCheckResult:
@@ -121,7 +122,7 @@ class AccessibilityChecks(BaseChecker):
                 issues=[{'error': f'Error calculating readability metrics: {str(e)}'}]
             )
 
-    def _add_readability_issues(self, issues: List[Dict], flesch_ease: float, flesch_grade: float, 
+    def _add_readability_issues(self, issues: List[Dict], flesch_ease: float, flesch_grade: float,
                               fog_index: float, passive_percentage: float) -> None:
         """Add readability issues based on metrics."""
         # Add disclaimer about readability metrics being guidelines
@@ -129,7 +130,7 @@ class AccessibilityChecks(BaseChecker):
             'type': 'readability_info',
             'message': 'Note: Readability metrics are guidelines to help improve clarity. Not all documents will meet all targets, and that\'s okay. Use these suggestions to identify areas for potential improvement.'
         })
-            
+
         if flesch_ease < 50:
             issues.append({
                 'type': 'readability_score',
@@ -137,7 +138,7 @@ class AccessibilityChecks(BaseChecker):
                 'score': round(flesch_ease, 1),
                 'message': 'Consider simplifying language where possible to improve readability, but maintain necessary technical terminology.'
             })
-            
+
         if flesch_grade > 12:
             issues.append({
                 'type': 'readability_score',
@@ -145,7 +146,7 @@ class AccessibilityChecks(BaseChecker):
                 'score': round(flesch_grade, 1),
                 'message': 'The reading level may be high for some audiences. Where appropriate, consider simpler alternatives while preserving technical accuracy.'
             })
-            
+
         if fog_index > 12:
             issues.append({
                 'type': 'readability_score',
@@ -153,7 +154,7 @@ class AccessibilityChecks(BaseChecker):
                 'score': round(fog_index, 1),
                 'message': 'Text complexity is high but may be necessary for your content. Review for opportunities to clarify without oversimplifying.'
             })
-            
+
         if passive_percentage > 10:
             issues.append({
                 'type': 'passive_voice',
@@ -256,21 +257,21 @@ class AccessibilityChecks(BaseChecker):
 
     def _check_hyperlinks(self, doc, hyperlink_issues):
         """Check hyperlinks for accessibility and validity issues."""
-        non_descriptive = ['click here', 'here', 'link', 'this link', 'more', 
-                          'read more', 'learn more', 'click', 'see this', 
+        non_descriptive = ['click here', 'here', 'link', 'this link', 'more',
+                          'read more', 'learn more', 'click', 'see this',
                           'see here', 'go', 'url', 'this', 'page']
 
         # First check for accessibility issues
         for paragraph in doc.paragraphs:
             hyperlinks = self._get_hyperlinks_from_paragraph(paragraph)
-            
+
             for hyperlink in hyperlinks:
                 link_text = self._get_hyperlink_text(hyperlink)
                 if not link_text:
                     continue
 
                 self._check_hyperlink_text(link_text, non_descriptive, hyperlink_issues)
-                
+
                 # Extract URL and check for validity
                 if hasattr(hyperlink, 'href'):
                     url = hyperlink.href
@@ -303,10 +304,10 @@ class AccessibilityChecks(BaseChecker):
     def run_checks(self, document: Document, doc_type: str, results: DocumentCheckResult) -> None:
         """Run all accessibility-related checks."""
         logger.info(f"Running accessibility checks for document type: {doc_type}")
-        
+
         self._check_alt_text(document, results)
         self._check_color_contrast(document, results)
-        
+
     def _check_alt_text(self, document: Document, results: DocumentCheckResult):
         """Check for missing alt text in images."""
         for shape in document.inline_shapes:
@@ -317,7 +318,7 @@ class AccessibilityChecks(BaseChecker):
                     message="Image missing alt text",
                     severity=Severity.HIGH
                 )
-    
+
     def _check_color_contrast(self, content: Union[List[str], DocxDocument], results: DocumentCheckResult):
         """Check for potential color contrast issues."""
         if isinstance(content, DocxDocument):
@@ -326,7 +327,7 @@ class AccessibilityChecks(BaseChecker):
             lines = content
 
         color_pattern = re.compile(r'(?:color|background-color):\s*#([A-Fa-f0-9]{6})')
-        
+
         def relative_luminance(hex_color: str) -> float:
             """Calculate relative luminance from hex color."""
             r = int(hex_color[0:2], 16) / 255
@@ -355,3 +356,46 @@ class AccessibilityChecks(BaseChecker):
                     })
 
         return results
+
+    def check(self, content: str) -> Dict[str, Any]:
+        """Check document for accessibility issues."""
+        errors = []
+        warnings = []
+
+        # Check for alt text in images
+        if '<img' in content and 'alt=' not in content:
+            errors.append({
+                'line_number': 0,
+                'message': 'Images missing alt text',
+                'suggestion': 'Add alt text to all images',
+                'context': 'Accessibility requirement'
+            })
+
+        # Check for proper heading structure
+        heading_levels = []
+        for line in content.split('\n'):
+            if line.startswith('#'):
+                level = len(line.split()[0])
+                heading_levels.append(level)
+                if level > 1 and level - heading_levels[-2] > 1:
+                    errors.append({
+                        'line_number': 0,
+                        'message': f'Invalid heading level: {level}',
+                        'suggestion': 'Ensure heading levels are sequential',
+                        'context': line
+                    })
+
+        # Check for color contrast
+        if 'color:' in content or 'background-color:' in content:
+            warnings.append({
+                'line_number': 0,
+                'message': 'Color usage detected',
+                'suggestion': 'Ensure sufficient color contrast',
+                'context': 'Accessibility requirement'
+            })
+
+        return {
+            'has_errors': len(errors) > 0,
+            'errors': errors,
+            'warnings': warnings
+        }

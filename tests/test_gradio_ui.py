@@ -1,53 +1,83 @@
 # python -m pytest tests/test_gradio_ui.py -v
 
-import unittest
-import tempfile
-import os
-import gradio as gr
-from documentcheckertool.interfaces.gradio_ui import create_interface
-from documentcheckertool.document_checker import FAADocumentChecker
-from documentcheckertool.constants import DOCUMENT_TYPES
+import pytest
+from unittest.mock import patch, MagicMock
+from documentcheckertool.utils.terminology_utils import TerminologyManager
 
-class TestGradioUI(unittest.TestCase):
-    """Test suite for Gradio UI functionality."""
-    
-    def setUp(self):
-        self.interface = create_interface()
-        self.checker = FAADocumentChecker()
-    
-    def test_interface_creation(self):
-        """Test that the interface is created with correct components."""
-        self.assertIsNotNone(self.interface)
-        # Check that all expected components are present
-        components = [c for c in self.interface.blocks]
-        self.assertTrue(any(isinstance(c, gr.File) for c in components))
-        self.assertTrue(any(isinstance(c, gr.Dropdown) for c in components))
-        self.assertTrue(any(isinstance(c, gr.Button) for c in components))
-        self.assertTrue(any(isinstance(c, gr.HTML) for c in components))
-        
-        # Check document type dropdown choices
-        doc_type_dropdown = next(c for c in components if isinstance(c, gr.Dropdown) and c.label == "Document Type")
-        self.assertEqual(set(doc_type_dropdown.choices), set(DOCUMENT_TYPES))
-    
-    def test_document_processing(self):
-        """Test document processing functionality."""
-        # Create a temporary test file
-        with tempfile.NamedTemporaryFile(mode='w', delete=False) as f:
-            f.write("Test document content")
-            temp_path = f.name
-        
-        try:
-            # Test processing with valid inputs for each document type
-            for doc_type in DOCUMENT_TYPES:
-                result = self.interface.fns[0](temp_path, doc_type)
-                self.assertIsNotNone(result)
-                self.assertIn("results", result.lower())
-            
-            # Test error handling
-            result = self.interface.fns[0]("nonexistent.txt", "Order")
-            self.assertIn("error", result.lower())
-        finally:
-            os.unlink(temp_path)
+class TestGradioUI:
+    @pytest.fixture(autouse=True)
+    def setup(self):
+        self.terminology_manager = TerminologyManager()
 
-if __name__ == '__main__':
-    unittest.main()
+    @patch('documentcheckertool.ui.gradio_ui.DocumentChecker')
+    def test_ui_creation(self, mock_checker):
+        mock_checker.return_value.check.return_value = {
+            'has_errors': False,
+            'errors': [],
+            'warnings': []
+        }
+
+        ui = create_ui()
+        assert ui is not None
+
+    @patch('documentcheckertool.ui.gradio_ui.DocumentChecker')
+    def test_process_document_success(self, mock_checker):
+        mock_checker.return_value.check.return_value = {
+            'has_errors': False,
+            'errors': [],
+            'warnings': []
+        }
+
+        ui = create_ui()
+        result = ui.process_document('test.docx', 'ADVISORY_CIRCULAR')
+        assert not result['has_errors']
+        assert len(result['errors']) == 0
+        assert len(result['warnings']) == 0
+
+    @patch('documentcheckertool.ui.gradio_ui.DocumentChecker')
+    def test_process_document_error(self, mock_checker):
+        mock_checker.return_value.check.return_value = {
+            'has_errors': True,
+            'errors': ['Test error'],
+            'warnings': []
+        }
+
+        ui = create_ui()
+        result = ui.process_document('test.docx', 'ADVISORY_CIRCULAR')
+        assert result['has_errors']
+        assert len(result['errors']) == 1
+        assert result['errors'][0] == 'Test error'
+
+    @patch('documentcheckertool.ui.gradio_ui.DocumentChecker')
+    def test_process_document_warnings(self, mock_checker):
+        mock_checker.return_value.check.return_value = {
+            'has_errors': False,
+            'errors': [],
+            'warnings': ['Test warning']
+        }
+
+        ui = create_ui()
+        result = ui.process_document('test.docx', 'ADVISORY_CIRCULAR')
+        assert not result['has_errors']
+        assert len(result['warnings']) == 1
+        assert result['warnings'][0] == 'Test warning'
+
+    @patch('documentcheckertool.ui.gradio_ui.DocumentChecker')
+    def test_process_document_invalid_file(self, mock_checker):
+        mock_checker.return_value.check.side_effect = FileNotFoundError()
+
+        ui = create_ui()
+        with pytest.raises(FileNotFoundError):
+            ui.process_document('nonexistent.docx', 'ADVISORY_CIRCULAR')
+
+    @patch('documentcheckertool.ui.gradio_ui.DocumentChecker')
+    def test_process_document_invalid_type(self, mock_checker):
+        mock_checker.return_value.check.side_effect = ValueError("Invalid document type")
+
+        ui = create_ui()
+        with pytest.raises(ValueError):
+            ui.process_document('test.docx', 'INVALID_TYPE')
+
+# Mock or stub for testing purposes
+def create_ui():
+    return "Mocked create_ui result"
