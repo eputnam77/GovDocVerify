@@ -250,3 +250,129 @@ class TestFormatChecks:
         # Verify different types of issues are detected
         issue_types = {issue["message"].split(" in line")[0] for issue in result.issues}
         assert len(issue_types) >= 5  # Should have at least 5 different types of issues
+
+class TestSectionSymbolUsage:
+    @pytest.fixture(autouse=True)
+    def setup(self):
+        """Set up test fixtures."""
+        logger.info("Setting up test fixtures")
+        self.terminology_manager = TerminologyManager()
+        self.formatting_checker = FormattingChecker(self.terminology_manager)
+        logger.debug("Initialized test with FormattingChecker")
+
+    @pytest.mark.parametrize("content,expected_issues", [
+        # Basic valid cases
+        (["§ 123"], []),
+        (["§ 123.45"], []),
+        (["§ 123(a)"], []),
+        (["§ 123.45(a)(1)"], []),
+
+        # Invalid spacing cases
+        (["§123"], [{"message": "Incorrect section symbol usage in line 1", "severity": Severity.WARNING, "line_number": 1}]),
+        (["§  123"], [{"message": "Incorrect section symbol usage in line 1", "severity": Severity.WARNING, "line_number": 1}]),
+        (["§\t123"], [{"message": "Incorrect section symbol usage in line 1", "severity": Severity.WARNING, "line_number": 1}]),
+
+        # Multiple section symbols
+        (["§ 123 and § 456"], []),
+        (["§ 123 and §456"], [{"message": "Incorrect section symbol usage in line 1", "severity": Severity.WARNING, "line_number": 1}]),
+
+        # Section symbols with text
+        (["See § 123 for more details"], []),
+        (["See §123 for more details"], [{"message": "Incorrect section symbol usage in line 1", "severity": Severity.WARNING, "line_number": 1}]),
+
+        # Complex section references
+        (["§§ 123-456"], []),
+        (["§§ 123.45-456.78"], []),
+        (["§§ 123(a)-456(b)"], []),
+
+        # Edge cases
+        (["§ 0"], []),  # Zero section number
+        (["§ 999999"], []),  # Large section number
+        (["§ 123.456.789"], []),  # Multiple decimal points
+        (["§ 123(a)(1)(i)"], []),  # Deeply nested subsections
+
+        # Invalid cases
+        (["§"], [{"message": "Incorrect section symbol usage in line 1", "severity": Severity.WARNING, "line_number": 1}]),
+        (["§ "], [{"message": "Incorrect section symbol usage in line 1", "severity": Severity.WARNING, "line_number": 1}]),
+        (["§ abc"], [{"message": "Incorrect section symbol usage in line 1", "severity": Severity.WARNING, "line_number": 1}]),
+        (["§ 123abc"], [{"message": "Incorrect section symbol usage in line 1", "severity": Severity.WARNING, "line_number": 1}]),
+
+        # Multiple lines
+        (["§ 123", "§ 456"], []),
+        (["§ 123", "§456"], [{"message": "Incorrect section symbol usage in line 2", "severity": Severity.WARNING, "line_number": 2}]),
+        (["§123", "§ 456"], [{"message": "Incorrect section symbol usage in line 1", "severity": Severity.WARNING, "line_number": 1}]),
+
+        # Special characters and formatting
+        (["§ 123-456"], []),
+        (["§ 123(a)(1)(i)"], []),
+        (["§ 123.45(a)(1)(i)"], []),
+        (["§ 123(a)(1)(i)(A)"], []),
+
+        # Mixed content
+        (["Regular text § 123 more text"], []),
+        (["Regular text §123 more text"], [{"message": "Incorrect section symbol usage in line 1", "severity": Severity.WARNING, "line_number": 1}]),
+        (["§ 123 and some text § 456"], []),
+        (["§ 123 and some text §456"], [{"message": "Incorrect section symbol usage in line 1", "severity": Severity.WARNING, "line_number": 1}]),
+    ])
+    def test_section_symbol_usage(self, content, expected_issues):
+        """Test section symbol usage with various inputs."""
+        logger.debug(f"Testing section symbol usage with content: {content}")
+        result = self.formatting_checker.check_section_symbol_usage(content)
+        logger.debug(f"Section symbol test result: {result}")
+
+        assert result.success == (len(expected_issues) == 0)
+        assert len(result.issues) == len(expected_issues)
+
+        if expected_issues:
+            for i, issue in enumerate(expected_issues):
+                assert result.issues[i]["message"] == issue["message"]
+                assert result.issues[i]["severity"] == issue["severity"]
+                assert result.issues[i]["line_number"] == issue["line_number"]
+
+    def test_section_symbol_with_special_characters(self):
+        """Test section symbol usage with special characters."""
+        content = [
+            "§ 123§ 456",  # Multiple section symbols without space
+            "§ 123§456",   # Multiple section symbols without space and number
+            "§ 123 § 456", # Multiple section symbols with space
+            "§ 123 §456",  # Multiple section symbols with space and no space
+        ]
+        result = self.formatting_checker.check_section_symbol_usage(content)
+        assert not result.success
+        assert len(result.issues) == 2  # Should flag the incorrect usages
+
+    def test_section_symbol_with_unicode(self):
+        """Test section symbol usage with Unicode characters."""
+        content = [
+            "§ 123 § 456",  # Regular section symbols
+            "§ 123 § 456",  # Unicode section symbols
+            "§ 123 § 456",  # Mixed section symbols
+        ]
+        result = self.formatting_checker.check_section_symbol_usage(content)
+        assert result.success
+        assert len(result.issues) == 0
+
+    def test_section_symbol_with_line_breaks(self):
+        """Test section symbol usage with line breaks."""
+        content = [
+            "§ 123\n§ 456",  # Line break between section symbols
+            "§ 123\r\n§ 456", # Windows line break
+            "§ 123\r§ 456",   # Old Mac line break
+        ]
+        result = self.formatting_checker.check_section_symbol_usage(content)
+        assert result.success
+        assert len(result.issues) == 0
+
+    def test_section_symbol_with_whitespace(self):
+        """Test section symbol usage with various whitespace characters."""
+        content = [
+            "§ 123",     # Regular space
+            "§\t123",    # Tab
+            "§\n123",    # Newline
+            "§\r123",    # Carriage return
+            "§\f123",    # Form feed
+            "§\v123",    # Vertical tab
+        ]
+        result = self.formatting_checker.check_section_symbol_usage(content)
+        assert not result.success
+        assert len(result.issues) == 5  # Should flag all except regular space

@@ -236,15 +236,62 @@ class FormattingChecker(BaseChecker):
         """Check for proper section symbol usage."""
         logger.debug("Checking section symbols")
         issues = []
+
+        # Pattern for valid section symbol usage
+        # Must have exactly one space after § and be followed by numbers or valid subsection markers
+        valid_pattern = re.compile(r'§\s+\d+(?:\.\d+)*(?:\([a-z0-9]+\))*')
+
+        # Pattern for multiple section symbols (e.g., §§ 123-456)
+        multiple_symbols_pattern = re.compile(r'§§\s+\d+(?:\.\d+)*(?:\([a-z0-9]+\))*-\d+(?:\.\d+)*(?:\([a-z0-9]+\))*')
+
         for i, line in enumerate(lines, 1):
-            if '§' in line and not re.search(r'§\s+\d', line):
-                logger.debug(f"Found incorrect section symbol usage in line {i}")
-                issues.append({
-                    "message": f"Incorrect section symbol usage in line {i}",
-                    "severity": Severity.WARNING,
-                    "line_number": i,
-                    "checker": "FormattingChecker"
-                })
+            # Check for multiple section symbols (e.g., §§ 123-456)
+            if '§§' in line:
+                if not multiple_symbols_pattern.search(line):
+                    logger.debug(f"Found incorrect section symbol usage in line {i}")
+                    issues.append({
+                        "message": f"Incorrect section symbol usage in line {i}",
+                        "severity": Severity.WARNING,
+                        "line_number": i,
+                        "checker": "FormattingChecker"
+                    })
+            # Check for single section symbol
+            elif '§' in line:
+                # Find all section symbols in the line
+                for match in re.finditer(r'§', line):
+                    # Get the text after the section symbol
+                    after_symbol = line[match.end():]
+                    # Check for invalid spacing (no space or multiple spaces)
+                    if re.match(r'\s{2,}|\S|\t|\n|\r|\f|\v', after_symbol):
+                        logger.debug(f"Found incorrect section symbol usage in line {i}")
+                        issues.append({
+                            "message": f"Incorrect section symbol usage in line {i}",
+                            "severity": Severity.WARNING,
+                            "line_number": i,
+                            "checker": "FormattingChecker"
+                        })
+                        break
+                    # Check for valid section number format
+                    elif not re.match(r'\s+\d+(?:\.\d+)*(?:\([a-z0-9]+\))*', after_symbol):
+                        logger.debug(f"Found incorrect section symbol usage in line {i}")
+                        issues.append({
+                            "message": f"Incorrect section symbol usage in line {i}",
+                            "severity": Severity.WARNING,
+                            "line_number": i,
+                            "checker": "FormattingChecker"
+                        })
+                        break
+                    # Check for alphanumeric section numbers
+                    elif re.search(r'\s+\d+[a-zA-Z]', after_symbol):
+                        logger.debug(f"Found incorrect section symbol usage in line {i}")
+                        issues.append({
+                            "message": f"Incorrect section symbol usage in line {i}",
+                            "severity": Severity.WARNING,
+                            "line_number": i,
+                            "checker": "FormattingChecker"
+                        })
+                        break
+
         return DocumentCheckResult(success=len(issues) == 0, severity=Severity.WARNING if issues else None, issues=issues)
 
     def check_list_formatting(self, lines: List[str]) -> DocumentCheckResult:
