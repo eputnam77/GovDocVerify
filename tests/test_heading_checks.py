@@ -42,7 +42,7 @@ class TestHeadingChecks:
             "3. BACKGROUND.",
             "4. DEFINITIONS."
         ]
-        result = self.heading_checks.check_heading_title(doc, "Order")
+        result = self.heading_checks.check_heading_title(doc, "ORDER")
         assert result.success is True
         assert len(result.issues) == 0
 
@@ -75,7 +75,7 @@ class TestHeadingChecks:
             "2. BACKGROUND.",
             "3. DEFINITIONS"
         ]
-        result = self.heading_checks.check_heading_period(doc, "Order")
+        result = self.heading_checks.check_heading_period(doc, "ORDER")
         assert result.success is False
         assert len(result.issues) > 0
 
@@ -100,6 +100,56 @@ class TestHeadingChecks:
         issues = self.heading_checks.check_heading_structure(doc)
         assert len(issues) > 0
         assert any("expected" in issue["message"] for issue in issues)
+
+    def test_heading_case(self):
+        """Test that headings are properly capitalized."""
+        doc = [
+            "1. Purpose.",
+            "2. Background.",
+            "3. Definitions."
+        ]
+        result = self.heading_checks.check_heading_title(doc, "ORDER")
+        assert result.success is False
+        assert any("should be uppercase" in issue["message"] for issue in result.issues)
+
+    def test_heading_spacing(self):
+        """Test spacing between headings and content."""
+        doc = Document()
+        doc.add_paragraph("1. PURPOSE.")
+        doc.add_paragraph("This is some content.")
+        doc.add_paragraph("2. BACKGROUND.")
+        doc.add_paragraph("More content here.")
+        doc.add_paragraph("3. DEFINITIONS.")
+        doc.add_paragraph("Even more content.")
+
+        issues = self.heading_checks.check_heading_structure(doc)
+        assert len(issues) == 0  # No spacing issues
+
+    def test_heading_with_content(self):
+        """Test headings in context with actual content."""
+        doc = Document()
+        doc.add_paragraph("1. PURPOSE.")
+        doc.add_paragraph("This document establishes requirements for...")
+        doc.add_paragraph("2. BACKGROUND.")
+        doc.add_paragraph("The Federal Aviation Administration...")
+        doc.add_paragraph("3. DEFINITIONS.")
+        doc.add_paragraph("For the purpose of this document...")
+
+        issues = self.heading_checks.check_heading_structure(doc)
+        assert len(issues) == 0  # No issues with headings and content
+
+    def test_mixed_case_headings(self):
+        """Test mixed case scenarios in headings."""
+        doc = [
+            "1. PURPOSE.",
+            "2. Background.",
+            "3. DEFINITIONS.",
+            "4. Applicability.",
+            "5. REQUIREMENTS."
+        ]
+        result = self.heading_checks.check_heading_title(doc, "ORDER")
+        assert result.success is False
+        assert any("should be uppercase" in issue["message"] for issue in result.issues)
 
 if __name__ == '__main__':
     pytest.main()

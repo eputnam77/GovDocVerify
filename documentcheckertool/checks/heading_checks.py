@@ -42,19 +42,10 @@ class HeadingChecks(BaseChecker):
 
     @profile_performance
     def check_heading_title(self, doc: List[str], doc_type: str) -> DocumentCheckResult:
-        """Check heading title formatting."""
-        if not self.validate_input(doc):
-            logger.error("Invalid document input for heading check")
-            return DocumentCheckResult(success=False, issues=[{'error': 'Invalid document input'}])
-
-        try:
-            doc_type_config, normalized_type = self._get_doc_type_config(doc_type)
-        except Exception as e:
-            logger.error(f"Error getting document type configuration: {str(e)}")
-            return DocumentCheckResult(success=False, issues=[{'error': str(e)}])
-
-        # Add skip title check logic
+        """Check heading titles for validity."""
+        doc_type_config, normalized_type = self._get_doc_type_config(doc_type)
         if doc_type_config.get('skip_title_check', False):
+            logger.info(f"Skipping title check for document type: {doc_type}")
             return DocumentCheckResult(
                 success=True,
                 issues=[],
@@ -90,16 +81,25 @@ class HeadingChecks(BaseChecker):
                     'suggestion': f'Use a valid heading word from: {", ".join(sorted(heading_words))}'
                 })
             else:
-                normalized = normalize_heading(line)
-                if normalized != line:
-                    logger.warning(f"Heading format mismatch in line {i}")
-                    logger.debug(f"Original: {line}")
-                    logger.debug(f"Normalized: {normalized}")
+                # Check if heading is in uppercase
+                if heading_text != heading_text.upper():
+                    logger.warning(f"Heading should be uppercase in line {i}")
                     issues.append({
                         'line': line,
-                        'message': 'Heading formatting issue',
-                        'suggestion': normalized
+                        'message': 'Heading should be uppercase',
+                        'suggestion': line.split('.', 1)[0] + '. ' + heading_text.upper()
                     })
+                else:
+                    normalized = normalize_heading(line)
+                    if normalized != line:
+                        logger.warning(f"Heading format mismatch in line {i}")
+                        logger.debug(f"Original: {line}")
+                        logger.debug(f"Normalized: {normalized}")
+                        issues.append({
+                            'line': line,
+                            'message': 'Heading formatting issue',
+                            'suggestion': normalized
+                        })
 
             headings_found.add(heading_text.upper())
 
