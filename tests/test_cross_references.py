@@ -1,5 +1,8 @@
 # NOTE: Refactored to use StructureChecks, as cross_reference_checks.py does not exist.
+# pytest -v tests/test_cross_references.py --log-cli-level=DEBUG
+
 import pytest
+import unittest
 from documentcheckertool.checks.structure_checks import StructureChecks
 from documentcheckertool.utils.terminology_utils import TerminologyManager
 

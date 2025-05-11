@@ -54,6 +54,7 @@ class AccessibilityChecks(BaseChecker):
                 'message': 'Invalid input format for readability check',
                 'recommendation': 'Ensure input is a list of strings'
             })
+            results.success = False
             return results
 
         for line in doc:
@@ -61,12 +62,14 @@ class AccessibilityChecks(BaseChecker):
             if len(words) > 25:  # Check sentence length
                 results.add_issue({
                     'type': 'sentence_length',
-                    'message': 'Sentence too long',
+                    'message': f'Sentence too long. Word count exceeds recommended limit ({len(words)} words).',
                     'sentence': line,
                     'word_count': len(words),
                     'recommendation': 'Break into shorter sentences'
                 })
 
+        # Set success to False if any issues were found
+        results.success = len(results.issues) == 0
         return results
 
     def _count_syllables(self, word: str) -> int:
@@ -163,63 +166,76 @@ class AccessibilityChecks(BaseChecker):
             })
 
     @profile_performance
-    def check_section_508_compliance(self, doc_path: str) -> DocumentCheckResult:
+    def check_section_508_compliance(self, content: Union[str, List[str]]) -> DocumentCheckResult:
         """Perform Section 508 compliance checks focusing on image alt text and heading structure."""
         try:
-            doc = Document(doc_path)
-            issues = []
-            images_with_alt = 0
-            heading_structure = {}
-            heading_issues = []
-            hyperlink_issues = []
+            if isinstance(content, list):
+                # Handle list input
+                results = DocumentCheckResult()
+                heading_results = self.check_heading_structure(content)
+                image_results = self.check_image_accessibility(content)
 
-            # Image alt text check
-            for shape in doc.inline_shapes:
-                alt_text = None
-                if hasattr(shape, '_inline') and hasattr(shape._inline, 'docPr'):
-                    docPr = shape._inline.docPr
-                    alt_text = docPr.get('descr') or docPr.get('title')
+                results.issues.extend(heading_results.issues)
+                results.issues.extend(image_results.issues)
 
-                if (alt_text):
-                    images_with_alt += 1
-                else:
-                    issues.append({
-                        'category': 'image_alt_text',
-                        'message': 'Image is missing descriptive alt text.',
-                        'context': 'Ensure all images have descriptive alt text.'
-                    })
+                results.success = len(results.issues) == 0
+                return results
+            else:
+                # Handle file path input
+                doc = Document(content)
+                issues = []
+                images_with_alt = 0
+                heading_structure = {}
+                heading_issues = []
+                hyperlink_issues = []
 
-            # Enhanced heading structure check
-            headings = []
-            for paragraph in doc.paragraphs:
-                if paragraph.style.name.startswith('Heading'):
-                    try:
-                        level = int(paragraph.style.name.split()[-1])
-                        text = paragraph.text.strip()
-                        if text:
-                            headings.append((text, level))
-                            heading_structure[level] = heading_structure.get(level, 0) + 1
-                    except ValueError:
-                        continue
+                # Image alt text check
+                for shape in doc.inline_shapes:
+                    alt_text = None
+                    if hasattr(shape, '_inline') and hasattr(shape._inline, 'docPr'):
+                        docPr = shape._inline.docPr
+                        alt_text = docPr.get('descr') or docPr.get('title')
 
-            # Check heading hierarchy
-            if headings:
-                self._check_heading_hierarchy(headings, heading_issues)
+                    if (alt_text):
+                        images_with_alt += 1
+                    else:
+                        issues.append({
+                            'category': 'image_alt_text',
+                            'message': 'Image is missing descriptive alt text.',
+                            'context': 'Ensure all images have descriptive alt text.'
+                        })
 
-            # Enhanced Hyperlink Accessibility Check
-            self._check_hyperlinks(doc, hyperlink_issues)
+                # Enhanced heading structure check
+                headings = []
+                for paragraph in doc.paragraphs:
+                    if paragraph.style.name.startswith('Heading'):
+                        try:
+                            level = int(paragraph.style.name.split()[-1])
+                            text = paragraph.text.strip()
+                            if text:
+                                headings.append((text, level))
+                                heading_structure[level] = heading_structure.get(level, 0) + 1
+                        except ValueError:
+                            continue
 
-            # Combine all issues and create details
-            issues.extend(hyperlink_issues)
-            issues.extend([{'category': '508_compliance_heading_structure', **issue} for issue in heading_issues])
+                # Check heading hierarchy
+                if headings:
+                    self._check_heading_hierarchy(headings, heading_issues)
 
-            details = self._create_compliance_details(doc, images_with_alt, headings, heading_structure, hyperlink_issues)
+                # Enhanced Hyperlink Accessibility Check
+                self._check_hyperlinks(doc, hyperlink_issues)
 
-            return DocumentCheckResult(
-                success=len(issues) == 0,
-                issues=issues,
-                details=details
-            )
+                # Combine all issues and create details
+                issues.extend(hyperlink_issues)
+                issues.extend([{'category': '508_compliance_heading_structure', **issue} for issue in heading_issues])
+
+                details = self._create_compliance_details(doc, images_with_alt, headings, heading_structure, hyperlink_issues)
+
+                return DocumentCheckResult(
+                    success=len(issues) == 0,
+                    issues=issues,
+                    details=details
+                )
         except Exception as e:
             logger.error(f"Error during 508 compliance check: {str(e)}")
             return DocumentCheckResult(
@@ -399,3 +415,58 @@ class AccessibilityChecks(BaseChecker):
             'errors': errors,
             'warnings': warnings
         }
+
+    def check_heading_structure(self, content: List[str]) -> DocumentCheckResult:
+        """Check heading structure for accessibility issues."""
+        results = DocumentCheckResult()
+        heading_levels = []
+
+        for line in content:
+            if line.strip().startswith('#'):
+                level = len(line.split()[0])
+                heading_levels.append(level)
+                if level > 1 and len(heading_levels) > 1 and level - heading_levels[-2] > 1:
+                    results.add_issue({
+                        'message': 'Inconsistent heading structure',
+                        'context': f'Found H{level} after H{heading_levels[-2]}',
+                        'recommendation': 'Ensure heading levels are sequential'
+                    })
+
+        return results
+
+    def check_image_accessibility(self, content: List[str]) -> DocumentCheckResult:
+        """Check image accessibility including alt text."""
+        results = DocumentCheckResult()
+        image_pattern = re.compile(r'!\[(.*?)\]\((.*?)\)')
+
+        for line in content:
+            matches = image_pattern.finditer(line)
+            for match in matches:
+                alt_text = match.group(1)
+                if not alt_text:
+                    results.add_issue({
+                        'message': 'Missing alt text',
+                        'context': f'Image: {match.group(2)}',
+                        'recommendation': 'Add descriptive alt text'
+                    })
+
+        return results
+
+    def check_text(self, content: str) -> DocumentCheckResult:
+        """Check text content for accessibility issues."""
+        results = DocumentCheckResult()
+        lines = content.split('\n')
+
+        # Check heading structure
+        heading_results = self.check_heading_structure(lines)
+        results.issues.extend(heading_results.issues)
+
+        # Check image accessibility
+        image_results = self.check_image_accessibility(lines)
+        results.issues.extend(image_results.issues)
+
+        # Check color contrast
+        self._check_color_contrast(lines, results)
+
+        results.success = len(results.issues) == 0
+        return results

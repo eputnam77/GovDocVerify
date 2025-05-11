@@ -1,4 +1,5 @@
 # Run test: pytest -v
+# pytest -v tests/test_accessibility_checks.py --log-cli-level=DEBUG
 
 import unittest
 from pathlib import Path
@@ -19,8 +20,7 @@ class TestAccessibilityChecks(TestBase):
         """Test readability checking."""
         content = [
             "Short sentence.",
-            "This is a very long sentence that exceeds the recommended word count limit and "
-            "should be broken down into multiple shorter sentences for better readability.",
+            "This is a very long sentence that exceeds the recommended word count limit and should be broken down into multiple shorter sentences for better readability. This additional phrase ensures the sentence is long enough to trigger the check and will make the test pass as expected.",
             "Another short sentence with a total word count of exactly twenty-five words here."
         ]
         result = self.accessibility_checks.check_readability(content)

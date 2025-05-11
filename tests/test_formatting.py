@@ -1,4 +1,4 @@
-# python -m pytest tests/test_formatting.py -v
+# pytest -v tests/test_formatting.py --log-cli-level=DEBUG
 
 # NOTE: Refactored to use FormatChecks, as formatting_checks.py does not exist.
 import pytest

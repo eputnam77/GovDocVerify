@@ -105,6 +105,21 @@ class TerminologyManager:
         """
         return self.terminology_data['required_language'].get(doc_type, [])
 
+    def _load_valid_words(self) -> set:
+        """Load valid words from a file (one word per line, both cases)."""
+        valid_words_file = Path(__file__).parent.parent.parent / 'valid_words.txt'
+        try:
+            with open(valid_words_file, 'r') as f:
+                words = set()
+                for word in f:
+                    word = word.strip()
+                    if word:
+                        words.add(word.upper())  # Add uppercase version
+                        words.add(word.lower())  # Add lowercase version
+                return words
+        except FileNotFoundError:
+            return set()
+
     def check_text(self, content: str) -> DocumentCheckResult:
         """Check text for terminology issues.
 
@@ -117,6 +132,7 @@ class TerminologyManager:
         self.defined_acronyms.clear()
         self.used_acronyms.clear()
         issues = []
+        valid_words = self._load_valid_words()
 
         # Check acronym definitions and usage
         definition_pattern = r'([A-Z][A-Z]+)\s*\(([^)]+)\)'
@@ -140,14 +156,16 @@ class TerminologyManager:
         for match in re.finditer(usage_pattern, content):
             acronym = match.group(1)
             if len(acronym) >= 2:
-                self.used_acronyms.add(acronym)
-                if (acronym not in self.defined_acronyms and
-                    acronym not in self.get_all_acronyms()):
-                    issues.append({
-                        "type": "acronym",
-                        "message": f"Acronym '{acronym}' used without definition",
-                        "suggestion": f"Define '{acronym}' before use"
-                    })
+                # Only flag if not a valid English word
+                if acronym not in valid_words:
+                    self.used_acronyms.add(acronym)
+                    if (acronym not in self.defined_acronyms and
+                        acronym not in self.get_all_acronyms()):
+                        issues.append({
+                            "type": "acronym",
+                            "message": f"Acronym '{acronym}' used without definition",
+                            "suggestion": f"Define '{acronym}' before use"
+                        })
 
         # Check patterns
         for category, patterns in self.get_patterns().items():
@@ -162,8 +180,7 @@ class TerminologyManager:
 
         return DocumentCheckResult(
             success=len(issues) == 0,
-            issues=issues,
-            checker_name="TerminologyManager"
+            issues=issues
         )
 
     def get_acronym_definition(self, acronym: str) -> Optional[str]:

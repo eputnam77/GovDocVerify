@@ -1,4 +1,4 @@
-# python -m pytest tests/test_format_checks.py -v
+# pytest -v tests/test_format_checks.py --log-cli-level=DEBUG
 
 import pytest
 from documentcheckertool.checks.format_checks import FormatChecks, FormattingChecker

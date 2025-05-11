@@ -1,3 +1,5 @@
+# pytest -v tests/test_formats.py --log-cli-level=DEBUG
+
 import pytest
 from documentcheckertool.checks.format_checks import FormatChecks
 from documentcheckertool.utils.terminology_utils import TerminologyManager

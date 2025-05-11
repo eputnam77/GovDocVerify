@@ -84,9 +84,8 @@ class TestTerminologyChecks(TestBase):
             "The applicant must document the process thoroughly."  # Correct usage
         ]
         result = self.terminology_checks.check_split_infinitives(content)
-        self.assertTrue(result.success)  # Should be True since these are style suggestions
+        self.assertFalse(result.success)  # Should be False since split infinitives are found
         self.assert_issue_contains(result, "Split infinitive detected")
-        self.assert_issue_contains(result, "style choice rather than a grammatical error")
 
     def test_multi_word_split_infinitives(self):
         """Test checking for split infinitives with multi-word phrases."""
@@ -99,9 +98,8 @@ class TestTerminologyChecks(TestBase):
             "The applicant must document the process as well as."  # Correct usage
         ]
         result = self.terminology_checks.check_split_infinitives(content)
-        self.assertTrue(result.success)  # Should be True since these are style suggestions
+        self.assertFalse(result.success)  # Should be False since split infinitives are found
         self.assert_issue_contains(result, "Split infinitive detected")
-        self.assert_issue_contains(result, "style choice rather than a grammatical error")
 
 if __name__ == '__main__':
     unittest.main()

@@ -1,4 +1,4 @@
-# python -m pytest tests/test_structure_checks.py -v
+# pytest -v tests/test_structure_checks.py --log-cli-level=DEBUG
 
 import pytest
 from documentcheckertool.checks.structure_checks import StructureChecks

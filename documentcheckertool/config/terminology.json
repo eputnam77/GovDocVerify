@@ -11,7 +11,10 @@
             "U.S.": "United States",
             "U.S.C.": "United States Code"
         },
-        "custom": {}
+        "custom": {
+            "API": "Application Programming Interface",
+            "REST": "Representational State Transfer"
+        }
     },
     "patterns": {
         "terminology": [
@@ -47,16 +50,16 @@
         ],
         "citations": [
             {
-                "pattern": "\\b(\\d+)\\s+(?:U\\.S\\.C\\.|CFR)\\s+(§|§§)\\s+(\\d+(?:\\.\\d+)*)\\b",
+                "pattern": "\\b(\\d+)\\s+(?:U\\.S\\.C\\.|CFR)\\s+(\u00c2\u00a7|\u00c2\u00a7\u00c2\u00a7)\\s+(\\d+(?:\\.\\d+)*)\\b",
                 "description": "Ensure proper formatting of legal citations",
                 "is_error": true,
-                "replacement": "$1 $2 §$3 (per GPO Style Manual)"
+                "replacement": "$1 $2 \u00c2\u00a7$3 (per GPO Style Manual)"
             }
         ],
         "section_symbol": [
             {
                 "pattern": "\\b(section|subsection|paragraph|clause)\\b",
-                "description": "Ensure proper use of '§' or '§§' instead of spelled-out 'section'",
+                "description": "Ensure proper use of '\u00c2\u00a7' or '\u00c2\u00a7\u00c2\u00a7' instead of spelled-out 'section'",
                 "is_error": true
             }
         ],

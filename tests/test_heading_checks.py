@@ -1,4 +1,5 @@
 # python -m pytest tests/test_heading_checks.py -v
+# pytest -v tests/test_heading_checks.py --log-cli-level=DEBUG
 
 import pytest
 from documentcheckertool.checks.heading_checks import HeadingChecks

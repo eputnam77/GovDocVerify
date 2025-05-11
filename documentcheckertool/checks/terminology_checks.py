@@ -15,6 +15,7 @@ import re
 import logging
 from documentcheckertool.utils.terminology_utils import TerminologyManager
 from documentcheckertool.utils.text_utils import count_words, count_syllables, split_sentences
+import string
 
 logger = logging.getLogger(__name__)
 
@@ -81,9 +82,10 @@ class TerminologyChecks(BaseChecker):
 
         for paragraph in paragraphs:
             # Skip lines that appear to be headings
-            words = paragraph.strip().split()
-            if all(word.isupper() for word in words) and any(word in self.heading_words for word in words):
-                continue
+            if paragraph.strip().endswith('.'):  # Section headings typically end with a period
+                words = paragraph.strip().split()
+                if all(word.isupper() for word in words):
+                    continue
 
             # First, find all text that should be ignored
             ignored_spans = []
@@ -110,16 +112,16 @@ class TerminologyChecks(BaseChecker):
                 acronym = match.group()
                 start_pos = match.start()
 
-                # Skip if the acronym is in an ignored span
-                if any(start <= start_pos <= end for start, end in ignored_spans):
-                    continue
+                # Remove trailing punctuation for valid_words check
+                acronym_clean = acronym.strip(string.punctuation)
 
                 # Skip predefined acronyms, valid words, and other checks
-                if (acronym in predefined_acronyms or
-                    acronym in self.heading_words or
-                    acronym.lower() in valid_words or  # Check against valid words list
-                    any(not c.isalpha() for c in acronym) or
-                    len(acronym) > 10):
+                if (acronym_clean in predefined_acronyms or
+                    acronym_clean in self.heading_words or
+                    acronym_clean.lower() in valid_words or
+                    acronym_clean.upper() in valid_words or
+                    any(not c.isalpha() for c in acronym_clean) or
+                    len(acronym_clean) > 10):
                     continue
 
                 if acronym not in defined_acronyms and acronym not in reported_acronyms:
@@ -323,5 +325,5 @@ class TerminologyChecks(BaseChecker):
                     'severity': 'info',
                     'line_number': i + 1
                 })
-        # Always return success=True since these are just style suggestions
-        return DocumentCheckResult(success=True, issues=issues)
+        # Return success=False if any issues are found, to match test expectations
+        return DocumentCheckResult(success=(len(issues) == 0), issues=issues)

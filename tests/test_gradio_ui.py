@@ -1,4 +1,5 @@
 # python -m pytest tests/test_gradio_ui.py -v
+# pytest -v tests/test_accessibility_checks.py --log-cli-level=DEBUG
 
 import pytest
 from unittest.mock import patch, MagicMock

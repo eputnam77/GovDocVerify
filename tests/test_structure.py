@@ -1,10 +1,12 @@
+# pytest -v tests/test_structure.py --log-cli-level=DEBUG
+
 import unittest
 from test_base import TestBase
 import os
 
 class TestStructureChecks(TestBase):
     """Test suite for document structure and readability checks."""
-    
+
     def test_paragraph_length_check_valid(self):
         """Test paragraph length check with valid paragraphs."""
         content = [
@@ -15,7 +17,7 @@ class TestStructureChecks(TestBase):
         doc_path = self.create_test_docx(content, "valid_paragraph_length.docx")
         result = self.checker.check_paragraph_length(content)
         self.assert_no_issues(result)
-    
+
     def test_paragraph_length_check_invalid(self):
         """Test paragraph length check with invalid paragraphs."""
         content = [
@@ -27,7 +29,7 @@ class TestStructureChecks(TestBase):
         result = self.checker.check_paragraph_length(content)
         self.assert_has_issues(result)
         self.assert_issue_contains(result, "paragraph length")
-    
+
     def test_sentence_length_check_valid(self):
         """Test sentence length check with valid sentences."""
         content = [
@@ -38,7 +40,7 @@ class TestStructureChecks(TestBase):
         doc_path = self.create_test_docx(content, "valid_sentence_length.docx")
         result = self.checker.check_sentence_length(content)
         self.assert_no_issues(result)
-    
+
     def test_sentence_length_check_invalid(self):
         """Test sentence length check with invalid sentences."""
         content = [
@@ -49,7 +51,7 @@ class TestStructureChecks(TestBase):
         result = self.checker.check_sentence_length(content)
         self.assert_has_issues(result)
         self.assert_issue_contains(result, "sentence length")
-    
+
     def test_readability_check_valid(self):
         """Test readability check with valid text."""
         content = [
@@ -60,7 +62,7 @@ class TestStructureChecks(TestBase):
         doc_path = self.create_test_docx(content, "valid_readability.docx")
         result = self.checker.check_readability(content)
         self.assert_no_issues(result)
-    
+
     def test_readability_check_invalid(self):
         """Test readability check with invalid text."""
         content = [
@@ -72,13 +74,13 @@ class TestStructureChecks(TestBase):
         result = self.checker.check_readability(content)
         self.assert_has_issues(result)
         self.assert_issue_contains(result, "readability")
-    
+
     def test_508_compliance_valid(self):
         """Test Section 508 compliance check with valid document."""
         doc_path = os.path.join(self.test_data_dir, "valid_508_compliance.docx")
         result = self.checker.check_section_508_compliance(doc_path)
         self.assert_no_issues(result)
-    
+
     def test_508_compliance_invalid(self):
         """Test Section 508 compliance check with invalid document."""
         doc_path = os.path.join(self.test_data_dir, "invalid_508_compliance.docx")
@@ -86,4 +88,4 @@ class TestStructureChecks(TestBase):
         self.assert_has_issues(result)
 
 if __name__ == '__main__':
-    unittest.main() 
+    unittest.main()
