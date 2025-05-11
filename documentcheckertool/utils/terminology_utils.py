@@ -133,8 +133,9 @@ class TerminologyManager:
         self.used_acronyms.clear()
         issues = []
         valid_words = self._load_valid_words()
+        standard_acronyms = set(self.get_standard_acronyms().keys())
 
-        # Check acronym definitions and usage
+        # First pass: collect all defined acronyms
         definition_pattern = r'([A-Z][A-Z]+)\s*\(([^)]+)\)'
         for match in re.finditer(definition_pattern, content):
             acronym = match.group(1)
@@ -148,19 +149,26 @@ class TerminologyManager:
                 })
             else:
                 self.defined_acronyms.add(acronym)
-                if acronym not in self.get_standard_acronyms():
+                if acronym not in standard_acronyms:
                     self.add_custom_acronym(acronym, definition)
 
-        # Check acronym usage
-        usage_pattern = r'\b([A-Z][A-Z]+)\b'
-        for match in re.finditer(usage_pattern, content):
-            acronym = match.group(1)
-            if len(acronym) >= 2:
-                # Only flag if not a valid English word
-                if acronym not in valid_words:
-                    self.used_acronyms.add(acronym)
-                    if (acronym not in self.defined_acronyms and
-                        acronym not in self.get_all_acronyms()):
+        # Second pass: check for undefined acronyms
+        # Split content into lines to check each line separately
+        lines = content.split('\n')
+        for line in lines:
+            # Skip lines that contain acronym definitions
+            if re.search(definition_pattern, line):
+                continue
+
+            # Check for acronym usage in this line
+            usage_pattern = r'\b([A-Z][A-Z]+)\b'
+            for match in re.finditer(usage_pattern, line):
+                acronym = match.group(1)
+                if len(acronym) >= 2:
+                    # Skip if it's a valid word, already defined, or a standard acronym
+                    if (acronym not in valid_words and
+                        acronym not in self.defined_acronyms and
+                        acronym not in standard_acronyms):
                         issues.append({
                             "type": "acronym",
                             "message": f"Acronym '{acronym}' used without definition",
