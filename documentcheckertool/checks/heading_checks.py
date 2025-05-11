@@ -131,11 +131,10 @@ class HeadingChecks(BaseChecker):
         """Check heading period usage."""
         issues = []
         logger.info(f"Starting heading period check for document type: {doc_type}")
-        doc_type_enum = DocumentType.from_string(doc_type)
 
         # Get period requirements from terminology data
         period_requirements = self.terminology_manager.terminology_data.get('heading_periods', {})
-        requires_period = period_requirements.get(doc_type_enum.value, False)
+        requires_period = period_requirements.get(doc_type, False)
         logger.debug(f"Document type {doc_type} {'requires' if requires_period else 'does not require'} periods")
 
         # Get heading words from terminology data

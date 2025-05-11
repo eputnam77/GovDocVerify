@@ -115,7 +115,8 @@
     "heading_periods": {
         "ADVISORY_CIRCULAR": true,
         "POLICY_STATEMENT": true,
-        "FEDERAL_REGISTER_NOTICE": true
+        "FEDERAL_REGISTER_NOTICE": true,
+        "ORDER": true
     },
     "document_types": {
         "ADVISORY_CIRCULAR": {

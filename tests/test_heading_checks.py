@@ -5,6 +5,7 @@ import pytest
 from documentcheckertool.checks.heading_checks import HeadingChecks
 from documentcheckertool.utils.terminology_utils import TerminologyManager
 from docx import Document
+from documentcheckertool.models import DocumentType
 
 class TestHeadingChecks:
     @pytest.fixture(autouse=True)
@@ -21,23 +22,60 @@ class TestHeadingChecks:
         invalid_doc = ["1. PURPOSE.", 123]
         assert self.heading_checks.validate_input(invalid_doc) is False
 
-    def test_check_heading_title(self):
+    def test_check_heading_title_without_periods(self):
+        """Test heading titles for document types that don't require periods."""
+        doc = [
+            "1. PURPOSE",
+            "2. APPLICABILITY",
+            "3. BACKGROUND",
+            "4. DEFINITIONS"
+        ]
+        result = self.heading_checks.check_heading_title(doc, "Advisory Circular")
+        assert result.success is True
+        assert len(result.issues) == 0
+
+    def test_check_heading_title_with_periods(self):
+        """Test heading titles for document types that require periods."""
+        doc = [
+            "1. PURPOSE.",
+            "2. APPLICABILITY.",
+            "3. BACKGROUND.",
+            "4. DEFINITIONS."
+        ]
+        result = self.heading_checks.check_heading_title(doc, "Order")
+        assert result.success is True
+        assert len(result.issues) == 0
+
+    def test_check_heading_period_without_periods(self):
+        """Test heading periods for document types that don't require periods."""
+        doc = [
+            "1. PURPOSE",
+            "2. BACKGROUND",
+            "3. DEFINITIONS"
+        ]
+        result = self.heading_checks.check_heading_period(doc, "Advisory Circular")
+        assert result.success is True
+        assert len(result.issues) == 0
+
+    def test_check_heading_period_with_periods(self):
+        """Test heading periods for document types that require periods."""
         doc = [
             "1. PURPOSE.",
             "2. BACKGROUND.",
             "3. DEFINITIONS."
         ]
-        result = self.heading_checks.check_heading_title(doc, "ADVISORY_CIRCULAR")
+        result = self.heading_checks.check_heading_period(doc, "ORDER")
         assert result.success is True
         assert len(result.issues) == 0
 
-    def test_check_heading_period(self):
+    def test_check_heading_period_mixed(self):
+        """Test heading periods with mixed usage (should fail)."""
         doc = [
             "1. PURPOSE",
             "2. BACKGROUND.",
             "3. DEFINITIONS"
         ]
-        result = self.heading_checks.check_heading_period(doc, "ADVISORY_CIRCULAR")
+        result = self.heading_checks.check_heading_period(doc, "Order")
         assert result.success is False
         assert len(result.issues) > 0
 
@@ -61,7 +99,7 @@ class TestHeadingChecks:
 
         issues = self.heading_checks.check_heading_structure(doc)
         assert len(issues) > 0
-        assert any("skipped level" in issue["message"] for issue in issues)
+        assert any("expected" in issue["message"] for issue in issues)
 
 if __name__ == '__main__':
     pytest.main()
