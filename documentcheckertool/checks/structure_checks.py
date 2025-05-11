@@ -27,6 +27,9 @@ class StructureChecks(BaseChecker):
         self._check_sentence_length(paragraphs, results)
         self._check_section_balance(paragraphs, results)
         self._check_list_formatting(paragraphs, results)
+        self._check_cross_references(document, results)
+        self._check_parentheses(paragraphs, results)
+        self._check_watermark(document, results)
 
     def _check_paragraph_length(self, paragraphs, results):
         """Check for overly long paragraphs."""
@@ -36,7 +39,7 @@ class StructureChecks(BaseChecker):
             if words > MAX_WORDS:
                 results.add_issue(
                     message=f"Paragraph exceeds {MAX_WORDS} words ({words} words)",
-                    severity=Severity.MEDIUM,
+                    severity=Severity.WARNING,
                     line_number=i+1
                 )
 
@@ -50,7 +53,7 @@ class StructureChecks(BaseChecker):
                 if words > MAX_WORDS:
                     results.add_issue(
                         message=f"Sentence exceeds {MAX_WORDS} words ({words} words)",
-                        severity=Severity.LOW,
+                        severity=Severity.INFO,
                         line_number=i+1
                     )
 
@@ -58,28 +61,40 @@ class StructureChecks(BaseChecker):
         """Check for balanced section lengths."""
         current_section = []
         section_lengths = []
+        section_names = []
+        current_section_name = None
 
         for para in paragraphs:
             if para.style.name.startswith('Heading'):
                 if current_section:
                     section_lengths.append(len(current_section))
+                    section_names.append(current_section_name)
                 current_section = []
+                current_section_name = para.text
             else:
                 current_section.append(para)
 
         # Add last section
         if current_section:
             section_lengths.append(len(current_section))
+            section_names.append(current_section_name)
 
         # Check for significant imbalance
-        if section_lengths:
+        if len(section_lengths) > 1:  # Only check if we have at least 2 sections
             avg_length = sum(section_lengths) / len(section_lengths)
-            for i, length in enumerate(section_lengths):
+            logger.debug(f"Section lengths: {section_lengths}")
+            logger.debug(f"Average section length: {avg_length}")
+
+            for i, (length, name) in enumerate(zip(section_lengths, section_names)):
                 if length > avg_length * 2:
+                    message = f"Section '{name}' is significantly longer than average ({length} paragraphs vs {avg_length:.1f} average)"
+                    logger.debug(f"Adding issue: {message}")
                     results.add_issue(
-                        message=f"Section {i+1} is significantly longer than average",
-                        severity=Severity.LOW
+                        message=message,
+                        severity=Severity.INFO,  # Use enum instead of string
+                        line_number=i+1
                     )
+                    logger.debug(f"Current issues: {results.issues}")
 
     def _check_list_formatting(self, paragraphs, results):
         """Check for consistent list formatting."""
@@ -93,13 +108,47 @@ class StructureChecks(BaseChecker):
                     if current_list_style and marker != current_list_style:
                         results.add_issue(
                             message="Inconsistent list formatting detected",
-                            severity=Severity.LOW,
+                            severity=Severity.INFO,
                             line_number=i+1
                         )
                     current_list_style = marker
                     break
             else:
                 current_list_style = None
+
+    def _check_parentheses(self, paragraphs, results):
+        """Check for unmatched parentheses."""
+        for i, para in enumerate(paragraphs):
+            text = para.text
+            open_count = text.count('(')
+            close_count = text.count(')')
+            if open_count != close_count:
+                results.add_issue(
+                    message="Unmatched parentheses detected",
+                    severity=Severity.WARNING,
+                    line_number=i+1
+                )
+
+    def _check_watermark(self, document, results):
+        """Check for draft watermarks."""
+        for i, para in enumerate(document.paragraphs):
+            if para.text.strip().upper() == "DRAFT":
+                results.add_issue(
+                    message="Draft watermark detected",
+                    severity=Severity.WARNING,
+                    line_number=i+1
+                )
+
+    def _check_cross_references(self, document, results):
+        """Check for cross-references."""
+        for i, para in enumerate(document.paragraphs):
+            text = para.text
+            if re.search(r'(?:see|refer to|as discussed in).*(?:paragraph|section)\s+\d+(?:\.\d+)*', text, re.IGNORECASE):
+                results.add_issue(
+                    message="Cross-reference detected - verify target exists",
+                    severity=Severity.INFO,
+                    line_number=i+1
+                )
 
     def _extract_paragraph_numbering(self, doc: Document) -> List[tuple]:
         """Extract paragraph numbering from headings."""
