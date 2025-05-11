@@ -51,43 +51,32 @@ class Issue(BaseModel):
 @dataclass
 class DocumentCheckResult:
     """Result of a document check."""
-    success: bool
-    issues: List[Dict[str, Any]]
+    success: bool = True
+    issues: List[Dict[str, Any]] = None
     checker_name: Optional[str] = None
     score: float = 1.0
+    severity: Optional['Severity'] = None
+    details: Optional[Dict[str, Any]] = None
 
     def __post_init__(self):
-        """Calculate score based on issues."""
-        if self.issues:
-            self.score = max(0.0, 1.0 - (len(self.issues) * 0.1))
+        """Initialize default values."""
+        if self.issues is None:
+            self.issues = []
+        if self.severity is None:
+            self.severity = Severity.ERROR
 
-class Severity(Enum):
-    LOW = "LOW"
-    MEDIUM = "MEDIUM"
-    HIGH = "HIGH"
-
-    def to_color(self) -> str:
-        return {
-            "LOW": "blue",
-            "MEDIUM": "orange",
-            "HIGH": "red"
-        }[self.value]
-
-class DocumentCheckResult:
-    def __init__(self, success: bool = True, issues: List[Dict[str, Any]] = None):
-        self.success = success
-        self.issues = issues or []
-
-    def add_issue(self, message: str, severity: Severity, line_number: int = None):
+    def add_issue(self, message: str, severity: 'Severity', line_number: int = None):
+        """Add an issue to the result."""
         self.issues.append({
             "message": message,
             "severity": severity,
             "line_number": line_number
         })
-        if severity in [Severity.MEDIUM, Severity.HIGH]:
+        if severity == Severity.ERROR:
             self.success = False
 
     def to_html(self) -> str:
+        """Convert the result to HTML."""
         if not self.issues:
             return "<div style='color: green;'>✓ No issues found</div>"
 
@@ -115,6 +104,20 @@ class DocumentCheckResult:
 
         html.append("</div>")
         return "\n".join(html)
+
+class Severity(Enum):
+    """Severity levels for issues."""
+    ERROR = "error"
+    WARNING = "warning"
+    INFO = "info"
+
+    def to_color(self) -> str:
+        """Convert severity to color."""
+        return {
+            "error": "red",
+            "warning": "orange",
+            "info": "blue"
+        }[self.value]
 
 class DocumentType(BaseModel):
     """Represents a document type with its associated rules."""

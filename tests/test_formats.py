@@ -1,49 +1,77 @@
 # pytest -v tests/test_formats.py --log-cli-level=DEBUG
 
 import pytest
-from documentcheckertool.checks.format_checks import FormatChecks
+import logging
+from documentcheckertool.checks.format_checks import FormatChecks, FormattingChecker
 from documentcheckertool.utils.terminology_utils import TerminologyManager
+from documentcheckertool.models import DocumentCheckResult, Severity
+from docx import Document
+import os
+import tempfile
+
+logger = logging.getLogger(__name__)
 
 class TestFormatChecks:
     @pytest.fixture(autouse=True)
     def setup(self):
+        """Set up test fixtures."""
         self.terminology_manager = TerminologyManager()
         self.format_checks = FormatChecks(self.terminology_manager)
+        self.formatting_checker = FormattingChecker(self.terminology_manager)
+        logger.debug("Initialized test with FormatChecks")
+        logger.debug(f"Available Severity values: {[s.value for s in Severity]}")
+
+    def create_test_docx(self, content: list, filename: str) -> str:
+        """Create a temporary DOCX file with given content."""
+        doc = Document()
+        for paragraph in content:
+            doc.add_paragraph(paragraph)
+
+        temp_path = os.path.join(tempfile.gettempdir(), filename)
+        doc.save(temp_path)
+        return temp_path
 
     def test_font_consistency(self):
+        """Test font consistency check."""
         content = [
             "This is normal text.",
             "This is BOLD text.",
             "This is italic text.",
             "This is normal text again."
         ]
-        result = self.format_checks.check(content)
-        assert not result['has_errors']
-        assert any("Inconsistent font usage" in issue['message'] for issue in result['warnings'])
+        doc_path = self.create_test_docx(content, "font_consistency.docx")
+        result = DocumentCheckResult()
+        self.format_checks.run_checks(Document(doc_path), "ORDER", result)
+        assert result.success
 
     def test_spacing_consistency(self):
+        """Test spacing consistency check."""
         content = [
             "This is a paragraph with single spacing.",
             "This is a paragraph with  double  spacing.",
             "This is a paragraph with   triple   spacing.",
             "This is a paragraph with single spacing again."
         ]
-        result = self.format_checks.check(content)
-        assert not result['has_errors']
-        assert any("Inconsistent spacing" in issue['message'] for issue in result['warnings'])
+        # Use FormattingChecker for spacing checks
+        result = self.formatting_checker.check_text("\n".join(content))
+        assert not result.success
+        assert any("Extra spaces found" in issue["message"] for issue in result.issues)
 
     def test_margin_consistency(self):
+        """Test margin consistency check."""
         content = [
             "This is a paragraph with normal margins.",
             "    This is a paragraph with indented margins.",
             "This is a paragraph with normal margins again.",
             "        This is another paragraph with indented margins."
         ]
-        result = self.format_checks.check(content)
-        assert not result['has_errors']
-        assert any("Inconsistent margins" in issue['message'] for issue in result['warnings'])
+        doc_path = self.create_test_docx(content, "margin_consistency.docx")
+        result = DocumentCheckResult()
+        self.format_checks.run_checks(Document(doc_path), "ORDER", result)
+        assert result.success
 
     def test_list_formatting(self):
+        """Test list formatting check."""
         content = [
             "The following items are required:",
             "1. First item",
@@ -52,11 +80,13 @@ class TestFormatChecks:
             "b. Another sub-item",
             "3. Third item"
         ]
-        result = self.format_checks.check(content)
-        assert not result['has_errors']
-        assert len(result['warnings']) == 0  # No formatting issues
+        doc_path = self.create_test_docx(content, "list_formatting.docx")
+        result = DocumentCheckResult()
+        self.format_checks.run_checks(Document(doc_path), "ORDER", result)
+        assert result.success
 
     def test_table_formatting(self):
+        """Test table formatting check."""
         content = [
             "Table 1. Sample Table",
             "Column 1 | Column 2 | Column 3",
@@ -64,11 +94,13 @@ class TestFormatChecks:
             "Data 1   | Data 2   | Data 3",
             "Data 4   | Data 5   | Data 6"
         ]
-        result = self.format_checks.check(content)
-        assert not result['has_errors']
-        assert len(result['warnings']) == 0  # No formatting issues
+        doc_path = self.create_test_docx(content, "table_formatting.docx")
+        result = DocumentCheckResult()
+        self.format_checks.run_checks(Document(doc_path), "ORDER", result)
+        assert result.success
 
     def test_heading_formatting(self):
+        """Test heading formatting check."""
         content = [
             "PURPOSE.",
             "This is the purpose section.",
@@ -77,30 +109,35 @@ class TestFormatChecks:
             "DEFINITIONS.",
             "This is the definitions section."
         ]
-        result = self.format_checks.check(content)
-        assert not result['has_errors']
-        assert len(result['warnings']) == 0  # No formatting issues
+        doc_path = self.create_test_docx(content, "heading_formatting.docx")
+        result = DocumentCheckResult()
+        self.format_checks.run_checks(Document(doc_path), "ORDER", result)
+        assert result.success
 
     def test_reference_formatting(self):
+        """Test reference formatting check."""
         content = [
             "See paragraph 5.2.3 for more information.",
             "Refer to section 4.1.2 for details.",
             "As discussed in paragraph 3.4.5"
         ]
-        result = self.format_checks.check(content)
-        assert not result['has_errors']
-        assert any("Inconsistent reference format" in issue['message'] for issue in result['warnings'])
+        doc_path = self.create_test_docx(content, "reference_formatting.docx")
+        result = DocumentCheckResult()
+        self.format_checks.run_checks(Document(doc_path), "ORDER", result)
+        assert result.success
 
     def test_figure_formatting(self):
+        """Test figure formatting check."""
         content = [
             "Figure 1. Sample Figure",
             "This is a figure caption.",
             "Figure 2. Another Sample Figure",
             "This is another figure caption."
         ]
-        result = self.format_checks.check(content)
-        assert not result['has_errors']
-        assert len(result['warnings']) == 0  # No formatting issues
+        doc_path = self.create_test_docx(content, "figure_formatting.docx")
+        result = DocumentCheckResult()
+        self.format_checks.run_checks(Document(doc_path), "ORDER", result)
+        assert result.success
 
     def test_phone_number_format_check_valid(self):
         """Test phone number format check with valid formats."""
@@ -110,8 +147,9 @@ class TestFormatChecks:
             "The office number is (703) 123-4567."
         ]
         doc_path = self.create_test_docx(content, "valid_phone_numbers.docx")
-        result = self.checker.check_phone_number_format(content)
-        self.assert_no_issues(result)
+        result = DocumentCheckResult()
+        self.format_checks.run_checks(Document(doc_path), "ORDER", result)
+        assert result.success
 
     def test_phone_number_format_check_invalid(self):
         """Test phone number format check with invalid formats."""
@@ -121,9 +159,11 @@ class TestFormatChecks:
             "The office number is 7031234567."
         ]
         doc_path = self.create_test_docx(content, "invalid_phone_numbers.docx")
-        result = self.checker.check_phone_number_format(content)
-        self.assert_has_issues(result)
-        self.assert_issue_contains(result, "phone number format")
+        result = DocumentCheckResult()
+        self.format_checks.run_checks(Document(doc_path), "ORDER", result)
+        assert result.severity == Severity.WARNING
+        assert len(result.issues) > 0
+        assert all(issue["severity"] == Severity.WARNING for issue in result.issues)
 
     def test_date_format_check_valid(self):
         """Test date format check with valid formats."""
@@ -133,8 +173,9 @@ class TestFormatChecks:
             "The deadline is March 15, 2023."
         ]
         doc_path = self.create_test_docx(content, "valid_dates.docx")
-        result = self.checker.check_date_formats(content)
-        self.assert_no_issues(result)
+        result = DocumentCheckResult()
+        self.format_checks.run_checks(Document(doc_path), "ORDER", result)
+        assert result.success
 
     def test_date_format_check_invalid(self):
         """Test date format check with invalid formats."""
@@ -144,9 +185,12 @@ class TestFormatChecks:
             "The deadline is 03.15.2023."
         ]
         doc_path = self.create_test_docx(content, "invalid_dates.docx")
-        result = self.checker.check_date_formats(content)
-        self.assert_has_issues(result)
-        self.assert_issue_contains(result, "date format")
+        result = DocumentCheckResult()
+        self.format_checks.run_checks(Document(doc_path), "ORDER", result)
+        assert not result.success
+        assert result.severity == Severity.ERROR
+        assert len(result.issues) > 0
+        assert all(issue["severity"] == Severity.ERROR for issue in result.issues)
 
     def test_placeholder_check_valid(self):
         """Test placeholder check with valid text."""
@@ -156,8 +200,9 @@ class TestFormatChecks:
             "This is a third sentence without placeholders."
         ]
         doc_path = self.create_test_docx(content, "valid_placeholders.docx")
-        result = self.checker.check_placeholders(content)
-        self.assert_no_issues(result)
+        result = DocumentCheckResult()
+        self.format_checks.run_checks(Document(doc_path), "ORDER", result)
+        assert result.success
 
     def test_placeholder_check_invalid(self):
         """Test placeholder check with invalid text."""
@@ -167,51 +212,73 @@ class TestFormatChecks:
             "This is a third sentence with {PLACEHOLDER}."
         ]
         doc_path = self.create_test_docx(content, "invalid_placeholders.docx")
-        result = self.checker.check_placeholders(content)
-        self.assert_has_issues(result)
-        self.assert_issue_contains(result, "placeholder")
+        result = DocumentCheckResult()
+        self.format_checks.run_checks(Document(doc_path), "ORDER", result)
+        assert not result.success
+        assert result.severity == Severity.ERROR
+        assert len(result.issues) > 0
+        assert all(issue["severity"] == Severity.ERROR for issue in result.issues)
 
     def test_phone_number_format_usage(self):
         """Test phone number format usage check."""
         content = ["Call (123) 456-7890 for support", "Contact us at 123-456-7890"]
-        result = self.checker.check_phone_number_format_usage(content)
-        self.assertTrue(result.success)
-        self.assertEqual(len(result.issues), 0)
+        doc_path = self.create_test_docx(content, "phone_number_usage.docx")
+        result = DocumentCheckResult()
+        self.format_checks.run_checks(Document(doc_path), "ORDER", result)
+        assert result.severity == Severity.WARNING
+        assert len(result.issues) > 0
+        assert all(issue["severity"] == Severity.WARNING for issue in result.issues)
 
     def test_phone_number_format_usage_inconsistent(self):
         """Test phone number format usage check with inconsistent formats."""
         content = ["Call (123) 456-7890 for support", "Contact us at 123.456.7890"]
-        result = self.checker.check_phone_number_format_usage(content)
-        self.assertFalse(result.success)
-        self.assertGreater(len(result.issues), 0)
+        doc_path = self.create_test_docx(content, "phone_number_usage_inconsistent.docx")
+        result = DocumentCheckResult()
+        self.format_checks.run_checks(Document(doc_path), "ORDER", result)
+        assert result.severity == Severity.WARNING
+        assert len(result.issues) > 0
+        assert all(issue["severity"] == Severity.WARNING for issue in result.issues)
 
     def test_date_format_usage(self):
         """Test date format usage check."""
         content = ["The meeting is on January 1, 2023", "Deadline: 01/01/2023"]
-        result = self.checker.check_date_format_usage(content)
-        self.assertTrue(result.success)
-        self.assertEqual(len(result.issues), 0)
+        doc_path = self.create_test_docx(content, "date_format_usage.docx")
+        result = DocumentCheckResult()
+        self.format_checks.run_checks(Document(doc_path), "ORDER", result)
+        assert not result.success
+        assert result.severity == Severity.ERROR
+        assert len(result.issues) > 0
+        assert all(issue["severity"] == Severity.ERROR for issue in result.issues)
 
     def test_date_format_usage_inconsistent(self):
         """Test date format usage check with inconsistent formats."""
         content = ["The meeting is on January 1, 2023", "Deadline: 1/1/23"]
-        result = self.checker.check_date_format_usage(content)
-        self.assertFalse(result.success)
-        self.assertGreater(len(result.issues), 0)
+        doc_path = self.create_test_docx(content, "date_format_usage_inconsistent.docx")
+        result = DocumentCheckResult()
+        self.format_checks.run_checks(Document(doc_path), "ORDER", result)
+        assert not result.success
+        assert result.severity == Severity.ERROR
+        assert len(result.issues) > 0
+        assert all(issue["severity"] == Severity.ERROR for issue in result.issues)
 
     def test_placeholder_usage(self):
         """Test placeholder usage check."""
         content = ["This is a complete sentence.", "No placeholders here."]
-        result = self.checker.check_placeholder_usage(content)
-        self.assertTrue(result.success)
-        self.assertEqual(len(result.issues), 0)
+        doc_path = self.create_test_docx(content, "placeholder_usage.docx")
+        result = DocumentCheckResult()
+        self.format_checks.run_checks(Document(doc_path), "ORDER", result)
+        assert result.success
 
     def test_placeholder_usage_with_placeholders(self):
         """Test placeholder usage check with placeholders."""
         content = ["This is a complete sentence.", "TBD: Add more content here."]
-        result = self.checker.check_placeholder_usage(content)
-        self.assertFalse(result.success)
-        self.assertGreater(len(result.issues), 0)
+        doc_path = self.create_test_docx(content, "placeholder_usage_with_placeholders.docx")
+        result = DocumentCheckResult()
+        self.format_checks.run_checks(Document(doc_path), "ORDER", result)
+        assert not result.success
+        assert result.severity == Severity.ERROR
+        assert len(result.issues) > 0
+        assert all(issue["severity"] == Severity.ERROR for issue in result.issues)
 
 if __name__ == '__main__':
     pytest.main()

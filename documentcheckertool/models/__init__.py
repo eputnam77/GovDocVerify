@@ -28,10 +28,16 @@ class DocumentCheckResult:
     issues: List[Dict[str, Any]] = field(default_factory=list)
     details: Optional[Dict[str, Any]] = None
 
-    def add_issue(self, issue: Dict[str, Any], severity: Severity = Severity.ERROR) -> None:
-        self.success = False
+    def add_issue(self, message: str, severity: Severity, line_number: int = None) -> None:
+        """Add an issue to the result."""
+        self.issues.append({
+            "message": message,
+            "severity": severity,
+            "line_number": line_number
+        })
+        if severity == Severity.ERROR:
+            self.success = False
         self.severity = severity
-        self.issues.append(issue)
 
     def add_detail(self, key: str, value: Any) -> None:
         if self.details is None:
