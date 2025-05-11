@@ -64,9 +64,11 @@ class TerminologyChecks(BaseChecker):
 
         # Load valid words
         valid_words = self._load_valid_words()
+        logger.debug(f"Loaded valid words (first 10): {sorted(list(valid_words))[:10]}")
 
         # Standard acronyms that don't need to be defined
         predefined_acronyms = self.config_manager.config.get('predefined_acronyms', self.PREDEFINED_ACRONYMS)
+        logger.debug(f"Predefined acronyms: {predefined_acronyms}")
 
         # Use patterns from config
         ignore_pattern = re.compile('|'.join(f'(?:{pattern})' for pattern in ACRONYM_PATTERNS['ignore_patterns']))
@@ -81,16 +83,13 @@ class TerminologyChecks(BaseChecker):
         issues = []
 
         for paragraph in paragraphs:
-            # Skip lines that appear to be headings
-            if paragraph.strip().endswith('.'):  # Section headings typically end with a period
-                words = paragraph.strip().split()
-                if all(word.isupper() for word in words):
-                    continue
+            logger.debug(f"\nProcessing paragraph: {paragraph.strip()}")
 
             # First, find all text that should be ignored
             ignored_spans = []
             for match in ignore_pattern.finditer(paragraph):
                 ignored_spans.append(match.span())
+                logger.debug(f"Ignoring span: {match.group()}")
 
             # Check for acronym definitions first
             defined_matches = defined_pattern.finditer(paragraph)
@@ -105,6 +104,7 @@ class TerminologyChecks(BaseChecker):
                                 'defined_at': paragraph.strip(),
                                 'used': False
                             }
+                            logger.debug(f"Found acronym definition: {acronym} = {full_term}")
 
             # Check for acronym usage
             usage_matches = acronym_pattern.finditer(paragraph)
@@ -112,25 +112,33 @@ class TerminologyChecks(BaseChecker):
                 acronym = match.group()
                 start_pos = match.start()
 
+                # Skip if the acronym is in an ignored span
+                if any(start <= start_pos <= end for start, end in ignored_spans):
+                    logger.debug(f"Skipping ignored acronym: {acronym}")
+                    continue
+
                 # Remove trailing punctuation for valid_words check
                 acronym_clean = acronym.strip(string.punctuation)
+                logger.debug(f"Checking acronym: {acronym_clean}")
 
                 # Skip predefined acronyms, valid words, and other checks
                 if (acronym_clean in predefined_acronyms or
                     acronym_clean in self.heading_words or
-                    acronym_clean.lower() in valid_words or
-                    acronym_clean.upper() in valid_words or
+                    acronym_clean.lower() in valid_words or  # Case-insensitive check
                     any(not c.isalpha() for c in acronym_clean) or
                     len(acronym_clean) > 10):
+                    logger.debug(f"Skipping valid acronym: {acronym_clean}")
                     continue
 
                 if acronym not in defined_acronyms and acronym not in reported_acronyms:
                     # Undefined acronym used; report only once
+                    logger.debug(f"Found undefined acronym: {acronym}")
                     issues.append(f"Confirm '{acronym}' was defined at its first use.")
                     reported_acronyms.add(acronym)
                 elif acronym in defined_acronyms:
                     defined_acronyms[acronym]['used'] = True
                     used_acronyms.add(acronym)
+                    logger.debug(f"Found defined acronym usage: {acronym}")
 
         return DocumentCheckResult(success=len(issues) == 0, issues=issues)
 
@@ -223,30 +231,90 @@ class TerminologyChecks(BaseChecker):
         errors = []
         warnings = []
 
-        # Check for proper heading terminology
-        lines = content.split('\n')
-        for i, line in enumerate(lines, 1):
-            if line.strip().isupper() and line.strip().endswith('.'):
-                heading = line.strip().rstrip('.')
-                if heading not in self.heading_words:
-                    errors.append({
-                        'line': i,
-                        'message': f'Invalid heading: {heading}',
-                        'suggestion': 'Use one of the approved heading words',
-                        'severity': 'error'
-                    })
+        # Load valid words
+        valid_words = self._load_valid_words()
+        logger.debug(f"Loaded valid words (first 10): {sorted(list(valid_words))[:10]}")
 
-        # Check for acronym usage
-        acronyms = self.terminology_manager.extract_acronyms(content)
-        for acronym in acronyms:
-            definition = self.terminology_manager.find_acronym_definition(content, acronym)
-            if not definition:
-                warnings.append({
-                    'line': 0,  # Line number not available
-                    'message': f'Acronym {acronym} used without definition',
-                    'suggestion': 'Define the acronym before use',
-                    'severity': 'warning'
-                })
+        # Standard acronyms that don't need to be defined
+        predefined_acronyms = {'FAA', 'NASA', 'NTSB', 'CFR', 'USC'}  # Common aviation/acronyms
+        logger.debug(f"Using predefined acronyms: {predefined_acronyms}")
+
+        # Use patterns from config
+        ignore_pattern = re.compile('|'.join(f'(?:{pattern})' for pattern in ACRONYM_PATTERNS['ignore_patterns']))
+        defined_pattern = re.compile(ACRONYM_PATTERNS['defined'])
+        acronym_pattern = re.compile(ACRONYM_PATTERNS['usage'])
+
+        # Split content into paragraphs
+        paragraphs = content.split('\n')
+        logger.debug(f"Processing {len(paragraphs)} paragraphs")
+
+        # Tracking structures
+        defined_acronyms = {}  # Stores definition info
+        used_acronyms = set()  # Stores acronyms used after definition
+        reported_acronyms = set()  # Stores acronyms that have already been noted as issues
+
+        for i, paragraph in enumerate(paragraphs, 1):
+            logger.debug(f"\nProcessing paragraph {i}: {paragraph.strip()}")
+
+            # First, find all text that should be ignored
+            ignored_spans = []
+            for match in ignore_pattern.finditer(paragraph):
+                ignored_spans.append(match.span())
+                logger.debug(f"Ignoring span: {match.group()}")
+
+            # Check for acronym definitions first
+            defined_matches = defined_pattern.finditer(paragraph)
+            for match in defined_matches:
+                full_term, acronym = match.groups()
+                # Skip if the acronym is in an ignored span
+                if not any(start <= match.start(2) <= end for start, end in ignored_spans):
+                    if acronym not in predefined_acronyms:
+                        if acronym not in defined_acronyms:
+                            defined_acronyms[acronym] = {
+                                'full_term': full_term.strip(),
+                                'defined_at': paragraph.strip(),
+                                'used': False
+                            }
+                            logger.debug(f"Found acronym definition: {acronym} = {full_term}")
+
+            # Check for acronym usage
+            usage_matches = acronym_pattern.finditer(paragraph)
+            for match in usage_matches:
+                acronym = match.group()
+                start_pos = match.start()
+
+                # Skip if the acronym is in an ignored span
+                if any(start <= start_pos <= end for start, end in ignored_spans):
+                    logger.debug(f"Skipping ignored acronym: {acronym}")
+                    continue
+
+                # Remove trailing punctuation for valid_words check
+                acronym_clean = acronym.strip(string.punctuation)
+                logger.debug(f"Checking acronym: {acronym_clean}")
+
+                # Skip predefined acronyms, valid words, and other checks
+                if (acronym_clean in predefined_acronyms or
+                    acronym_clean in self.heading_words or
+                    acronym_clean.lower() in valid_words or  # Case-insensitive check
+                    any(not c.isalpha() for c in acronym_clean) or
+                    len(acronym_clean) > 10):
+                    logger.debug(f"Skipping valid acronym: {acronym_clean}")
+                    continue
+
+                if acronym not in defined_acronyms and acronym not in reported_acronyms:
+                    # Undefined acronym used; report only once
+                    logger.debug(f"Found undefined acronym: {acronym}")
+                    warnings.append({
+                        'line': i,
+                        'message': f'Acronym {acronym} used without definition',
+                        'suggestion': 'Define the acronym before use',
+                        'severity': 'warning'
+                    })
+                    reported_acronyms.add(acronym)
+                elif acronym in defined_acronyms:
+                    defined_acronyms[acronym]['used'] = True
+                    used_acronyms.add(acronym)
+                    logger.debug(f"Found defined acronym usage: {acronym}")
 
         return {
             'has_errors': len(errors) > 0,
