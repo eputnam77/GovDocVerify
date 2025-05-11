@@ -305,37 +305,117 @@ class StructureChecks(BaseChecker):
                     })
 
     def check(self, content):
-        """Run structure checks on a list of strings and return a dict with has_errors, warnings, and errors."""
-        warnings = []
+        """Check document structure and cross-references."""
         errors = []
+        warnings = []
         has_errors = False
 
-        # Check paragraph length
-        for i, paragraph in enumerate(content):
-            word_count = len(paragraph.split())
-            if word_count > 150:
+        # Extract section numbers from content
+        section_numbers = []
+        for i, line in enumerate(content, 1):
+            match = re.match(r'^(\d+(\.\d+)*)\s+', line)
+            if match:
+                section_numbers.append(match.group(1))
+
+        # Track reference formats for consistency check
+        reference_formats = {}
+        current_section = None
+
+        # Check cross-references
+        for i, line in enumerate(content, 1):
+            # Update current section if this line is a section header
+            match = re.match(r'^(\d+(\.\d+)*)\s+', line)
+            if match:
+                current_section = match.group(1)
+
+            # Check for malformed references
+            if re.search(r'(?i)(see|refer to|under)\s*(section|paragraph|subsection)\d', line):
+                errors.append({
+                    'line': i,
+                    'message': 'Malformed reference - missing space after reference type',
+                    'severity': 'error'
+                })
+                has_errors = True
+
+            # Check for invalid section numbers
+            for ref in re.finditer(r'(?i)(section|paragraph|subsection)\s+(\d+(\.\d+)*)', line):
+                section_num = ref.group(2)
+                if len(section_num.split('.')) > 4:  # Maximum 4 levels deep
+                    errors.append({
+                        'line': i,
+                        'message': 'Invalid section number - too many levels',
+                        'severity': 'error'
+                    })
+                    has_errors = True
+
+            # Check for references to non-existent sections
+            for ref in re.finditer(r'(?i)(section|paragraph|subsection)\s+(\d+(\.\d+)*)', line):
+                section_num = ref.group(2)
+                if section_num not in section_numbers:
+                    errors.append({
+                        'line': i,
+                        'message': f'Reference to non-existent section {section_num}',
+                        'severity': 'error'
+                    })
+                    has_errors = True
+
+            # Check for circular references
+            if current_section:
+                for ref in re.finditer(r'(?i)(section|paragraph|subsection)\s+(\d+(\.\d+)*)', line):
+                    section_num = ref.group(2)
+                    # Only flag as circular if the reference is to the current section (i.e., self-reference)
+                    if section_num == current_section:
+                        warnings.append({
+                            'line': i,
+                            'message': 'Circular reference detected',
+                            'severity': 'warning'
+                        })
+                        break  # Only need to flag once per line
+
+            # Check for inconsistent reference formats
+            # Only check for inconsistency if we have a numbered reference
+            if re.search(r'(?i)(section|paragraph|subsection)\s+\d+(\.\d+)*', line):
+                ref_types = re.findall(r'(?i)(section|paragraph|subsection)', line)
+                if len(ref_types) > 0:
+                    ref_type = ref_types[0].lower()
+                    if ref_type not in reference_formats:
+                        reference_formats[ref_type] = set()
+                    reference_formats[ref_type].add(i)
+
+                    # If we have multiple reference types in the document, check for inconsistency
+                    if len(reference_formats) > 1:
+                        warnings.append({
+                            'line': i,
+                            'message': 'Inconsistent reference format used',
+                            'severity': 'warning'
+                        })
+
+            # Check for spacing issues
+            if re.search(r'(?i)(see|refer to|under)\s{2,}(section|paragraph|subsection)', line):
                 warnings.append({
-                    'line': i + 1,
-                    'message': 'Paragraph is too long',
+                    'line': i,
+                    'message': 'Incorrect spacing in reference',
                     'severity': 'warning'
                 })
 
-        # Check sentence length
-        for i, paragraph in enumerate(content):
-            sentences = paragraph.split('. ')
-            for sentence in sentences:
-                word_count = len(sentence.split())
-                if word_count > 30:
-                    warnings.append({
-                        'line': i + 1,
-                        'message': 'Sentence is too long',
-                        'severity': 'warning'
-                    })
+            # Check for punctuation issues
+            if re.search(r'(?i)(section|paragraph|subsection)\s+\d+(\.\d+)*[.,]', line):
+                warnings.append({
+                    'line': i,
+                    'message': 'Incorrect punctuation in reference',
+                    'severity': 'warning'
+                })
 
-        # Add other checks as needed
+            # Check for capitalization issues
+            if re.search(r'(?i)(see|refer to|under)\s+(Section|Paragraph|Subsection)', line):
+                warnings.append({
+                    'line': i,
+                    'message': 'Incorrect capitalization in reference',
+                    'severity': 'warning'
+                })
 
         return {
             'has_errors': has_errors,
-            'warnings': warnings,
-            'errors': errors
+            'errors': errors,
+            'warnings': warnings
         }
