@@ -45,7 +45,7 @@ class ReadabilityChecks(BaseChecker):
                 warnings.append({
                     'line': i,
                     'message': f'Sentence is {word_count} words long. Consider breaking it into shorter sentences.',
-                    'severity': 'warning'
+                    'severity': Severity.WARNING
                 })
 
         # Check paragraph length
@@ -56,7 +56,7 @@ class ReadabilityChecks(BaseChecker):
                 warnings.append({
                     'line': i,
                     'message': f'Paragraph contains {sentence_count} sentences. Consider breaking it into shorter paragraphs.',
-                    'severity': 'warning'
+                    'severity': Severity.WARNING
                 })
 
         # Check for passive voice
@@ -73,7 +73,7 @@ class ReadabilityChecks(BaseChecker):
                 warnings.append({
                     'line': i,
                     'message': 'Consider using active voice instead of passive voice.',
-                    'severity': 'warning'
+                    'severity': Severity.WARNING
                 })
 
         return {

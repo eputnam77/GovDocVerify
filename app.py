@@ -1,3 +1,7 @@
+# python app.py
+# python app.py --host 127.0.0.1 --port 7860 --debug
+# python app.py --host 127.0.0.1 --port 7861 --debug
+
 import gradio as gr
 import argparse
 import sys
@@ -10,6 +14,8 @@ import traceback
 from typing import Dict, Any, Optional
 import json
 from documentcheckertool.utils.terminology_utils import TerminologyManager
+from documentcheckertool.utils.formatting import ResultFormatter, FormatStyle
+import mimetypes
 
 # Configure logging
 logging.basicConfig(
@@ -28,84 +34,218 @@ with open(config_path, 'r') as f:
     config = json.load(f)
     doc_types = list(config.get('document_types', {}).keys())
 
-# Initialize the document checker
-terminology_manager = TerminologyManager()
-checker = FAADocumentChecker(terminology_manager)
-
 def process_document(file_path: str, doc_type: str) -> str:
     """Process a document and return formatted results."""
     try:
-        logger.info(f"Initializing document checker for type: {doc_type}")
-        checker = FAADocumentChecker()
+        logger.info(f"Processing document of type: {doc_type}")
+        formatter = ResultFormatter(style=FormatStyle.HTML)
 
-        logger.info(f"Reading file: {file_path}")
-        try:
-            with open(file_path, 'r', encoding='utf-8') as f:
-                content = f.read()
-        except UnicodeDecodeError:
-            logger.warning("UTF-8 decode failed, trying with different encoding")
-            with open(file_path, 'r', encoding='latin-1') as f:
-                content = f.read()
+        # Initialize the document checker
+        terminology_manager = TerminologyManager()
+        checker = FAADocumentChecker(terminology_manager)
 
-        logger.info("Running document checks")
-        results = checker.run_all_document_checks(content, doc_type)
+        # Detect file type using mimetypes and file extension
+        mime_type, _ = mimetypes.guess_type(file_path)
+        logger.info(f"Detected MIME type: {mime_type}")
+
+        # If DOCX, pass file path directly to checker
+        if mime_type == "application/vnd.openxmlformats-officedocument.wordprocessingml.document" or file_path.lower().endswith('.docx'):
+            logger.info("Processing as DOCX file")
+            results = checker.run_all_document_checks(file_path, doc_type)
+        else:
+            logger.info(f"Reading file: {file_path}")
+            try:
+                with open(file_path, 'r', encoding='utf-8') as f:
+                    content = f.read()
+            except UnicodeDecodeError:
+                logger.warning("UTF-8 decode failed, trying with different encoding")
+                with open(file_path, 'r', encoding='latin-1') as f:
+                    content = f.read()
+            logger.info("Running document checks (text file)")
+            results = checker.run_all_document_checks(content, doc_type)
 
         logger.info("Formatting results")
-        formatted_results = format_results_to_html(results)
 
+        # Create a dictionary with check results organized by category
+        results_dict = {}
+
+        # Define category mappings
+        category_mappings = {
+            'heading_checks': ['heading_title_check', 'heading_title_period_check'],
+            'reference_checks': ['table_figure_reference_check', 'cross_references_check', 'document_title_check'],
+            'acronym_checks': ['acronym_check', 'acronym_usage_check'],
+            'terminology_checks': ['terminology_check', 'section_symbol_usage_check', 'double_period_check', 'spacing_check', 'date_formats_check', 'parentheses_check'],
+            'structure_checks': ['paragraph_length_check', 'sentence_length_check', 'placeholders_check', 'boilerplate_check'],
+            'accessibility_checks': ['508_compliance_check', 'hyperlink_check', 'accessibility'],
+            'document_status_checks': ['watermark_check'],
+            'readability_checks': ['readability_check']
+        }
+
+        # Organize results by category
+        for category, checkers in category_mappings.items():
+            category_results = {}
+            for checker in checkers:
+                if hasattr(results, checker):
+                    category_results[checker] = getattr(results, checker)
+            if category_results:
+                results_dict[category] = category_results
+
+        formatted_results = formatter.format_results(results_dict, doc_type)
         logger.info("Document processing completed successfully")
         return formatted_results
 
     except FileNotFoundError:
         error_msg = f"File not found: {file_path}"
         logger.error(error_msg)
-        return f"<div style='color: red;'>{error_msg}</div>"
+        return f"<div style='color: #721c24; background-color: #f8d7da; padding: 10px; border-radius: 4px;'>{error_msg}</div>"
     except PermissionError:
         error_msg = f"Permission denied: {file_path}"
         logger.error(error_msg)
-        return f"<div style='color: red;'>{error_msg}</div>"
+        return f"<div style='color: #721c24; background-color: #f8d7da; padding: 10px; border-radius: 4px;'>{error_msg}</div>"
     except Exception as e:
         error_msg = f"Error processing document: {str(e)}"
         logger.error(f"{error_msg}\n{traceback.format_exc()}")
-        return f"<div style='color: red;'>{error_msg}</div>"
+        return f"<div style='color: #721c24; background-color: #f8d7da; padding: 10px; border-radius: 4px;'>{error_msg}</div>"
 
-def format_results_to_html(results: Dict[str, Any]) -> str:
+def format_results_to_html(results: Any) -> str:
     """Format results into HTML."""
     html = []
-    if results.get('errors'):
-        html.append("<h3>Errors</h3>")
+
+    # Convert DocumentCheckResult to dict if needed
+    if hasattr(results, 'to_dict'):
+        results = results.to_dict()
+
+    # Group issues by severity
+    errors = []
+    warnings = []
+    info = []
+
+    for issue in results.get('issues', []):
+        severity = issue.get('severity', '').lower()
+        message = issue.get('message', '')
+        line = issue.get('line_number')
+        line_info = f" (Line {line})" if line is not None else ""
+
+        if severity == 'error':
+            errors.append(f"{message}{line_info}")
+        elif severity == 'warning':
+            warnings.append(f"{message}{line_info}")
+        elif severity == 'info':
+            info.append(f"{message}{line_info}")
+
+    if errors:
+        html.append("<h3 style='color: red;'>Errors</h3>")
         html.append("<ul>")
-        for error in results['errors']:
+        for error in errors:
             html.append(f"<li>{error}</li>")
         html.append("</ul>")
-    if results.get('warnings'):
-        html.append("<h3>Warnings</h3>")
+
+    if warnings:
+        html.append("<h3 style='color: orange;'>Warnings</h3>")
         html.append("<ul>")
-        for warning in results['warnings']:
+        for warning in warnings:
             html.append(f"<li>{warning}</li>")
         html.append("</ul>")
+
+    if info:
+        html.append("<h3 style='color: blue;'>Info</h3>")
+        html.append("<ul>")
+        for item in info:
+            html.append(f"<li>{item}</li>")
+        html.append("</ul>")
+
+    if not (errors or warnings or info):
+        html.append("<p>No issues found.</p>")
+
     return "".join(html)
 
 def create_interface() -> gr.Blocks:
     """Create the Gradio interface."""
     try:
         logger.info("Creating Gradio interface")
-        with gr.Blocks(title="Document Checker Tool") as demo:
-            gr.Markdown("# Document Checker Tool")
-            gr.Markdown("Upload a document to check for compliance and formatting issues.")
+        with gr.Blocks(
+            title="Document Checker Tool",
+            theme=gr.themes.Soft(
+                primary_hue="blue",
+                secondary_hue="blue",
+                neutral_hue="slate",
+                font=["Inter", "sans-serif"]
+            )
+        ) as demo:
+            gr.Markdown("""
+            # Document Checker Tool
+            Upload a document to check for compliance and formatting issues.
+            """)
 
             with gr.Row():
-                with gr.Column():
-                    file_input = gr.File(label="Upload Document")
+                with gr.Column(scale=1):
+                    file_input = gr.File(
+                        label="Upload Document",
+                        file_types=[".docx", ".txt"],
+                        type="filepath"
+                    )
                     doc_type = gr.Dropdown(
                         choices=doc_types,
                         label="Document Type",
-                        value=doc_types[0]
+                        value=doc_types[0],
+                        info="Select the type of document you're checking"
                     )
-                    submit_btn = gr.Button("Check Document")
+                    submit_btn = gr.Button(
+                        "Check Document",
+                        variant="primary"
+                    )
 
-                with gr.Column():
-                    output = gr.HTML(label="Results")
+                with gr.Column(scale=2):
+                    output = gr.HTML(
+                        label="Results",
+                        elem_classes=["results-container"]
+                    )
+
+            # Add custom CSS
+            gr.HTML("""
+            <style>
+            .results-container {
+                padding: 20px;
+                border-radius: 8px;
+                background-color: #ffffff;
+                max-height: 600px;
+                overflow-y: auto;
+                border: 1px solid #e5e7eb;
+            }
+            .results-container h1 {
+                color: #0056b3;
+                text-align: center;
+                margin-bottom: 1em;
+            }
+            .results-container h2 {
+                color: #0056b3;
+                margin-top: 1.5em;
+                margin-bottom: 0.5em;
+            }
+            .results-container h3 {
+                margin-top: 1.5em;
+                margin-bottom: 0.5em;
+            }
+            .results-container ul {
+                margin: 0;
+                padding-left: 1.5em;
+                list-style-type: none;
+            }
+            .results-container li {
+                margin: 0.5em 0;
+                line-height: 1.5;
+            }
+            .error-section h3 {
+                color: #721c24;
+            }
+            .warning-section h3 {
+                color: #856404;
+            }
+            .info-section h3 {
+                color: #0c5460;
+            }
+            </style>
+            """)
 
             submit_btn.click(
                 fn=process_document,

@@ -1,6 +1,6 @@
 from typing import List, Dict, Any, Optional
 from documentcheckertool.models import DocumentCheckResult
-from documentcheckertool.utils.formatting import ResultFormatter
+from documentcheckertool.utils.formatting import ResultFormatter, FormatStyle
 from ..utils.formatting import DocumentFormatter
 
 class BaseChecker:
@@ -10,7 +10,7 @@ class BaseChecker:
         self.name = self.__class__.__name__
         self.pattern_cache = None
         self._formatter = DocumentFormatter()
-        self.formatter = ResultFormatter()
+        self.formatter = ResultFormatter(style=FormatStyle.HTML)
         self.terminology_manager = terminology_manager
 
     def run_checks(self, document: Any, doc_type: str, results: DocumentCheckResult) -> None:

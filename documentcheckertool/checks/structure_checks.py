@@ -257,7 +257,8 @@ class StructureChecks(BaseChecker):
                     'type': 'Table',
                     'reference': ref,
                     'context': para_text,
-                    'message': f"Referenced Table {ref} not found in document"
+                    'message': f"Referenced Table {ref} not found in document",
+                    'severity': Severity.ERROR
                 })
 
     def _check_figure_references(self, para_text: str, figures: set, issues: list):
@@ -273,7 +274,8 @@ class StructureChecks(BaseChecker):
                     'type': 'Figure',
                     'reference': ref,
                     'context': para_text,
-                    'message': f"Referenced Figure {ref} not found in document"
+                    'message': f"Referenced Figure {ref} not found in document",
+                    'severity': Severity.ERROR
                 })
 
     def _check_section_references(self, para_text: str, valid_sections: set, skip_regex: re.Pattern, issues: list):
@@ -301,7 +303,8 @@ class StructureChecks(BaseChecker):
                         'type': 'Paragraph',
                         'reference': ref,
                         'context': para_text,
-                        'message': f"Confirm paragraph {ref} referenced in '{para_text}' exists in the document"
+                        'message': f"Confirm paragraph {ref} referenced in '{para_text}' exists in the document",
+                        'severity': Severity.ERROR
                     })
 
     def check(self, content):
@@ -333,7 +336,7 @@ class StructureChecks(BaseChecker):
                 errors.append({
                     'line': i,
                     'message': 'Malformed reference - missing space after reference type',
-                    'severity': 'error'
+                    'severity': Severity.ERROR
                 })
                 has_errors = True
 
@@ -344,7 +347,7 @@ class StructureChecks(BaseChecker):
                     errors.append({
                         'line': i,
                         'message': 'Invalid section number - too many levels',
-                        'severity': 'error'
+                        'severity': Severity.ERROR
                     })
                     has_errors = True
 
@@ -355,7 +358,7 @@ class StructureChecks(BaseChecker):
                     errors.append({
                         'line': i,
                         'message': f'Reference to non-existent section {section_num}',
-                        'severity': 'error'
+                        'severity': Severity.ERROR
                     })
                     has_errors = True
 
@@ -368,7 +371,7 @@ class StructureChecks(BaseChecker):
                         warnings.append({
                             'line': i,
                             'message': 'Circular reference detected',
-                            'severity': 'warning'
+                            'severity': Severity.WARNING
                         })
                         break  # Only need to flag once per line
 
@@ -387,7 +390,7 @@ class StructureChecks(BaseChecker):
                         warnings.append({
                             'line': i,
                             'message': 'Inconsistent reference format used',
-                            'severity': 'warning'
+                            'severity': Severity.WARNING
                         })
 
             # Check for spacing issues
@@ -395,7 +398,7 @@ class StructureChecks(BaseChecker):
                 warnings.append({
                     'line': i,
                     'message': 'Incorrect spacing in reference',
-                    'severity': 'warning'
+                    'severity': Severity.WARNING
                 })
 
             # Check for punctuation issues
@@ -403,7 +406,7 @@ class StructureChecks(BaseChecker):
                 warnings.append({
                     'line': i,
                     'message': 'Incorrect punctuation in reference',
-                    'severity': 'warning'
+                    'severity': Severity.WARNING
                 })
 
             # Check for capitalization issues
@@ -411,7 +414,7 @@ class StructureChecks(BaseChecker):
                 warnings.append({
                     'line': i,
                     'message': 'Incorrect capitalization in reference',
-                    'severity': 'warning'
+                    'severity': Severity.WARNING
                 })
 
         return {

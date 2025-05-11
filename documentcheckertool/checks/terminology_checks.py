@@ -43,7 +43,7 @@ class TerminologyChecks(BaseChecker):
                     if re.search(variant, text, re.IGNORECASE):
                         results.add_issue(
                             message=f"Inconsistent terminology: use '{standard}' instead of '{variant}'",
-                            severity=Severity.LOW,
+                            severity=Severity.INFO,
                             line_number=i+1
                         )
 
@@ -55,7 +55,7 @@ class TerminologyChecks(BaseChecker):
                 if re.search(pattern, text, re.IGNORECASE):
                     results.add_issue(
                         message=message,
-                        severity=Severity.MEDIUM,
+                        severity=Severity.WARNING,
                         line_number=i+1
                     )
 
@@ -83,13 +83,13 @@ class TerminologyChecks(BaseChecker):
                 warnings.append({
                     'line': i,
                     'message': 'USC should be U.S.C.',
-                    'severity': 'warning'
+                    'severity': Severity.WARNING
                 })
             if 'U.S.C ' in paragraph:
                 warnings.append({
                     'line': i,
                     'message': 'U.S.C should have a final period',
-                    'severity': 'warning'
+                    'severity': Severity.WARNING
                 })
 
             # Check CFR formatting
@@ -97,13 +97,13 @@ class TerminologyChecks(BaseChecker):
                 warnings.append({
                     'line': i,
                     'message': 'C.F.R. should be CFR',
-                    'severity': 'warning'
+                    'severity': Severity.WARNING
                 })
             if 'CFR Part' in paragraph:
                 warnings.append({
                     'line': i,
                     'message': 'CFR Part should be CFR part',
-                    'severity': 'warning'
+                    'severity': Severity.WARNING
                 })
 
         # Check gendered terms
@@ -118,7 +118,7 @@ class TerminologyChecks(BaseChecker):
                     warnings.append({
                         'line': i,
                         'message': f'{term} should be {replacement}',
-                        'severity': 'warning'
+                        'severity': Severity.WARNING
                     })
 
         # Check plain language
@@ -137,13 +137,13 @@ class TerminologyChecks(BaseChecker):
                         warnings.append({
                             'line': i,
                             'message': "Use simpler alternatives like 'under' or 'following'",
-                            'severity': 'warning'
+                            'severity': Severity.WARNING
                         })
                     else:
                         warnings.append({
                             'line': i,
                             'message': 'Avoid archaic or legalese terms',
-                            'severity': 'warning'
+                            'severity': Severity.WARNING
                         })
 
         # Check aviation terminology
@@ -158,7 +158,7 @@ class TerminologyChecks(BaseChecker):
                     warnings.append({
                         'line': i,
                         'message': f'{term} should be {replacement}',
-                        'severity': 'warning'
+                        'severity': Severity.WARNING
                     })
 
         # Check qualifiers
@@ -169,7 +169,7 @@ class TerminologyChecks(BaseChecker):
                     warnings.append({
                         'line': i,
                         'message': 'Avoid unnecessary qualifiers',
-                        'severity': 'warning'
+                        'severity': Severity.WARNING
                     })
 
         # Check plural usage
@@ -180,7 +180,7 @@ class TerminologyChecks(BaseChecker):
                     warnings.append({
                         'line': i,
                         'message': 'Ensure consistent singular/plural usage',
-                        'severity': 'warning'
+                        'severity': Severity.WARNING
                     })
 
         # Check authority citations
@@ -189,7 +189,7 @@ class TerminologyChecks(BaseChecker):
                 warnings.append({
                     'line': i,
                     'message': '49 U.S.C. 106(g) should not be included',
-                    'severity': 'warning'
+                    'severity': Severity.WARNING
                 })
 
         return {

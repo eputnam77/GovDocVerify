@@ -9,7 +9,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from docx import Document
 from ..utils.formatting import DocumentFormatter
 from .base_checker import BaseChecker
-from documentcheckertool.utils.formatting import ResultFormatter
+from documentcheckertool.utils.formatting import ResultFormatter, FormatStyle
 from docx.document import Document as DocxDocument
 from documentcheckertool.checks.base_checker import BaseChecker
 from documentcheckertool.utils.terminology_utils import TerminologyManager
@@ -29,7 +29,7 @@ class AccessibilityChecks(BaseChecker):
     def __init__(self, terminology_manager: TerminologyManager):
         super().__init__(terminology_manager)
         self.validation_config = terminology_manager.terminology_data.get('accessibility', {})
-        self.formatter = ResultFormatter()
+        self.formatter = ResultFormatter(style=FormatStyle.HTML)
         logger.info("Initialized AccessibilityChecks with terminology manager")
         # Add passive voice patterns
         self.passive_patterns = [
@@ -242,7 +242,7 @@ class AccessibilityChecks(BaseChecker):
         min_level = min(level for _, level in headings)
         if min_level > 1:
             heading_issues.append({
-                'severity': 'error',
+                'severity': Severity.ERROR,
                 'type': 'missing_h1',
                 'message': 'Document should start with a Heading 1',
                 'context': f"First heading found is level {headings[0][1]}: '{headings[0][0]}'",
@@ -256,7 +256,7 @@ class AccessibilityChecks(BaseChecker):
                 if level > prev_level + 1:
                     missing_levels = list(range(prev_level + 1, level))
                     heading_issues.append({
-                        'severity': 'error',
+                        'severity': Severity.ERROR,
                         'type': 'skipped_levels',
                         'message': f"Skipped heading level(s) {', '.join(map(str, missing_levels))} - Found H{level} '{text}' after H{prev_level} '{prev_text}'. Add H{prev_level + 1} before this section.",
                     })
@@ -293,7 +293,7 @@ class AccessibilityChecks(BaseChecker):
             if response.status_code >= 400:
                 return {
                     'category': 'hyperlink_validity',
-                    'severity': 'error',
+                    'severity': Severity.ERROR,
                     'message': f"Broken link detected",
                     'context': f"URL: {url} (HTTP {response.status_code})",
                     'recommendation': 'Update or remove the broken link'
@@ -301,7 +301,7 @@ class AccessibilityChecks(BaseChecker):
         except requests.RequestException:
             return {
                 'category': 'hyperlink_validity',
-                'severity': 'warning',
+                'severity': Severity.WARNING,
                 'message': f"Unable to verify link",
                 'context': f"URL: {url}",
                 'recommendation': 'Check the link manually'
@@ -321,7 +321,7 @@ class AccessibilityChecks(BaseChecker):
             if not hasattr(shape, '_inline') or not hasattr(shape._inline, 'docPr'):
                 continue
             if not shape._inline.docPr.get('descr'):
-                results.add_issue("Image missing alt text", Severity.HIGH)
+                results.add_issue("Image missing alt text", Severity.ERROR)
 
     def _check_color_contrast(self, content: Union[List[str], DocxDocument], results: DocumentCheckResult):
         """Check for potential color contrast issues."""

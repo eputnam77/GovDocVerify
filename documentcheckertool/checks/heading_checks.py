@@ -263,10 +263,9 @@ class HeadingChecks(BaseChecker):
 
             if error_message:
                 results.add_issue(
-                    message=error_message,
-                    severity=Severity.HIGH,
-                    line_number=heading._element.sourceline,
-                    context=f"Current heading: {heading.text}"
+                    message=f"{error_message} (Current heading: {heading.text})",
+                    severity=Severity.ERROR,
+                    line_number=heading._element.sourceline
                 )
             previous_level = level
 
@@ -277,6 +276,6 @@ class HeadingChecks(BaseChecker):
             if text.endswith('.'):
                 results.add_issue(
                     message=f"Heading should not end with period: {text}",
-                    severity=Severity.MEDIUM,
+                    severity=Severity.WARNING,
                     line_number=heading._element.sourceline
                 )

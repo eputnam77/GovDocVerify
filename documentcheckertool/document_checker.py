@@ -29,18 +29,40 @@ class FAADocumentChecker:
     def run_all_document_checks(self, document_path: str, doc_type: str = None) -> DocumentCheckResult:
         """Run all document checks."""
         try:
-            doc = Document(document_path)
-            results = DocumentCheckResult()
+            # Create a new DocumentCheckResult to store combined results
+            combined_results = DocumentCheckResult()
 
-            # Run all check types
-            self.heading_checks.run_checks(doc, doc_type, results)
-            self.accessibility_checks.run_checks(doc, doc_type, results)
-            self.format_checks.run_checks(doc, doc_type, results)
-            self.structure_checks.run_checks(doc, doc_type, results)
-            self.terminology_checks.run_checks(doc, doc_type, results)
+            # Load the document
+            if isinstance(document_path, str) and (document_path.lower().endswith('.docx') or document_path.lower().endswith('.doc')):
+                doc = Document(document_path)
+            else:
+                # For text content, create a simple document structure
+                doc = document_path
 
-            return results
+            # Run all check types and combine results
+            logger.info("Running heading checks...")
+            heading_results = self.heading_checks.run_checks(doc, doc_type, combined_results)
+
+            logger.info("Running accessibility checks...")
+            accessibility_results = self.accessibility_checks.run_checks(doc, doc_type, combined_results)
+
+            logger.info("Running format checks...")
+            format_results = self.format_checks.run_checks(doc, doc_type, combined_results)
+
+            logger.info("Running structure checks...")
+            structure_results = self.structure_checks.run_checks(doc, doc_type, combined_results)
+
+            logger.info("Running terminology checks...")
+            terminology_results = self.terminology_checks.run_checks(doc, doc_type, combined_results)
+
+            # Set success based on whether any issues were found
+            combined_results.success = len(combined_results.issues) == 0
+
+            logger.info(f"Completed all checks. Found {len(combined_results.issues)} issues.")
+            return combined_results
 
         except Exception as e:
             logger.error(f"Error running checks: {str(e)}")
-            raise
+            error_result = DocumentCheckResult()
+            error_result.add_issue(f"Error running document checks: {str(e)}", Severity.ERROR)
+            return error_result

@@ -1,7 +1,7 @@
 from typing import Dict, List, Any, Optional, Union
 from enum import Enum
 from colorama import Fore, Style
-from documentcheckertool.models import DocumentCheckResult
+from documentcheckertool.models import DocumentCheckResult, Severity
 
 class FormatStyle(Enum):
     """Output format styles."""
@@ -11,7 +11,7 @@ class FormatStyle(Enum):
 
 class ResultFormatter:
     """Unified formatter for all document check results."""
-    
+
     def __init__(self, style: Union[str, FormatStyle] = FormatStyle.PLAIN):
         self._style = FormatStyle(style) if isinstance(style, str) else style
         self._setup_style()
@@ -252,29 +252,44 @@ class ResultFormatter:
             FormatStyle.HTML: ("<li>", 0, "</li>")
         }
         self.bullet_style, self.indent, *self.suffix = style_configs.get(
-            self._style, 
+            self._style,
             style_configs[FormatStyle.PLAIN]
         )
         self.suffix = self.suffix[0] if self.suffix else ""
 
     def _format_colored_text(self, text: str, color: str) -> str:
         """Helper method to format colored text with reset.
-        
+
         Args:
             text: The text to be colored
             color: The color to apply (from colorama.Fore)
-            
+
         Returns:
             str: The colored text with reset styling
         """
-        return f"{color}{text}{Style.RESET_ALL}"
-    
+        if self._style == FormatStyle.HTML:
+            # Map colorama colors to HTML colors
+            color_map = {
+                Fore.CYAN: '#00ffff',  # cyan
+                Fore.YELLOW: '#ffff00',  # yellow
+                Fore.RED: '#ff0000',    # red
+                Fore.GREEN: '#00ff00',  # green
+                Fore.BLUE: '#0000ff',   # blue
+                Fore.MAGENTA: '#ff00ff', # magenta
+                Fore.WHITE: '#ffffff',  # white
+                Fore.BLACK: '#000000',  # black
+            }
+            html_color = color_map.get(color, '#000000')  # default to black if color not found
+            return f'<span style="color: {html_color}">{text}</span>'
+        else:
+            return f"{color}{text}{Style.RESET_ALL}"
+
     def _format_example(self, example_fix: Dict[str, str]) -> List[str]:
         """Format example fixes consistently.
-        
+
         Args:
             example_fix: Dictionary containing 'before' and 'after' examples
-            
+
         Returns:
             List[str]: Formatted example lines
         """
@@ -282,11 +297,11 @@ class ResultFormatter:
             f"    ❌ Incorrect: {example_fix['before']}",
             f"    ✓ Correct: {example_fix['after']}"
         ]
-    
+
     def _format_heading_issues(self, result: DocumentCheckResult, doc_type: str) -> List[str]:
         """Format heading check issues consistently."""
         output = []
-        
+
         for issue in result.issues:
             if issue.get('type') == 'missing_headings':
                 missing = sorted(issue['missing'])
@@ -298,19 +313,19 @@ class ResultFormatter:
                 output.append(f"\n  Unexpected Headings Found:")
                 for heading in unexpected:
                     output.append(f"    • {heading}")
-        
+
         return output
 
     def _format_period_issues(self, result: DocumentCheckResult) -> List[str]:
         """Format period check issues consistently."""
         output = []
-        
+
         if result.issues:
             output.append(f"\n  Heading Period Format Issues:")
             for issue in result.issues:
                 if 'message' in issue:
                     output.append(f"    • {issue['message']}")
-        
+
         return output
 
     def _format_caption_issues(self, issues: List[Dict], doc_type: str) -> List[str]:
@@ -322,7 +337,7 @@ class ResultFormatter:
                 if len(caption_parts) >= 2:
                     caption_type = caption_parts[0]  # "Table" or "Figure"
                     number = caption_parts[1]
-                    
+
                     # Determine correct format based on document type
                     if doc_type in ["Advisory Circular", "Order"]:
                         if '-' not in number:
@@ -342,12 +357,12 @@ class ResultFormatter:
     def _format_reference_issues(self, result: DocumentCheckResult) -> List[str]:
         """Format reference issues with clear, concise descriptions."""
         formatted_issues = []
-        
+
         for issue in result.issues:
             ref_type = issue.get('type', '')
             ref_num = issue.get('reference', '')
             context = issue.get('context', '').strip()
-            
+
             if context:  # Only include context if it exists
                 formatted_issues.append(
                     f"    • Confirm {ref_type} {ref_num} referenced in '{context}' exists in the document"
@@ -363,39 +378,39 @@ class ResultFormatter:
         """Format standard issues consistently."""
         if isinstance(issue, str):
             return f"    • {issue}"
-        
+
         if 'incorrect' in issue and 'correct' in issue:
             return f"    • Replace '{issue['incorrect']}' with '{issue['correct']}'"
-        
+
         if 'incorrect_term' in issue and 'correct_term' in issue:
             return f"    • Replace '{issue['incorrect_term']}' with '{issue['correct_term']}'"
-        
+
         if 'sentence' in issue and 'word_count' in issue:  # For sentence length check
             return f"    • Review this sentence: \"{issue['sentence']}\""
-        
+
         if 'sentence' in issue:
             return f"    • {issue['sentence']}"
-        
+
         if 'description' in issue:
             return f"    • {issue['description']}"
-        
+
         if 'type' in issue and issue['type'] == 'long_paragraph':
             return f"    • {issue['message']}"
-        
+
         # Fallback for other issue formats
         return f"    • {str(issue)}"
 
     def _format_unused_acronym_issues(self, result: DocumentCheckResult) -> List[str]:
         """Format unused acronym issues with a simple, clear message.
-        
+
         Args:
             result: DocumentCheckResult containing acronym issues
-            
+
         Returns:
             List[str]: Formatted list of unused acronym issues
         """
         formatted_issues = []
-        
+
         if result.issues:
             for issue in result.issues:
                 if isinstance(issue, dict) and 'acronym' in issue:
@@ -403,23 +418,23 @@ class ResultFormatter:
                 elif isinstance(issue, str):
                     # Handle case where issue might be just the acronym
                     formatted_issues.append(f"    • Acronym '{issue}' was defined but never used.")
-    
+
         return formatted_issues
 
     def _format_parentheses_issues(self, result: DocumentCheckResult) -> List[str]:
         """Format parentheses issues with clear instructions for fixing."""
         formatted_issues = []
-        
+
         if result.issues:
             for issue in result.issues:
                 formatted_issues.append(f"    • {issue['message']}")
-        
+
         return formatted_issues
 
     def _format_section_symbol_issues(self, result: DocumentCheckResult) -> List[str]:
         """Format section symbol issues with clear replacement instructions."""
         formatted_issues = []
-        
+
         if result.issues:
             for issue in result.issues:
                 if 'incorrect' in issue and 'correct' in issue:
@@ -432,20 +447,20 @@ class ResultFormatter:
                         formatted_issues.append(
                             f"    • Replace '{issue['incorrect']}' with '{issue['correct']}'"
                         )
-        
+
         return formatted_issues
 
     def _format_paragraph_length_issues(self, result: DocumentCheckResult) -> List[str]:
         """Format paragraph length issues with clear instructions for fixing.
-        
+
         Args:
             result: DocumentCheckResult containing paragraph length issues
-            
+
         Returns:
             List[str]: Formatted list of paragraph length issues
         """
         formatted_issues = []
-        
+
         if result.issues:
             for issue in result.issues:
                 if isinstance(issue, str):
@@ -455,13 +470,13 @@ class ResultFormatter:
                 else:
                     # Fallback for unexpected issue format
                     formatted_issues.append(f"    • Review paragraph for length issues: {str(issue)}")
-        
+
         return formatted_issues
 
     def _format_accessibility_issues(self, result: DocumentCheckResult) -> List[str]:
         """Format accessibility-specific issues."""
         formatted_issues = []
-        
+
         for issue in result.issues:
             if issue.get('category') == '508_compliance_heading_structure':
                 formatted_issues.append(f"    • {issue['message']}")
@@ -477,7 +492,7 @@ class ResultFormatter:
                 )
             elif issue.get('category') == 'color_contrast':
                 formatted_issues.append(f"    • {issue.get('message', '')}")
-                
+
         return formatted_issues
 
     def _format_alt_text_issues(self, issue: Dict) -> str:
@@ -494,216 +509,140 @@ class ResultFormatter:
     def format_results(self, results: Dict[str, Any], doc_type: str) -> str:
         """
         Format check results into a detailed, user-friendly report.
-        
+
         Args:
             results: Dictionary of check results
             doc_type: Type of document being checked
-            
+
         Returns:
             str: Formatted report with consistent styling
         """
-        # Determine caption format based on document type
-        if doc_type in ["Advisory Circular", "Order"]:
-            table_format = {
-                'title': 'Table Caption Format Issues',
-                'description': 'Analyzes table captions to ensure they follow the FAA\'s dual-numbering system, where tables must be numbered according to their chapter or appendix location (X-Y format). The first number (X) indicates the chapter number, while the second number (Y) provides sequential numbering within that chapter. For more information, see FAA Order 1320.46.',
-                'solution': 'Use the format "Table X-Y" where X is the chapter or appendix number and Y is the sequence number',
-                'example_fix': {
-                    'before': 'Table 5. | Table A.',
-                    'after': 'Table 5-1. | Table A-1.'
-                }
-            }
-            figure_format = {
-                'title': 'Figure Caption Format Issues',
-                'description': 'Analyzes figure captions to ensure they follow the FAA\'s dual-numbering system, where figures must be numbered according to their chapter or appendix location (X-Y format). The first number (X) indicates the chapter number, while the second number (Y) provides sequential numbering within that chapter. For more information, see FAA Order 1320.46.',
-                'solution': 'Use the format "Figure X-Y" where X is the chapter or appendix number and Y is the sequence number',
-                'example_fix': {
-                    'before': 'Figure 5. | Figure A.',
-                    'after': 'Figure 5-1. | Figure A-1.'
-                }
-            }
-        else:
-            table_format = {
-                'title': 'Table Caption Format Issues',
-                'description': f'Analyzes table captions to ensure they follow the FAA\'s sequential numbering system for {doc_type}s. Tables must be numbered consecutively throughout the document using a single number format.',
-                'solution': 'Use the format "Table X" where X is a sequential number',
-                'example_fix': {
-                    'before': 'Table 5-1. | Table A-1',
-                    'after': 'Table 5. | Table 1.'
-                }
-            }
-            figure_format = {
-                'title': 'Figure Caption Format Issues',
-                'description': f'Analyzes figure captions to ensure they follow the FAA\'s sequential numbering system for {doc_type}s. Figures must be numbered consecutively throughout the document using a single number format.',
-                'solution': 'Use the format "Figure X" where X is a sequential number',
-                'example_fix': {
-                    'before': 'Figure 5-1. | Figure A-1.',
-                    'after': 'Figure 5. | Figure 3.'
-                }
-            }
-
-        # Update the issue categories with the correct format
-        self.issue_categories['caption_check_table'] = table_format
-        self.issue_categories['caption_check_figure'] = figure_format
-
-        # Define formatting rules for different document types
-        formatting_rules = {
-            "italics_only": {
-                "types": ["Advisory Circular"],
-                "italics": True, 
-                "quotes": False,
-                "description": "For Advisory Circulars, referenced document titles should be italicized but not quoted. For more information, see FAA Order 1320.46.",
-                "example": "See AC 25.1309-1B, <i>System Design and Analysis</i>, for information on X."
-            },
-            "quotes_only": {
-                "types": [
-                    "Airworthiness Criteria", "Deviation Memo", "Exemption", 
-                    "Federal Register Notice", "Order", "Policy Statement", "Rule", 
-                    "Special Condition", "Technical Standard Order", "Other"
-                ],
-                "italics": False, 
-                "quotes": True,
-                "description": "For this document type, referenced document titles should be in quotes without italics.",
-                "example": 'See AC 25.1309-1B, "System Design and Analysis," for information on X.'
-            }
-        }
-
-        # Find the formatting group for the current document type
-        format_group = None
-        for group, rules in formatting_rules.items():
-            if doc_type in rules["types"]:
-                format_group = rules
-                break
-
-        # Use quotes_only as default if document type not found
-        if not format_group:
-            format_group = formatting_rules["quotes_only"]
-
-        # Update document title check category based on document type
-        if doc_type == "Advisory Circular":
-            self.issue_categories['document_title_check'] = {
-                'title': 'Referenced Document Title Format Issues',
-                'description': 'For Advisory Circulars, all referenced document titles must be italicized.',
-                'solution': 'Format document titles using italics for Advisory Circulars.',
-                'example_fix': {
-                    'before': 'See AC 25.1309-1B, System Design and Analysis, for information on X.',
-                    'after': 'See AC 25.1309-1B, <i>System Design and Analysis</i>, for information on X.'
-                }
-            }
-        else:
-            self.issue_categories['document_title_check'] = {
-                'title': 'Referenced Document Title Format Issues',
-                'description': f'For {doc_type}s, all referenced document titles must be enclosed in quotation marks.',
-                'solution': 'Format document titles using quotation marks.',
-                'example_fix': {
-                    'before': 'See AC 25.1309-1B, System Design and Analysis, for information on X.',
-                    'after': 'See AC 25.1309-1B, "System Design and Analysis," for information on X.'
-                }
-            }
-        
         output = []
-        
-        self.issue_categories['acronym_usage_check'] = {
-            'title': 'Unused Acronym Definitions',
-            'description': 'Ensures that all acronyms defined in the document are actually used later. If an acronym is defined but never referenced, the definition should be removed to avoid confusion or unnecessary clutter.',
-            'solution': 'Identify acronyms that are defined but not used later in the document and remove their definitions.',
-            'example_fix': {
-                'before': 'Operators must comply with airworthiness directives (AD) to ensure aircraft safety and regulatory compliance.',
-                'after': 'Operators must comply with airworthiness directives to ensure aircraft safety and regulatory compliance.'
-            }
-        }
 
-        output = []
-        
         # Header
-        output.append(f"\n{Fore.CYAN}{'='*80}")
-        output.append(f"Document Check Results Summary")
-        output.append(f"{'='*80}{Style.RESET_ALL}\n")
-        
+        output.append('<div class="results-container">')
+        output.append('<h1 style="color: #0056b3; text-align: center;">Document Check Results Summary</h1>')
+        output.append('<hr style="border: 1px solid #0056b3;">')
+
         # Count total issues
-        total_issues = sum(1 for r in results.values() if not r.success)
-        if total_issues == 0:
-            output.append(f"{self._format_colored_text('✓ All checks passed successfully!', Fore.GREEN)}\n")
+        total_issues = 0
+        has_issues = False
+
+        # First pass to count issues and check if any exist
+        for category_results in results.values():
+            if isinstance(category_results, dict):
+                for result in category_results.values():
+                    if isinstance(result, DocumentCheckResult):
+                        if result.issues:
+                            has_issues = True
+                            total_issues += len(result.issues)
+                    elif isinstance(result, dict) and 'issues' in result:
+                        if result['issues']:
+                            has_issues = True
+                            total_issues += len(result['issues'])
+
+        if not has_issues:
+            output.append('<p style="color: #006400; text-align: center;">✓ All checks passed successfully!</p>')
+            output.append('</div>')
             return '\n'.join(output)
-        
-        output.append(f"{Fore.YELLOW}Found {total_issues} categories of issues that need attention:{Style.RESET_ALL}\n")
-        
-        # Process all check results consistently
-        for check_name, result in results.items():
-            if not result.success and check_name in self.issue_categories:
-                category = self.issue_categories[check_name]
-                
-                output.append("\n")
-                output.append(self._format_colored_text(f"■ {category['title']}", Fore.YELLOW))
-                output.append(f"  {category['description']}")
-                output.append(f"  {self._format_colored_text('How to fix: ' + category['solution'], Fore.GREEN)}")
-                        
-                output.append(f"\n  {self._format_colored_text('Example Fix:', Fore.CYAN)}")
-                output.extend(self._format_example(category['example_fix']))
-                output.append("")
-                
-                output.append(f"  {self._format_colored_text('Issues found in your document:', Fore.CYAN)}")
-                
-                # Special handling for date format issues
-                if check_name == 'date_formats_check':
-                    for issue in result.issues:
-                        output.append(f"    • Replace '{issue['incorrect']}' with '{issue['correct']}'")
-                # Handle other check types
-                elif check_name == 'heading_title_check':
-                    output.extend(self._format_heading_issues(result, doc_type))
-                elif check_name == 'heading_title_period_check':
-                    output.extend(self._format_period_issues(result))
-                elif check_name == 'table_figure_reference_check':
-                    output.extend(self._format_reference_issues(result))
-                elif check_name in ['caption_check_table', 'caption_check_figure']:
-                    output.extend(self._format_caption_issues(result.issues, doc_type))
-                elif check_name == 'acronym_usage_check':
-                    output.extend(self._format_unused_acronym_issues(result))
-                elif check_name == 'section_symbol_usage_check':
-                    output.extend(self._format_section_symbol_issues(result))
-                elif check_name == 'parentheses_check':
-                    output.extend(self._format_parentheses_issues(result))
-                elif check_name == '508_compliance_check':
-                    if not result.success:
-                        # Combine all 508 compliance issues into a single list
-                        for issue in result.issues:
-                            if issue.get('category') == '508_compliance_heading_structure':
-                                output.append(f"    • {issue['message']}")
-                                if 'context' in issue:
-                                    output.append(f"      Context: {issue['context']}")
-                                if 'recommendation' in issue:
-                                    output.append(f"      Recommendation: {issue['recommendation']}")
-                            elif issue.get('category') == 'image_alt_text':
-                                if 'context' in issue:
-                                    output.append(f"    • {issue['context']}")
-                            elif issue.get('category') == 'hyperlink_accessibility':
-                                output.append(f"    • {issue.get('user_message', issue.get('message', 'No description provided'))}")
-                elif check_name == 'hyperlink_check':
-                    for issue in result.issues:
-                        output.append(f"    • {issue['message']}")
-                        if 'status_code' in issue:
-                            output.append(f"      (HTTP Status: {issue['status_code']})")
-                        elif 'error' in issue:
-                            output.append(f"      (Error: {issue['error']})")
-                elif check_name == 'cross_references_check':
-                    for issue in result.issues:
-                        output.append(f"    • Confirm {issue['type']} {issue['reference']} referenced in '{issue['context']}' exists in the document")
-                elif check_name == 'readability_check':
-                    output.extend(self._format_readability_issues(result))
-                # Add accessibility-specific handling
-                elif check_name == 'accessibility_check':
-                    output.extend(self._format_accessibility_issues(result))
-                elif check_name == 'alt_text_check':
-                    output.extend([self._format_alt_text_issues(issue) for issue in result.issues])
-                elif check_name == 'heading_structure_check':
-                    output.extend([self._format_heading_structure_issues(issue) for issue in result.issues])
-                else:
-                    formatted_issues = [self._format_standard_issue(issue) for issue in result.issues[:15]]
-                    output.extend(formatted_issues)
-                    
-                    if len(result.issues) > 30:
-                        output.append(f"\n    ... and {len(result.issues) - 30} more similar issues.")
-        
+
+        output.append(f'<p style="color: #856404; text-align: center;">Found {total_issues} issues that need attention:</p>')
+
+        # Process all check results by category
+        for category, category_results in results.items():
+            if isinstance(category_results, dict) and category_results:  # Only show categories that have results
+                output.append('<div class="category-section" style="margin-bottom: 40px; padding: 20px; background-color: #f8f9fa; border-radius: 8px;">')
+                output.append(f'<h2 style="color: #0056b3; margin-bottom: 20px; border-bottom: 2px solid #0056b3; padding-bottom: 10px;">{category.replace("_", " ").title()}</h2>')
+
+                # Process each checker in the category
+                for check_name, result in category_results.items():
+                    if isinstance(result, DocumentCheckResult):
+                        if not result.success and result.issues:
+                            # Get category information
+                            category_info = self.issue_categories.get(check_name, {})
+                            category_title = category_info.get('title', check_name.replace('_', ' ').title())
+                            category_description = category_info.get('description', '')
+                            category_solution = category_info.get('solution', '')
+                            category_example = category_info.get('example_fix', {})
+
+                            output.append('<div class="check-section" style="margin-bottom: 30px; padding: 20px; background-color: #ffffff; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">')
+                            output.append(f'<h3 style="color: #0056b3; margin-bottom: 15px;">■ {category_title}</h3>')
+
+                            # Add category description and solution
+                            if category_description:
+                                output.append('<div class="category-info" style="margin-bottom: 20px; padding: 15px; background-color: #f8f9fa; border-radius: 4px; border-left: 4px solid #0056b3;">')
+                                output.append(f'<p style="margin-bottom: 10px;"><strong>Description:</strong> {category_description}</p>')
+                                if category_solution:
+                                    output.append(f'<p style="margin-bottom: 10px;"><strong>Solution:</strong> {category_solution}</p>')
+                                if category_example:
+                                    output.append('<div class="example-fix" style="margin-top: 15px; padding: 10px; background-color: #ffffff; border-radius: 4px; border: 1px solid #dee2e6;">')
+                                    output.append('<p style="margin-bottom: 10px;"><strong>Example:</strong></p>')
+                                    if isinstance(category_example, dict):
+                                        output.append(f'<p style="color: #721c24; margin-bottom: 5px;">❌ Incorrect: {category_example.get("before", "")}</p>')
+                                        output.append(f'<p style="color: #006400;">✓ Correct: {category_example.get("after", "")}</p>')
+                                    elif isinstance(category_example, list):
+                                        for example in category_example:
+                                            if isinstance(example, dict):
+                                                output.append(f'<p style="color: #721c24; margin-bottom: 5px;">❌ Incorrect: {example.get("before", "")}</p>')
+                                                output.append(f'<p style="color: #006400;">✓ Correct: {example.get("after", "")}</p>')
+                                    output.append('</div>')
+                                output.append('</div>')
+
+                            # Group issues by severity within the check
+                            errors = []
+                            warnings = []
+                            info = []
+
+                            for issue in result.issues:
+                                severity = issue.get('severity', '')
+                                message = issue.get('message', '')
+                                line = issue.get('line_number')
+                                line_info = f" (Line {line})" if line is not None else ""
+
+                                # Format the issue message with proper HTML and severity indicator
+                                severity_indicator = ""
+                                if severity == Severity.ERROR:
+                                    severity_indicator = '<span style="color: #721c24; font-weight: bold;">[ERROR]</span> '
+                                elif severity == Severity.WARNING:
+                                    severity_indicator = '<span style="color: #856404; font-weight: bold;">[WARNING]</span> '
+                                else:
+                                    severity_indicator = '<span style="color: #0c5460; font-weight: bold;">[INFO]</span> '
+
+                                formatted_issue = f"<li style='margin-bottom: 8px;'>{severity_indicator}{message}{line_info}</li>"
+
+                                if severity == Severity.ERROR:
+                                    errors.append(formatted_issue)
+                                elif severity == Severity.WARNING:
+                                    warnings.append(formatted_issue)
+                                else:
+                                    info.append(formatted_issue)
+
+                            # Display all issues for this check, grouped by severity
+                            if errors or warnings or info:
+                                output.append('<div class="issues-section" style="margin-top: 15px;">')
+                                output.append('<h4 style="color: #0056b3; margin-bottom: 10px;">Issues Found:</h4>')
+                                output.append('<ul style="list-style-type: none; padding-left: 20px;">')
+
+                                # Display errors first
+                                if errors:
+                                    output.extend(errors)
+
+                                # Then warnings
+                                if warnings:
+                                    output.extend(warnings)
+
+                                # Finally info items
+                                if info:
+                                    output.extend(info)
+
+                                output.append('</ul>')
+                                output.append('</div>')
+
+                            output.append('</div>')
+
+                output.append('</div>')
+
+        output.append('</div>')
         return '\n'.join(output)
 
     def save_report(self, results: Dict[str, Any], filepath: str, doc_type: str) -> None:
@@ -712,14 +651,14 @@ class ResultFormatter:
             with open(filepath, 'w', encoding='utf-8') as f:
                 # Create a report without color codes
                 report = self.format_results(results, doc_type)
-                
+
                 # Strip color codes
                 for color in [Fore.CYAN, Fore.GREEN, Fore.YELLOW, Fore.RED, Style.RESET_ALL]:
                     report = report.replace(str(color), '')
-                
+
                 # Convert markdown-style italics to alternative formatting for plain text
                 report = report.replace('*', '_')
-                
+
                 f.write(report)
         except Exception as e:
             print(f"Error saving report: {e}")
@@ -727,7 +666,7 @@ class ResultFormatter:
     def _format_readability_issues(self, result: DocumentCheckResult) -> List[str]:
         """Format readability issues with clear, actionable feedback."""
         formatted_issues = []
-        
+
         if result.details and 'metrics' in result.details:
             metrics = result.details['metrics']
             formatted_issues.append("\n  Readability Scores:")
@@ -735,7 +674,7 @@ class ResultFormatter:
             formatted_issues.append(f"    • Grade Level: {metrics['flesch_kincaid_grade']} (Aim for 10 or lower; 12 acceptable for technical/legal)")
             formatted_issues.append(f"    • Gunning Fog Index: {metrics['gunning_fog_index']} (Aim for 12 or lower)")
             formatted_issues.append(f"    • Passive Voice: {metrics['passive_voice_percentage']}% (Aim for less than 10%; use active voice for clarity)")
-        
+
         if result.issues:
             formatted_issues.append("\n  Identified Issues:")
             for issue in result.issues:
@@ -745,12 +684,12 @@ class ResultFormatter:
                     )
                 elif issue['type'] in ['readability_score', 'passive_voice']:
                     formatted_issues.append(f"    • {issue['message']}")
-        
+
         return formatted_issues
 
 class ValidationFormatting:
     """Handles formatting of validation messages for consistency and clarity."""
-    
+
     WATERMARK_VALIDATION = {
         'missing': 'Document is missing required watermark',
         'incorrect': 'Incorrect watermark for {stage} stage. Found: "{found}", Expected: "{expected}"',
@@ -763,10 +702,10 @@ class ValidationFormatting:
 
 def format_results_to_html(results: DocumentCheckResult) -> str:
     """Format check results as HTML.
-    
+
     Args:
         results: The check results to format
-        
+
     Returns:
         str: HTML formatted results
     """
@@ -774,21 +713,13 @@ def format_results_to_html(results: DocumentCheckResult) -> str:
     return results.to_html()
 
 def format_results_to_text(results: Dict[str, Any], doc_type: str) -> str:
-    """Format check results as colored text.
-    
-    Args:
-        results: The check results to format
-        doc_type: Type of document being checked
-        
-    Returns:
-        str: Text formatted results with ANSI color codes
-    """
-    formatter = ResultFormatter()
+    """Format results as plain text."""
+    formatter = ResultFormatter(style=FormatStyle.HTML)
     return formatter.format_results(results, doc_type)
 
 class DocumentFormatter:
     """Handles document formatting operations."""
-    
+
     @staticmethod
     def format_heading(heading: str) -> str:
         """Format a heading according to standards."""
