@@ -95,7 +95,7 @@ class FormattingChecker(BaseChecker):
         issues.extend(self.check_list_formatting(lines).issues)
         issues.extend(self.check_quotation_marks(lines).issues)
 
-        return self.create_result(issues, success=len(issues) == 0)
+        return DocumentCheckResult(success=len(issues) == 0, issues=issues)
 
     def check_punctuation(self, lines: List[str]) -> DocumentCheckResult:
         """Check for double periods and other punctuation issues."""
@@ -106,7 +106,7 @@ class FormattingChecker(BaseChecker):
                     f"Double periods found in line {i}",
                     line_number=i
                 ))
-        return self.create_result(issues)
+        return DocumentCheckResult(success=len(issues) == 0, issues=issues)
 
     def check_spacing(self, lines: List[str]) -> DocumentCheckResult:
         """Check for spacing issues."""
@@ -117,7 +117,7 @@ class FormattingChecker(BaseChecker):
                     f"Extra spaces found in line {i}",
                     line_number=i
                 ))
-        return self.create_result(issues)
+        return DocumentCheckResult(success=len(issues) == 0, issues=issues)
 
     def check_parentheses(self, lines: List[str]) -> DocumentCheckResult:
         """Check for unmatched parentheses."""
@@ -130,7 +130,7 @@ class FormattingChecker(BaseChecker):
                     f"Unmatched parentheses in line {i}",
                     line_number=i
                 ))
-        return self.create_result(issues)
+        return DocumentCheckResult(success=len(issues) == 0, issues=issues)
 
     def check_section_symbol_usage(self, lines: List[str]) -> DocumentCheckResult:
         """Check for proper section symbol usage."""
@@ -141,7 +141,7 @@ class FormattingChecker(BaseChecker):
                     f"Incorrect section symbol usage in line {i}",
                     line_number=i
                 ))
-        return self.create_result(issues)
+        return DocumentCheckResult(success=len(issues) == 0, issues=issues)
 
     def check_list_formatting(self, lines: List[str]) -> DocumentCheckResult:
         """Check for consistent list formatting."""
@@ -159,7 +159,7 @@ class FormattingChecker(BaseChecker):
                     f"Inconsistent bullet spacing in line {i}",
                     line_number=i
                 ))
-        return self.create_result(issues)
+        return DocumentCheckResult(success=len(issues) == 0, issues=issues)
 
     def check_quotation_marks(self, lines: List[str]) -> DocumentCheckResult:
         """Check for consistent quotation mark usage."""
@@ -170,4 +170,4 @@ class FormattingChecker(BaseChecker):
                     f"Inconsistent quotation marks in line {i}",
                     line_number=i
                 ))
-        return self.create_result(issues)
+        return DocumentCheckResult(success=len(issues) == 0, issues=issues)
