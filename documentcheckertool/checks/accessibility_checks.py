@@ -50,23 +50,14 @@ class AccessibilityChecks(BaseChecker):
         results = DocumentCheckResult()
 
         if not self.validate_input(doc):
-            results.add_issue({
-                'message': 'Invalid input format for readability check',
-                'recommendation': 'Ensure input is a list of strings'
-            })
+            results.add_issue('Invalid input format for readability check', Severity.ERROR)
             results.success = False
             return results
 
         for line in doc:
             words = line.split()
             if len(words) > 25:  # Check sentence length
-                results.add_issue({
-                    'type': 'sentence_length',
-                    'message': f'Sentence too long. Word count exceeds recommended limit ({len(words)} words).',
-                    'sentence': line,
-                    'word_count': len(words),
-                    'recommendation': 'Break into shorter sentences'
-                })
+                results.add_issue(f'Sentence too long. Word count exceeds recommended limit ({len(words)} words).', Severity.ERROR)
 
         # Set success to False if any issues were found
         results.success = len(results.issues) == 0
@@ -330,10 +321,7 @@ class AccessibilityChecks(BaseChecker):
             if not hasattr(shape, '_inline') or not hasattr(shape._inline, 'docPr'):
                 continue
             if not shape._inline.docPr.get('descr'):
-                results.add_issue(
-                    message="Image missing alt text",
-                    severity=Severity.HIGH
-                )
+                results.add_issue("Image missing alt text", Severity.HIGH)
 
     def _check_color_contrast(self, content: Union[List[str], DocxDocument], results: DocumentCheckResult):
         """Check for potential color contrast issues."""
@@ -365,11 +353,7 @@ class AccessibilityChecks(BaseChecker):
                     relative_luminance(colors[1])
                 )
                 if ratio < 4.5:  # WCAG AA standard minimum contrast
-                    results.add_issue({
-                        'message': f"Insufficient color contrast ratio ({ratio:.2f}:1)",
-                        'line': line,
-                        'recommendation': 'Ensure contrast ratio is at least 4.5:1 for normal text'
-                    })
+                    results.add_issue(f"Insufficient color contrast ratio ({ratio:.2f}:1)", Severity.ERROR)
 
         return results
 
@@ -426,11 +410,7 @@ class AccessibilityChecks(BaseChecker):
                 level = len(line.split()[0])
                 heading_levels.append(level)
                 if level > 1 and len(heading_levels) > 1 and level - heading_levels[-2] > 1:
-                    results.add_issue({
-                        'message': 'Inconsistent heading structure',
-                        'context': f'Found H{level} after H{heading_levels[-2]}',
-                        'recommendation': 'Ensure heading levels are sequential'
-                    })
+                    results.add_issue('Inconsistent heading structure', Severity.ERROR)
 
         return results
 
@@ -444,11 +424,7 @@ class AccessibilityChecks(BaseChecker):
             for match in matches:
                 alt_text = match.group(1)
                 if not alt_text:
-                    results.add_issue({
-                        'message': 'Missing alt text',
-                        'context': f'Image: {match.group(2)}',
-                        'recommendation': 'Add descriptive alt text'
-                    })
+                    results.add_issue('Missing alt text', Severity.ERROR)
 
         return results
 
