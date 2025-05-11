@@ -19037,6 +19037,7 @@ royally
 royals
 royalties
 royalty
+rtca
 rub
 rubbed
 rubber
@@ -19158,6 +19159,7 @@ sadist
 sadistic
 sadly
 sadness
+sae
 safari
 safe
 safeguard

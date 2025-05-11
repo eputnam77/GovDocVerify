@@ -134,6 +134,8 @@ class TerminologyManager:
         issues = []
         valid_words = self._load_valid_words()
         standard_acronyms = set(self.get_standard_acronyms().keys())
+        custom_acronyms = set(self.get_custom_acronyms().keys())
+        all_known_acronyms = standard_acronyms | custom_acronyms
 
         # First pass: collect all defined acronyms
         definition_pattern = r'([A-Z][A-Z]+)\s*\(([^)]+)\)'
@@ -165,10 +167,10 @@ class TerminologyManager:
             for match in re.finditer(usage_pattern, line):
                 acronym = match.group(1)
                 if len(acronym) >= 2:
-                    # Skip if it's a valid word, already defined, or a standard acronym
+                    # Skip if it's a valid word, already defined, or a known acronym (standard or custom)
                     if (acronym not in valid_words and
                         acronym not in self.defined_acronyms and
-                        acronym not in standard_acronyms):
+                        acronym not in all_known_acronyms):
                         issues.append({
                             "type": "acronym",
                             "message": f"Acronym '{acronym}' used without definition",
@@ -236,3 +238,11 @@ class TerminologyManager:
         if match:
             return match.group(1).strip()
         return self.get_acronym_definition(acronym)
+
+    def load_config(self):
+        """Reload the configuration from the config file."""
+        # Reload the config file
+        self.terminology_data = self._load_terminology()
+        # Update the internal state with the new config
+        self.defined_acronyms.clear()
+        self.used_acronyms.clear()

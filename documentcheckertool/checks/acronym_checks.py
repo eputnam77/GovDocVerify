@@ -51,3 +51,8 @@ class AcronymChecker:
         """
         self.terminology_manager.add_custom_acronym(acronym, definition)
         self.terminology_manager.save_changes()
+
+    def reload_config(self):
+        """Reload the acronym lists from the config file or update the internal state based on in-memory changes."""
+        # Reload the config file or update internal state
+        self.terminology_manager.load_config()

@@ -29,11 +29,11 @@ class TestAcronyms(unittest.TestCase):
     def test_missing_acronym_definition(self):
         """Test that missing acronym definitions are caught."""
         content = """
-        The XYZ is responsible for something.
+        The EAP is responsible for something.
         """
         result = self.acronym_checker.check_text(content)
         self.assertFalse(result.success)
-        self.assert_issue_contains(result, "Acronym 'XYZ' used without definition")
+        self.assert_issue_contains(result, "Acronym 'EAP' used without definition")
 
     def test_multiple_acronym_definitions(self):
         """Test that multiple acronym definitions are caught."""
@@ -47,8 +47,13 @@ class TestAcronyms(unittest.TestCase):
 
     def test_custom_acronym_list(self):
         """Test checking against custom acronym list."""
+        # Add custom acronyms to the checker
+        self.acronym_checker.add_custom_acronym("FOO", "Foo Object Oriented")
+        self.acronym_checker.add_custom_acronym("BAR", "Bar Application Resource")
+        # Reload the checker's configuration to recognize the new acronyms
+        self.acronym_checker.reload_config()
         content = """
-        The Application Programming Interface (API) provides Representational State Transfer (REST) services.
+        The FOO system provides BAR services.
         """
         result = self.acronym_checker.check_text(content)
         logger.debug(f"Custom acronym test issues: {result.issues}")
