@@ -65,34 +65,72 @@ def process_document(file_path: str, doc_type: str) -> str:
             results = checker.run_all_document_checks(content, doc_type)
 
         logger.info("Formatting results")
+        logger.debug(f"Raw results type: {type(results)}")
+        logger.debug(f"Raw results dir: {dir(results)}")
 
-        # Create a dictionary with check results organized by category
-        results_dict = {}
+        # Get total issues from the main results object
+        total_issues = len(results.issues) if hasattr(results, 'issues') else 0
+        logger.info(f"Total issues found: {total_issues}")
 
-        # Define category mappings
-        category_mappings = {
-            'heading_checks': ['heading_title_check', 'heading_title_period_check'],
-            'reference_checks': ['table_figure_reference_check', 'cross_references_check', 'document_title_check'],
-            'acronym_checks': ['acronym_check', 'acronym_usage_check'],
-            'terminology_checks': ['terminology_check', 'section_symbol_usage_check', 'double_period_check', 'spacing_check', 'date_formats_check', 'parentheses_check'],
-            'structure_checks': ['paragraph_length_check', 'sentence_length_check', 'placeholders_check', 'boilerplate_check'],
-            'accessibility_checks': ['508_compliance_check', 'hyperlink_check', 'accessibility'],
-            'document_status_checks': ['watermark_check'],
-            'readability_checks': ['readability_check']
-        }
+        # Start building the HTML output
+        html_output = ['<div class="results-container">']
+        html_output.append('<h1 style="color: #0056b3; text-align: center;">Document Check Results</h1>')
+        html_output.append('<hr style="border: 1px solid #0056b3;">')
 
-        # Organize results by category
-        for category, checkers in category_mappings.items():
-            category_results = {}
-            for checker in checkers:
-                if hasattr(results, checker):
-                    category_results[checker] = getattr(results, checker)
-            if category_results:
-                results_dict[category] = category_results
+        if total_issues == 0:
+            html_output.append('<div style="color: #006400; text-align: center; padding: 20px;">✓ All checks passed successfully!</div>')
+        else:
+            # Group issues by severity
+            errors = []
+            warnings = []
+            info = []
 
-        formatted_results = formatter.format_results(results_dict, doc_type)
+            for issue in results.issues:
+                # Handle severity as enum
+                severity = issue.get('severity')
+                if isinstance(severity, str):
+                    severity = severity.lower()
+                elif hasattr(severity, 'value'):
+                    severity = severity.value.lower()
+                else:
+                    severity = 'info'  # default to info if severity is not recognized
+
+                message = issue.get('message', '')
+                line = issue.get('line_number')
+                line_info = f" (Line {line})" if line is not None else ""
+
+                if severity == 'error':
+                    errors.append(f"{message}{line_info}")
+                elif severity == 'warning':
+                    warnings.append(f"{message}{line_info}")
+                else:  # info or unknown
+                    info.append(f"{message}{line_info}")
+
+            # Add issues to HTML output
+            if errors:
+                html_output.append("<h3 style='color: #721c24;'>Errors</h3>")
+                html_output.append("<ul>")
+                for error in errors:
+                    html_output.append(f"<li>{error}</li>")
+                html_output.append("</ul>")
+
+            if warnings:
+                html_output.append("<h3 style='color: #856404;'>Warnings</h3>")
+                html_output.append("<ul>")
+                for warning in warnings:
+                    html_output.append(f"<li>{warning}</li>")
+                html_output.append("</ul>")
+
+            if info:
+                html_output.append("<h3 style='color: #0c5460;'>Info</h3>")
+                html_output.append("<ul>")
+                for item in info:
+                    html_output.append(f"<li>{item}</li>")
+                html_output.append("</ul>")
+
+        html_output.append('</div>')
         logger.info("Document processing completed successfully")
-        return formatted_results
+        return '\n'.join(html_output)
 
     except FileNotFoundError:
         error_msg = f"File not found: {file_path}"
