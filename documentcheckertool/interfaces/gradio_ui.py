@@ -1,6 +1,6 @@
 import gradio as gr
 from documentcheckertool.document_checker import FAADocumentChecker
-from documentcheckertool.utils.formatting import ResultFormatter
+from documentcheckertool.utils.formatting import ResultFormatter, FormatStyle
 from documentcheckertool.utils.security import validate_file, SecurityError
 from documentcheckertool.models import DocumentCheckResult, Severity
 from documentcheckertool.constants import DOCUMENT_TYPES
@@ -223,7 +223,7 @@ def create_interface():
                                 try:
                                     validate_file(temp_file_path)
                                     checker = FAADocumentChecker()
-                                    formatter = ResultFormatter(style="html")
+                                    formatter = ResultFormatter(style=FormatStyle.HTML)
 
                                     logger.info(f"Running checks for document type: {doc_type_value}")
                                     results_data = checker.run_all_document_checks(
@@ -231,25 +231,14 @@ def create_interface():
                                         doc_type=doc_type_value
                                     )
 
-                                    logger.info(f"Number of issues found: {len(results_data.issues) if results_data and results_data.issues else 0}")
+                                    # Debug the raw results structure
                                     logger.debug(f"Raw results type: {type(results_data)}")
                                     logger.debug(f"Raw results dir: {dir(results_data)}")
-
-                                    if not results_data or not results_data.issues:
-                                        return """
-                                            <div class="p-4 bg-yellow-50 text-yellow-700 rounded-lg">
-                                                ⚠️ No issues were found in the document. This could mean either:
-                                                <ul class="list-disc ml-4 mt-2">
-                                                    <li>The document is perfectly formatted</li>
-                                                    <li>The document processing encountered an issue</li>
-                                                    <li>The document type selected doesn't match the document</li>
-                                                </ul>
-                                                Please verify your document and try again if needed.
-                                            </div>
-                                        """, gr.update(visible=False), gr.update(visible=False), None
+                                    logger.debug(f"Raw results dict: {results_data.__dict__ if hasattr(results_data, '__dict__') else 'No __dict__'}")
 
                                     # Create a dictionary with check results organized by category
                                     results_dict = {}
+                                    total_issues = 0
 
                                     # Define category mappings
                                     category_mappings = {
@@ -263,8 +252,21 @@ def create_interface():
                                         'readability_checks': ['readability_check']
                                     }
 
-                                    # Organize results by category
-                                    total_issues = 0
+                                    # First, check if we have direct issues on the results object
+                                    if hasattr(results_data, 'issues') and results_data.issues:
+                                        logger.debug(f"Found {len(results_data.issues)} direct issues")
+                                        logger.debug(f"Direct issues: {results_data.issues}")
+                                        # Create a general category for direct issues
+                                        results_dict['general_issues'] = {
+                                            'document_check': {
+                                                'success': False,
+                                                'issues': results_data.issues,
+                                                'details': {}
+                                            }
+                                        }
+                                        total_issues += len(results_data.issues)
+
+                                    # Then process each category
                                     for category, checkers in category_mappings.items():
                                         category_results = {}
                                         for checker in checkers:
@@ -272,17 +274,19 @@ def create_interface():
                                                 result = getattr(results_data, checker)
                                                 logger.debug(f"Processing {checker} in {category}")
                                                 logger.debug(f"  Result type: {type(result)}")
-                                                logger.debug(f"  Has issues attr: {hasattr(result, 'issues')}")
-                                                if hasattr(result, 'issues'):
-                                                    issues = result.issues
-                                                    logger.debug(f"  Number of issues: {len(issues)}")
-                                                    total_issues += len(issues)
-                                                    # Convert DocumentCheckResult to dict format expected by formatter
+                                                logger.debug(f"  Result dir: {dir(result)}")
+
+                                                # Convert DocumentCheckResult to dict format
+                                                if hasattr(result, 'issues') and result.issues:
+                                                    logger.debug(f"  Found {len(result.issues)} issues in {checker}")
+                                                    logger.debug(f"  Issues: {result.issues}")
+                                                    total_issues += len(result.issues)
                                                     category_results[checker] = {
-                                                        'success': False if issues else True,  # Set success based on presence of issues
-                                                        'issues': issues,
-                                                        'details': result.details if hasattr(result, 'details') else {}
+                                                        'success': False,
+                                                        'issues': result.issues,
+                                                        'details': getattr(result, 'details', {}) if hasattr(result, 'details') else {}
                                                     }
+
                                         if category_results:
                                             results_dict[category] = category_results
                                             logger.debug(f"Added {len(category_results)} results for category {category}")
@@ -290,9 +294,83 @@ def create_interface():
                                     logger.info(f"Total issues organized: {total_issues}")
                                     logger.debug(f"Final results dictionary structure: {json.dumps(results_dict, indent=2, default=str)}")
 
-                                    # Use the unified formatter
-                                    formatted_results = formatter.format_results(results_dict, doc_type_value)
-                                    logger.debug(f"Formatted results length: {len(formatted_results)}")
+                                    # Create a simple HTML output if no issues were found
+                                    if total_issues == 0:
+                                        formatted_results = """
+                                        <div style="color: #006400; text-align: center; padding: 20px; background-color: #f8f9fa; border-radius: 8px;">
+                                            <h2>✓ All checks passed successfully!</h2>
+                                            <p>No issues were found in your document.</p>
+                                        </div>
+                                        """
+                                    else:
+                                        # Create a basic HTML structure for the results
+                                        formatted_results = f"""
+                                        <div style="font-family: system-ui, -apple-system, sans-serif; max-width: 1200px; margin: 0 auto; padding: 20px;">
+                                            <h1 style="color: #0056b3; text-align: center;">Document Check Results</h1>
+                                            <p style="color: #856404; text-align: center;">Found {total_issues} issues that need attention:</p>
+                                            <div style="margin-top: 20px;">
+                                        """
+
+                                        # Process each category
+                                        for category, category_results in results_dict.items():
+                                            if category_results:  # Only show categories that have results
+                                                formatted_results += f"""
+                                                <div style="margin-bottom: 40px; padding: 20px; background-color: #f8f9fa; border-radius: 8px;">
+                                                    <h2 style="color: #0056b3; margin-bottom: 20px; border-bottom: 2px solid #0056b3; padding-bottom: 10px;">
+                                                        {category.replace('_', ' ').title()}
+                                                    </h2>
+                                                """
+
+                                                # Process each checker in the category
+                                                for check_name, result in category_results.items():
+                                                    if result['issues']:
+                                                        formatted_results += f"""
+                                                        <div style="margin-bottom: 30px; padding: 20px; background-color: #ffffff; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                                                            <h3 style="color: #0056b3; margin-bottom: 15px;">■ {check_name.replace('_', ' ').title()}</h3>
+                                                            <ul style="list-style-type: none; padding-left: 20px;">
+                                                        """
+
+                                                        for issue in result['issues']:
+                                                            severity = issue.get('severity', '')
+                                                            message = issue.get('message', '')
+                                                            line = issue.get('line_number')
+                                                            line_info = f" (Line {line})" if line is not None else ""
+
+                                                            # Format the issue message with proper HTML and severity indicator
+                                                            severity_indicator = ""
+                                                            if severity == Severity.ERROR:
+                                                                severity_indicator = '<span style="color: #721c24; font-weight: bold;">[ERROR]</span> '
+                                                            elif severity == Severity.WARNING:
+                                                                severity_indicator = '<span style="color: #856404; font-weight: bold;">[WARNING]</span> '
+                                                            else:
+                                                                severity_indicator = '<span style="color: #0c5460; font-weight: bold;">[INFO]</span> '
+
+                                                            formatted_results += f"""
+                                                            <li style="margin-bottom: 8px;">
+                                                                {severity_indicator}{message}{line_info}
+                                                            </li>
+                                                            """
+
+                                                        formatted_results += """
+                                                            </ul>
+                                                        </div>
+                                                        """
+
+                                                formatted_results += """
+                                                </div>
+                                                """
+
+                                        formatted_results += """
+                                            </div>
+                                        </div>
+                                        """
+
+                                        logger.debug(f"Formatted results length: {len(formatted_results)}")
+                                        logger.debug(f"Formatted results preview: {formatted_results[:500]}...")
+
+                                    # Store the results dictionary for report generation
+                                    global _last_results
+                                    _last_results = results_dict
 
                                     # Return all required values for Gradio
                                     return formatted_results, gr.update(visible=True), gr.update(visible=True), None
@@ -316,20 +394,31 @@ def create_interface():
                             outputs=[template_type]
                         )
 
-                        def generate_report_file(results_data, doc_type_value, format="docx"):
+                        def generate_report_file(results_data, doc_type_value, format="html"):
                             """Generate downloadable report file."""
-                            if not results_data:
+                            try:
+                                global _last_results
+                                if not _last_results:
+                                    logger.warning("No results data available for report generation")
+                                    return None
+
+                                logger.debug(f"Generating report with format: {format}")
+                                logger.debug(f"Using stored results data")
+
+                                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                                filename = f"document_check_report_{timestamp}.{format}"
+
+                                formatter = ResultFormatter(style=FormatStyle.HTML)
+                                formatted_results = formatter.format_results(_last_results, doc_type_value)
+                                logger.debug(f"Generated formatted results length: {len(formatted_results)}")
+
+                                with tempfile.NamedTemporaryFile(delete=False, suffix=f".{format}", mode="w", encoding="utf-8") as temp_file:
+                                    temp_file.write(formatted_results)
+                                    logger.info(f"Report saved to: {temp_file.name}")
+                                    return temp_file.name
+                            except Exception as e:
+                                logger.error(f"Error generating report: {str(e)}", exc_info=True)
                                 return None
-
-                            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-                            filename = f"document_check_report_{timestamp}.{format}"
-
-                            formatter = ResultFormatter(style=format)
-                            formatted_results = formatter.format_results({"document_check": results_data}, doc_type_value)
-
-                            with tempfile.NamedTemporaryFile(delete=False, suffix=f".{format}", mode="w", encoding="utf-8") as temp_file:
-                                temp_file.write(formatted_results)
-                                return temp_file.name
 
                         submit_btn.click(
                             fn=process_and_format,
@@ -368,3 +457,6 @@ def create_interface():
                         )
 
     return demo
+
+# Global variable to store the last results
+_last_results = None
