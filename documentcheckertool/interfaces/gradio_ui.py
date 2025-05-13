@@ -405,17 +405,85 @@ def create_interface():
                                 logger.debug(f"Generating report with format: {format}")
                                 logger.debug(f"Using stored results data")
 
+                                # Create downloads directory if it doesn't exist
+                                downloads_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "downloads")
+                                os.makedirs(downloads_dir, exist_ok=True)
+
                                 timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
                                 filename = f"document_check_report_{timestamp}.{format}"
+                                filepath = os.path.join(downloads_dir, filename)
 
                                 formatter = ResultFormatter(style=FormatStyle.HTML)
                                 formatted_results = formatter.format_results(_last_results, doc_type_value)
                                 logger.debug(f"Generated formatted results length: {len(formatted_results)}")
 
-                                with tempfile.NamedTemporaryFile(delete=False, suffix=f".{format}", mode="w", encoding="utf-8") as temp_file:
-                                    temp_file.write(formatted_results)
-                                    logger.info(f"Report saved to: {temp_file.name}")
-                                    return temp_file.name
+                                if format == "pdf":
+                                    # Convert HTML to PDF using pdfkit
+                                    try:
+                                        import pdfkit
+                                        pdfkit.from_string(formatted_results, filepath)
+                                        logger.info(f"PDF report saved to: {filepath}")
+                                        return filepath
+                                    except ImportError:
+                                        logger.error("pdfkit not installed. Please install it with: pip install pdfkit")
+                                        return None
+                                    except Exception as e:
+                                        logger.error(f"Error generating PDF: {str(e)}")
+                                        return None
+                                elif format == "docx":
+                                    # Convert HTML to DOCX using python-docx
+                                    try:
+                                        from docx import Document
+                                        from docx.shared import Inches
+                                        from bs4 import BeautifulSoup
+
+                                        doc = Document()
+                                        soup = BeautifulSoup(formatted_results, 'html.parser')
+
+                                        # Add title
+                                        title = soup.find('h1')
+                                        if title:
+                                            doc.add_heading(title.text, 0)
+
+                                        # Add total issues
+                                        total_issues = soup.find('p', {'style': 'color: #856404;'})
+                                        if total_issues:
+                                            doc.add_paragraph(total_issues.text)
+
+                                        # Process each category
+                                        for category in soup.find_all('div', {'style': 'margin-bottom: 40px;'}):
+                                            # Add category heading
+                                            category_title = category.find('h2')
+                                            if category_title:
+                                                doc.add_heading(category_title.text.strip(), 1)
+
+                                            # Process each check
+                                            for check in category.find_all('div', {'style': 'margin-bottom: 30px;'}):
+                                                check_title = check.find('h3')
+                                                if check_title:
+                                                    doc.add_heading(check_title.text.strip(), 2)
+
+                                                # Add issues
+                                                for issue in check.find_all('li'):
+                                                    doc.add_paragraph(issue.text.strip(), style='List Bullet')
+
+                                        doc.save(filepath)
+                                        logger.info(f"DOCX report saved to: {filepath}")
+                                        return filepath
+
+                                    except ImportError:
+                                        logger.error("Required packages not installed. Please install with: pip install python-docx beautifulsoup4")
+                                        return None
+                                    except Exception as e:
+                                        logger.error(f"Error generating DOCX: {str(e)}")
+                                        return None
+                                else:
+                                    # Default to HTML
+                                    with open(filepath, 'w', encoding='utf-8') as f:
+                                        f.write(formatted_results)
+                                        logger.info(f"HTML report saved to: {filepath}")
+                                        return filepath
+
                             except Exception as e:
                                 logger.error(f"Error generating report: {str(e)}", exc_info=True)
                                 return None
@@ -427,14 +495,14 @@ def create_interface():
                         )
 
                         download_docx.click(
-                            fn=generate_report_file,
-                            inputs=[results, doc_type],
+                            fn=lambda: generate_report_file(None, None, "docx"),
+                            inputs=[],
                             outputs=[report_file]
                         )
 
                         download_pdf.click(
-                            fn=generate_report_file,
-                            inputs=[results, doc_type],
+                            fn=lambda: generate_report_file(None, None, "pdf"),
+                            inputs=[],
                             outputs=[report_file]
                         )
 
