@@ -164,3 +164,48 @@ Example:
    - Fix in terminology.json if pattern-related
    - Update affected code
    - Add regression tests
+
+## Dependencies
+
+The project requires the following Python packages:
+- `gradio>=4.0.0`: For the web interface
+- `python-docx>=0.8.11`: For DOCX report generation
+- `beautifulsoup4>=4.12.0`: For HTML parsing in DOCX generation
+- `pdfkit>=1.0.0`: For PDF report generation
+- `nltk>=3.9.1`: For natural language processing
+- `pandas>=2.2.1`: For data manipulation
+- `numpy>=1.24.3`: For numerical operations
+- `pydantic>=2.11.4`: For data validation
+- `colorama>=0.4.6`: For terminal coloring
+- `typing-extensions>=4.9.0`: For type hints
+- `filetype>=1.2.0`: For file type detection
+- `python-multipart>=0.0.20`: For file upload handling
+
+### Additional System Requirements
+
+For PDF generation, you need to install `wkhtmltopdf`:
+- Windows: Download from https://wkhtmltopdf.org/downloads.html
+- Linux: `sudo apt-get install wkhtmltopdf`
+- Mac: `brew install wkhtmltopdf`
+
+## File Generation
+
+The application supports generating reports in multiple formats:
+
+### HTML Reports
+- Default format
+- Includes all styling and formatting
+- Saved to `downloads` directory
+
+### PDF Reports
+- Requires `wkhtmltopdf` installation
+- Maintains formatting and styling
+- Saved to `downloads` directory
+
+### DOCX Reports
+- Compatible with Microsoft Word
+- Preserves document structure
+- Includes headings, bullet points, and formatting
+- Saved to `downloads` directory
+
+All reports are saved in the `downloads` directory with timestamps in the filename format: `document_check_report_YYYYMMDD_HHMMSS.{format}`
