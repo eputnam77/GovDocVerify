@@ -1,4 +1,4 @@
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 from documentcheckertool.utils.text_utils import split_sentences, count_words
 from documentcheckertool.models import DocumentCheckResult, Severity
 from documentcheckertool.config.validation_patterns import HEADING_PATTERNS
@@ -17,7 +17,20 @@ def profile_performance(func):
         return func(*args, **kwargs)
     return wrapper
 
+class WatermarkRequirement:
+    def __init__(self, text: str, doc_stage: str):
+        self.text = text
+        self.doc_stage = doc_stage
+
 class StructureChecks(BaseChecker):
+    VALID_WATERMARKS = [
+        WatermarkRequirement("DRAFT - FOR INTERNAL FAA REVIEW", "internal_review"),
+        WatermarkRequirement("DRAFT - FOR PUBLIC COMMENTS", "public_comment"),
+        WatermarkRequirement("DRAFT - FOR AGC REVIEW OF PUBLIC COMMENTS", "agc_public_comment"),
+        WatermarkRequirement("DRAFT - FOR FINAL ISSUANCE", "final_draft"),
+        WatermarkRequirement("DRAFT - FOR AGC REVIEW OF FINAL ISSUANCE", "agc_final_review")
+    ]
+
     def run_checks(self, document: Document, doc_type: str, results: DocumentCheckResult) -> None:
         """Run all structure-related checks."""
         logger.info(f"Running structure checks for document type: {doc_type}")
@@ -29,7 +42,7 @@ class StructureChecks(BaseChecker):
         self._check_list_formatting(paragraphs, results)
         self._check_cross_references(document, results)
         self._check_parentheses(paragraphs, results)
-        self._check_watermark(document, results)
+        self._check_watermark(document, results, doc_type)
 
     def _check_paragraph_length(self, paragraphs, results):
         """Check for overly long paragraphs."""
@@ -129,15 +142,50 @@ class StructureChecks(BaseChecker):
                     line_number=i+1
                 )
 
-    def _check_watermark(self, document, results):
-        """Check for draft watermarks."""
-        for i, para in enumerate(document.paragraphs):
+    def _check_watermark(self, document: Document, results: DocumentCheckResult, doc_type: str) -> None:
+        """Check if document has appropriate watermark for its stage."""
+        watermark_text = self._extract_watermark(document)
+
+        if not watermark_text:
+            results.add_issue(
+                message="Document is missing required watermark",
+                severity=Severity.ERROR,
+                line_number=1
+            )
+            return
+
+        # Find matching requirement for stage
+        expected_watermark = next(
+            (w for w in self.VALID_WATERMARKS if w.doc_stage == doc_type),
+            None
+        )
+
+        if not expected_watermark:
+            results.add_issue(
+                message=f"Unknown document stage: {doc_type}",
+                severity=Severity.ERROR,
+                line_number=1
+            )
+            return
+
+        if watermark_text != expected_watermark.text:
+            results.add_issue(
+                message=f"Incorrect watermark for {doc_type} stage. Expected: {expected_watermark.text}",
+                severity=Severity.ERROR,
+                line_number=1
+            )
+
+    def _extract_watermark(self, doc: Document) -> Optional[str]:
+        """Extract watermark text from Word document headers/footers."""
+        # First check document body for watermark
+        for para in doc.paragraphs:
             if para.text.strip().upper() == "DRAFT":
-                results.add_issue(
-                    message="Draft watermark detected",
-                    severity=Severity.WARNING,
-                    line_number=i+1
-                )
+                return para.text.strip()
+
+        # TODO: Implement header/footer watermark extraction
+        # This will need to use python-docx to extract watermark
+        # from document sections and headers/footers
+        return None
 
     def _check_cross_references(self, document, results):
         """Check for cross-references."""
