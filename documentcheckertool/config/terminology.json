@@ -66,7 +66,8 @@
             "STAR": "Standard Terminal Arrival Route",
             "METAR": "Meteorological Aerodrome Report",
             "TAF": "Terminal Aerodrome Forecast",
-            "FAA-HQ": "Federal Aviation Administration Headquarters"
+            "FAA-HQ": "Federal Aviation Administration Headquarters",
+            "RTCA": "Radio Technical Commission for Aeronautics"
         },
         "custom": {
             "API": "Application Programming Interface",
