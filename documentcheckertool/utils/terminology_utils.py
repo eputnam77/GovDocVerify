@@ -4,6 +4,10 @@ import re
 from dataclasses import dataclass
 from pathlib import Path
 from ..models import DocumentCheckResult
+import logging
+from functools import lru_cache
+
+logger = logging.getLogger(__name__)
 
 @dataclass
 class AcronymDefinition:
@@ -22,6 +26,16 @@ class TerminologyManager:
         self.terminology_data = self._load_terminology()
         self.defined_acronyms: Set[str] = set()
         self.used_acronyms: Set[str] = set()
+        self._validate_config()
+        logger.info("Initialized TerminologyManager")
+
+    def _validate_config(self):
+        """Validate terminology configuration."""
+        required_sections = ['acronyms', 'patterns', 'heading_words']
+        for section in required_sections:
+            if section not in self.terminology_data:
+                raise ValueError(f"Missing required section '{section}' in terminology.json")
+        logger.debug("Configuration validation passed")
 
     def _load_terminology(self) -> Dict[str, Any]:
         """Load terminology data from JSON file.
@@ -36,6 +50,140 @@ class TerminologyManager:
             raise FileNotFoundError(f"Terminology file not found at {self.terminology_file}")
         except json.JSONDecodeError:
             raise ValueError(f"Invalid JSON in terminology file at {self.terminology_file}")
+
+    @lru_cache(maxsize=1000)
+    def _is_valid_word(self, word: str) -> bool:
+        """Cached check for valid words."""
+        return word in self._load_valid_words()
+
+    def _load_valid_words(self) -> set:
+        """Load valid words from a file (one word per line, both cases)."""
+        valid_words_file = Path(__file__).parent.parent.parent / 'valid_words.txt'
+        try:
+            with open(valid_words_file, 'r') as f:
+                words = set()
+                for word in f:
+                    word = word.strip()
+                    if word:
+                        words.add(word.upper())  # Add uppercase version
+                        words.add(word.lower())  # Add lowercase version
+                return words
+        except FileNotFoundError:
+            logger.warning(f"Valid words file not found at {valid_words_file}")
+            return set()
+
+    def check_text(self, content: str) -> DocumentCheckResult:
+        """Check text for terminology issues.
+
+        Args:
+            content: The text to check
+
+        Returns:
+            DocumentCheckResult with any issues found
+        """
+        logger.debug("Starting acronym check")
+        self.defined_acronyms.clear()
+        self.used_acronyms.clear()
+        issues = []
+
+        # Load all necessary data
+        valid_words = self._load_valid_words()
+        heading_words = self.terminology_data.get('heading_words', [])
+        standard_acronyms = set(self.get_standard_acronyms().keys())
+        custom_acronyms = set(self.get_custom_acronyms().keys())
+        all_known_acronyms = standard_acronyms | custom_acronyms
+
+        # Get ignore patterns from config
+        ignore_patterns = self.terminology_data.get('patterns', {}).get('ignore_patterns', [])
+        ignore_regex = '|'.join(f'(?:{pattern})' for pattern in ignore_patterns)
+        ignore_pattern = re.compile(ignore_regex)
+
+        # Split into paragraphs
+        paragraphs = content.split('\n')
+        logger.debug(f"Processing {len(paragraphs)} paragraphs")
+
+        for paragraph in paragraphs:
+            # Skip heading lines
+            words = paragraph.strip().split()
+            if all(word.isupper() for word in words) and any(word in heading_words for word in words):
+                logger.debug(f"Skipping heading line: {paragraph}")
+                continue
+
+            # Find ignored spans
+            ignored_spans = []
+            for match in ignore_pattern.finditer(paragraph):
+                ignored_spans.append(match.span())
+
+            # Check for definitions first
+            defined_matches = re.finditer(r'\b([\w\s&]+?)\s*\((\b[A-Z]{2,}\b)\)', paragraph)
+            for match in defined_matches:
+                full_term, acronym = match.groups()
+                # Skip if in ignored span
+                if not any(start <= match.start(2) <= end for start, end in ignored_spans):
+                    if acronym in standard_acronyms:
+                        # Check if the definition matches the standard one
+                        standard_def = self.get_standard_acronyms()[acronym]
+                        full_term_stripped = full_term.strip()
+                        # Remove "The" from the beginning if present
+                        if full_term_stripped.lower().startswith('the '):
+                            full_term_stripped = full_term_stripped[4:].strip()
+                        if full_term_stripped != standard_def:
+                            issues.append({
+                                "type": "acronym",
+                                "message": f"Acronym '{acronym}' defined with non-standard definition",
+                                "suggestion": f"Use standard definition: {standard_def}"
+                            })
+                            logger.warning(f"Non-standard definition for {acronym}: {full_term_stripped} vs {standard_def}")
+                    elif acronym not in self.defined_acronyms:
+                        self.defined_acronyms.add(acronym)
+                        self.add_custom_acronym(acronym, full_term.strip())
+                        logger.debug(f"Added new acronym definition: {acronym} -> {full_term.strip()}")
+                    else:
+                        issues.append({
+                            "type": "acronym",
+                            "message": f"Acronym '{acronym}' defined multiple times",
+                            "suggestion": "Remove duplicate definition"
+                        })
+                        logger.warning(f"Duplicate acronym definition found: {acronym}")
+
+            # Check for usage
+            usage_matches = re.finditer(r'(?<!\()\b[A-Z]{2,}\b(?!\s*[:.]\s*)', paragraph)
+            for match in usage_matches:
+                acronym = match.group()
+                start_pos = match.start()
+
+                # Skip if in ignored span
+                if any(start <= start_pos <= end for start, end in ignored_spans):
+                    logger.debug(f"Skipping ignored acronym: {acronym}")
+                    continue
+
+                # Skip if it's a valid word, predefined acronym, or fails length/character checks
+                if (self._is_valid_word(acronym) or
+                    acronym in all_known_acronyms or
+                    any(not c.isalpha() for c in acronym) or
+                    len(acronym) > 10):
+                    logger.debug(f"Skipping valid/predefined acronym: {acronym}")
+                    continue
+
+                if acronym not in self.defined_acronyms:
+                    issues.append({
+                        "type": "acronym",
+                        "message": f"Confirm '{acronym}' was defined at its first use.",
+                        "suggestion": f"Define '{acronym}' before use"
+                    })
+                    logger.warning(f"Undefined acronym found: {acronym}")
+                else:
+                    self.used_acronyms.add(acronym)
+                    logger.debug(f"Found valid acronym usage: {acronym}")
+
+        logger.debug(f"Found {len(self.defined_acronyms)} defined acronyms")
+        logger.debug(f"Found {len(self.used_acronyms)} used acronyms")
+        logger.debug(f"Found {len(issues)} issues")
+
+        return DocumentCheckResult(
+            success=len(issues) == 0,
+            issues=issues
+        )
 
     def get_standard_acronyms(self) -> Dict[str, str]:
         """Get all standard acronym definitions.
@@ -104,94 +252,6 @@ class TerminologyManager:
             List of required language patterns
         """
         return self.terminology_data['required_language'].get(doc_type, [])
-
-    def _load_valid_words(self) -> set:
-        """Load valid words from a file (one word per line, both cases)."""
-        valid_words_file = Path(__file__).parent.parent.parent / 'valid_words.txt'
-        try:
-            with open(valid_words_file, 'r') as f:
-                words = set()
-                for word in f:
-                    word = word.strip()
-                    if word:
-                        words.add(word.upper())  # Add uppercase version
-                        words.add(word.lower())  # Add lowercase version
-                return words
-        except FileNotFoundError:
-            return set()
-
-    def check_text(self, content: str) -> DocumentCheckResult:
-        """Check text for terminology issues.
-
-        Args:
-            content: The text to check
-
-        Returns:
-            DocumentCheckResult with any issues found
-        """
-        self.defined_acronyms.clear()
-        self.used_acronyms.clear()
-        issues = []
-        valid_words = self._load_valid_words()
-        standard_acronyms = set(self.get_standard_acronyms().keys())
-        custom_acronyms = set(self.get_custom_acronyms().keys())
-        all_known_acronyms = standard_acronyms | custom_acronyms
-
-        # First pass: collect all defined acronyms
-        definition_pattern = r'([A-Z][A-Z]+)\s*\(([^)]+)\)'
-        for match in re.finditer(definition_pattern, content):
-            acronym = match.group(1)
-            definition = match.group(2)
-
-            if acronym in self.defined_acronyms:
-                issues.append({
-                    "type": "acronym",
-                    "message": f"Acronym '{acronym}' defined multiple times",
-                    "suggestion": "Remove duplicate definition"
-                })
-            else:
-                self.defined_acronyms.add(acronym)
-                if acronym not in standard_acronyms:
-                    self.add_custom_acronym(acronym, definition)
-
-        # Second pass: check for undefined acronyms
-        # Split content into lines to check each line separately
-        lines = content.split('\n')
-        for line in lines:
-            # Skip lines that contain acronym definitions
-            if re.search(definition_pattern, line):
-                continue
-
-            # Check for acronym usage in this line
-            usage_pattern = r'\b([A-Z][A-Z]+)\b'
-            for match in re.finditer(usage_pattern, line):
-                acronym = match.group(1)
-                if len(acronym) >= 2:
-                    # Skip if it's a valid word, already defined, or a known acronym (standard or custom)
-                    if (acronym not in valid_words and
-                        acronym not in self.defined_acronyms and
-                        acronym not in all_known_acronyms):
-                        issues.append({
-                            "type": "acronym",
-                            "message": f"Acronym '{acronym}' used without definition",
-                            "suggestion": f"Define '{acronym}' before use"
-                        })
-
-        # Check patterns
-        for category, patterns in self.get_patterns().items():
-            for pattern in patterns:
-                if pattern.get('is_error', False):
-                    for match in re.finditer(pattern['pattern'], content):
-                        issues.append({
-                            "type": category,
-                            "message": pattern['description'],
-                            "suggestion": pattern.get('replacement', '')
-                        })
-
-        return DocumentCheckResult(
-            success=len(issues) == 0,
-            issues=issues
-        )
 
     def get_acronym_definition(self, acronym: str) -> Optional[str]:
         """Get the definition of an acronym.

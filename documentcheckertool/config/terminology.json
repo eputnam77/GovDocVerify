@@ -77,6 +77,16 @@
         }
     },
     "patterns": {
+        "ignore_patterns": [
+            "FAA-\\d{4}-\\d+",
+            "\\d{2}-\\d{2}-\\d{2}-SC",
+            "AC\\s*\\d+(?:[-.]\\d+)*[A-Z]*",
+            "AD\\s*\\d{4}-\\d{2}-\\d{2}",
+            "\\d{2}-[A-Z]{2,}",
+            "[A-Z]+-\\d+",
+            "\u00c2\u00a7\\s*[A-Z]+\\.\\d+",
+            "Part\\s*[A-Z]+"
+        ],
         "terminology": [
             {
                 "pattern": "\\btitle (\\d+) of the United States Code \\((\\d+ U\\.S\\.C\\.)\\)\\b",
@@ -142,6 +152,14 @@
                 "is_error": true
             }
         ]
+    },
+    "acronym_rules": {
+        "max_length": 10,
+        "require_alphabetic": true,
+        "heading_detection": {
+            "require_all_uppercase": true,
+            "require_heading_word": true
+        }
     },
     "required_language": {
         "ADVISORY_CIRCULAR": [
