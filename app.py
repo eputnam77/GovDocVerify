@@ -33,7 +33,7 @@ def process_document(file_path: str, doc_type: str, visibility_settings: Visibil
 
         # Initialize the document checker
         terminology_manager = TerminologyManager()
-        checker = FAADocumentChecker(terminology_manager)
+        checker = FAADocumentChecker()
 
         # Detect file type using mimetypes and file extension
         mime_type, _ = mimetypes.guess_type(file_path)

@@ -20,7 +20,7 @@ class TestBase(unittest.TestCase):
         self.test_dir = Path(__file__).parent / "test_files"
         self.test_dir.mkdir(exist_ok=True)
         self.terminology_manager = TerminologyManager()
-        self.checker = FAADocumentChecker(terminology_manager=self.terminology_manager)
+        self.checker = FAADocumentChecker()
 
     def tearDown(self):
         """Clean up after tests."""

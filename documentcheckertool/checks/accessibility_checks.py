@@ -1,4 +1,5 @@
 from typing import List, Dict, Any, Union, Optional, Tuple
+from pathlib import Path
 from documentcheckertool.utils.text_utils import count_words, count_syllables, split_sentences
 from documentcheckertool.models import DocumentCheckResult, Severity
 from functools import wraps
@@ -38,10 +39,22 @@ class AccessibilityChecks(BaseChecker):
         logger.info("Initialized AccessibilityChecks")
 
     @CheckRegistry.register('accessibility')
-    def check_document(self, document: Document, doc_type: str) -> DocumentCheckResult:
+    def check_document(self, document: Union[str, Path, Document], doc_type: str) -> DocumentCheckResult:
         """Check document for accessibility issues."""
         results = DocumentCheckResult()
-        self.run_checks(document, doc_type, results)
+
+        # Handle file path input
+        if isinstance(document, (str, Path)):
+            try:
+                with open(document, 'r', encoding='utf-8') as f:
+                    content = f.read().splitlines()
+                self.run_checks(content, doc_type, results)
+            except Exception as e:
+                logger.error(f"Error reading file {document}: {e}")
+                results.add_issue(f"Error reading file: {str(e)}", Severity.ERROR)
+        else:
+            self.run_checks(document, doc_type, results)
+
         return results
 
     @CheckRegistry.register('accessibility')
@@ -241,23 +254,43 @@ class AccessibilityChecks(BaseChecker):
             )
 
     @CheckRegistry.register('accessibility')
-    def _check_heading_hierarchy(self, headings: List[Tuple[str, int]], results: DocumentCheckResult) -> None:
+    def _check_heading_hierarchy(self, headings: List[Tuple[str, Union[int, str]]], results: DocumentCheckResult) -> None:
         """Check heading hierarchy for accessibility issues."""
         logger.debug("Checking heading hierarchy")
-        if not headings:
+
+        # Handle None content
+        if headings is None:
+            logger.error("Invalid content type for heading hierarchy check: None")
+            results.add_issue(
+                message="Invalid content type for heading hierarchy check: None",
+                severity=Severity.ERROR
+            )
             return
 
-        # Check for missing H1
-        if not any(level == 1 for _, level in headings):
+        # Filter out invalid heading levels
+        valid_headings = []
+        for text, level in headings:
+            if isinstance(level, int):
+                valid_headings.append((text, level))
+            else:
+                logger.debug(f"Skipping invalid heading level type: {type(level)} for heading '{text}'")
+                continue
+
+        if not valid_headings:
+            logger.debug("No valid headings found")
+            return
+
+        # Only check for missing H1 if we have valid headings
+        if valid_headings and not any(level == 1 for _, level in valid_headings):
             logger.warning("Document is missing a top-level heading (H1)")
             results.add_issue(
                 message="Document is missing a top-level heading (H1)",
-                severity=Severity.ERROR
+                severity=Severity.WARNING
             )
 
         # Check for skipped levels
         prev_level = 0
-        for text, level in headings:
+        for text, level in valid_headings:
             if level > prev_level + 1:
                 logger.warning(f"Heading level skipped: H{level} '{text}' follows H{prev_level}")
                 results.add_issue(
@@ -269,14 +302,33 @@ class AccessibilityChecks(BaseChecker):
     @CheckRegistry.register('accessibility')
     def _check_hyperlinks(self, content: Union[Document, List[str]], results: DocumentCheckResult) -> None:
         """Check hyperlinks for accessibility issues."""
-        logger.debug("Checking hyperlinks for accessibility")
-        if isinstance(content, Document):
+        from docx.document import Document as DocxDocument
+
+        if content is None:
+            logger.error("Invalid content type for hyperlink check: None")
+            results.add_issue(
+                message="Invalid content type for hyperlink check: None",
+                severity=Severity.ERROR
+            )
+            return
+
+        # Handle both Document and Mock objects
+        if hasattr(content, 'paragraphs'):  # Check for Document-like object
             links = []
             for paragraph in content.paragraphs:
                 for run in paragraph.runs:
-                    if run._element.xpath('.//w:hyperlink'):
-                        links.append(run.text)
+                    if hasattr(run, '_element') and hasattr(run._element, 'xpath'):
+                        if run._element.xpath('.//w:hyperlink'):
+                            links.append(run.text)
         else:
+            if not isinstance(content, list):
+                logger.error(f"Invalid content type for hyperlink check: {type(content).__name__}")
+                results.add_issue(
+                    message=f"Invalid content type for hyperlink check: {type(content).__name__}",
+                    severity=Severity.ERROR
+                )
+                return
+
             link_pattern = re.compile(r'\[([^\]]+)\]\(([^)]+)\)')
             links = [match.group(1) for match in link_pattern.finditer('\n'.join(content))]
 
@@ -289,7 +341,7 @@ class AccessibilityChecks(BaseChecker):
                 logger.warning(f"Found non-descriptive link text: '{link_text}'")
                 results.add_issue(
                     message=f"Non-descriptive link text: '{link_text}'. Use more descriptive text for better accessibility.",
-                    severity=Severity.WARNING
+                    severity=Severity.ERROR
                 )
 
     def run_checks(self, document: Document, doc_type: str, results: DocumentCheckResult) -> None:
@@ -305,12 +357,9 @@ class AccessibilityChecks(BaseChecker):
         logger.debug(f"Starting alt text check with content type: {type(content)}")
         logger.debug(f"Content type details: {type(content).__name__}")
 
-        # Define valid types for isinstance check
-        valid_types = (Document, list)
-        logger.debug(f"Valid types for check: {[t.__name__ for t in valid_types]}")
-
-        if not isinstance(content, valid_types):
-            error_msg = f"Invalid content type for alt text check: {type(content).__name__}. Expected one of: {[t.__name__ for t in valid_types]}"
+        # Check if content is None
+        if content is None:
+            error_msg = "Invalid content type for alt text check: None. Expected Document or List[str]"
             logger.error(error_msg)
             results.add_issue(
                 message=error_msg,
@@ -318,7 +367,17 @@ class AccessibilityChecks(BaseChecker):
             )
             return
 
-        if isinstance(content, Document):
+        # Check if content is one of the valid types
+        if not (isinstance(content, DocxDocument) or isinstance(content, list)):
+            error_msg = f"Invalid content type for alt text check: {type(content).__name__}. Expected Document or List[str]"
+            logger.error(error_msg)
+            results.add_issue(
+                message=error_msg,
+                severity=Severity.ERROR
+            )
+            return
+
+        if isinstance(content, DocxDocument):
             logger.debug("Processing Document type content")
             shapes = content.inline_shapes
             logger.debug(f"Found {len(shapes)} shapes in document")
@@ -329,6 +388,13 @@ class AccessibilityChecks(BaseChecker):
                     continue
 
                 docPr = shape._inline.docPr
+                name = docPr.get('name', '').lower()
+
+                # Skip watermarks and table graphics
+                if 'watermark' in name or 'table_border' in name:
+                    logger.debug(f"Skipping {name} - identified as watermark or table graphic")
+                    continue
+
                 alt_text = docPr.get('descr') or docPr.get('title')
                 logger.debug(f"Shape {i} alt text: {alt_text}")
 
@@ -362,7 +428,18 @@ class AccessibilityChecks(BaseChecker):
     @CheckRegistry.register('accessibility')
     def _check_color_contrast(self, content: Union[Document, List[str]], results: DocumentCheckResult) -> None:
         """Check for potential color contrast issues."""
-        if isinstance(content, Document):
+        from docx.document import Document as DocxDocument
+
+        # Handle None content
+        if content is None:
+            logger.error("Invalid content type for color contrast check: None")
+            results.add_issue(
+                message="Invalid content type for color contrast check: None",
+                severity=Severity.ERROR
+            )
+            return
+
+        if isinstance(content, DocxDocument):
             lines = [paragraph.text for paragraph in content.paragraphs]
         else:
             lines = content
@@ -382,11 +459,40 @@ class AccessibilityChecks(BaseChecker):
     @CheckRegistry.register('accessibility')
     def _check_heading_structure(self, content: Union[Document, List[str]], results: DocumentCheckResult) -> None:
         """Check heading structure for accessibility issues."""
-        if isinstance(content, Document):
-            headings = [(p.text, int(p.style.name.split()[-1]))
-                       for p in content.paragraphs
-                       if p.style.name.startswith('Heading')]
+        from docx.document import Document as DocxDocument
+
+        if content is None:
+            logger.error("Invalid content type for heading structure check: None")
+            results.add_issue(
+                message="Invalid content type for heading structure check: None",
+                severity=Severity.ERROR
+            )
+            return
+
+        # Handle both Document and Mock objects
+        if hasattr(content, 'paragraphs'):  # Check for Document-like object
+            headings = []
+            for p in content.paragraphs:
+                if hasattr(p.style, 'name') and p.style.name.startswith('Heading'):
+                    try:
+                        # Extract level from style name, handling both real and mock objects
+                        style_name = str(p.style.name)  # Convert to string to handle mock objects
+                        level = int(style_name.split()[-1])
+                        text = p.text.strip()
+                        if text:
+                            headings.append((text, level))
+                    except (ValueError, AttributeError, IndexError):
+                        logger.debug(f"Skipping invalid heading style: {p.style.name}")
+                        continue
         else:
+            if not isinstance(content, list):
+                logger.error(f"Invalid content type for heading structure check: {type(content).__name__}")
+                results.add_issue(
+                    message=f"Invalid content type for heading structure check: {type(content).__name__}",
+                    severity=Severity.ERROR
+                )
+                return
+
             headings = []
             for i, line in enumerate(content, 1):
                 if line.strip().startswith('#'):
@@ -396,6 +502,11 @@ class AccessibilityChecks(BaseChecker):
 
         if headings:
             self._check_heading_hierarchy(headings, results)
+        else:
+            results.add_issue(
+                message="Document is missing a top-level heading (H1)",
+                severity=Severity.ERROR
+            )
 
     def _calculate_contrast_ratio(self, color1: str, color2: str) -> float:
         """Calculate contrast ratio between two hex colors."""

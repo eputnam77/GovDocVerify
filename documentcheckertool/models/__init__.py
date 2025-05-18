@@ -88,7 +88,8 @@ class DocumentCheckResult:
             "severity": severity,
             "line_number": line_number
         })
-        self.success = False  # Set to False for any issue, not just errors
+        if severity == Severity.ERROR:  # Only set success to False for ERROR severity
+            self.success = False
         self.severity = severity
 
     def add_detail(self, key: str, value: Any) -> None:
