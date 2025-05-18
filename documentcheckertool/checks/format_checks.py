@@ -25,6 +25,7 @@ class FormatChecks(BaseChecker):
         self._check_phone_numbers(paragraphs, results)
         self._check_placeholders(paragraphs, results)
         self._check_dash_spacing(paragraphs, results)
+        self._check_caption_formats(paragraphs, doc_type, results)
 
     def _check_date_formats(self, paragraphs: list, results: DocumentCheckResult):
         """Check for incorrect date formats."""
@@ -160,6 +161,69 @@ class FormatChecks(BaseChecker):
 
         # Set success based on whether any issues were found
         results.success = len(results.issues) == 0
+
+    def _check_caption_formats(self, paragraphs: list, doc_type: str, results: DocumentCheckResult):
+        """Check for correctly formatted table or figure captions."""
+        logger.debug(f"Checking caption formats with {len(paragraphs)} paragraphs")
+
+        for i, text in enumerate(paragraphs):
+            text = text.strip()
+
+            # Check for table captions
+            if text.lower().startswith('table'):
+                number_match = re.search(r'^table\s+(\d+(?:-\d+)?)\b', text, re.IGNORECASE)
+                if number_match:
+                    number_format = number_match.group(1)
+                    if doc_type in ["Advisory Circular", "Order"]:
+                        if '-' not in number_format:
+                            results.add_issue(
+                                {
+                                    'incorrect_caption': f"Table {number_format}",
+                                    'doc_type': doc_type,
+                                    'caption_type': 'Table'
+                                },
+                                Severity.ERROR,
+                                i+1
+                            )
+                    else:
+                        if '-' in number_format:
+                            results.add_issue(
+                                {
+                                    'incorrect_caption': f"Table {number_format}",
+                                    'doc_type': doc_type,
+                                    'caption_type': 'Table'
+                                },
+                                Severity.ERROR,
+                                i+1
+                            )
+
+            # Check for figure captions
+            if text.lower().startswith('figure'):
+                number_match = re.search(r'^figure\s+(\d+(?:-\d+)?)\b', text, re.IGNORECASE)
+                if number_match:
+                    number_format = number_match.group(1)
+                    if doc_type in ["Advisory Circular", "Order"]:
+                        if '-' not in number_format:
+                            results.add_issue(
+                                {
+                                    'incorrect_caption': f"Figure {number_format}",
+                                    'doc_type': doc_type,
+                                    'caption_type': 'Figure'
+                                },
+                                Severity.ERROR,
+                                i+1
+                            )
+                    else:
+                        if '-' in number_format:
+                            results.add_issue(
+                                {
+                                    'incorrect_caption': f"Figure {number_format}",
+                                    'doc_type': doc_type,
+                                    'caption_type': 'Figure'
+                                },
+                                Severity.ERROR,
+                                i+1
+                            )
 
 class FormattingChecker(BaseChecker):
     """Checks for formatting issues in documents."""

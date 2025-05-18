@@ -280,5 +280,65 @@ class TestFormatChecks:
         assert len(result.issues) > 0
         assert all(issue["severity"] == Severity.ERROR for issue in result.issues)
 
+    def test_caption_format_check_valid_ac(self):
+        """Test caption format check with valid formats for AC/Order."""
+        content = [
+            "Table 5-1. Sample Table",
+            "This is a table caption.",
+            "Figure 3-2. Sample Figure",
+            "This is a figure caption."
+        ]
+        doc_path = self.create_test_docx(content, "valid_captions_ac.docx")
+        result = DocumentCheckResult()
+        self.format_checks.run_checks(Document(doc_path), "Advisory Circular", result)
+        assert result.success
+        assert len(result.issues) == 0
+
+    def test_caption_format_check_invalid_ac(self):
+        """Test caption format check with invalid formats for AC/Order."""
+        content = [
+            "Table 5. Sample Table",  # Missing hyphen
+            "This is a table caption.",
+            "Figure 3. Sample Figure",  # Missing hyphen
+            "This is a figure caption."
+        ]
+        doc_path = self.create_test_docx(content, "invalid_captions_ac.docx")
+        result = DocumentCheckResult()
+        self.format_checks.run_checks(Document(doc_path), "Advisory Circular", result)
+        assert not result.success
+        assert len(result.issues) == 2
+        assert all(issue["severity"] == Severity.ERROR for issue in result.issues)
+        assert all("incorrect_caption" in issue for issue in result.issues)
+
+    def test_caption_format_check_valid_other(self):
+        """Test caption format check with valid formats for other document types."""
+        content = [
+            "Table 5. Sample Table",
+            "This is a table caption.",
+            "Figure 3. Sample Figure",
+            "This is a figure caption."
+        ]
+        doc_path = self.create_test_docx(content, "valid_captions_other.docx")
+        result = DocumentCheckResult()
+        self.format_checks.run_checks(Document(doc_path), "Other Document", result)
+        assert result.success
+        assert len(result.issues) == 0
+
+    def test_caption_format_check_invalid_other(self):
+        """Test caption format check with invalid formats for other document types."""
+        content = [
+            "Table 5-1. Sample Table",  # Has hyphen
+            "This is a table caption.",
+            "Figure 3-2. Sample Figure",  # Has hyphen
+            "This is a figure caption."
+        ]
+        doc_path = self.create_test_docx(content, "invalid_captions_other.docx")
+        result = DocumentCheckResult()
+        self.format_checks.run_checks(Document(doc_path), "Other Document", result)
+        assert not result.success
+        assert len(result.issues) == 2
+        assert all(issue["severity"] == Severity.ERROR for issue in result.issues)
+        assert all("incorrect_caption" in issue for issue in result.issues)
+
 if __name__ == '__main__':
     pytest.main()
