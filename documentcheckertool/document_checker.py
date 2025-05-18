@@ -39,60 +39,51 @@ class FAADocumentChecker:
     def run_all_document_checks(self, document_path: str, doc_type: str = None) -> DocumentCheckResult:
         """Run all document checks."""
         try:
-            doc = Document(document_path)
-            results = DocumentCheckResult()
+            # Create a new DocumentCheckResult to store combined results
+            combined_results = DocumentCheckResult()
 
-            # Get all standard check modules
+            # Load the document
+            if isinstance(document_path, str) and (document_path.lower().endswith('.docx') or document_path.lower().endswith('.doc')):
+                doc = Document(document_path)
+            else:
+                # For text content, create a simple document structure
+                doc = document_path
+
+            # Define all check modules with their names for logging
             check_modules = [
-                self.heading_checks,
-                self.accessibility_checks,
-                self.format_checks,
-                self.structure_checks,
-                self.terminology_checks,
-                self.readability_checks
+                (self.heading_checks, "Heading Checks"),
+                (self.accessibility_checks, "Accessibility Checks"),
+                (self.format_checks, "Format Checks"),
+                (self.structure_checks, "Structure Checks"),
+                (self.terminology_checks, "Terminology Checks"),
+                (self.readability_checks, "Readability Checks"),
+                (self.acronym_checker, "Acronym Checks"),
+                (self.table_figure_checks, "Table/Figure Reference Checks")
             ]
 
-            # Run all standard checks
-            for check_module in check_modules:
+            # Run all checks
+            for check_module, check_name in check_modules:
                 try:
-                    logger.info(f"Running {check_module.__class__.__name__}")
-                    check_module.run_checks(doc, doc_type, results)
+                    logger.info(f"Running {check_name}...")
+                    if hasattr(check_module, 'check_text'):
+                        # Special case for modules with check_text interface
+                        result = check_module.check_text(doc.text)
+                        if not result.success:
+                            combined_results.issues.extend(result.issues)
+                    else:
+                        # Standard interface
+                        check_module.run_checks(doc, doc_type, combined_results)
                 except Exception as e:
-                    logger.error(f"Error in {check_module.__class__.__name__}: {str(e)}")
-                    results.issues.append({
-                        'error': f"Error in {check_module.__class__.__name__}: {str(e)}"
+                    logger.error(f"Error in {check_name}: {str(e)}")
+                    combined_results.issues.append({
+                        'error': f"Error in {check_name}: {str(e)}"
                     })
-                    results.success = False
 
-            # Run acronym checks (special case due to different interface)
-            try:
-                logger.info("Running AcronymChecker")
-                acronym_result = self.acronym_checker.check_text(doc.text)
-                if not acronym_result.success:
-                    results.issues.extend(acronym_result.issues)
-                    results.success = False
-            except Exception as e:
-                logger.error(f"Error in AcronymChecker: {str(e)}")
-                results.issues.append({
-                    'error': f"Error in AcronymChecker: {str(e)}"
-                })
-                results.success = False
+            # Set success based on whether any issues were found
+            combined_results.success = len(combined_results.issues) == 0
 
-            # Run table/figure reference check (special case due to different interface)
-            try:
-                logger.info("Running TableFigureReferenceCheck")
-                table_figure_result = self.table_figure_checks.check_text(doc.text)
-                if not table_figure_result.success:
-                    results.issues.extend(table_figure_result.issues)
-                    results.success = False
-            except Exception as e:
-                logger.error(f"Error in TableFigureReferenceCheck: {str(e)}")
-                results.issues.append({
-                    'error': f"Error in TableFigureReferenceCheck: {str(e)}"
-                })
-                results.success = False
-
-            return results
+            logger.info(f"Completed all checks. Found {len(combined_results.issues)} issues.")
+            return combined_results
 
         except Exception as e:
             logger.error(f"Error running document checks: {str(e)}")

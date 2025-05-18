@@ -58,6 +58,12 @@ class DocumentCheckResult:
     severity: Optional['Severity'] = None
     details: Optional[Dict[str, Any]] = None
 
+    # TODO: Severity handling inconsistency across codebase:
+    # - Some checkers use 'severity=Severity.WARNING if issues else None'
+    # - Some checkers don't specify severity (falls back to ERROR)
+    # - Some checkers use specific severities (ERROR/WARNING/INFO)
+    # Consider standardizing to 'severity=Severity.WARNING if issues else None'
+    # as it's the most common pattern in format_checks.py
     def __post_init__(self):
         """Initialize default values."""
         if self.issues is None:
