@@ -21,9 +21,10 @@ class TestAcronyms(unittest.TestCase):
         logger.info("Initialized test fixtures")
 
     def test_valid_acronym_definition(self):
-        """Test that valid acronym definitions pass."""
+        """Test that valid acronym definitions pass when used."""
         content = """
         The Federal Aviation Administration (FAA) is responsible for aviation safety.
+        The FAA regulates aviation.
         """
         result = self.acronym_checker.check_text(content)
         self.assertTrue(result.success)
@@ -40,6 +41,20 @@ class TestAcronyms(unittest.TestCase):
         self.assert_issue_contains(result, "Confirm 'EAP' was defined at its first use")
         logger.debug("Missing acronym definition test passed")
 
+    def test_unused_acronym_definition(self):
+        """Test that unused acronym definitions are caught."""
+        content = """
+        The Environmental Protection Agency (EPA) is a federal agency.
+        The Department of Transportation (DOT) oversees transportation safety.
+        The FAA regulates aviation.
+        """
+        result = self.acronym_checker.check_text(content)
+        self.assertFalse(result.success, "Should detect unused acronyms")
+        # Both EPA and DOT should be reported as unused
+        self.assert_issue_contains(result, "Acronym 'EPA' is defined but never used")
+        self.assert_issue_contains(result, "Acronym 'DOT' is defined but never used")
+        logger.debug("Unused acronym definition test passed")
+
     def test_multiple_acronym_definitions(self):
         """Test that multiple acronym definitions are caught."""
         content = """
@@ -50,6 +65,34 @@ class TestAcronyms(unittest.TestCase):
         self.assertFalse(result.success)
         self.assert_issue_contains(result, "Acronym 'NASA' defined with non-standard definition")
         logger.debug("Multiple acronym definitions test passed")
+
+    def test_multiple_unused_acronyms(self):
+        """Test detection of multiple unused acronyms."""
+        content = """
+        The Federal Aviation Administration (FAA) regulates aviation.
+        The Environmental Protection Agency (EPA) protects the environment.
+        The Department of Transportation (DOT) oversees transportation.
+        The FAA issues regulations.
+        """
+        result = self.acronym_checker.check_text(content)
+        self.assertFalse(result.success, "Should detect unused acronyms")
+        issues = [issue for issue in result.issues if issue["type"] == "acronym_usage"]
+        # Both EPA and DOT should be reported as unused
+        self.assertEqual(len(issues), 2, "Should detect both EPA and DOT as unused")
+        self.assertTrue(any("EPA" in issue["message"] for issue in issues), "Should detect EPA as unused")
+        self.assertTrue(any("DOT" in issue["message"] for issue in issues), "Should detect DOT as unused")
+        logger.debug("Multiple unused acronyms test passed")
+
+    def test_used_acronym_not_reported(self):
+        """Test that used acronyms are not reported as unused."""
+        content = """
+        The Federal Aviation Administration (FAA) regulates aviation.
+        The FAA issues regulations.
+        """
+        result = self.acronym_checker.check_text(content)
+        self.assertTrue(result.success)
+        self.assertEqual(len(result.issues), 0)
+        logger.debug("Used acronym not reported test passed")
 
     def test_custom_acronym_list(self):
         """Test checking against custom acronym list."""
@@ -138,11 +181,90 @@ class TestAcronyms(unittest.TestCase):
 
     def test_length_limit(self):
         """Test that acronyms longer than 10 characters are ignored."""
-        text = "The Very Long Acronym (VLACRONYM) is used."
+        text = "The Very Long Acronym (VERYLONGACRONYM) is used."
+        logger.debug(f"Testing length limit with text: {text}")
         result = self.acronym_checker.check_text(text)
-        self.assertTrue(result.success)
-        self.assertEqual(len(result.issues), 0)
+        logger.debug(f"Length limit test issues: {result.issues}")
+        # VERYLONGACRONYM should be ignored due to length > 10
+        self.assertTrue(result.success, "Long acronyms should be ignored")
+        self.assertEqual(len(result.issues), 0, "No issues should be found")
         logger.debug("Length limit test passed")
+
+    def test_length_limit_with_usage(self):
+        """Test that acronyms longer than 10 characters are ignored even when used."""
+        text = """
+        The Very Long Acronym (VLACRONYM) is used.
+        The VLACRONYM is important.
+        """
+        logger.debug(f"Testing length limit with usage text: {text}")
+        result = self.acronym_checker.check_text(text)
+        logger.debug(f"Length limit with usage test issues: {result.issues}")
+        # VLACRONYM should be ignored due to length > 10
+        self.assertTrue(result.success, "Long acronyms should be ignored even when used")
+        self.assertEqual(len(result.issues), 0, "No issues should be found")
+        logger.debug("Length limit with usage test passed")
+
+    def test_length_limit_with_multiple(self):
+        """Test that multiple acronyms longer than 10 characters are ignored."""
+        text = """
+        The Very Long Acronym (VERYLONGACRONYM) is used.
+        The Extremely Long Acronym (EXTREMELONGACRONYM) is also used.
+        The FAA regulates aviation.
+        """
+        logger.debug(f"Testing length limit with multiple text: {text}")
+        result = self.acronym_checker.check_text(text)
+        logger.debug(f"Length limit with multiple test issues: {result.issues}")
+        # Both VERYLONGACRONYM and EXTREMELONGACRONYM should be ignored due to length > 10
+        # FAA should be processed normally
+        self.assertTrue(result.success, "Multiple long acronyms should be ignored")
+        self.assertEqual(len(result.issues), 0, "No issues should be found")
+        logger.debug("Length limit with multiple test passed")
+
+    def test_length_limit_edge_case(self):
+        """Test that acronyms exactly 10 characters are not ignored."""
+        text = """
+        The Ten Letter Acronym (TENLETTERS) is used.
+        The TENLETTERS is important.
+        """
+        logger.debug(f"Testing length limit edge case text: {text}")
+        result = self.acronym_checker.check_text(text)
+        logger.debug(f"Length limit edge case test issues: {result.issues}")
+        # TENLETTERS should not be ignored as it's exactly 10 characters
+        self.assertTrue(result.success, "10-character acronyms should not be ignored")
+        self.assertEqual(len(result.issues), 0, "No issues should be found")
+        logger.debug("Length limit edge case test passed")
+
+    def test_length_limit_mixed(self):
+        """Test mixing long and short acronyms."""
+        text = """
+        The Very Long Acronym (VLACRONYM) is used.
+        The FAA regulates aviation.
+        The VLACRONYM is important.
+        """
+        logger.debug(f"Testing length limit mixed text: {text}")
+        result = self.acronym_checker.check_text(text)
+        logger.debug(f"Length limit mixed test issues: {result.issues}")
+        # VLACRONYM should be ignored due to length > 10
+        # FAA should be processed normally
+        self.assertTrue(result.success, "Mixed length acronyms should be handled correctly")
+        self.assertEqual(len(result.issues), 0, "No issues should be found")
+        logger.debug("Length limit mixed test passed")
+
+    def test_length_limit_with_definition(self):
+        """Test that long acronyms are ignored even when defined."""
+        text = """
+        The Very Long Acronym (VLACRONYM) is used.
+        The VLACRONYM is important.
+        The FAA regulates aviation.
+        """
+        logger.debug(f"Testing length limit with definition text: {text}")
+        result = self.acronym_checker.check_text(text)
+        logger.debug(f"Length limit with definition test issues: {result.issues}")
+        # VLACRONYM should be ignored due to length > 10
+        # FAA should be processed normally
+        self.assertTrue(result.success, "Long acronyms should be ignored even when defined")
+        self.assertEqual(len(result.issues), 0, "No issues should be found")
+        logger.debug("Length limit with definition test passed")
 
     def test_non_alphabetic(self):
         """Test that non-alphabetic acronyms are ignored."""
@@ -174,8 +296,9 @@ class TestAcronyms(unittest.TestCase):
         The A1B2 is used.
         """
         result = self.acronym_checker.check_text(text)
-        self.assertTrue(result.success)  # All acronyms are either predefined, valid words, or ignored
-        self.assertEqual(len(result.issues), 0)
+        # VLACRONYM should be ignored due to length > 10
+        self.assertTrue(result.success, "All acronyms should be either predefined, valid words, or ignored")
+        self.assertEqual(len(result.issues), 0, "No issues should be found")
         logger.debug("Complex document test passed")
 
     def test_acronyms_with_punctuation(self):
