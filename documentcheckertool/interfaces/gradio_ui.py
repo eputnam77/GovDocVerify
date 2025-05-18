@@ -467,7 +467,8 @@ def create_interface():
                                     _last_results = {
                                         'results': results_dict,
                                         'visibility': visibility_settings.to_dict(),
-                                        'summary': summary
+                                        'summary': summary,
+                                        'formatted_results': formatted_results
                                     }
 
                                     return formatted_results, gr.update(visible=True), gr.update(visible=True), None
@@ -502,6 +503,7 @@ def create_interface():
                                 results_dict = _last_results['results']
                                 visibility_settings = VisibilitySettings.from_dict(_last_results['visibility'])
                                 summary = _last_results['summary']
+                                formatted_results = _last_results.get('formatted_results')  # Get formatted results from _last_results
 
                                 # Create a temporary file
                                 with tempfile.NamedTemporaryFile(delete=False, suffix=f'.{format}') as temp_file:
