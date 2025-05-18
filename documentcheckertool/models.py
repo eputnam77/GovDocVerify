@@ -2,6 +2,7 @@ from dataclasses import dataclass
 from enum import Enum, auto
 from typing import List, Dict, Any, Optional
 from pydantic import BaseModel
+from documentcheckertool.models import DocumentType, DocumentTypeError
 
 class DocumentCheckError(Exception):
     """Base exception for document checking errors."""
@@ -9,10 +10,6 @@ class DocumentCheckError(Exception):
 
 class ConfigurationError(DocumentCheckError):
     """Exception for configuration-related errors."""
-    pass
-
-class DocumentTypeError(DocumentCheckError):
-    """Exception for document type-related errors."""
     pass
 
 @dataclass

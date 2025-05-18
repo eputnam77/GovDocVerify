@@ -1,6 +1,7 @@
 from enum import Enum
 from dataclasses import dataclass, field
 from typing import List, Dict, Any, Optional
+import re
 
 class Severity(Enum):
     """Enum for issue severity levels."""
@@ -8,7 +9,12 @@ class Severity(Enum):
     WARNING = "warning"
     INFO = "info"
 
-class DocumentType(Enum):
+class DocumentTypeError(Exception):
+    """Raised when an invalid document type is provided."""
+    pass
+
+class DocumentType(str, Enum):
+    """Supported document types for FAA documents."""
     ADVISORY_CIRCULAR = "Advisory Circular"
     AIRWORTHINESS_CRITERIA = "Airworthiness Criteria"
     DEVIATION_MEMO = "Deviation Memo"
@@ -20,6 +26,53 @@ class DocumentType(Enum):
     SPECIAL_CONDITION = "Special Condition"
     TECHNICAL_STANDARD_ORDER = "Technical Standard Order"
     OTHER = "Other"
+
+    def __str__(self) -> str:
+        """Return the value of the enum member."""
+        return self.value
+
+    @classmethod
+    def from_string(cls, doc_type: str) -> 'DocumentType':
+        """Convert string to DocumentType enum.
+
+        Args:
+            doc_type: String representation of document type
+
+        Returns:
+            DocumentType enum member
+
+        Raises:
+            DocumentTypeError: If the document type is invalid
+        """
+        if not doc_type or not isinstance(doc_type, str):
+            raise DocumentTypeError(f"Invalid document type: {doc_type}")
+
+        # Normalize the input string:
+        # 1. Strip leading/trailing whitespace
+        # 2. Replace multiple spaces/newlines/tabs with single space
+        # 3. Title case the string
+        normalized = re.sub(r'\s+', ' ', doc_type.strip()).title()
+
+        # Try direct value match first
+        for member in cls:
+            if member.value == normalized:
+                return member
+
+        # Try case-insensitive match
+        for member in cls:
+            if member.value.lower() == normalized.lower():
+                return member
+
+        raise DocumentTypeError(f"Invalid document type: {doc_type}")
+
+    @classmethod
+    def values(cls) -> List[str]:
+        """Get list of document type values.
+
+        Returns:
+            List of string values for all document types
+        """
+        return [doc_type.value for doc_type in cls]
 
 @dataclass
 class DocumentCheckResult:

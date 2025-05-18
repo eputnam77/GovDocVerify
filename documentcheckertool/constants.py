@@ -1,13 +1,4 @@
-DOCUMENT_TYPES = [
-    "Advisory Circular",
-    "Airworthiness Criteria",
-    "Deviation Memo",
-    "Exemption",
-    "Federal Register Notice",
-    "Order",
-    "Policy Statement",
-    "Rule",
-    "Special Condition",
-    "Technical Standard Order",
-    "Other"
-]
+from documentcheckertool.models import DocumentType
+
+# Re-export DocumentType for backward compatibility
+DOCUMENT_TYPES = DocumentType.values()

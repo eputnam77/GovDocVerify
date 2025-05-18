@@ -2,7 +2,7 @@ import gradio as gr
 from documentcheckertool.document_checker import FAADocumentChecker
 from documentcheckertool.utils.formatting import ResultFormatter, FormatStyle
 from documentcheckertool.utils.security import validate_file, SecurityError
-from documentcheckertool.models import DocumentCheckResult, Severity
+from documentcheckertool.models import DocumentCheckResult, Severity, DocumentType
 from documentcheckertool.constants import DOCUMENT_TYPES
 import logging
 import tempfile
@@ -165,9 +165,9 @@ def create_interface():
                                     )
 
                                     doc_type = gr.Dropdown(
-                                        choices=DOCUMENT_TYPES,
-                                        label="📋 Document Type",
-                                        value="Advisory Circular",
+                                        label="Document Type",
+                                        choices=DocumentType.values(),
+                                        value=DocumentType.ADVISORY_CIRCULAR.value,
                                         info="Select the type of document you're checking",
                                         elem_classes="gr-box gr-padded"
                                     )

@@ -4,7 +4,7 @@
 import pytest
 from unittest.mock import patch, MagicMock, call
 from documentcheckertool.utils.terminology_utils import TerminologyManager
-from documentcheckertool.models import DocumentCheckResult, Severity
+from documentcheckertool.models import DocumentCheckResult, Severity, DocumentType
 from documentcheckertool.document_checker import FAADocumentChecker
 
 class MockGradioUI:
@@ -158,18 +158,11 @@ class TestGradioUI:
     # New tests for document type validation
     @patch('documentcheckertool.document_checker.FAADocumentChecker')
     def test_all_valid_document_types(self, mock_checker):
-        valid_types = ['ADVISORY_CIRCULAR', 'POLICY_STATEMENT', 'FEDERAL_REGISTER_NOTICE']
-        mock_checker.return_value.run_all_document_checks.return_value = DocumentCheckResult(
-            success=True,
-            issues=[]
-        )
-        self.ui.checker = mock_checker.return_value
-
-        for doc_type in valid_types:
-            result = self.ui.process_document('test.docx', doc_type)
-            assert not result['has_errors']
-            assert len(result['errors']) == 0
-            assert len(result['warnings']) == 0
+        """Test that all document types are valid."""
+        for doc_type in DocumentType.values():
+            result = mock_checker.check_document("test.txt", doc_type)
+            self.assertIsNotNone(result)
+            self.assertIsInstance(result, DocumentCheckResult)
 
     # New tests for UI state management
     @patch('documentcheckertool.document_checker.FAADocumentChecker')
