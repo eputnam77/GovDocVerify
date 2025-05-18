@@ -76,12 +76,41 @@ class StructureChecks(BaseChecker):
         section_lengths = []
         section_names = []
         current_section_name = None
+        list_section_patterns = [
+            r"should include.*following",
+            r"related materials",
+            r"test category",
+            r"requirements",
+            r"items",
+            r"steps",
+            r"procedures"
+        ]
+        list_pattern = re.compile('|'.join(list_section_patterns), re.IGNORECASE)
+        bullet_pattern = re.compile(r'^[\s]*[•\-\*]\s+')
+
+        logger.debug("Starting section balance check")
+        logger.debug(f"List section patterns: {list_section_patterns}")
 
         for para in paragraphs:
             if para.style.name.startswith('Heading'):
                 if current_section:
-                    section_lengths.append(len(current_section))
+                    # Check if this was a list section
+                    is_list_section = False
+                    if current_section_name and list_pattern.search(current_section_name):
+                        logger.debug(f"Section '{current_section_name}' identified as list section by title pattern")
+                        is_list_section = True
+                    else:
+                        # Check if majority of paragraphs are bullet points
+                        bullet_count = sum(1 for p in current_section if bullet_pattern.match(p.text))
+                        bullet_percentage = (bullet_count / len(current_section)) * 100 if current_section else 0
+                        logger.debug(f"Section '{current_section_name}' bullet analysis: {bullet_count}/{len(current_section)} paragraphs are bullets ({bullet_percentage:.1f}%)")
+                        is_list_section = bullet_count > len(current_section) * 0.5
+                        if is_list_section:
+                            logger.debug(f"Section '{current_section_name}' identified as list section by bullet content")
+
+                    section_lengths.append((len(current_section), is_list_section))
                     section_names.append(current_section_name)
+                    logger.debug(f"Added section '{current_section_name}' with length {len(current_section)} (is_list={is_list_section})")
                 current_section = []
                 current_section_name = para.text
             else:
@@ -89,25 +118,55 @@ class StructureChecks(BaseChecker):
 
         # Add last section
         if current_section:
-            section_lengths.append(len(current_section))
+            is_list_section = False
+            if current_section_name and list_pattern.search(current_section_name):
+                logger.debug(f"Final section '{current_section_name}' identified as list section by title pattern")
+                is_list_section = True
+            else:
+                bullet_count = sum(1 for p in current_section if bullet_pattern.match(p.text))
+                bullet_percentage = (bullet_count / len(current_section)) * 100 if current_section else 0
+                logger.debug(f"Final section '{current_section_name}' bullet analysis: {bullet_count}/{len(current_section)} paragraphs are bullets ({bullet_percentage:.1f}%)")
+                is_list_section = bullet_count > len(current_section) * 0.5
+                if is_list_section:
+                    logger.debug(f"Final section '{current_section_name}' identified as list section by bullet content")
+            section_lengths.append((len(current_section), is_list_section))
             section_names.append(current_section_name)
+            logger.debug(f"Added final section '{current_section_name}' with length {len(current_section)} (is_list={is_list_section})")
 
         # Check for significant imbalance
         if len(section_lengths) > 1:  # Only check if we have at least 2 sections
-            avg_length = sum(section_lengths) / len(section_lengths)
-            logger.debug(f"Section lengths: {section_lengths}")
-            logger.debug(f"Average section length: {avg_length}")
+            # Calculate separate averages for list and non-list sections
+            list_sections = [(length, name) for (length, is_list), name in zip(section_lengths, section_names) if is_list]
+            non_list_sections = [(length, name) for (length, is_list), name in zip(section_lengths, section_names) if not is_list]
 
-            for i, (length, name) in enumerate(zip(section_lengths, section_names)):
-                if length > avg_length * 2:
+            list_avg = sum(length for length, _ in list_sections) / len(list_sections) if list_sections else 0
+            non_list_avg = sum(length for length, _ in non_list_sections) / len(non_list_sections) if non_list_sections else 0
+
+            logger.debug(f"List section lengths: {list_sections}")
+            logger.debug(f"Non-list section lengths: {non_list_sections}")
+            logger.debug(f"List section average: {list_avg}")
+            logger.debug(f"Non-list section average: {non_list_avg}")
+            logger.debug(f"List section threshold: {list_avg * 3}")
+            logger.debug(f"Non-list section threshold: {non_list_avg * 2}")
+
+            # Check each section against appropriate average
+            for (length, is_list), name in zip(section_lengths, section_names):
+                avg_length = list_avg if is_list else non_list_avg
+                threshold = avg_length * 3 if is_list else avg_length * 2  # Higher threshold for list sections
+
+                logger.debug(f"Checking section '{name}': length={length}, is_list={is_list}, avg={avg_length:.1f}, threshold={threshold:.1f}")
+
+                if length > threshold:
                     message = f"Section '{name}' is significantly longer than average ({length} paragraphs vs {avg_length:.1f} average)"
                     logger.debug(f"Adding issue: {message}")
                     results.add_issue(
                         message=message,
-                        severity=Severity.INFO,  # Use enum instead of string
-                        line_number=i+1
+                        severity=Severity.INFO,
+                        line_number=section_names.index(name)+1
                     )
                     logger.debug(f"Current issues: {results.issues}")
+                else:
+                    logger.debug(f"Section '{name}' is within acceptable length range")
 
     def _check_list_formatting(self, paragraphs, results):
         """Check for consistent list formatting."""

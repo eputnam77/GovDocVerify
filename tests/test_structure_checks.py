@@ -197,3 +197,69 @@ class TestStructureChecks:
         self.structure_checks._check_cross_references(doc, results)
         logger.debug(f"Check cross references test issues: {results.issues}")
         assert any("Cross-reference" in issue['message'] for issue in results.issues)
+
+    def test_section_balance_with_lists(self):
+        """Test section balance check with list sections."""
+        doc = Document()
+
+        # Add a regular section
+        doc.add_paragraph("SECTION 1. PURPOSE.", style='Heading 1')
+        for _ in range(5):
+            doc.add_paragraph("Regular paragraph content")
+
+        # Add a list section
+        doc.add_paragraph("SECTION 2. TEST CATEGORY DESCRIPTIONS.", style='Heading 1')
+        for i in range(25):
+            doc.add_paragraph(f"• Test category {i+1}")
+
+        # Add another regular section
+        doc.add_paragraph("SECTION 3. BACKGROUND.", style='Heading 1')
+        for _ in range(5):
+            doc.add_paragraph("Regular paragraph content")
+
+        results = DocumentCheckResult(success=True, issues=[])
+        self.structure_checks._check_section_balance(doc.paragraphs, results)
+        logger.debug(f"Section balance with lists test issues: {results.issues}")
+        assert len(results.issues) == 0  # Should not flag the list section
+
+    def test_section_balance_with_mixed_content(self):
+        """Test section balance check with sections containing mixed content."""
+        doc = Document()
+
+        # Add a section with some bullets but mostly regular text
+        doc.add_paragraph("SECTION 1. MIXED CONTENT.", style='Heading 1')
+        for _ in range(5):
+            doc.add_paragraph("Regular paragraph content")
+        for _ in range(2):
+            doc.add_paragraph("• Bullet point")
+
+        # Add a section with mostly bullets
+        doc.add_paragraph("SECTION 2. LIST CONTENT.", style='Heading 1')
+        for _ in range(2):
+            doc.add_paragraph("Regular paragraph content")
+        for i in range(20):
+            doc.add_paragraph(f"• List item {i+1}")
+
+        results = DocumentCheckResult(success=True, issues=[])
+        self.structure_checks._check_section_balance(doc.paragraphs, results)
+        logger.debug(f"Section balance with mixed content test issues: {results.issues}")
+        assert len(results.issues) == 0  # Should not flag either section
+
+    def test_section_balance_with_list_patterns(self):
+        """Test section balance check with sections matching list patterns."""
+        doc = Document()
+
+        # Add a section with a list pattern in title
+        doc.add_paragraph("SECTION 1. SHOULD INCLUDE THE FOLLOWING ITEMS.", style='Heading 1')
+        for i in range(30):
+            doc.add_paragraph(f"• Item {i+1}")
+
+        # Add a regular section
+        doc.add_paragraph("SECTION 2. BACKGROUND.", style='Heading 1')
+        for _ in range(5):
+            doc.add_paragraph("Regular paragraph content")
+
+        results = DocumentCheckResult(success=True, issues=[])
+        self.structure_checks._check_section_balance(doc.paragraphs, results)
+        logger.debug(f"Section balance with list patterns test issues: {results.issues}")
+        assert len(results.issues) == 0  # Should not flag the list section
