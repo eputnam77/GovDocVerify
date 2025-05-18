@@ -181,20 +181,7 @@ class AccessibilityChecks(BaseChecker):
                 hyperlink_issues = []
 
                 # Image alt text check
-                for shape in doc.inline_shapes:
-                    alt_text = None
-                    if hasattr(shape, '_inline') and hasattr(shape._inline, 'docPr'):
-                        docPr = shape._inline.docPr
-                        alt_text = docPr.get('descr') or docPr.get('title')
-
-                    if (alt_text):
-                        images_with_alt += 1
-                    else:
-                        issues.append({
-                            'category': 'image_alt_text',
-                            'message': 'Image is missing descriptive alt text.',
-                            'context': 'Ensure all images have descriptive alt text.'
-                        })
+                self._check_alt_text(doc, results)
 
                 # Enhanced heading structure check
                 headings = []
@@ -317,11 +304,76 @@ class AccessibilityChecks(BaseChecker):
 
     def _check_alt_text(self, document: Document, results: DocumentCheckResult):
         """Check for missing alt text in images."""
-        for shape in document.inline_shapes:
-            if not hasattr(shape, '_inline') or not hasattr(shape._inline, 'docPr'):
+        logger.debug("Starting alt text check")
+        total_shapes = len(document.inline_shapes)
+        logger.debug(f"Found {total_shapes} inline shapes to check")
+
+        for i, shape in enumerate(document.inline_shapes, 1):
+            logger.debug(f"Processing shape {i}/{total_shapes}")
+
+            # Skip if not a proper image shape
+            if not hasattr(shape, '_inline'):
+                logger.debug(f"Shape {i} has no _inline attribute, skipping")
                 continue
-            if not shape._inline.docPr.get('descr'):
-                results.add_issue("Image missing alt text", Severity.ERROR)
+
+            if not hasattr(shape._inline, 'docPr'):
+                logger.debug(f"Shape {i} has no docPr attribute, skipping")
+                continue
+
+            # Get shape properties
+            docPr = shape._inline.docPr
+            shape_name = docPr.get('name', '').lower()
+            logger.debug(f"Shape {i} name: {shape_name}")
+
+            # Log all available properties
+            logger.debug(f"Shape {i} properties: {dict(docPr.items())}")
+
+            # Skip decorative elements
+            decorative_keywords = [
+                'watermark', 'background', 'decoration', 'border', 'line',
+                'divider', 'separator', 'icon', 'bullet', 'marker'
+            ]
+            if any(keyword in shape_name for keyword in decorative_keywords):
+                logger.debug(f"Shape {i} identified as decorative element: {shape_name}")
+                continue
+
+            # Skip table-related graphics
+            table_keywords = ['table', 'grid', 'cell', 'header', 'footer']
+            if any(keyword in shape_name for keyword in table_keywords):
+                logger.debug(f"Shape {i} identified as table graphic: {shape_name}")
+                continue
+
+            # Skip charts and diagrams
+            chart_keywords = ['chart', 'graph', 'diagram', 'plot', 'figure']
+            if any(keyword in shape_name for keyword in chart_keywords):
+                logger.debug(f"Shape {i} identified as chart/diagram: {shape_name}")
+                continue
+
+            # Check for alt text
+            alt_text = docPr.get('descr') or docPr.get('title')
+            logger.debug(f"Shape {i} alt text: {alt_text}")
+
+            if not alt_text:
+                logger.debug(f"Shape {i} missing alt text")
+                image_name = docPr.get('name', 'unnamed')
+                logger.debug(f"Creating issue for image: {image_name}")
+
+                message = f"Image '{image_name}' is missing alt text. Please add a descriptive alt text for accessibility."
+                logger.debug(f"Generated message: {message}")
+
+                results.add_issue(
+                    message=message,
+                    severity=Severity.ERROR
+                )
+                logger.debug(f"Added issue for image {image_name}")
+            else:
+                logger.debug(f"Shape {i} has alt text: {alt_text}")
+
+        logger.debug(f"Alt text check complete. Found {len(results.issues)} issues")
+        if results.issues:
+            logger.debug("Issues found:")
+            for issue in results.issues:
+                logger.debug(f"  - {issue['message']}")
 
     def _check_color_contrast(self, content: Union[List[str], DocxDocument], results: DocumentCheckResult):
         """Check for potential color contrast issues."""

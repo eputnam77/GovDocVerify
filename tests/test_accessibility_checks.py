@@ -7,14 +7,114 @@ from tests.test_base import TestBase
 from documentcheckertool.checks.accessibility_checks import AccessibilityChecks
 from documentcheckertool.models import DocumentCheckResult
 from documentcheckertool.utils.terminology_utils import TerminologyManager
+from docx import Document
+import logging
+
+logger = logging.getLogger(__name__)
 
 class TestAccessibilityChecks(TestBase):
     """Test cases for accessibility checking functionality."""
 
+    @classmethod
+    def setUpClass(cls):
+        """Set up test class with shared resources."""
+        super().setUpClass()
+        cls.terminology_manager = TerminologyManager()
+        cls.accessibility_checks = AccessibilityChecks(cls.terminology_manager)
+        logger.debug("Initialized shared test resources")
+
     def setUp(self):
+        """Set up individual test cases."""
         super().setUp()
-        self.terminology_manager = TerminologyManager()
-        self.accessibility_checks = AccessibilityChecks(self.terminology_manager)
+        # Create a temporary test image
+        self.test_image_path = Path('test_image.png')
+        try:
+            with open(self.test_image_path, 'wb') as f:
+                f.write(b'\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01\x08\x06\x00\x00\x00\x1f\x15\xc4\x89\x00\x00\x00\nIDATx\x9cc\x00\x01\x00\x00\x05\x00\x01\r\n-\xb4\x00\x00\x00\x00IEND\xaeB`\x82')
+            logger.debug(f"Created test image at {self.test_image_path}")
+        except Exception as e:
+            logger.error(f"Failed to create test image: {e}")
+            raise
+
+    def tearDown(self):
+        """Clean up after individual test cases."""
+        super().tearDown()
+        # Clean up test image
+        try:
+            if self.test_image_path.exists():
+                self.test_image_path.unlink()
+                logger.debug(f"Cleaned up test image at {self.test_image_path}")
+        except Exception as e:
+            logger.error(f"Failed to clean up test image: {e}")
+            # Don't raise here to avoid masking test failures
+
+    def _add_image_with_properties(self, doc: Document, image_path: str, name: str = None, descr: str = None, title: str = None) -> None:
+        """Helper method to add an image with properties to a document."""
+        try:
+            p = doc.add_paragraph()
+            r = p.add_run()
+            logger.debug(f"Adding image {image_path} with name={name}, descr={descr}, title={title}")
+
+            # Add the picture
+            r.add_picture(image_path)
+
+            # Get the inline shape that was just added
+            inline_shapes = r._element.xpath('.//w:drawing//wp:inline')
+            if not inline_shapes:
+                raise ValueError("No inline shape found after adding picture")
+            inline_shape = inline_shapes[0]
+            logger.debug(f"Found inline shape: {inline_shape}")
+
+            # Set properties
+            docPr = inline_shape.xpath('.//wp:docPr')
+            if not docPr:
+                raise ValueError("No docPr element found in inline shape")
+            docPr = docPr[0]
+
+            if name:
+                docPr.set('name', name)
+                logger.debug(f"Set name to {name}")
+            if descr:
+                docPr.set('descr', descr)
+                logger.debug(f"Set description to {descr}")
+            if title:
+                docPr.set('title', title)
+                logger.debug(f"Set title to {title}")
+        except Exception as e:
+            logger.error(f"Failed to add image with properties: {e}")
+            raise
+
+    def test_invalid_image_file(self):
+        """Test handling of invalid image files."""
+        logger.debug("Starting test_invalid_image_file")
+        doc = Document()
+
+        # Create an invalid image file
+        invalid_image = Path('invalid_image.png')
+        try:
+            with open(invalid_image, 'wb') as f:
+                f.write(b'invalid image data')
+
+            with self.assertRaises(Exception):
+                self._add_image_with_properties(doc, str(invalid_image))
+        finally:
+            if invalid_image.exists():
+                invalid_image.unlink()
+                logger.debug("Cleaned up invalid test image")
+
+    def test_long_image_name(self):
+        """Test handling of very long image names."""
+        logger.debug("Starting test_long_image_name")
+        doc = Document()
+
+        long_name = 'x' * 1000  # Very long name
+        self._add_image_with_properties(doc, str(self.test_image_path), name=long_name)
+
+        results = DocumentCheckResult()
+        self.accessibility_checks._check_alt_text(doc, results)
+
+        self.assertEqual(len(results.issues), 1)
+        self.assertIn(long_name[:100], results.issues[0]['message'])  # Check truncated name
 
     def test_readability(self):
         """Test readability checking."""
@@ -94,6 +194,94 @@ class TestAccessibilityChecks(TestBase):
         self.accessibility_checks._check_color_contrast(content.split('\n'), results)
         self.assertFalse(results.success)
         self.assert_issue_contains(results, "Insufficient color contrast")
+
+    def test_image_alt_text_filtering(self):
+        """Test filtering of watermarks and table graphics from alt text checks."""
+        logger.debug("Starting test_image_alt_text_filtering")
+        doc = Document()
+
+        # Add a regular image
+        self._add_image_with_properties(doc, str(self.test_image_path), name='content_image')
+        logger.debug("Added regular image")
+
+        # Add a watermark
+        self._add_image_with_properties(doc, str(self.test_image_path), name='watermark')
+        logger.debug("Added watermark")
+
+        # Add a table graphic
+        self._add_image_with_properties(doc, str(self.test_image_path), name='table_border')
+        logger.debug("Added table graphic")
+
+        results = DocumentCheckResult()
+        self.accessibility_checks._check_alt_text(doc, results)
+        logger.debug(f"Check results: {results.issues}")
+
+        # Should only flag the regular image for missing alt text
+        self.assertEqual(len(results.issues), 1, "Expected exactly one issue for the regular image")
+        logger.debug(f"Found {len(results.issues)} issues as expected")
+
+        # Check message content
+        message = results.issues[0]['message']
+        logger.debug(f"Checking message content: {message}")
+        self.assertIn('content_image', message, "Message should contain the image name")
+        self.assertIn('missing alt text', message.lower(), "Message should indicate missing alt text")
+        logger.debug("Message content checks passed")
+
+    def test_image_alt_text_with_name(self):
+        """Test alt text check includes image name in context."""
+        logger.debug("Starting test_image_alt_text_with_name")
+        doc = Document()
+
+        self._add_image_with_properties(doc, str(self.test_image_path), name='test_image')
+        logger.debug("Added image with name")
+
+        results = DocumentCheckResult()
+        self.accessibility_checks._check_alt_text(doc, results)
+        logger.debug(f"Check results: {results.issues}")
+
+        self.assertEqual(len(results.issues), 1)
+        self.assertIn('test_image', results.issues[0]['message'])
+        logger.debug("Test completed successfully")
+
+    def test_image_alt_text_with_alt(self):
+        """Test that images with alt text are not flagged."""
+        logger.debug("Starting test_image_alt_text_with_alt")
+        doc = Document()
+
+        self._add_image_with_properties(
+            doc,
+            str(self.test_image_path),
+            name='test_image',
+            descr='Test image description'
+        )
+        logger.debug("Added image with alt text")
+
+        results = DocumentCheckResult()
+        self.accessibility_checks._check_alt_text(doc, results)
+        logger.debug(f"Check results: {results.issues}")
+
+        self.assertEqual(len(results.issues), 0)
+        logger.debug("Test completed successfully")
+
+    def test_image_alt_text_with_title(self):
+        """Test that images with title but no description are not flagged."""
+        logger.debug("Starting test_image_alt_text_with_title")
+        doc = Document()
+
+        self._add_image_with_properties(
+            doc,
+            str(self.test_image_path),
+            name='test_image',
+            title='Test image title'
+        )
+        logger.debug("Added image with title")
+
+        results = DocumentCheckResult()
+        self.accessibility_checks._check_alt_text(doc, results)
+        logger.debug(f"Check results: {results.issues}")
+
+        self.assertEqual(len(results.issues), 0)
+        logger.debug("Test completed successfully")
 
 if __name__ == '__main__':
     unittest.main()
