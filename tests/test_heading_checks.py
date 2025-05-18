@@ -151,5 +151,44 @@ class TestHeadingChecks:
         assert result.success is False
         assert any("should be uppercase" in issue["message"] for issue in result.issues)
 
+    def test_document_type_matching(self):
+        """Test document type matching with different case variations."""
+        doc = [
+            "1. PURPOSE",
+            "2. BACKGROUND",
+            "3. DEFINITIONS",
+            "4. APPLICABILITY"
+        ]
+
+        # Test with mixed case
+        result = self.heading_checks.check_heading_title(doc, "Advisory Circular")
+        assert result.success is True
+        assert len(result.issues) == 0
+        assert result.details['document_type'] == 'ADVISORY_CIRCULAR'  # Verify correct type was found
+
+        # Test with lowercase
+        result = self.heading_checks.check_heading_title(doc, "advisory circular")
+        assert result.success is True
+        assert len(result.issues) == 0
+        assert result.details['document_type'] == 'ADVISORY_CIRCULAR'
+
+        # Test with uppercase
+        result = self.heading_checks.check_heading_title(doc, "ADVISORY CIRCULAR")
+        assert result.success is True
+        assert len(result.issues) == 0
+        assert result.details['document_type'] == 'ADVISORY_CIRCULAR'
+
+        # Test with extra spaces
+        result = self.heading_checks.check_heading_title(doc, "  Advisory  Circular  ")
+        assert result.success is True
+        assert len(result.issues) == 0
+        assert result.details['document_type'] == 'ADVISORY_CIRCULAR'
+
+        # Test with invalid document type
+        result = self.heading_checks.check_heading_title(doc, "Invalid Type")
+        assert result.success is True  # Should not fail, just return empty config
+        assert len(result.issues) == 0
+        assert result.details['document_type'] == 'Invalid Type'  # Should preserve original type
+
 if __name__ == '__main__':
     pytest.main()

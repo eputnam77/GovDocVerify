@@ -29,12 +29,26 @@ class HeadingChecks(BaseChecker):
 
     def _get_doc_type_config(self, doc_type: str) -> Tuple[Dict, str]:
         """Get configuration for document type."""
-        normalized_type = doc_type.strip().lower()
+        # First normalize spaces (replace multiple spaces with single space)
+        normalized = ' '.join(doc_type.split())
+        # Then normalize to uppercase and replace single space with underscore
+        normalized_type = normalized.upper().replace(' ', '_')
         doc_type_configs = self.terminology_manager.terminology_data.get('document_types', {})
+
+        logger.debug(f"Input document type: '{doc_type}'")
+        logger.debug(f"After space normalization: '{normalized}'")
+        logger.debug(f"Final normalized type: '{normalized_type}'")
+        logger.debug(f"Available document types: {list(doc_type_configs.keys())}")
+
         for known_type, config in doc_type_configs.items():
-            if known_type.lower() == normalized_type:
-                return config, known_type
-        return {}, doc_type
+            logger.debug(f"Comparing '{known_type}' with '{normalized_type}'")
+            if known_type == normalized_type:  # Direct comparison since both are uppercase with underscores
+                logger.debug(f"Found matching document type config for: {known_type}")
+                return config, normalized_type  # Return normalized type for valid types
+
+        logger.warning(f"No matching document type config found for: {doc_type}")
+        # For invalid types, return the original input (just normalized spaces)
+        return {}, normalized  # Return space-normalized but case-preserved version
 
     def validate_input(self, doc: List[str]) -> bool:
         """Validate document input."""
@@ -44,12 +58,18 @@ class HeadingChecks(BaseChecker):
     def check_heading_title(self, doc: List[str], doc_type: str) -> DocumentCheckResult:
         """Check heading titles for validity."""
         doc_type_config, normalized_type = self._get_doc_type_config(doc_type)
+        logger.debug(f"Document type config: {doc_type_config}")
+        logger.debug(f"Normalized type: {normalized_type}")
+
         if doc_type_config.get('skip_title_check', False):
             logger.info(f"Skipping title check for document type: {doc_type}")
             return DocumentCheckResult(
                 success=True,
                 issues=[],
-                details={'message': f'Title check skipped for document type: {doc_type}'}
+                details={
+                    'message': f'Title check skipped for document type: {doc_type}',
+                    'document_type': normalized_type  # Use normalized type
+                }
             )
 
         required_headings = doc_type_config.get('required_headings', [])
@@ -57,9 +77,11 @@ class HeadingChecks(BaseChecker):
         headings_found = set()
 
         logger.info(f"Starting heading title check for document type: {doc_type}")
+        logger.debug(f"Required headings: {required_headings}")
 
         # Get heading words from terminology data
         heading_words = self.terminology_manager.terminology_data.get('heading_words', [])
+        logger.debug(f"Available heading words: {heading_words}")
 
         for i, line in enumerate(doc, 1):
             logger.debug(f"Checking line {i} for heading format: {line}")
@@ -116,11 +138,12 @@ class HeadingChecks(BaseChecker):
         details = {
             'found_headings': list(headings_found),
             'required_headings': required_headings,
-            'document_type': normalized_type,
+            'document_type': normalized_type,  # Use normalized type consistently
             'missing_count': len(missing_headings) if required_headings else 0
         }
 
         logger.info(f"Heading title check completed. Found {len(issues)} issues")
+        logger.debug(f"Result details: {details}")
         return DocumentCheckResult(
             success=len(issues) == 0,
             issues=issues,
