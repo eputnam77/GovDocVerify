@@ -103,3 +103,42 @@ class DocumentCheckResult:
             'issues': self.issues,
             'details': self.details
         }
+
+@dataclass
+class VisibilitySettings:
+    """Settings for controlling visibility of different check categories."""
+    show_readability: bool = True
+    show_paragraph_length: bool = True
+    show_terminology: bool = True
+    show_headings: bool = True
+    show_structure: bool = True
+    show_format: bool = True
+    show_accessibility: bool = True
+    show_document_status: bool = True
+
+    def to_dict(self) -> Dict[str, bool]:
+        """Convert settings to dictionary format."""
+        return {
+            'readability': self.show_readability,
+            'paragraph_length': self.show_paragraph_length,
+            'terminology': self.show_terminology,
+            'headings': self.show_headings,
+            'structure': self.show_structure,
+            'format': self.show_format,
+            'accessibility': self.show_accessibility,
+            'document_status': self.show_document_status
+        }
+
+    @classmethod
+    def from_dict(cls, settings: Dict[str, bool]) -> 'VisibilitySettings':
+        """Create settings from dictionary format."""
+        return cls(
+            show_readability=settings.get('readability', True),
+            show_paragraph_length=settings.get('paragraph_length', True),
+            show_terminology=settings.get('terminology', True),
+            show_headings=settings.get('headings', True),
+            show_structure=settings.get('structure', True),
+            show_format=settings.get('format', True),
+            show_accessibility=settings.get('accessibility', True),
+            show_document_status=settings.get('document_status', True)
+        )

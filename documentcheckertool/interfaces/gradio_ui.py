@@ -2,7 +2,7 @@ import gradio as gr
 from documentcheckertool.document_checker import FAADocumentChecker
 from documentcheckertool.utils.formatting import ResultFormatter, FormatStyle
 from documentcheckertool.utils.security import validate_file, SecurityError
-from documentcheckertool.models import DocumentCheckResult, Severity, DocumentType
+from documentcheckertool.models import DocumentCheckResult, Severity, DocumentType, VisibilitySettings
 from documentcheckertool.constants import DOCUMENT_TYPES
 import logging
 import tempfile
@@ -21,6 +21,9 @@ GRADIO_VERSION = pkg_resources.get_distribution('gradio').version
 
 def create_interface():
     """Create and configure the Gradio interface."""
+
+    # Initialize visibility settings
+    visibility_settings = VisibilitySettings()
 
     # Base CSS styles for the entire interface
     custom_css = """
@@ -114,6 +117,25 @@ def create_interface():
         border-radius: 8px;
         box-shadow: 0 1px 3px rgba(0,0,0,0.1);
     }
+
+    /* Visibility controls styling */
+    .visibility-controls {
+        background: #f8f9fa;
+        border-radius: 8px;
+        padding: 15px;
+        margin-bottom: 20px;
+    }
+
+    .visibility-controls h3 {
+        color: #0056b3;
+        margin-bottom: 15px;
+    }
+
+    .visibility-controls .checkbox-group {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 10px;
+    }
     """
 
     template_types = ["Short AC template AC", "Long AC template AC"]
@@ -179,6 +201,52 @@ def create_interface():
                                         info="Only applicable for Advisory Circulars",
                                         elem_classes="gr-box gr-padded"
                                     )
+
+                                    with gr.Group(elem_classes="visibility-controls"):
+                                        gr.Markdown("### 📊 Visibility Controls")
+                                        with gr.Row():
+                                            with gr.Column():
+                                                show_readability = gr.Checkbox(
+                                                    label="Readability Metrics",
+                                                    value=True,
+                                                    info="Show readability metrics and scores"
+                                                )
+                                                show_paragraph_length = gr.Checkbox(
+                                                    label="Paragraph & Sentence Length",
+                                                    value=True,
+                                                    info="Show paragraph and sentence length checks"
+                                                )
+                                                show_terminology = gr.Checkbox(
+                                                    label="Terminology Checks",
+                                                    value=True,
+                                                    info="Show terminology and style checks"
+                                                )
+                                                show_headings = gr.Checkbox(
+                                                    label="Heading Checks",
+                                                    value=True,
+                                                    info="Show heading format and structure checks"
+                                                )
+                                            with gr.Column():
+                                                show_structure = gr.Checkbox(
+                                                    label="Structure Checks",
+                                                    value=True,
+                                                    info="Show document structure checks"
+                                                )
+                                                show_format = gr.Checkbox(
+                                                    label="Format Checks",
+                                                    value=True,
+                                                    info="Show formatting and style checks"
+                                                )
+                                                show_accessibility = gr.Checkbox(
+                                                    label="Accessibility Checks",
+                                                    value=True,
+                                                    info="Show accessibility compliance checks"
+                                                )
+                                                show_document_status = gr.Checkbox(
+                                                    label="Document Status Checks",
+                                                    value=True,
+                                                    info="Show document status and watermark checks"
+                                                )
 
                                     submit_btn = gr.Button(
                                         "🔍 Check Document",
@@ -294,85 +362,114 @@ def create_interface():
                                     logger.info(f"Total issues organized: {total_issues}")
                                     logger.debug(f"Final results dictionary structure: {json.dumps(results_dict, indent=2, default=str)}")
 
-                                    # Create a simple HTML output if no issues were found
-                                    if total_issues == 0:
-                                        formatted_results = """
-                                        <div style="color: #006400; text-align: center; padding: 20px; background-color: #f8f9fa; border-radius: 8px;">
-                                            <h2>✓ All checks passed successfully!</h2>
-                                            <p>No issues were found in your document.</p>
-                                        </div>
-                                        """
-                                    else:
-                                        # Create a basic HTML structure for the results
-                                        formatted_results = f"""
-                                        <div style="font-family: system-ui, -apple-system, sans-serif; max-width: 1200px; margin: 0 auto; padding: 20px;">
-                                            <h1 style="color: #0056b3; text-align: center;">Document Check Results</h1>
+                                    # Filter results based on visibility settings
+                                    filtered_results = {}
+                                    for category, category_results in results_dict.items():
+                                        if getattr(visibility_settings, f"show_{category}", True):
+                                            filtered_results[category] = category_results
+
+                                    # Generate summary counts
+                                    summary = {
+                                        'total': total_issues,
+                                        'by_category': {}
+                                    }
+
+                                    for category, category_results in results_dict.items():
+                                        category_issues = sum(
+                                            len(result.get('issues', []))
+                                            for result in category_results.values()
+                                        )
+                                        summary['by_category'][category] = category_issues
+
+                                    # Format results with visibility controls
+                                    formatted_results = f"""
+                                    <div style="font-family: system-ui, -apple-system, sans-serif; max-width: 1200px; margin: 0 auto; padding: 20px;">
+                                        <h1 style="color: #0056b3; text-align: center;">Document Check Results</h1>
+
+                                        <!-- Summary Section -->
+                                        <div style="margin-bottom: 40px; padding: 20px; background-color: #f8f9fa; border-radius: 8px;">
+                                            <h2 style="color: #0056b3; margin-bottom: 20px; border-bottom: 2px solid #0056b3; padding-bottom: 10px;">
+                                                Summary
+                                            </h2>
                                             <p style="color: #856404; text-align: center;">Found {total_issues} issues that need attention:</p>
-                                            <div style="margin-top: 20px;">
-                                        """
+                                            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-top: 20px;">
+                                    """
 
-                                        # Process each category
-                                        for category, category_results in results_dict.items():
-                                            if category_results:  # Only show categories that have results
-                                                formatted_results += f"""
-                                                <div style="margin-bottom: 40px; padding: 20px; background-color: #f8f9fa; border-radius: 8px;">
-                                                    <h2 style="color: #0056b3; margin-bottom: 20px; border-bottom: 2px solid #0056b3; padding-bottom: 10px;">
-                                                        {category.replace('_', ' ').title()}
-                                                    </h2>
-                                                """
-
-                                                # Process each checker in the category
-                                                for check_name, result in category_results.items():
-                                                    if result['issues']:
-                                                        formatted_results += f"""
-                                                        <div style="margin-bottom: 30px; padding: 20px; background-color: #ffffff; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-                                                            <h3 style="color: #0056b3; margin-bottom: 15px;">■ {check_name.replace('_', ' ').title()}</h3>
-                                                            <ul style="list-style-type: none; padding-left: 20px;">
-                                                        """
-
-                                                        for issue in result['issues']:
-                                                            severity = issue.get('severity', '')
-                                                            message = issue.get('message', '')
-                                                            line = issue.get('line_number')
-                                                            line_info = f" (Line {line})" if line is not None else ""
-
-                                                            # Format the issue message with proper HTML and severity indicator
-                                                            severity_indicator = ""
-                                                            if severity == Severity.ERROR:
-                                                                severity_indicator = '<span style="color: #721c24; font-weight: bold;">[ERROR]</span> '
-                                                            elif severity == Severity.WARNING:
-                                                                severity_indicator = '<span style="color: #856404; font-weight: bold;">[WARNING]</span> '
-                                                            else:
-                                                                severity_indicator = '<span style="color: #0c5460; font-weight: bold;">[INFO]</span> '
-
-                                                            formatted_results += f"""
-                                                            <li style="margin-bottom: 8px;">
-                                                                {severity_indicator}{message}{line_info}
-                                                            </li>
-                                                            """
-
-                                                        formatted_results += """
-                                                            </ul>
-                                                        </div>
-                                                        """
-
-                                                formatted_results += """
+                                    for category, count in summary['by_category'].items():
+                                        if count > 0:
+                                            formatted_results += f"""
+                                                <div style="background: white; padding: 15px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+                                                    <h3 style="color: #0056b3; margin: 0 0 10px 0;">{category.replace('_', ' ').title()}</h3>
+                                                    <p style="margin: 0; font-size: 1.2em; color: #dc3545;">{count} issues</p>
                                                 </div>
-                                                """
+                                            """
 
-                                        formatted_results += """
+                                    formatted_results += """
                                             </div>
                                         </div>
-                                        """
 
-                                        logger.debug(f"Formatted results length: {len(formatted_results)}")
-                                        logger.debug(f"Formatted results preview: {formatted_results[:500]}...")
+                                        <!-- Detailed Results -->
+                                    """
+
+                                    # Process each category with visibility filtering
+                                    for category, category_results in filtered_results.items():
+                                        if category_results:  # Only show categories that have results
+                                            formatted_results += f"""
+                                            <div style="margin-bottom: 40px; padding: 20px; background-color: #f8f9fa; border-radius: 8px;">
+                                                <h2 style="color: #0056b3; margin-bottom: 20px; border-bottom: 2px solid #0056b3; padding-bottom: 10px;">
+                                                    {category.replace('_', ' ').title()}
+                                                </h2>
+                                            """
+
+                                            # Process each checker in the category
+                                            for check_name, result in category_results.items():
+                                                if result['issues']:
+                                                    formatted_results += f"""
+                                                    <div style="margin-bottom: 30px; padding: 20px; background-color: #ffffff; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                                                        <h3 style="color: #0056b3; margin-bottom: 15px;">■ {check_name.replace('_', ' ').title()}</h3>
+                                                        <ul style="list-style-type: none; padding-left: 20px;">
+                                                    """
+
+                                                    for issue in result['issues']:
+                                                        severity = issue.get('severity', '')
+                                                        message = issue.get('message', '')
+                                                        line = issue.get('line_number')
+                                                        line_info = f" (Line {line})" if line is not None else ""
+
+                                                        # Format the issue message with proper HTML and severity indicator
+                                                        severity_indicator = ""
+                                                        if severity == Severity.ERROR:
+                                                            severity_indicator = '<span style="color: #721c24; font-weight: bold;">[ERROR]</span> '
+                                                        elif severity == Severity.WARNING:
+                                                            severity_indicator = '<span style="color: #856404; font-weight: bold;">[WARNING]</span> '
+                                                        else:
+                                                            severity_indicator = '<span style="color: #0c5460; font-weight: bold;">[INFO]</span> '
+
+                                                        formatted_results += f"""
+                                                        <li style="margin-bottom: 8px;">
+                                                            {severity_indicator}{message}{line_info}
+                                                        </li>
+                                                        """
+
+                                                    formatted_results += """
+                                                        </ul>
+                                                    </div>
+                                                    """
+
+                                            formatted_results += """
+                                            </div>
+                                            """
+
+                                    formatted_results += "</div>"
 
                                     # Store the results dictionary for report generation
                                     global _last_results
-                                    _last_results = results_dict
+                                    _last_results = {
+                                        'results': results_dict,
+                                        'visibility': visibility_settings.to_dict(),
+                                        'summary': summary
+                                    }
 
-                                    # Return all required values for Gradio
                                     return formatted_results, gr.update(visible=True), gr.update(visible=True), None
 
                                 finally:
@@ -397,85 +494,152 @@ def create_interface():
                         def generate_report_file(results_data, doc_type_value, format="html"):
                             """Generate downloadable report file."""
                             try:
-                                global _last_results
                                 if not _last_results:
-                                    logger.warning("No results data available for report generation")
+                                    logger.error("No results available for report generation")
                                     return None
 
-                                logger.debug(f"Generating report with format: {format}")
-                                logger.debug(f"Using stored results data")
+                                # Extract results and visibility settings
+                                results_dict = _last_results['results']
+                                visibility_settings = VisibilitySettings.from_dict(_last_results['visibility'])
+                                summary = _last_results['summary']
 
-                                # Create downloads directory if it doesn't exist
-                                downloads_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "downloads")
-                                os.makedirs(downloads_dir, exist_ok=True)
+                                # Create a temporary file
+                                with tempfile.NamedTemporaryFile(delete=False, suffix=f'.{format}') as temp_file:
+                                    filepath = temp_file.name
 
-                                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-                                filename = f"document_check_report_{timestamp}.{format}"
-                                filepath = os.path.join(downloads_dir, filename)
+                                # Filter results based on visibility settings
+                                filtered_results = {}
+                                for category, category_results in results_dict.items():
+                                    if getattr(visibility_settings, f"show_{category}", True):
+                                        filtered_results[category] = category_results
 
-                                formatter = ResultFormatter(style=FormatStyle.HTML)
-                                formatted_results = formatter.format_results(_last_results, doc_type_value)
-                                logger.debug(f"Generated formatted results length: {len(formatted_results)}")
-
-                                if format == "pdf":
-                                    # Convert HTML to PDF using pdfkit
-                                    try:
-                                        import pdfkit
-                                        pdfkit.from_string(formatted_results, filepath)
-                                        logger.info(f"PDF report saved to: {filepath}")
-                                        return filepath
-                                    except ImportError:
-                                        logger.error("pdfkit not installed. Please install it with: pip install pdfkit")
-                                        return None
-                                    except Exception as e:
-                                        logger.error(f"Error generating PDF: {str(e)}")
-                                        return None
-                                elif format == "docx":
-                                    # Convert HTML to DOCX using python-docx
+                                # Format results based on output format
+                                if format == "docx":
                                     try:
                                         from docx import Document
-                                        from docx.shared import Inches
-                                        from bs4 import BeautifulSoup
+                                        from docx.shared import Inches, Pt, RGBColor
+                                        from docx.enum.text import WD_ALIGN_PARAGRAPH
 
                                         doc = Document()
-                                        soup = BeautifulSoup(formatted_results, 'html.parser')
 
                                         # Add title
-                                        title = soup.find('h1')
-                                        if title:
-                                            doc.add_heading(title.text, 0)
+                                        title = doc.add_heading('Document Check Results', 0)
+                                        title.alignment = WD_ALIGN_PARAGRAPH.CENTER
 
-                                        # Add total issues
-                                        total_issues = soup.find('p', {'style': 'color: #856404;'})
-                                        if total_issues:
-                                            doc.add_paragraph(total_issues.text)
+                                        # Add summary section
+                                        doc.add_heading('Summary', level=1)
+                                        summary_para = doc.add_paragraph()
+                                        summary_para.add_run(f'Found {summary["total"]} issues that need attention:').bold = True
 
-                                        # Process each category
-                                        for category in soup.find_all('div', {'style': 'margin-bottom: 40px;'}):
-                                            # Add category heading
-                                            category_title = category.find('h2')
-                                            if category_title:
-                                                doc.add_heading(category_title.text.strip(), 1)
+                                        # Add category summaries
+                                        for category, count in summary['by_category'].items():
+                                            if count > 0:
+                                                doc.add_paragraph(
+                                                    f'{category.replace("_", " ").title()}: {count} issues',
+                                                    style='List Bullet'
+                                                )
 
-                                            # Process each check
-                                            for check in category.find_all('div', {'style': 'margin-bottom: 30px;'}):
-                                                check_title = check.find('h3')
-                                                if check_title:
-                                                    doc.add_heading(check_title.text.strip(), 2)
+                                        # Add detailed results
+                                        for category, category_results in filtered_results.items():
+                                            if category_results:
+                                                doc.add_heading(category.replace('_', ' ').title(), level=1)
 
-                                                # Add issues
-                                                for issue in check.find_all('li'):
-                                                    doc.add_paragraph(issue.text.strip(), style='List Bullet')
+                                                for check_name, result in category_results.items():
+                                                    if result.get('issues'):
+                                                        doc.add_heading(check_name.replace('_', ' ').title(), level=2)
+
+                                                        for issue in result['issues']:
+                                                            p = doc.add_paragraph(style='List Bullet')
+                                                            p.add_run(issue['message'])
+                                                            if issue.get('line_number'):
+                                                                p.add_run(f' (Line {issue["line_number"]})').italic = True
 
                                         doc.save(filepath)
                                         logger.info(f"DOCX report saved to: {filepath}")
                                         return filepath
 
                                     except ImportError:
-                                        logger.error("Required packages not installed. Please install with: pip install python-docx beautifulsoup4")
+                                        logger.error("python-docx not installed. Please install it with: pip install python-docx")
                                         return None
                                     except Exception as e:
                                         logger.error(f"Error generating DOCX: {str(e)}")
+                                        return None
+
+                                elif format == "pdf":
+                                    try:
+                                        import pdfkit
+
+                                        # Create HTML content
+                                        html_content = f"""
+                                        <html>
+                                        <head>
+                                            <style>
+                                                body {{ font-family: Arial, sans-serif; margin: 40px; }}
+                                                h1 {{ color: #0056b3; text-align: center; }}
+                                                h2 {{ color: #0056b3; border-bottom: 2px solid #0056b3; padding-bottom: 10px; }}
+                                                .summary {{ background: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 30px; }}
+                                                .category {{ margin-bottom: 30px; }}
+                                                .issue {{ margin: 10px 0; padding-left: 20px; }}
+                                            </style>
+                                        </head>
+                                        <body>
+                                            <h1>Document Check Results</h1>
+
+                                            <div class="summary">
+                                                <h2>Summary</h2>
+                                                <p>Found {summary['total']} issues that need attention:</p>
+                                                <ul>
+                                        """
+
+                                        for category, count in summary['by_category'].items():
+                                            if count > 0:
+                                                html_content += f"""
+                                                    <li>{category.replace('_', ' ').title()}: {count} issues</li>
+                                                """
+
+                                        html_content += """
+                                                </ul>
+                                            </div>
+                                        """
+
+                                        for category, category_results in filtered_results.items():
+                                            if category_results:
+                                                html_content += f"""
+                                                <div class="category">
+                                                    <h2>{category.replace('_', ' ').title()}</h2>
+                                                """
+
+                                                for check_name, result in category_results.items():
+                                                    if result.get('issues'):
+                                                        html_content += f"""
+                                                        <h3>{check_name.replace('_', ' ').title()}</h3>
+                                                        <ul>
+                                                        """
+
+                                                        for issue in result['issues']:
+                                                            line_info = f" (Line {issue['line_number']})" if issue.get('line_number') else ""
+                                                            html_content += f"""
+                                                            <li class="issue">{issue['message']}{line_info}</li>
+                                                            """
+
+                                                        html_content += "</ul>"
+
+                                                html_content += "</div>"
+
+                                        html_content += """
+                                        </body>
+                                        </html>
+                                        """
+
+                                        pdfkit.from_string(html_content, filepath)
+                                        logger.info(f"PDF report saved to: {filepath}")
+                                        return filepath
+
+                                    except ImportError:
+                                        logger.error("pdfkit not installed. Please install it with: pip install pdfkit")
+                                        return None
+                                    except Exception as e:
+                                        logger.error(f"Error generating PDF: {str(e)}")
                                         return None
                                 else:
                                     # Default to HTML

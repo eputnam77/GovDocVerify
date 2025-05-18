@@ -15,6 +15,7 @@ import logging
 from documentcheckertool.utils.terminology_utils import TerminologyManager
 from documentcheckertool.utils.text_utils import count_words, count_syllables, split_sentences
 import string
+from documentcheckertool.checks.check_registry import CheckRegistry
 
 logger = logging.getLogger(__name__)
 
@@ -26,6 +27,14 @@ class TerminologyChecks(BaseChecker):
         self.heading_words = terminology_manager.terminology_data.get('heading_words', [])
         logger.info("Initialized TerminologyChecks with terminology manager")
 
+    @CheckRegistry.register('terminology')
+    def check_document(self, document: Document, doc_type: str) -> DocumentCheckResult:
+        """Check document for terminology issues."""
+        results = DocumentCheckResult()
+        self.run_checks(document, doc_type, results)
+        return results
+
+    @CheckRegistry.register('terminology')
     def run_checks(self, document: Document, doc_type: str, results: DocumentCheckResult) -> None:
         """Run all terminology-related checks."""
         logger.info(f"Running terminology checks for document type: {doc_type}")
@@ -34,6 +43,7 @@ class TerminologyChecks(BaseChecker):
         self._check_consistency(text_content, results)
         self._check_forbidden_terms(text_content, results)
 
+    @CheckRegistry.register('terminology')
     def _check_consistency(self, paragraphs, results):
         """Check for consistent terminology usage."""
         for i, text in enumerate(paragraphs):
@@ -47,6 +57,7 @@ class TerminologyChecks(BaseChecker):
                             line_number=i+1
                         )
 
+    @CheckRegistry.register('terminology')
     def _check_forbidden_terms(self, paragraphs, results):
         """Check for forbidden or discouraged terms."""
         for i, text in enumerate(paragraphs):
@@ -58,6 +69,41 @@ class TerminologyChecks(BaseChecker):
                         severity=Severity.WARNING,
                         line_number=i+1
                     )
+
+    @CheckRegistry.register('terminology')
+    def check_text(self, text: str) -> DocumentCheckResult:
+        """Check the text for terminology-related issues."""
+        logger.debug(f"Running check_text in TerminologyChecks on text of length: {len(text)}")
+        result = DocumentCheckResult()
+        issues = []
+
+        # Split text into lines for line-by-line checking
+        lines = text.split('\n')
+        logger.debug(f"Split text into {len(lines)} lines")
+
+        # Check for forbidden terms
+        for i, line in enumerate(lines, 1):
+            for term, message in FORBIDDEN_TERMS.items():
+                if term in line.lower():
+                    issues.append({
+                        'message': message,
+                        'severity': Severity.WARNING
+                    })
+
+        # Check for inconsistent terminology
+        for i, line in enumerate(lines, 1):
+            for standard, variants in TERMINOLOGY_VARIANTS.items():
+                for variant in variants:
+                    if variant in line.lower():
+                        issues.append({
+                            'message': f'Inconsistent terminology: use "{standard}" instead of "{variant}"',
+                            'severity': Severity.WARNING
+                        })
+
+        # Add issues to the result
+        result.issues.extend(issues)
+        logger.debug(f"Terminology checks completed. Found {len(issues)} issues.")
+        return result
 
     def check(self, content: str) -> Dict[str, Any]:
         """

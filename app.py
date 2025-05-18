@@ -12,6 +12,7 @@ from documentcheckertool.utils.terminology_utils import TerminologyManager
 from documentcheckertool.document_checker import FAADocumentChecker
 from documentcheckertool.utils.formatting import ResultFormatter, FormatStyle
 import mimetypes
+from documentcheckertool.models import DocumentCheckResult, Severity, DocumentType, VisibilitySettings
 
 # Configure logging
 logging.basicConfig(
@@ -24,7 +25,7 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-def process_document(file_path: str, doc_type: str) -> str:
+def process_document(file_path: str, doc_type: str, visibility_settings: VisibilitySettings) -> str:
     """Process a document and return formatted results."""
     try:
         logger.info(f"Processing document of type: {doc_type}")
@@ -124,6 +125,18 @@ def main() -> int:
         parser.add_argument('--host', type=str, default='127.0.0.1', help='Server host')
         parser.add_argument('--port', type=int, default=7860, help='Server port')
 
+        # Add visibility control flags
+        visibility_group = parser.add_argument_group('Visibility Controls')
+        visibility_group.add_argument('--show-all', action='store_true', help='Show all sections (default)')
+        visibility_group.add_argument('--hide-readability', action='store_true', help='Hide readability metrics')
+        visibility_group.add_argument('--hide-paragraph-length', action='store_true', help='Hide paragraph and sentence length checks')
+        visibility_group.add_argument('--hide-terminology', action='store_true', help='Hide terminology checks')
+        visibility_group.add_argument('--hide-headings', action='store_true', help='Hide heading checks')
+        visibility_group.add_argument('--hide-structure', action='store_true', help='Hide structure checks')
+        visibility_group.add_argument('--hide-format', action='store_true', help='Hide format checks')
+        visibility_group.add_argument('--hide-accessibility', action='store_true', help='Hide accessibility checks')
+        visibility_group.add_argument('--hide-document-status', action='store_true', help='Hide document status checks')
+
         args = parser.parse_args()
 
         if args.debug:
@@ -137,7 +150,19 @@ def main() -> int:
                 return 1
 
             try:
-                results = process_document(args.file, args.type)
+                # Create visibility settings from CLI arguments
+                visibility_settings = VisibilitySettings(
+                    show_readability=not args.hide_readability,
+                    show_paragraph_length=not args.hide_paragraph_length,
+                    show_terminology=not args.hide_terminology,
+                    show_headings=not args.hide_headings,
+                    show_structure=not args.hide_structure,
+                    show_format=not args.hide_format,
+                    show_accessibility=not args.hide_accessibility,
+                    show_document_status=not args.hide_document_status
+                )
+
+                results = process_document(args.file, args.type, visibility_settings)
                 print(results)
                 return 0
             except Exception as e:

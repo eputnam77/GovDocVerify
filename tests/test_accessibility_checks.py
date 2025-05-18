@@ -5,12 +5,29 @@ import unittest
 from pathlib import Path
 from tests.test_base import TestBase
 from documentcheckertool.checks.accessibility_checks import AccessibilityChecks
-from documentcheckertool.models import DocumentCheckResult
+from documentcheckertool.models import DocumentCheckResult, Severity
 from documentcheckertool.utils.terminology_utils import TerminologyManager
 from docx import Document
 import logging
+import pytest
+from unittest.mock import Mock, patch
+from typing import List
 
 logger = logging.getLogger(__name__)
+
+@pytest.fixture
+def accessibility_checks():
+    return AccessibilityChecks()
+
+@pytest.fixture
+def mock_document():
+    doc = Mock(spec=Document)
+    doc.inline_shapes = []
+    return doc
+
+@pytest.fixture
+def mock_results():
+    return DocumentCheckResult()
 
 class TestAccessibilityChecks(TestBase):
     """Test cases for accessibility checking functionality."""
@@ -282,6 +299,265 @@ class TestAccessibilityChecks(TestBase):
 
         self.assertEqual(len(results.issues), 0)
         logger.debug("Test completed successfully")
+
+    def test_check_alt_text_with_invalid_type(self, accessibility_checks, mock_results):
+        """Test _check_alt_text with invalid content type."""
+        invalid_content = 123  # Not Document or List[str]
+
+        accessibility_checks._check_alt_text(invalid_content, mock_results)
+
+        assert not mock_results.success
+        assert len(mock_results.issues) == 1
+        assert "Invalid content type" in mock_results.issues[0]['message']
+        assert mock_results.issues[0]['severity'] == Severity.ERROR
+
+    def test_check_alt_text_with_document_no_shapes(self, accessibility_checks, mock_document, mock_results):
+        """Test _check_alt_text with Document containing no shapes."""
+        accessibility_checks._check_alt_text(mock_document, mock_results)
+
+        assert mock_results.success
+        assert len(mock_results.issues) == 0
+
+    def test_check_alt_text_with_document_missing_alt(self, accessibility_checks, mock_document, mock_results):
+        """Test _check_alt_text with Document containing images missing alt text."""
+        # Create mock shape with missing alt text
+        mock_shape = Mock()
+        mock_shape._inline = Mock()
+        mock_shape._inline.docPr = {'name': 'test_image'}
+        mock_document.inline_shapes = [mock_shape]
+
+        accessibility_checks._check_alt_text(mock_document, mock_results)
+
+        assert not mock_results.success
+        assert len(mock_results.issues) == 1
+        assert "missing alt text" in mock_results.issues[0]['message']
+        assert mock_results.issues[0]['severity'] == Severity.ERROR
+
+    def test_check_alt_text_with_text_content(self, accessibility_checks, mock_results):
+        """Test _check_alt_text with text content (List[str])."""
+        content = [
+            "Some text",
+            "![Missing Alt](image.jpg)",
+            "![With Alt](image.jpg)"
+        ]
+
+        accessibility_checks._check_alt_text(content, mock_results)
+
+        assert not mock_results.success
+        assert len(mock_results.issues) == 1
+        assert "missing alt text" in mock_results.issues[0]['message']
+        assert mock_results.issues[0]['severity'] == Severity.ERROR
+
+    def test_check_color_contrast_with_document(self, accessibility_checks, mock_document, mock_results):
+        """Test _check_color_contrast with Document content."""
+        mock_document.paragraphs = [
+            Mock(text="color: #000000; background-color: #FFFFFF"),  # Good contrast
+            Mock(text="color: #000000; background-color: #111111")   # Poor contrast
+        ]
+
+        accessibility_checks._check_color_contrast(mock_document, mock_results)
+
+        assert not mock_results.success
+        assert len(mock_results.issues) == 1
+        assert "Insufficient color contrast ratio" in mock_results.issues[0]['message']
+        assert mock_results.issues[0]['severity'] == Severity.ERROR
+
+    def test_check_heading_structure_with_document(self, accessibility_checks, mock_document, mock_results):
+        """Test _check_heading_structure with Document content."""
+        mock_document.paragraphs = [
+            Mock(style=Mock(name="Heading 2"), text="H2 Heading"),
+            Mock(style=Mock(name="Heading 3"), text="H3 Heading"),
+            Mock(style=Mock(name="Heading 4"), text="H4 Heading")
+        ]
+
+        accessibility_checks._check_heading_structure(mock_document, mock_results)
+
+        assert not mock_results.success
+        assert len(mock_results.issues) == 1
+        assert "missing a top-level heading" in mock_results.issues[0]['message']
+        assert mock_results.issues[0]['severity'] == Severity.ERROR
+
+    def test_check_heading_hierarchy_with_skipped_levels(self, accessibility_checks, mock_results):
+        """Test _check_heading_hierarchy with skipped heading levels."""
+        headings = [
+            ("H1", 1),
+            ("H3", 3),  # Skipped H2
+            ("H4", 4)
+        ]
+
+        accessibility_checks._check_heading_hierarchy(headings, mock_results)
+
+        assert not mock_results.success
+        assert len(mock_results.issues) == 1
+        assert "Heading level skipped" in mock_results.issues[0]['message']
+        assert mock_results.issues[0]['severity'] == Severity.ERROR
+
+    def test_check_hyperlinks_with_document(self, accessibility_checks, mock_document, mock_results):
+        """Test _check_hyperlinks with Document content containing non-descriptive links."""
+        mock_run = Mock()
+        mock_run._element.xpath.return_value = [True]
+        mock_run.text = "click here"
+        mock_document.paragraphs = [Mock(runs=[mock_run])]
+
+        accessibility_checks._check_hyperlinks(mock_document, mock_results)
+
+        assert not mock_results.success
+        assert len(mock_results.issues) == 1
+        assert "Non-descriptive link text" in mock_results.issues[0]['message']
+        assert mock_results.issues[0]['severity'] == Severity.WARNING
+
+    def test_check_hyperlinks_with_text_content(self, accessibility_checks, mock_results):
+        """Test _check_hyperlinks with text content containing non-descriptive links."""
+        content = [
+            "Some text with [click here](http://example.com)",
+            "Good link: [Learn about accessibility](http://example.com)"
+        ]
+
+        accessibility_checks._check_hyperlinks(content, mock_results)
+
+        assert not mock_results.success
+        assert len(mock_results.issues) == 1
+        assert "Non-descriptive link text" in mock_results.issues[0]['message']
+        assert mock_results.issues[0]['severity'] == Severity.WARNING
+
+    def test_check_alt_text_with_none_content(self, accessibility_checks, mock_results):
+        """Test _check_alt_text with None content."""
+        accessibility_checks._check_alt_text(None, mock_results)
+        assert not mock_results.success
+        assert len(mock_results.issues) == 1
+        assert "Invalid content type" in mock_results.issues[0]['message']
+        assert mock_results.issues[0]['severity'] == Severity.ERROR
+
+    def test_check_alt_text_with_empty_document(self, accessibility_checks, mock_document, mock_results):
+        """Test _check_alt_text with empty document."""
+        mock_document.inline_shapes = []
+        accessibility_checks._check_alt_text(mock_document, mock_results)
+        assert mock_results.success
+        assert len(mock_results.issues) == 0
+
+    def test_check_alt_text_with_invalid_shape(self, accessibility_checks, mock_document, mock_results):
+        """Test _check_alt_text with invalid shape object."""
+        mock_shape = Mock()
+        mock_shape._inline = None  # Invalid shape
+        mock_document.inline_shapes = [mock_shape]
+        accessibility_checks._check_alt_text(mock_document, mock_results)
+        assert mock_results.success
+        assert len(mock_results.issues) == 0
+
+    def test_check_color_contrast_with_none_content(self, accessibility_checks, mock_results):
+        """Test _check_color_contrast with None content."""
+        accessibility_checks._check_color_contrast(None, mock_results)
+        assert not mock_results.success
+        assert len(mock_results.issues) == 1
+        assert "Invalid content type" in mock_results.issues[0]['message']
+        assert mock_results.issues[0]['severity'] == Severity.ERROR
+
+    def test_check_color_contrast_with_empty_content(self, accessibility_checks, mock_results):
+        """Test _check_color_contrast with empty content."""
+        accessibility_checks._check_color_contrast([], mock_results)
+        assert mock_results.success
+        assert len(mock_results.issues) == 0
+
+    def test_check_color_contrast_with_invalid_colors(self, accessibility_checks, mock_results):
+        """Test _check_color_contrast with invalid color values."""
+        content = [
+            "color: #invalid; background-color: #FFFFFF",
+            "color: #000000; background-color: #invalid"
+        ]
+        accessibility_checks._check_color_contrast(content, mock_results)
+        assert mock_results.success
+        assert len(mock_results.issues) == 0
+
+    def test_check_heading_structure_with_none_content(self, accessibility_checks, mock_results):
+        """Test _check_heading_structure with None content."""
+        accessibility_checks._check_heading_structure(None, mock_results)
+        assert not mock_results.success
+        assert len(mock_results.issues) == 1
+        assert "Invalid content type" in mock_results.issues[0]['message']
+        assert mock_results.issues[0]['severity'] == Severity.ERROR
+
+    def test_check_heading_structure_with_empty_content(self, accessibility_checks, mock_results):
+        """Test _check_heading_structure with empty content."""
+        accessibility_checks._check_heading_structure([], mock_results)
+        assert not mock_results.success
+        assert len(mock_results.issues) == 1
+        assert "missing a top-level heading" in mock_results.issues[0]['message']
+        assert mock_results.issues[0]['severity'] == Severity.ERROR
+
+    def test_check_heading_structure_with_invalid_style(self, accessibility_checks, mock_document, mock_results):
+        """Test _check_heading_structure with invalid heading style."""
+        mock_paragraph = Mock()
+        mock_paragraph.style = Mock(name="Invalid Style")
+        mock_document.paragraphs = [mock_paragraph]
+        accessibility_checks._check_heading_structure(mock_document, mock_results)
+        assert not mock_results.success
+        assert len(mock_results.issues) == 1
+        assert "missing a top-level heading" in mock_results.issues[0]['message']
+        assert mock_results.issues[0]['severity'] == Severity.ERROR
+
+    def test_check_heading_hierarchy_with_none_content(self, accessibility_checks, mock_results):
+        """Test _check_heading_hierarchy with None content."""
+        accessibility_checks._check_heading_hierarchy(None, mock_results)
+        assert not mock_results.success
+        assert len(mock_results.issues) == 1
+        assert "Invalid content type" in mock_results.issues[0]['message']
+        assert mock_results.issues[0]['severity'] == Severity.ERROR
+
+    def test_check_heading_hierarchy_with_empty_content(self, accessibility_checks, mock_results):
+        """Test _check_heading_hierarchy with empty content."""
+        accessibility_checks._check_heading_hierarchy([], mock_results)
+        assert mock_results.success
+        assert len(mock_results.issues) == 0
+
+    def test_check_heading_hierarchy_with_invalid_levels(self, accessibility_checks, mock_results):
+        """Test _check_heading_hierarchy with invalid heading levels."""
+        headings = [
+            ("H1", "invalid"),
+            ("H2", 2),
+            ("H3", 3)
+        ]
+        accessibility_checks._check_heading_hierarchy(headings, mock_results)
+        assert mock_results.success
+        assert len(mock_results.issues) == 0
+
+    def test_check_hyperlinks_with_none_content(self, accessibility_checks, mock_results):
+        """Test _check_hyperlinks with None content."""
+        accessibility_checks._check_hyperlinks(None, mock_results)
+        assert not mock_results.success
+        assert len(mock_results.issues) == 1
+        assert "Invalid content type" in mock_results.issues[0]['message']
+        assert mock_results.issues[0]['severity'] == Severity.ERROR
+
+    def test_check_hyperlinks_with_empty_content(self, accessibility_checks, mock_results):
+        """Test _check_hyperlinks with empty content."""
+        accessibility_checks._check_hyperlinks([], mock_results)
+        assert mock_results.success
+        assert len(mock_results.issues) == 0
+
+    def test_check_hyperlinks_with_invalid_links(self, accessibility_checks, mock_results):
+        """Test _check_hyperlinks with invalid link formats."""
+        content = [
+            "[Invalid link",
+            "Invalid link]",
+            "[Invalid link]",
+            "Invalid link](http://example.com)"
+        ]
+        accessibility_checks._check_hyperlinks(content, mock_results)
+        assert mock_results.success
+        assert len(mock_results.issues) == 0
+
+    def test_check_hyperlinks_with_malformed_urls(self, accessibility_checks, mock_results):
+        """Test _check_hyperlinks with malformed URLs."""
+        content = [
+            "[Click here](invalid url)",
+            "[Learn more](http://)",
+            "[Visit us](https://)"
+        ]
+        accessibility_checks._check_hyperlinks(content, mock_results)
+        assert not mock_results.success
+        assert len(mock_results.issues) == 1
+        assert "Non-descriptive link text" in mock_results.issues[0]['message']
+        assert mock_results.issues[0]['severity'] == Severity.WARNING
 
 if __name__ == '__main__':
     unittest.main()

@@ -1,19 +1,34 @@
 import logging
 from typing import Dict, List, Optional
+from docx import Document
 from ..utils.terminology_utils import TerminologyManager
 from ..models import DocumentCheckResult
+from documentcheckertool.checks.check_registry import CheckRegistry
+from documentcheckertool.checks.base_checker import BaseChecker
 
 logger = logging.getLogger(__name__)
 
-class AcronymChecker:
-    """Checks for proper acronym usage and definitions."""
+class AcronymChecker(BaseChecker):
+    """Class for checking acronym usage and definitions."""
 
-    def __init__(self):
-        """Initialize the acronym checker with terminology manager."""
-        logger.debug("Initializing AcronymChecker")
-        self.terminology_manager = TerminologyManager()
-        logger.debug("AcronymChecker initialized successfully")
+    def __init__(self, terminology_manager: Optional[TerminologyManager] = None):
+        """Initialize the acronym checker with terminology manager.
 
+        Args:
+            terminology_manager: Optional TerminologyManager instance. If not provided,
+                               a new instance will be created.
+        """
+        self.terminology_manager = terminology_manager or TerminologyManager()
+        logger.info("Initialized AcronymChecker")
+
+    @CheckRegistry.register('acronym')
+    def check_document(self, document: Document, doc_type: str) -> DocumentCheckResult:
+        """Check document for acronym issues."""
+        results = DocumentCheckResult()
+        self.run_checks(document, doc_type, results)
+        return results
+
+    @CheckRegistry.register('acronym')
     def check_text(self, content: str) -> DocumentCheckResult:
         """Check text for acronym issues.
 
@@ -35,6 +50,7 @@ class AcronymChecker:
                 issues=[{'error': f"Error during acronym check: {str(e)}"}]
             )
 
+    @CheckRegistry.register('acronym')
     def get_acronym_definition(self, acronym: str) -> Optional[str]:
         """Get the definition of an acronym.
 

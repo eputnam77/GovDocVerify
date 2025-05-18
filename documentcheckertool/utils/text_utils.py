@@ -187,7 +187,15 @@ def calculate_readability_metrics(word_count: int, sentence_count: int, syllable
             'gunning_fog_index': 0
         }
 
-def get_valid_words() -> Set[str]:
-    """Get valid words from terminology data."""
-    terminology_manager = TerminologyManager()
-    return set(terminology_manager.terminology_data['valid_words']['standard'])
+def get_valid_words(terminology_manager: Optional[TerminologyManager] = None) -> Set[str]:
+    """Get valid words from terminology data.
+
+    Args:
+        terminology_manager: Optional TerminologyManager instance. If not provided,
+                           a new instance will be created.
+
+    Returns:
+        Set of valid words
+    """
+    manager = terminology_manager or TerminologyManager()
+    return set(manager.terminology_data['valid_words']['standard'])

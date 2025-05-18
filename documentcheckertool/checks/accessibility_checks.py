@@ -1,4 +1,4 @@
-from typing import List, Dict, Any, Union
+from typing import List, Dict, Any, Union, Optional, Tuple
 from documentcheckertool.utils.text_utils import count_words, count_syllables, split_sentences
 from documentcheckertool.models import DocumentCheckResult, Severity
 from functools import wraps
@@ -13,6 +13,7 @@ from documentcheckertool.utils.formatting import ResultFormatter, FormatStyle
 from docx.document import Document as DocxDocument
 from documentcheckertool.checks.base_checker import BaseChecker
 from documentcheckertool.utils.terminology_utils import TerminologyManager
+from documentcheckertool.checks.check_registry import CheckRegistry
 
 logger = logging.getLogger(__name__)
 
@@ -26,25 +27,39 @@ def profile_performance(func):
 class AccessibilityChecks(BaseChecker):
     """Class for handling accessibility-related checks."""
 
-    def __init__(self, terminology_manager: TerminologyManager):
-        super().__init__(terminology_manager)
-        self.validation_config = terminology_manager.terminology_data.get('accessibility', {})
-        self.formatter = ResultFormatter(style=FormatStyle.HTML)
-        logger.info("Initialized AccessibilityChecks with terminology manager")
-        # Add passive voice patterns
-        self.passive_patterns = [
-            r'\b(?:am|is|are|was|were|be|been|being)\s+\w+ed\b',
-            r'\b(?:am|is|are|was|were|be|been|being)\s+\w+en\b',
-            r'\b(?:has|have|had)\s+been\s+\w+ed\b',
-            r'\b(?:has|have|had)\s+been\s+\w+en\b'
-        ]
-        self.passive_regex = re.compile('|'.join(self.passive_patterns), re.IGNORECASE)
-        logger.debug("Initialized passive voice detection patterns")
+    def __init__(self, terminology_manager: Optional[TerminologyManager] = None):
+        """Initialize the accessibility checks.
+
+        Args:
+            terminology_manager: Optional TerminologyManager instance. If not provided,
+                               a new instance will be created.
+        """
+        self.terminology_manager = terminology_manager or TerminologyManager()
+        logger.info("Initialized AccessibilityChecks")
+
+    @CheckRegistry.register('accessibility')
+    def check_document(self, document: Document, doc_type: str) -> DocumentCheckResult:
+        """Check document for accessibility issues."""
+        results = DocumentCheckResult()
+        self.run_checks(document, doc_type, results)
+        return results
+
+    @CheckRegistry.register('accessibility')
+    def check_text(self, text: str) -> DocumentCheckResult:
+        """Check text for accessibility issues."""
+        results = DocumentCheckResult()
+        # Convert text to Document-like structure for processing
+        lines = text.split('\n')
+        self._check_alt_text(lines, results)
+        self._check_color_contrast(lines, results)
+        self._check_heading_structure(lines, results)
+        return results
 
     def validate_input(self, doc: List[str]) -> bool:
         """Validate input document content."""
         return isinstance(doc, list) and all(isinstance(line, str) for line in doc)
 
+    @CheckRegistry.register('accessibility')
     def check_readability(self, doc: List[str]) -> DocumentCheckResult:
         """Check document readability using multiple metrics and plain language standards."""
         results = DocumentCheckResult()
@@ -157,6 +172,7 @@ class AccessibilityChecks(BaseChecker):
             })
 
     @profile_performance
+    @CheckRegistry.register('accessibility')
     def check_section_508_compliance(self, content: Union[str, List[str]]) -> DocumentCheckResult:
         """Perform Section 508 compliance checks focusing on image alt text and heading structure."""
         try:
@@ -224,76 +240,57 @@ class AccessibilityChecks(BaseChecker):
                 }]
             )
 
-    def _check_heading_hierarchy(self, headings, heading_issues):
+    @CheckRegistry.register('accessibility')
+    def _check_heading_hierarchy(self, headings: List[Tuple[str, int]], results: DocumentCheckResult) -> None:
         """Check heading hierarchy for accessibility issues."""
-        min_level = min(level for _, level in headings)
-        if min_level > 1:
-            heading_issues.append({
-                'severity': Severity.ERROR,
-                'type': 'missing_h1',
-                'message': 'Document should start with a Heading 1',
-                'context': f"First heading found is level {headings[0][1]}: '{headings[0][0]}'",
-                'recommendation': 'Add a Heading 1 at the start of the document'
-            })
+        logger.debug("Checking heading hierarchy")
+        if not headings:
+            return
 
-        previous_heading = None
+        # Check for missing H1
+        if not any(level == 1 for _, level in headings):
+            logger.warning("Document is missing a top-level heading (H1)")
+            results.add_issue(
+                message="Document is missing a top-level heading (H1)",
+                severity=Severity.ERROR
+            )
+
+        # Check for skipped levels
+        prev_level = 0
         for text, level in headings:
-            if previous_heading:
-                prev_text, prev_level = previous_heading
-                if level > prev_level + 1:
-                    missing_levels = list(range(prev_level + 1, level))
-                    heading_issues.append({
-                        'severity': Severity.ERROR,
-                        'type': 'skipped_levels',
-                        'message': f"Skipped heading level(s) {', '.join(map(str, missing_levels))} - Found H{level} '{text}' after H{prev_level} '{prev_text}'. Add H{prev_level + 1} before this section.",
-                    })
-            previous_heading = (text, level)
+            if level > prev_level + 1:
+                logger.warning(f"Heading level skipped: H{level} '{text}' follows H{prev_level}")
+                results.add_issue(
+                    message=f"Heading level skipped: H{level} '{text}' follows H{prev_level}",
+                    severity=Severity.ERROR
+                )
+            prev_level = level
 
-    def _check_hyperlinks(self, doc, hyperlink_issues):
-        """Check hyperlinks for accessibility and validity issues."""
+    @CheckRegistry.register('accessibility')
+    def _check_hyperlinks(self, content: Union[Document, List[str]], results: DocumentCheckResult) -> None:
+        """Check hyperlinks for accessibility issues."""
+        logger.debug("Checking hyperlinks for accessibility")
+        if isinstance(content, Document):
+            links = []
+            for paragraph in content.paragraphs:
+                for run in paragraph.runs:
+                    if run._element.xpath('.//w:hyperlink'):
+                        links.append(run.text)
+        else:
+            link_pattern = re.compile(r'\[([^\]]+)\]\(([^)]+)\)')
+            links = [match.group(1) for match in link_pattern.finditer('\n'.join(content))]
+
         non_descriptive = ['click here', 'here', 'link', 'this link', 'more',
                           'read more', 'learn more', 'click', 'see this',
                           'see here', 'go', 'url', 'this', 'page']
 
-        # First check for accessibility issues
-        for paragraph in doc.paragraphs:
-            hyperlinks = self._get_hyperlinks_from_paragraph(paragraph)
-
-            for hyperlink in hyperlinks:
-                link_text = self._get_hyperlink_text(hyperlink)
-                if not link_text:
-                    continue
-
-                self._check_hyperlink_text(link_text, non_descriptive, hyperlink_issues)
-
-                # Extract URL and check for validity
-                if hasattr(hyperlink, 'href'):
-                    url = hyperlink.href
-                    url_check_result = self._validate_url(url)
-                    if url_check_result:
-                        hyperlink_issues.append(url_check_result)
-
-    def _validate_url(self, url: str) -> Dict[str, str]:
-        """Validate a single URL."""
-        try:
-            response = requests.head(url, timeout=5, allow_redirects=True, headers={'User-Agent': 'CheckerTool/1.0'})
-            if response.status_code >= 400:
-                return {
-                    'category': 'hyperlink_validity',
-                    'severity': Severity.ERROR,
-                    'message': f"Broken link detected",
-                    'context': f"URL: {url} (HTTP {response.status_code})",
-                    'recommendation': 'Update or remove the broken link'
-                }
-        except requests.RequestException:
-            return {
-                'category': 'hyperlink_validity',
-                'severity': Severity.WARNING,
-                'message': f"Unable to verify link",
-                'context': f"URL: {url}",
-                'recommendation': 'Check the link manually'
-            }
-        return None
+        for link_text in links:
+            if link_text.lower() in non_descriptive:
+                logger.warning(f"Found non-descriptive link text: '{link_text}'")
+                results.add_issue(
+                    message=f"Non-descriptive link text: '{link_text}'. Use more descriptive text for better accessibility.",
+                    severity=Severity.WARNING
+                )
 
     def run_checks(self, document: Document, doc_type: str, results: DocumentCheckResult) -> None:
         """Run all accessibility-related checks."""
@@ -302,156 +299,119 @@ class AccessibilityChecks(BaseChecker):
         self._check_alt_text(document, results)
         self._check_color_contrast(document, results)
 
-    def _check_alt_text(self, document: Document, results: DocumentCheckResult):
+    @CheckRegistry.register('accessibility')
+    def _check_alt_text(self, content: Union[Document, List[str]], results: DocumentCheckResult) -> None:
         """Check for missing alt text in images."""
-        logger.debug("Starting alt text check")
-        total_shapes = len(document.inline_shapes)
-        logger.debug(f"Found {total_shapes} inline shapes to check")
+        logger.debug(f"Starting alt text check with content type: {type(content)}")
+        logger.debug(f"Content type details: {type(content).__name__}")
 
-        for i, shape in enumerate(document.inline_shapes, 1):
-            logger.debug(f"Processing shape {i}/{total_shapes}")
+        # Define valid types for isinstance check
+        valid_types = (Document, list)
+        logger.debug(f"Valid types for check: {[t.__name__ for t in valid_types]}")
 
-            # Skip if not a proper image shape
-            if not hasattr(shape, '_inline'):
-                logger.debug(f"Shape {i} has no _inline attribute, skipping")
-                continue
+        if not isinstance(content, valid_types):
+            error_msg = f"Invalid content type for alt text check: {type(content).__name__}. Expected one of: {[t.__name__ for t in valid_types]}"
+            logger.error(error_msg)
+            results.add_issue(
+                message=error_msg,
+                severity=Severity.ERROR
+            )
+            return
 
-            if not hasattr(shape._inline, 'docPr'):
-                logger.debug(f"Shape {i} has no docPr attribute, skipping")
-                continue
+        if isinstance(content, Document):
+            logger.debug("Processing Document type content")
+            shapes = content.inline_shapes
+            logger.debug(f"Found {len(shapes)} shapes in document")
 
-            # Get shape properties
-            docPr = shape._inline.docPr
-            shape_name = docPr.get('name', '').lower()
-            logger.debug(f"Shape {i} name: {shape_name}")
+            for i, shape in enumerate(shapes, 1):
+                if not hasattr(shape, '_inline') or not hasattr(shape._inline, 'docPr'):
+                    logger.debug(f"Skipping shape {i} - missing required attributes")
+                    continue
 
-            # Log all available properties
-            logger.debug(f"Shape {i} properties: {dict(docPr.items())}")
+                docPr = shape._inline.docPr
+                alt_text = docPr.get('descr') or docPr.get('title')
+                logger.debug(f"Shape {i} alt text: {alt_text}")
 
-            # Skip decorative elements
-            decorative_keywords = [
-                'watermark', 'background', 'decoration', 'border', 'line',
-                'divider', 'separator', 'icon', 'bullet', 'marker'
-            ]
-            if any(keyword in shape_name for keyword in decorative_keywords):
-                logger.debug(f"Shape {i} identified as decorative element: {shape_name}")
-                continue
+                if not alt_text:
+                    logger.warning(f"Image '{docPr.get('name', 'unnamed')}' is missing alt text")
+                    results.add_issue(
+                        message=f"Image '{docPr.get('name', 'unnamed')}' is missing alt text",
+                        severity=Severity.ERROR
+                    )
+        else:  # content is List[str]
+            logger.debug("Processing List[str] type content")
+            logger.debug(f"Content length: {len(content)} lines")
 
-            # Skip table-related graphics
-            table_keywords = ['table', 'grid', 'cell', 'header', 'footer']
-            if any(keyword in shape_name for keyword in table_keywords):
-                logger.debug(f"Shape {i} identified as table graphic: {shape_name}")
-                continue
+            # For text input, look for image references
+            image_pattern = re.compile(r'!\[(.*?)\]\((.*?)\)')
+            for i, line in enumerate(content, 1):
+                matches = list(image_pattern.finditer(line))
+                if matches:
+                    logger.debug(f"Found {len(matches)} image references in line {i}")
 
-            # Skip charts and diagrams
-            chart_keywords = ['chart', 'graph', 'diagram', 'plot', 'figure']
-            if any(keyword in shape_name for keyword in chart_keywords):
-                logger.debug(f"Shape {i} identified as chart/diagram: {shape_name}")
-                continue
+                for match in matches:
+                    alt_text = match.group(1)
+                    logger.debug(f"Line {i} image alt text: {alt_text}")
+                    if not alt_text:
+                        logger.warning(f"Image at line {i} is missing alt text")
+                        results.add_issue(
+                            message=f"Image at line {i} is missing alt text",
+                            severity=Severity.ERROR
+                        )
 
-            # Check for alt text
-            alt_text = docPr.get('descr') or docPr.get('title')
-            logger.debug(f"Shape {i} alt text: {alt_text}")
-
-            if not alt_text:
-                logger.debug(f"Shape {i} missing alt text")
-                image_name = docPr.get('name', 'unnamed')
-                logger.debug(f"Creating issue for image: {image_name}")
-
-                message = f"Image '{image_name}' is missing alt text. Please add a descriptive alt text for accessibility."
-                logger.debug(f"Generated message: {message}")
-
-                results.add_issue(
-                    message=message,
-                    severity=Severity.ERROR
-                )
-                logger.debug(f"Added issue for image {image_name}")
-            else:
-                logger.debug(f"Shape {i} has alt text: {alt_text}")
-
-        logger.debug(f"Alt text check complete. Found {len(results.issues)} issues")
-        if results.issues:
-            logger.debug("Issues found:")
-            for issue in results.issues:
-                logger.debug(f"  - {issue['message']}")
-
-    def _check_color_contrast(self, content: Union[List[str], DocxDocument], results: DocumentCheckResult):
+    @CheckRegistry.register('accessibility')
+    def _check_color_contrast(self, content: Union[Document, List[str]], results: DocumentCheckResult) -> None:
         """Check for potential color contrast issues."""
-        if isinstance(content, DocxDocument):
+        if isinstance(content, Document):
             lines = [paragraph.text for paragraph in content.paragraphs]
         else:
             lines = content
 
         color_pattern = re.compile(r'(?:color|background-color):\s*#([A-Fa-f0-9]{6})')
 
+        for i, line in enumerate(lines, 1):
+            colors = color_pattern.findall(line)
+            if len(colors) >= 2:
+                ratio = self._calculate_contrast_ratio(colors[0], colors[1])
+                if ratio < 4.5:  # WCAG AA standard
+                    results.add_issue(
+                        message=f"Insufficient color contrast ratio ({ratio:.2f}:1) at line {i}",
+                        severity=Severity.ERROR
+                    )
+
+    @CheckRegistry.register('accessibility')
+    def _check_heading_structure(self, content: Union[Document, List[str]], results: DocumentCheckResult) -> None:
+        """Check heading structure for accessibility issues."""
+        if isinstance(content, Document):
+            headings = [(p.text, int(p.style.name.split()[-1]))
+                       for p in content.paragraphs
+                       if p.style.name.startswith('Heading')]
+        else:
+            headings = []
+            for i, line in enumerate(content, 1):
+                if line.strip().startswith('#'):
+                    level = len(line.split()[0])
+                    text = line.split('#', 1)[1].strip()
+                    headings.append((text, level))
+
+        if headings:
+            self._check_heading_hierarchy(headings, results)
+
+    def _calculate_contrast_ratio(self, color1: str, color2: str) -> float:
+        """Calculate contrast ratio between two hex colors."""
         def relative_luminance(hex_color: str) -> float:
-            """Calculate relative luminance from hex color."""
             r = int(hex_color[0:2], 16) / 255
             g = int(hex_color[2:4], 16) / 255
             b = int(hex_color[4:6], 16) / 255
             return 0.2126 * r + 0.7152 * g + 0.0722 * b
 
-        def contrast_ratio(l1: float, l2: float) -> float:
-            """Calculate contrast ratio between two luminance values."""
-            lighter = max(l1, l2)
-            darker = min(l1, l2)
-            return (lighter + 0.05) / (darker + 0.05)
+        l1 = relative_luminance(color1)
+        l2 = relative_luminance(color2)
+        lighter = max(l1, l2)
+        darker = min(l1, l2)
+        return (lighter + 0.05) / (darker + 0.05)
 
-        for line in lines:
-            colors = color_pattern.findall(line)
-            if len(colors) >= 2:  # If we found both foreground and background colors
-                ratio = contrast_ratio(
-                    relative_luminance(colors[0]),
-                    relative_luminance(colors[1])
-                )
-                if ratio < 4.5:  # WCAG AA standard minimum contrast
-                    results.add_issue(f"Insufficient color contrast ratio ({ratio:.2f}:1)", Severity.ERROR)
-
-        return results
-
-    def check(self, content: str) -> Dict[str, Any]:
-        """Check document for accessibility issues."""
-        errors = []
-        warnings = []
-
-        # Check for alt text in images
-        if '<img' in content and 'alt=' not in content:
-            errors.append({
-                'line_number': 0,
-                'message': 'Images missing alt text',
-                'suggestion': 'Add alt text to all images',
-                'context': 'Accessibility requirement'
-            })
-
-        # Check for proper heading structure
-        heading_levels = []
-        for line in content.split('\n'):
-            if line.startswith('#'):
-                level = len(line.split()[0])
-                heading_levels.append(level)
-                if level > 1 and level - heading_levels[-2] > 1:
-                    errors.append({
-                        'line_number': 0,
-                        'message': f'Invalid heading level: {level}',
-                        'suggestion': 'Ensure heading levels are sequential',
-                        'context': line
-                    })
-
-        # Check for color contrast
-        if 'color:' in content or 'background-color:' in content:
-            warnings.append({
-                'line_number': 0,
-                'message': 'Color usage detected',
-                'suggestion': 'Ensure sufficient color contrast',
-                'context': 'Accessibility requirement'
-            })
-
-        return {
-            'has_errors': len(errors) > 0,
-            'errors': errors,
-            'warnings': warnings
-        }
-
+    @CheckRegistry.register('accessibility')
     def check_heading_structure(self, content: List[str]) -> DocumentCheckResult:
         """Check heading structure for accessibility issues."""
         results = DocumentCheckResult()
@@ -466,6 +426,7 @@ class AccessibilityChecks(BaseChecker):
 
         return results
 
+    @CheckRegistry.register('accessibility')
     def check_image_accessibility(self, content: List[str]) -> DocumentCheckResult:
         """Check image accessibility including alt text."""
         results = DocumentCheckResult()
@@ -478,23 +439,4 @@ class AccessibilityChecks(BaseChecker):
                 if not alt_text:
                     results.add_issue('Missing alt text', Severity.ERROR)
 
-        return results
-
-    def check_text(self, content: str) -> DocumentCheckResult:
-        """Check text content for accessibility issues."""
-        results = DocumentCheckResult()
-        lines = content.split('\n')
-
-        # Check heading structure
-        heading_results = self.check_heading_structure(lines)
-        results.issues.extend(heading_results.issues)
-
-        # Check image accessibility
-        image_results = self.check_image_accessibility(lines)
-        results.issues.extend(image_results.issues)
-
-        # Check color contrast
-        self._check_color_contrast(lines, results)
-
-        results.success = len(results.issues) == 0
         return results

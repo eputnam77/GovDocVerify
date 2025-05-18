@@ -7,6 +7,7 @@ import re
 import logging
 from docx import Document
 from .base_checker import BaseChecker
+from documentcheckertool.checks.check_registry import CheckRegistry
 
 logger = logging.getLogger(__name__)
 
@@ -30,39 +31,36 @@ class HeadingChecks(BaseChecker):
         self.heading_pattern = re.compile(r'^(\d+\.)+\s')
         logger.debug(f"Using heading pattern: {self.heading_pattern.pattern}")
 
-    def _get_doc_type_config(self, doc_type: str) -> Tuple[Dict, str]:
+    @CheckRegistry.register('heading')
+    def check_document(self, document: Document, doc_type: str) -> DocumentCheckResult:
+        """Check document for heading issues."""
+        results = DocumentCheckResult()
+        self.run_checks(document, doc_type, results)
+        return results
+
+    @CheckRegistry.register('heading')
+    def check_text(self, text: str) -> DocumentCheckResult:
+        """Check text for heading issues."""
+        results = DocumentCheckResult()
+        lines = text.split('\n')
+        self.check_heading_title(lines, "GENERAL")
+        self.check_heading_period(lines, "GENERAL")
+        return results
+
+    def _get_doc_type_config(self, doc_type: str) -> Dict[str, Any]:
         """Get configuration for document type."""
-        # First normalize spaces (replace multiple spaces with single space)
-        normalized = ' '.join(doc_type.split())
-        # Then normalize to uppercase and replace single space with underscore
-        normalized_type = normalized.upper().replace(' ', '_')
-        doc_type_configs = self.terminology_manager.terminology_data.get('document_types', {})
-
-        logger.debug(f"Input document type: '{doc_type}'")
-        logger.debug(f"After space normalization: '{normalized}'")
-        logger.debug(f"Final normalized type: '{normalized_type}'")
-        logger.debug(f"Available document types: {list(doc_type_configs.keys())}")
-
-        for known_type, config in doc_type_configs.items():
-            logger.debug(f"Comparing '{known_type}' with '{normalized_type}'")
-            if known_type == normalized_type:  # Direct comparison since both are uppercase with underscores
-                logger.debug(f"Found matching document type config for: {known_type}")
-                return config, normalized_type  # Return normalized type for valid types
-
-        logger.warning(f"No matching document type config found for: {doc_type}")
-        # For invalid types, return the original input (just normalized spaces)
-        return {}, normalized  # Return space-normalized but case-preserved version
+        return self.terminology_manager.terminology_data.get('document_types', {}).get(doc_type, {})
 
     def validate_input(self, doc: List[str]) -> bool:
-        """Validate document input."""
-        return bool(doc and all(isinstance(p, str) for p in doc))
+        """Validate input document content."""
+        return isinstance(doc, list) and all(isinstance(line, str) for line in doc)
 
     @profile_performance
+    @CheckRegistry.register('heading')
     def check_heading_title(self, doc: List[str], doc_type: str) -> DocumentCheckResult:
         """Check heading titles for validity."""
-        doc_type_config, normalized_type = self._get_doc_type_config(doc_type)
+        doc_type_config = self._get_doc_type_config(doc_type)
         logger.debug(f"Document type config: {doc_type_config}")
-        logger.debug(f"Normalized type: {normalized_type}")
 
         if doc_type_config.get('skip_title_check', False):
             logger.info(f"Skipping title check for document type: {doc_type}")
@@ -71,7 +69,7 @@ class HeadingChecks(BaseChecker):
                 issues=[],
                 details={
                     'message': f'Title check skipped for document type: {doc_type}',
-                    'document_type': normalized_type  # Use normalized type
+                    'document_type': doc_type  # Use original type
                 }
             )
 
@@ -163,7 +161,7 @@ class HeadingChecks(BaseChecker):
         details = {
             'found_headings': list(headings_found),
             'required_headings': required_headings,
-            'document_type': normalized_type,
+            'document_type': doc_type,
             'missing_count': len(missing_headings) if required_headings else 0
         }
 
@@ -176,6 +174,7 @@ class HeadingChecks(BaseChecker):
             details=details
         )
 
+    @CheckRegistry.register('heading')
     def check_heading_period(self, doc: List[str], doc_type: str) -> DocumentCheckResult:
         """Check heading period usage."""
         issues = []
@@ -215,6 +214,7 @@ class HeadingChecks(BaseChecker):
             issues=issues
         )
 
+    @CheckRegistry.register('heading')
     def check_heading_structure(self, doc) -> List[Dict[str, Any]]:
         """Check heading sequence structure."""
         issues = []
@@ -272,6 +272,7 @@ class HeadingChecks(BaseChecker):
         logger.info(f"Heading structure check completed. Found {len(issues)} issues")
         return issues
 
+    @CheckRegistry.register('heading')
     def run_checks(self, document: Document, doc_type: str, results: DocumentCheckResult) -> None:
         """Run all heading-related checks."""
         logger.info(f"Running heading checks for document type: {doc_type}")
@@ -283,6 +284,7 @@ class HeadingChecks(BaseChecker):
         self._check_heading_hierarchy(headings, results)
         self._check_heading_format(headings, results)
 
+    @CheckRegistry.register('heading')
     def _check_heading_sequence(self, current_level: int, previous_level: int) -> Optional[str]:
         """
         Check if heading sequence is valid.
@@ -303,6 +305,7 @@ class HeadingChecks(BaseChecker):
         # - Going to any higher level (e.g., H3 to H1)
         return None
 
+    @CheckRegistry.register('heading')
     def _check_heading_hierarchy(self, headings, results):
         """Check if headings follow proper hierarchy."""
         previous_level = 0
@@ -318,6 +321,7 @@ class HeadingChecks(BaseChecker):
                 )
             previous_level = level
 
+    @CheckRegistry.register('heading')
     def _check_heading_format(self, headings, results):
         """Check heading format (capitalization, punctuation, etc)."""
         for heading in headings:

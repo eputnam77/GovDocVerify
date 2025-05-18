@@ -9,6 +9,7 @@ from documentcheckertool.config.validation_patterns import (
 )
 import logging
 from typing import List, Dict, Any
+from documentcheckertool.checks.check_registry import CheckRegistry
 
 logger = logging.getLogger(__name__)
 
@@ -26,6 +27,13 @@ class FormatChecks(BaseChecker):
         self._check_placeholders(paragraphs, results)
         self._check_dash_spacing(paragraphs, results)
         self._check_caption_formats(paragraphs, doc_type, results)
+
+    @CheckRegistry.register('format')
+    def check_document(self, document: Document, doc_type: str) -> DocumentCheckResult:
+        """Check document for format issues."""
+        results = DocumentCheckResult()
+        self.run_checks(document, doc_type, results)
+        return results
 
     @BaseChecker.register_check('format')
     def _check_date_formats(self, paragraphs: list, results: DocumentCheckResult):
@@ -171,9 +179,51 @@ class FormatChecks(BaseChecker):
                                 i+1
                             )
 
+    def check_text(self, text: str) -> DocumentCheckResult:
+        """Check the text for format-related issues."""
+        logger.debug(f"Running check_text in FormatChecks on text of length: {len(text)}")
+        result = DocumentCheckResult()
+        issues = []
+
+        # Split text into lines for line-by-line checking
+        lines = text.split('\n')
+        logger.debug(f"Split text into {len(lines)} lines")
+
+        # Check for double periods
+        for i, line in enumerate(lines, 1):
+            if '..' in line:
+                issues.append({
+                    'message': f'Double periods found in line {i}',
+                    'severity': Severity.WARNING
+                })
+
+        # Check for extra spaces
+        for i, line in enumerate(lines, 1):
+            if '  ' in line:
+                issues.append({
+                    'message': f'Extra spaces found in line {i}',
+                    'severity': Severity.WARNING
+                })
+
+        # Check for unmatched parentheses
+        for i, line in enumerate(lines, 1):
+            open_count = line.count('(')
+            close_count = line.count(')')
+            if open_count != close_count:
+                issues.append({
+                    'message': f'Unmatched parentheses in line {i}',
+                    'severity': Severity.WARNING
+                })
+
+        # Add issues to the result
+        result.issues.extend(issues)
+        logger.debug(f"Format checks completed. Found {len(issues)} issues.")
+        return result
+
 class FormattingChecker(BaseChecker):
     """Checks for formatting issues in documents."""
 
+    @CheckRegistry.register('format')
     def check_text(self, content: str) -> DocumentCheckResult:
         """Check text content for formatting issues."""
         logger.debug("Starting text formatting check")
@@ -195,6 +245,7 @@ class FormattingChecker(BaseChecker):
         logger.debug(f"Found {len(issues)} total issues")
         return DocumentCheckResult(success=len(issues) == 0, severity=Severity.ERROR if issues else None, issues=issues)
 
+    @CheckRegistry.register('format')
     def check_punctuation(self, lines: List[str]) -> DocumentCheckResult:
         """Check for double periods and other punctuation issues."""
         logger.debug("Checking punctuation")
@@ -210,6 +261,7 @@ class FormattingChecker(BaseChecker):
                 })
         return DocumentCheckResult(success=len(issues) == 0, severity=Severity.WARNING if issues else None, issues=issues)
 
+    @CheckRegistry.register('format')
     def check_spacing(self, lines: List[str]) -> DocumentCheckResult:
         """Check for spacing issues."""
         logger.debug("Checking spacing")
@@ -225,6 +277,7 @@ class FormattingChecker(BaseChecker):
                 })
         return DocumentCheckResult(success=len(issues) == 0, severity=Severity.WARNING if issues else None, issues=issues)
 
+    @CheckRegistry.register('format')
     def check_parentheses(self, lines: List[str]) -> DocumentCheckResult:
         """Check for unmatched parentheses."""
         logger.debug("Checking parentheses")
@@ -242,6 +295,7 @@ class FormattingChecker(BaseChecker):
                 })
         return DocumentCheckResult(success=len(issues) == 0, severity=Severity.WARNING if issues else None, issues=issues)
 
+    @CheckRegistry.register('format')
     def check_section_symbol_usage(self, lines: List[str]) -> DocumentCheckResult:
         """Check for proper section symbol usage."""
         logger.debug("Checking section symbols")
@@ -304,6 +358,7 @@ class FormattingChecker(BaseChecker):
 
         return DocumentCheckResult(success=len(issues) == 0, severity=Severity.WARNING if issues else None, issues=issues)
 
+    @CheckRegistry.register('format')
     def check_list_formatting(self, lines: List[str]) -> DocumentCheckResult:
         """Check for consistent list formatting."""
         logger.debug("Checking list formatting")
@@ -329,6 +384,7 @@ class FormattingChecker(BaseChecker):
                 })
         return DocumentCheckResult(success=len(issues) == 0, severity=Severity.WARNING if issues else None, issues=issues)
 
+    @CheckRegistry.register('format')
     def check_quotation_marks(self, lines: List[str]) -> DocumentCheckResult:
         """Check for consistent quotation mark usage."""
         logger.debug("Checking quotation marks")
@@ -344,6 +400,7 @@ class FormattingChecker(BaseChecker):
                 })
         return DocumentCheckResult(success=len(issues) == 0, severity=Severity.WARNING if issues else None, issues=issues)
 
+    @CheckRegistry.register('format')
     def check_placeholders(self, lines: List[str]) -> DocumentCheckResult:
         """Check for placeholder text."""
         logger.debug("Checking placeholders")

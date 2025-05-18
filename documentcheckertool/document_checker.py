@@ -24,14 +24,29 @@ class FAADocumentChecker:
         """Initialize the document checker with all check modules."""
         logger.debug("Initializing FAADocumentChecker")
 
+        # Initialize pattern cache for heading checks
+        self.pattern_cache = PatternCache()
+        logger.debug(f"PatternCache initialized: {self.pattern_cache}")
+
+        # Initialize terminology manager for terminology-based checks
+        self.terminology_manager = TerminologyManager()
+        logger.debug(f"TerminologyManager initialized: {self.terminology_manager}")
+
         # Initialize all check modules
-        self.heading_checks = HeadingChecks()
+        self.heading_checks = HeadingChecks(self.pattern_cache)
+        logger.debug(f"HeadingChecks initialized with pattern_cache: {self.heading_checks.pattern_cache}")
         self.format_checks = FormatChecks()
         self.structure_checks = StructureChecks()
-        self.terminology_checks = TerminologyChecks()
-        self.readability_checks = ReadabilityChecks()
-        self.acronym_checker = AcronymChecker()
-        self.accessibility_checks = AccessibilityChecks()
+        self.terminology_checks = TerminologyChecks(self.terminology_manager)
+        logger.debug(f"TerminologyChecks initialized with terminology_manager: {self.terminology_manager}")
+        self.readability_checks = ReadabilityChecks(self.terminology_manager)
+        logger.debug(f"ReadabilityChecks initialized with terminology_manager: {self.terminology_manager}")
+        self.acronym_checker = AcronymChecker(self.terminology_manager)
+        logger.debug(f"AcronymChecker initialized with terminology_manager: {self.terminology_manager}")
+        self.accessibility_checks = AccessibilityChecks(self.terminology_manager)
+        logger.debug(f"AccessibilityChecks initialized with terminology_manager: {self.terminology_manager}")
+        self.table_figure_checks = TableFigureReferenceCheck()
+        logger.debug(f"TableFigureReferenceCheck initialized: {self.table_figure_checks}")
 
         # Validate check registration
         validation_results = validate_check_registration()
@@ -43,7 +58,6 @@ class FAADocumentChecker:
                 logger.warning(f"Missing checks: {validation_results['missing_checks']}")
         if validation_results['extra_checks']:
             logger.warning(f"Extra registered checks: {validation_results['extra_checks']}")
-
         logger.debug("FAADocumentChecker initialized successfully")
 
     def run_all_document_checks(self, document_path: str, doc_type: str = None) -> DocumentCheckResult:
@@ -55,9 +69,18 @@ class FAADocumentChecker:
             # Load the document
             if isinstance(document_path, str) and (document_path.lower().endswith('.docx') or document_path.lower().endswith('.doc')):
                 doc = Document(document_path)
+                # Extract text from the document
+                doc.text = '\n'.join([paragraph.text for paragraph in doc.paragraphs])
+                logger.debug(f"Loaded document from file: {document_path}, extracted text length: {len(doc.text)}")
             else:
                 # For text content, create a simple document structure
-                doc = document_path
+                doc = Document()
+                if isinstance(document_path, list):
+                    doc.text = '\n'.join(document_path)
+                    logger.debug(f"Created document from list of strings, length: {len(document_path)}")
+                else:
+                    doc.text = document_path
+                    logger.debug(f"Created document from raw string, length: {len(document_path)}")
 
             # Define all check modules with their names for logging
             check_modules = [

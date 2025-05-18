@@ -20,8 +20,19 @@ class AcronymDefinition:
 class TerminologyManager:
     """Manages terminology, acronyms, and their definitions from a single source of truth."""
 
+    _instance = None
+
+    def __new__(cls):
+        if cls._instance is None:
+            cls._instance = super(TerminologyManager, cls).__new__(cls)
+            cls._instance._initialized = False
+        return cls._instance
+
     def __init__(self):
         """Initialize the terminology manager with data from terminology.json."""
+        if self._initialized:
+            return
+
         self.terminology_file = Path(__file__).parent.parent / 'config' / 'terminology.json'
         self.terminology_data = self._load_terminology()
         self.defined_acronyms: Dict[str, str] = {}
@@ -32,6 +43,7 @@ class TerminologyManager:
         self.usage_pattern = re.compile(r'(?<!\()\b[A-Za-z]{2,}\b(?!\s*[:.]\s*)')
         ignore_patterns_raw = self.terminology_data.get('patterns', {}).get('ignore_patterns', [])
         self.ignored_patterns = [re.compile(pattern) for pattern in ignore_patterns_raw]
+        self._initialized = True
 
     def _validate_config(self):
         """Validate terminology configuration."""
