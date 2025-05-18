@@ -2,6 +2,7 @@ from typing import List, Dict, Any, Optional
 from documentcheckertool.models import DocumentCheckResult
 from documentcheckertool.utils.formatting import ResultFormatter, FormatStyle
 from ..utils.formatting import DocumentFormatter
+from .check_registry import CheckRegistry
 
 class BaseChecker:
     """Base class for all document checkers."""
@@ -47,3 +48,24 @@ class BaseChecker:
             issues=issues,
             checker_name=self.name
         )
+
+    @classmethod
+    def get_registered_checks(cls) -> Dict[str, List[str]]:
+        """Get all registered checks for this checker class.
+
+        Returns:
+            Dictionary mapping categories to lists of check function names
+        """
+        return CheckRegistry.get_category_mappings()
+
+    @classmethod
+    def register_check(cls, category: str):
+        """Decorator to register a check function.
+
+        Args:
+            category: The category to register the check under
+
+        Returns:
+            Decorator function
+        """
+        return CheckRegistry.register(category)

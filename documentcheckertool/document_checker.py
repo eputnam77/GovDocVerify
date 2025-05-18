@@ -13,28 +13,38 @@ from documentcheckertool.checks.acronym_checks import AcronymChecker
 from documentcheckertool.utils.text_utils import split_sentences, count_words, normalize_reference
 from documentcheckertool.utils.pattern_cache import PatternCache
 from documentcheckertool.utils.terminology_utils import TerminologyManager
+from .utils.check_discovery import validate_check_registration
 
 logger = logging.getLogger(__name__)
 
 class FAADocumentChecker:
     """Main document checker class that coordinates various checks."""
 
-    def __init__(self, terminology_manager=None, config_path: Optional[str] = None):
-        self.pattern_cache = PatternCache()
-        self.terminology_manager = terminology_manager or TerminologyManager()
+    def __init__(self):
+        """Initialize the document checker with all check modules."""
+        logger.debug("Initializing FAADocumentChecker")
 
         # Initialize all check modules
-        self.heading_checks = HeadingChecks(self.terminology_manager)
-        self.accessibility_checks = AccessibilityChecks(self.terminology_manager)
-        self.format_checks = FormatChecks(self.terminology_manager)
-        self.structure_checks = StructureChecks(self.terminology_manager)
-        self.terminology_checks = TerminologyChecks(self.terminology_manager)
-        self.readability_checks = ReadabilityChecks(self.terminology_manager)
+        self.heading_checks = HeadingChecks()
+        self.format_checks = FormatChecks()
+        self.structure_checks = StructureChecks()
+        self.terminology_checks = TerminologyChecks()
+        self.readability_checks = ReadabilityChecks()
         self.acronym_checker = AcronymChecker()
-        self.table_figure_checks = TableFigureReferenceCheck()
+        self.accessibility_checks = AccessibilityChecks()
 
-        # Load configuration if provided
-        self.config = self._load_config(config_path) if config_path else {}
+        # Validate check registration
+        validation_results = validate_check_registration()
+        if validation_results['missing_categories'] or validation_results['missing_checks']:
+            logger.warning("Some checks are not properly registered:")
+            if validation_results['missing_categories']:
+                logger.warning(f"Missing categories: {validation_results['missing_categories']}")
+            if validation_results['missing_checks']:
+                logger.warning(f"Missing checks: {validation_results['missing_checks']}")
+        if validation_results['extra_checks']:
+            logger.warning(f"Extra registered checks: {validation_results['extra_checks']}")
+
+        logger.debug("FAADocumentChecker initialized successfully")
 
     def run_all_document_checks(self, document_path: str, doc_type: str = None) -> DocumentCheckResult:
         """Run all document checks."""

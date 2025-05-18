@@ -27,86 +27,33 @@ class FormatChecks(BaseChecker):
         self._check_dash_spacing(paragraphs, results)
         self._check_caption_formats(paragraphs, doc_type, results)
 
+    @BaseChecker.register_check('format')
     def _check_date_formats(self, paragraphs: list, results: DocumentCheckResult):
-        """Check for incorrect date formats."""
+        """Check for consistent date formats."""
         logger.debug(f"Checking date formats with {len(paragraphs)} paragraphs")
-        logger.debug(f"DocumentCheckResult type: {type(results)}")
-        logger.debug(f"DocumentCheckResult dir: {dir(results)}")
-        logger.debug(f"Severity enum values: {[s.value for s in Severity]}")
-
-        # Pattern for incorrect date formats (MM/DD/YYYY, YYYY-MM-DD, etc.)
-        incorrect_patterns = [
-            r'\d{1,2}/\d{1,2}/\d{4}',  # MM/DD/YYYY
-            r'\d{4}-\d{1,2}-\d{1,2}',  # YYYY-MM-DD
-            r'\d{1,2}-\d{1,2}-\d{4}',  # MM-DD-YYYY
-            r'\d{1,2}\.\d{1,2}\.\d{4}'  # MM.DD.YYYY
-        ]
-
         for i, text in enumerate(paragraphs):
-            for pattern in incorrect_patterns:
+            for pattern in DATE_PATTERNS:
                 if re.search(pattern, text):
-                    logger.debug(f"Found incorrect date format in line {i+1}: {text}")
-                    try:
-                        results.add_issue(
-                            "Incorrect date format. Use Month Day, Year format (e.g., May 11, 2025)",
-                            Severity.ERROR,
-                            i+1
-                        )
-                        logger.debug(f"Successfully added issue for line {i+1}")
-                        break  # Only add one issue per line
-                    except Exception as e:
-                        logger.error(f"Error adding issue: {str(e)}")
-                        logger.error(f"Error type: {type(e)}")
-                        raise
-
-    def _check_phone_numbers(self, paragraphs: list, results: DocumentCheckResult):
-        """Check for inconsistent phone number formats (consistency among formats, not a single standard)."""
-        logger.debug(f"Checking phone numbers with {len(paragraphs)} paragraphs")
-
-        # Define regexes for common phone number formats
-        format_patterns = [
-            (r'^\d{3}-\d{3}-\d{4}$', 'dash'),
-            (r'^\(\d{3}\) \d{3}-\d{4}$', 'paren-dash'),
-            (r'^\d{3}\.\d{3}\.\d{4}$', 'dot'),
-            (r'^\d{10}$', 'plain'),
-            (r'^\d{3} \d{3} \d{4}$', 'space'),
-        ]
-
-        # General phone number regex: matches (123) 456-7890, 123-456-7890, 123.456.7890, 1234567890, 123 456 7890
-        phone_regex = re.compile(r'(\(\d{3}\) \d{3}-\d{4}|\d{3}-\d{3}-\d{4}|\d{3}\.\d{3}\.\d{4}|\d{10}|\d{3} \d{3} \d{4})')
-
-        phone_numbers = []
-        formats = set()
-        for i, text in enumerate(paragraphs):
-            for match in phone_regex.finditer(text):
-                phone = match.group(0)
-                phone_numbers.append((phone, i+1))
-                # Classify format
-                fmt = 'other'
-                for pattern, label in format_patterns:
-                    if re.match(pattern, phone):
-                        fmt = label
-                        break
-                formats.add(fmt)
-
-        # If more than one unique format, flag all as inconsistent
-        if len(formats) > 1 and phone_numbers:
-            for _, line_num in phone_numbers:
-                logger.debug(f"Flagging inconsistent phone number format in line {line_num}")
-                try:
                     results.add_issue(
-                        "Inconsistent phone number format",
+                        "Inconsistent date format detected",
                         Severity.WARNING,
-                        line_num
+                        i+1
                     )
-                    logger.debug(f"Successfully added issue for line {line_num}")
-                except Exception as e:
-                    logger.error(f"Error adding issue: {str(e)}")
-                    logger.error(f"Error type: {type(e)}")
-                    raise
-        # Set success based on whether any issues were found
-        results.success = len(results.issues) == 0
 
+    @BaseChecker.register_check('format')
+    def _check_phone_numbers(self, paragraphs: list, results: DocumentCheckResult):
+        """Check for proper phone number formatting."""
+        logger.debug(f"Checking phone numbers with {len(paragraphs)} paragraphs")
+        for i, text in enumerate(paragraphs):
+            for pattern in PHONE_PATTERNS:
+                if re.search(pattern, text):
+                    results.add_issue(
+                        "Inconsistent phone number format detected",
+                        Severity.WARNING,
+                        i+1
+                    )
+
+    @BaseChecker.register_check('format')
     def _check_placeholders(self, paragraphs: list, results: DocumentCheckResult):
         """Check for placeholder text."""
         logger.debug(f"Checking placeholders with {len(paragraphs)} paragraphs")
@@ -133,6 +80,7 @@ class FormatChecks(BaseChecker):
                         logger.error(f"Error type: {type(e)}")
                         raise
 
+    @BaseChecker.register_check('format')
     def _check_dash_spacing(self, paragraphs: list, results: DocumentCheckResult):
         """Check for incorrect spacing around hyphens, en-dashes, and em-dashes."""
         logger.debug(f"Checking dash spacing with {len(paragraphs)} paragraphs")
@@ -159,9 +107,7 @@ class FormatChecks(BaseChecker):
                             logger.error(f"Error type: {type(e)}")
                             raise
 
-        # Set success based on whether any issues were found
-        results.success = len(results.issues) == 0
-
+    @BaseChecker.register_check('format')
     def _check_caption_formats(self, paragraphs: list, doc_type: str, results: DocumentCheckResult):
         """Check for correctly formatted table or figure captions."""
         logger.debug(f"Checking caption formats with {len(paragraphs)} paragraphs")
