@@ -20,6 +20,9 @@ def profile_performance(func):
 class HeadingChecks(BaseChecker):
     """Class for handling heading-related checks."""
 
+    # Maximum allowed length for a heading (excluding numbering)
+    MAX_HEADING_LENGTH = 25
+
     def __init__(self, pattern_cache):
         self.pattern_cache = pattern_cache
         self.terminology_manager = TerminologyManager()
@@ -94,36 +97,58 @@ class HeadingChecks(BaseChecker):
             heading_text = line.split('.', 1)[1].strip()
             logger.debug(f"Found heading text: {heading_text}")
 
+            # Strip period for comparison
+            heading_text_no_period = heading_text.rstrip('.')
+            logger.debug(f"Heading text without period: {heading_text_no_period}")
+
+            # Check heading length first
+            if len(heading_text_no_period) > self.MAX_HEADING_LENGTH:
+                logger.warning(f"Heading exceeds maximum length in line {i}: {heading_text}")
+                issues.append({
+                    'type': 'length_violation',
+                    'line': line,
+                    'message': f'Heading exceeds maximum length of {self.MAX_HEADING_LENGTH} characters',
+                    'suggestion': f'Shorten heading to {self.MAX_HEADING_LENGTH} characters or less'
+                })
+                # Don't add to headings_found and skip other validations
+                continue
+
             # Check if the heading text contains any of the valid heading words
-            if not any(word in heading_text.upper() for word in heading_words):
+            if not any(word in heading_text_no_period.upper() for word in heading_words):
                 logger.warning(f"Invalid heading word in line {i}: {heading_text}")
                 issues.append({
+                    'type': 'invalid_word',
                     'line': line,
                     'message': 'Heading formatting issue',
                     'suggestion': f'Use a valid heading word from: {", ".join(sorted(heading_words))}'
                 })
-            else:
-                # Check if heading is in uppercase
-                if heading_text != heading_text.upper():
-                    logger.warning(f"Heading should be uppercase in line {i}")
-                    issues.append({
-                        'line': line,
-                        'message': 'Heading should be uppercase',
-                        'suggestion': line.split('.', 1)[0] + '. ' + heading_text.upper()
-                    })
-                else:
-                    normalized = normalize_heading(line)
-                    if normalized != line:
-                        logger.warning(f"Heading format mismatch in line {i}")
-                        logger.debug(f"Original: {line}")
-                        logger.debug(f"Normalized: {normalized}")
-                        issues.append({
-                            'line': line,
-                            'message': 'Heading formatting issue',
-                            'suggestion': normalized
-                        })
+                # Don't add to headings_found if it's not a valid heading word
+                continue
 
-            headings_found.add(heading_text.upper())
+            # Check if heading is in uppercase
+            if heading_text != heading_text.upper():
+                logger.warning(f"Heading should be uppercase in line {i}")
+                issues.append({
+                    'type': 'case_violation',
+                    'line': line,
+                    'message': 'Heading should be uppercase',
+                    'suggestion': line.split('.', 1)[0] + '. ' + heading_text.upper()
+                })
+            else:
+                normalized = normalize_heading(line)
+                if normalized != line:
+                    logger.warning(f"Heading format mismatch in line {i}")
+                    logger.debug(f"Original: {line}")
+                    logger.debug(f"Normalized: {normalized}")
+                    issues.append({
+                        'type': 'format_violation',
+                        'line': line,
+                        'message': 'Heading formatting issue',
+                        'suggestion': normalized
+                    })
+
+            # Only add to headings_found if it passed all validations
+            headings_found.add(heading_text_no_period.upper())
 
         # Additional required headings check
         if required_headings:
@@ -138,7 +163,7 @@ class HeadingChecks(BaseChecker):
         details = {
             'found_headings': list(headings_found),
             'required_headings': required_headings,
-            'document_type': normalized_type,  # Use normalized type consistently
+            'document_type': normalized_type,
             'missing_count': len(missing_headings) if required_headings else 0
         }
 
@@ -146,6 +171,7 @@ class HeadingChecks(BaseChecker):
         logger.debug(f"Result details: {details}")
         return DocumentCheckResult(
             success=len(issues) == 0,
+            severity=Severity.ERROR if any(issue.get('type') == 'length_violation' for issue in issues) else Severity.WARNING,
             issues=issues,
             details=details
         )

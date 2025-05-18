@@ -190,5 +190,56 @@ class TestHeadingChecks:
         assert len(result.issues) == 0
         assert result.details['document_type'] == 'Invalid Type'  # Should preserve original type
 
+    def test_heading_length_validation(self):
+        """Test validation of heading length limits."""
+        # Test with a heading that exceeds the maximum length
+        long_heading_doc = [
+            "1. THIS IS A VERY LONG HEADING THAT EXCEEDS THE MAXIMUM LENGTH LIMIT",
+            "2. PURPOSE",
+            "3. BACKGROUND",
+            "4. DEFINITIONS",
+            "5. APPLICABILITY"
+        ]
+        result = self.heading_checks.check_heading_title(long_heading_doc, "ORDER")
+        assert result.success is False
+        assert any("exceeds maximum length" in issue["message"] for issue in result.issues)
+        assert any("Shorten heading" in issue["suggestion"] for issue in result.issues)
+
+        # Test with headings that are within the limit
+        valid_length_doc = [
+            "1. PURPOSE",
+            "2. BACKGROUND",
+            "3. DEFINITIONS",
+            "4. APPLICABILITY"
+        ]
+        result = self.heading_checks.check_heading_title(valid_length_doc, "ORDER")
+        assert result.success is True
+        assert len(result.issues) == 0
+
+        # Test with a heading exactly at the limit using a valid heading word
+        exact_length_doc = [
+            "1. EFFECTIVE DATE",  # Exactly 13 characters
+            "2. PURPOSE",
+            "3. BACKGROUND",
+            "4. DEFINITIONS",
+            "5. APPLICABILITY"
+        ]
+        result = self.heading_checks.check_heading_title(exact_length_doc, "ORDER")
+        assert result.success is True
+        assert len(result.issues) == 0
+
+        # Test with a heading just over the limit
+        just_over_doc = [
+            "1. THIS IS A VERY LONG HEADING THAT EXCEEDS THE MAXIMUM LENGTH LIMIT",  # 27 characters
+            "2. PURPOSE",
+            "3. BACKGROUND",
+            "4. DEFINITIONS",
+            "5. APPLICABILITY"
+        ]
+        result = self.heading_checks.check_heading_title(just_over_doc, "ORDER")
+        assert result.success is False
+        assert any("exceeds maximum length" in issue["message"] for issue in result.issues)
+        assert any("Shorten heading" in issue["suggestion"] for issue in result.issues)
+
 if __name__ == '__main__':
     pytest.main()
