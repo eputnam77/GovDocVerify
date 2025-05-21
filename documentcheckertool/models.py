@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from enum import Enum, auto
+from enum import Enum, auto, IntEnum
 from typing import List, Dict, Any, Optional
 from pydantic import BaseModel
 from documentcheckertool.models import DocumentType, DocumentTypeError
@@ -45,6 +45,21 @@ class Issue(BaseModel):
     severity: str = "warning"
     suggestion: Optional[str] = None
 
+class Severity(IntEnum):
+    """Severity levels for issues."""
+    ERROR = 0
+    WARNING = 1
+    INFO = 2
+
+    def to_color(self) -> str:
+        """Convert severity to color."""
+        return ["red", "orange", "blue"][self]
+
+    @property
+    def value_str(self) -> str:
+        """Get the string representation of the severity."""
+        return ["error", "warning", "info"][self]
+
 @dataclass
 class DocumentCheckResult:
     """Result of a document check."""
@@ -55,18 +70,11 @@ class DocumentCheckResult:
     severity: Optional['Severity'] = None
     details: Optional[Dict[str, Any]] = None
 
-    # TODO: Severity handling inconsistency across codebase:
-    # - Some checkers use 'severity=Severity.WARNING if issues else None'
-    # - Some checkers don't specify severity (falls back to ERROR)
-    # - Some checkers use specific severities (ERROR/WARNING/INFO)
-    # Consider standardizing to 'severity=Severity.WARNING if issues else None'
-    # as it's the most common pattern in format_checks.py
     def __post_init__(self):
         """Initialize default values."""
         if self.issues is None:
             self.issues = []
-        if self.severity is None:
-            self.severity = Severity.ERROR
+        self.severity = None  # Will be set on first issue
 
     def add_issue(self, message: str, severity: 'Severity', line_number: int = None):
         """Add an issue to the result."""
@@ -75,8 +83,12 @@ class DocumentCheckResult:
             "severity": severity,
             "line_number": line_number
         })
-        if severity == Severity.ERROR:
-            self.success = False
+        # Any issue marks the run as unsuccessful
+        self.success = False
+
+        # Keep track of the most severe issue (ERROR < WARNING < INFO)
+        if self.severity is None or severity < self.severity:
+            self.severity = severity
 
     def to_html(self) -> str:
         """Convert the result to HTML."""
@@ -98,7 +110,7 @@ class DocumentCheckResult:
             issues = by_severity[severity]
             color = severity.to_color()
 
-            html.append(f"<h3 style='color: {color};'>{severity.value} Severity Issues:</h3>")
+            html.append(f"<h3 style='color: {color};'>{severity.value_str} Severity Issues:</h3>")
             html.append("<ul>")
             for issue in issues:
                 line_info = f" (line {issue['line_number']})" if issue.get('line_number') else ""
@@ -107,20 +119,6 @@ class DocumentCheckResult:
 
         html.append("</div>")
         return "\n".join(html)
-
-class Severity(Enum):
-    """Severity levels for issues."""
-    ERROR = "error"
-    WARNING = "warning"
-    INFO = "info"
-
-    def to_color(self) -> str:
-        """Convert severity to color."""
-        return {
-            "error": "red",
-            "warning": "orange",
-            "info": "blue"
-        }[self.value]
 
 class DocumentType(BaseModel):
     """Represents a document type with its associated rules."""

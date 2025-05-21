@@ -1,7 +1,9 @@
 # Phone number validation patterns
 PHONE_PATTERNS = [
-    r'\b\d{3}[-\.]\d{3}[-\.]\d{4}\b',
-    r'\b\(\d{3}\)\s*\d{3}[-\.]\d{4}\b'
+    r'\(\d{3}\)\s*\d{3}[-\.]+\d{4}\b',    # (123) 456-7890 or (123) 456.7890 (with multiple spaces)
+    r'\b\d{3}[-\.]+\d{3}[-\.]+\d{4}\b',    # 123-456-7890 or 123.456.7890 (with multiple separators)
+    r'\b\d{10}\b',                          # 1234567890
+    r'\b\d{3}\.\d{3}\.\d{4}\b'             # 123.456.7890 (explicit dot format)
 ]
 
 # Placeholder text patterns

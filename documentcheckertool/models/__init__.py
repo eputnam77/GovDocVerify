@@ -88,7 +88,7 @@ class DocumentCheckResult:
             "severity": severity,
             "line_number": line_number
         })
-        if severity == Severity.ERROR:  # Only set success to False for ERROR severity
+        if severity in [Severity.ERROR, Severity.WARNING]:  # Set success to False for both ERROR and WARNING
             self.success = False
         self.severity = severity
 

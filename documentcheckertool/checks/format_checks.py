@@ -40,26 +40,79 @@ class FormatChecks(BaseChecker):
         """Check for consistent date formats."""
         logger.debug(f"Checking date formats with {len(paragraphs)} paragraphs")
         for i, text in enumerate(paragraphs):
-            for pattern in DATE_PATTERNS:
-                if re.search(pattern, text):
-                    results.add_issue(
-                        "Inconsistent date format detected",
-                        Severity.WARNING,
-                        i+1
-                    )
+            # Skip if text matches any skip patterns
+            if any(re.search(pattern, text) for pattern in DATE_PATTERNS['skip_patterns']):
+                continue
+
+            # Check for incorrect date format (MM/DD/YYYY)
+            if re.search(DATE_PATTERNS['incorrect'], text):
+                results.add_issue(
+                    "Incorrect date format. Use Month Day, Year format (e.g., May 11, 2025)",
+                    Severity.ERROR,
+                    i+1
+                )
 
     @BaseChecker.register_check('format')
     def _check_phone_numbers(self, paragraphs: list, results: DocumentCheckResult):
-        """Check for proper phone number formatting."""
+        """
+        Flag every line whenever more than one phone-number style is used
+        anywhere in the document. Supported styles:
+            (123) 456-7890   → "paren"
+            123-456-7890     → "dash"
+            123.456.7890     → "dot"
+            1234567890       → "plain"
+        """
         logger.debug(f"Checking phone numbers with {len(paragraphs)} paragraphs")
-        for i, text in enumerate(paragraphs):
+
+        def _categorise(num: str) -> str:
+            """Categorize a phone number into its style."""
+            # Normalize whitespace and separators for consistent categorization
+            normalized = re.sub(r'\s+', ' ', num)  # Replace multiple spaces with single space
+            normalized = re.sub(r'[-.]+', '-', normalized)  # Normalize separators to single dash
+
+            if re.fullmatch(r"\(\d{3}\)\s*\d{3}-\d{4}", normalized):
+                return "paren"
+            if re.fullmatch(r"\d{3}-\d{3}-\d{4}", normalized):
+                return "dash"
+            if re.fullmatch(r"\d{3}\.\d{3}\.\d{4}", normalized):
+                return "dot"
+            if re.fullmatch(r"\d{10}", normalized):
+                return "plain"
+            return "other"
+
+        # Collect all phone numbers and their styles
+        found: list[tuple[int, str]] = []  # (line_number, style)
+        for idx, line in enumerate(paragraphs, start=1):
             for pattern in PHONE_PATTERNS:
-                if re.search(pattern, text):
-                    results.add_issue(
-                        "Inconsistent phone number format detected",
-                        Severity.WARNING,
-                        i+1
-                    )
+                if match := re.search(pattern, line):
+                    style = _categorise(match.group(0))
+                    logger.debug(f"Found phone number in line {idx}: {match.group(0)} (style={style})")
+                    found.append((idx, style))
+                    break  # Only add each number once
+
+        if not found:
+            return
+
+        # Check for style consistency
+        styles_present = {style for _, style in found}
+        logger.debug(f"Detected phone-number styles: {styles_present}")
+
+        # If only one style is present, no issues to report
+        if len(styles_present) == 1:
+            return
+
+        # Flag all lines with phone numbers when styles are inconsistent
+        seen: set[int] = set()
+        for line_no, _ in found:
+            if line_no in seen:
+                continue
+            results.add_issue(
+                "Inconsistent phone number format",
+                Severity.WARNING,
+                line_no
+            )
+            seen.add(line_no)
+            logger.debug(f"Flagged line {line_no} for inconsistent phone number format")
 
     @BaseChecker.register_check('format')
     def _check_placeholders(self, paragraphs: list, results: DocumentCheckResult):
