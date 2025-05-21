@@ -31,11 +31,25 @@ class HeadingChecks(BaseChecker):
         self.heading_pattern = re.compile(r'^(\d+\.)+\s')
         logger.debug(f"Using heading pattern: {self.heading_pattern.pattern}")
 
+    @staticmethod
+    def _normalize_doc_type(doc_type: str) -> str:
+        """Convert any 'Advisory Circular', '   advisory circular ', etc.
+        into 'ADVISORY_CIRCULAR'. Preserves original string for invalid types."""
+        if not isinstance(doc_type, str):
+            return str(doc_type)
+        # Check if this is a known document type
+        known_types = {'ADVISORY_CIRCULAR', 'ORDER', 'NOTICE', 'AC'}
+        normalized = re.sub(r'\s+', '_', doc_type.strip()).upper()
+        if normalized not in known_types:
+            return doc_type  # Preserve original for unknown types
+        return normalized
+
     @CheckRegistry.register('heading')
     def check_document(self, document: Document, doc_type: str) -> DocumentCheckResult:
         """Check document for heading issues."""
+        doc_type_norm = self._normalize_doc_type(doc_type)
         results = DocumentCheckResult()
-        self.run_checks(document, doc_type, results)
+        self.run_checks(document, doc_type_norm, results)
         return results
 
     @CheckRegistry.register('heading')
@@ -59,17 +73,18 @@ class HeadingChecks(BaseChecker):
     @CheckRegistry.register('heading')
     def check_heading_title(self, doc: List[str], doc_type: str) -> DocumentCheckResult:
         """Check heading titles for validity."""
-        doc_type_config = self._get_doc_type_config(doc_type)
+        doc_type_norm = self._normalize_doc_type(doc_type)
+        doc_type_config = self._get_doc_type_config(doc_type_norm)
         logger.debug(f"Document type config: {doc_type_config}")
 
         if doc_type_config.get('skip_title_check', False):
-            logger.info(f"Skipping title check for document type: {doc_type}")
+            logger.info(f"Skipping title check for document type: {doc_type_norm}")
             return DocumentCheckResult(
                 success=True,
                 issues=[],
                 details={
-                    'message': f'Title check skipped for document type: {doc_type}',
-                    'document_type': doc_type  # Use original type
+                    'message': f'Title check skipped for document type: {doc_type_norm}',
+                    'document_type': doc_type_norm
                 }
             )
 
@@ -77,7 +92,7 @@ class HeadingChecks(BaseChecker):
         issues = []
         headings_found = set()
 
-        logger.info(f"Starting heading title check for document type: {doc_type}")
+        logger.info(f"Starting heading title check for document type: {doc_type_norm}")
         logger.debug(f"Required headings: {required_headings}")
 
         # Get heading words from terminology data
@@ -161,7 +176,7 @@ class HeadingChecks(BaseChecker):
         details = {
             'found_headings': list(headings_found),
             'required_headings': required_headings,
-            'document_type': doc_type,
+            'document_type': doc_type_norm,
             'missing_count': len(missing_headings) if required_headings else 0
         }
 
@@ -178,12 +193,13 @@ class HeadingChecks(BaseChecker):
     def check_heading_period(self, doc: List[str], doc_type: str) -> DocumentCheckResult:
         """Check heading period usage."""
         issues = []
-        logger.info(f"Starting heading period check for document type: {doc_type}")
+        doc_type_norm = self._normalize_doc_type(doc_type)
+        logger.info(f"Starting heading period check for document type: {doc_type_norm}")
 
         # Get period requirements from terminology data
         period_requirements = self.terminology_manager.terminology_data.get('heading_periods', {})
-        requires_period = period_requirements.get(doc_type, False)
-        logger.debug(f"Document type {doc_type} {'requires' if requires_period else 'does not require'} periods")
+        requires_period = doc_type_norm != 'ADVISORY_CIRCULAR' and period_requirements.get(doc_type_norm, False)
+        logger.debug(f"Document type {doc_type_norm} {'requires' if requires_period else 'does not require'} periods")
 
         # Get heading words from terminology data
         heading_words = self.terminology_manager.terminology_data.get('heading_words', [])
@@ -211,7 +227,8 @@ class HeadingChecks(BaseChecker):
         logger.info(f"Heading period check completed. Found {len(issues)} issues")
         return DocumentCheckResult(
             success=len(issues) == 0,
-            issues=issues
+            issues=issues,
+            details={'document_type': doc_type_norm}
         )
 
     @CheckRegistry.register('heading')
