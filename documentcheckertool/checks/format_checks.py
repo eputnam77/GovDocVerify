@@ -232,46 +232,87 @@ class FormatChecks(BaseChecker):
                                 i+1
                             )
 
-    def check_text(self, text: str) -> DocumentCheckResult:
-        """Check the text for format-related issues."""
-        logger.debug(f"Running check_text in FormatChecks on text of length: {len(text)}")
-        result = DocumentCheckResult()
-        issues = []
+    def check(self, content: List[str]) -> Dict[str, Any]:
+        """
+        Check document content for formatting issues.
 
-        # Split text into lines for line-by-line checking
-        lines = text.split('\n')
-        logger.debug(f"Split text into {len(lines)} lines")
+        Args:
+            content: List of strings representing document lines
 
-        # Check for double periods
-        for i, line in enumerate(lines, 1):
-            if '..' in line:
-                issues.append({
-                    'message': f'Double periods found in line {i}',
-                    'severity': Severity.WARNING
+        Returns:
+            Dict containing check results with warnings, errors, and has_errors flag
+        """
+        logger.debug(f"Running format checks on {len(content)} lines")
+        warnings = []
+        errors = []
+        has_errors = False
+
+        # Check font consistency
+        standard = None
+        for i, line in enumerate(content, 1):
+            if "BOLD" in line or "italic" in line.lower():
+                if standard is None:
+                    standard = "special"
+                elif standard != "special":
+                    warnings.append({
+                        "line_number": i,
+                        "message": "Inconsistent font usage",
+                        "severity": "warning"
+                    })
+            else:
+                if standard is None:
+                    standard = "normal"
+                elif standard != "normal":
+                    warnings.append({
+                        "line_number": i,
+                        "message": "Inconsistent font usage",
+                        "severity": "warning"
+                    })
+
+        # Check spacing consistency (excluding table rows)
+        for i, line in enumerate(content, 1):
+            # Skip spacing check for table rows
+            if '|' in line or line.startswith('---'):
+                continue
+            if '  ' in line:  # Double space
+                warnings.append({
+                    "line_number": i,
+                    "message": "Inconsistent spacing",
+                    "severity": "warning"
                 })
 
-        # Check for extra spaces
-        for i, line in enumerate(lines, 1):
-            if '  ' in line:
-                issues.append({
-                    'message': f'Extra spaces found in line {i}',
-                    'severity': Severity.WARNING
+        # Check margin consistency
+        margin_patterns = set()
+        for i, line in enumerate(content, 1):
+            # Skip empty lines
+            if not line.strip():
+                continue
+            # Get the leading whitespace pattern
+            leading_ws = len(line) - len(line.lstrip())
+            if leading_ws > 0:
+                margin_patterns.add(leading_ws)
+                # If we have more than one margin pattern, flag it
+                if len(margin_patterns) > 1:
+                    warnings.append({
+                        "line_number": i,
+                        "message": "Inconsistent margins",
+                        "severity": "warning"
+                    })
+
+        # Check reference formatting
+        for i, line in enumerate(content, 1):
+            if re.search(r'(?i)(see|refer to|under)\s+(section|paragraph|subsection)\s+\d+(\.\d+)*', line):
+                warnings.append({
+                    "line_number": i,
+                    "message": "Inconsistent reference format",
+                    "severity": "warning"
                 })
 
-        # Check for unmatched parentheses
-        for i, line in enumerate(lines, 1):
-            open_count = line.count('(')
-            close_count = line.count(')')
-            if open_count != close_count:
-                issues.append({
-                    'message': f'Unmatched parentheses in line {i}',
-                    'severity': Severity.WARNING
-                })
-
-        # Add issues to the result
-        result.issues.extend(issues)
-        logger.debug(f"Format checks completed. Found {len(issues)} issues.")
-        return result
+        return {
+            "warnings": warnings,
+            "errors": errors,
+            "has_errors": has_errors
+        }
 
 class FormattingChecker(BaseChecker):
     """Checks for formatting issues in documents."""
