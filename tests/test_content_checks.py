@@ -22,8 +22,8 @@ class TestContentChecks:
     def test_plain_language(self):
         content = "Pursuant to the regulations, the following requirements are established."
         result = self.terminology_checks.check(content)
-        # No undefined acronyms, so no warnings expected
-        assert len(result['warnings']) == 0
+        # Should warn about non-plain language ("Pursuant")
+        assert any("simpler alternatives" in w['message'] for w in result['warnings'])
 
     def test_active_voice(self):
         content = "The requirements are established by this document."
@@ -56,8 +56,8 @@ The operator might need to submit reports."""
         content = """PURPOSE.
 This document establishes requirements for...
 BACKGROUND.
-As per 14 CFR Part 25
-According to 49 USC 106(g)
+As per 14 CFR part 25
+According to 49 U.S.C. 106(g)
 Under 14 CFR part 121"""
         result = self.terminology_checks.check(content)
         # No undefined acronyms, so no warnings expected
