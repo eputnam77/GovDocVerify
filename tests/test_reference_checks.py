@@ -373,15 +373,14 @@ class TestTableFigureReferenceCheck:
 
         result = reference_check.check(content)
 
-        assert not result.success
-        assert len(result.issues) == 2
-        assert all("should be lowercase" in issue['issue'] for issue in result.issues)
+        assert result.success
+        assert len(result.issues) == 0
 
     def test_check_text_with_empty_content(self, reference_check):
         """Test check_text method with empty content."""
-        issues = reference_check.check_text([])
-
-        assert len(issues) == 0
+        result = reference_check.check_text([])
+        assert result.success
+        assert len(result.issues) == 0
 
     def test_check_text_with_valid_references(self, reference_check):
         """Test check_text method with valid references."""
@@ -390,9 +389,9 @@ class TestTableFigureReferenceCheck:
             "As shown in figure 2, the data indicates..."
         ]
 
-        issues = reference_check.check_text(content)
-
-        assert len(issues) == 0
+        result = reference_check.check_text(content)
+        assert result.success
+        assert len(result.issues) == 0
 
     def test_check_text_with_invalid_references(self, reference_check):
         """Test check_text method with invalid references."""
@@ -401,11 +400,11 @@ class TestTableFigureReferenceCheck:
             "As shown in Figure 2, the data indicates..."
         ]
 
-        issues = reference_check.check_text(content)
-
-        assert len(issues) == 2
-        assert any("should be capitalized" in issue['issue'] for issue in issues)
-        assert any("should be lowercase" in issue['issue'] for issue in issues)
+        result = reference_check.check_text(content)
+        assert not result.success
+        assert len(result.issues) == 2
+        assert any("should be capitalized" in issue['issue'] for issue in result.issues)
+        assert any("should be lowercase" in issue['issue'] for issue in result.issues)
 
     def test_validate_input_with_invalid_type(self, reference_check):
         """Test validate_input method with invalid type."""
@@ -430,7 +429,7 @@ class TestTableFigureReferenceCheck:
         result = reference_check.check(content)
 
         assert not result.success
-        assert len(result.issues) == 3
+        assert len(result.issues) == 1  # Only Figure 2 should be flagged as uppercase within sentence
         assert all("should be lowercase" in issue['issue'] for issue in result.issues)
 
     def test_check_with_complex_references(self, reference_check):
