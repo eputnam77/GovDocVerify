@@ -392,8 +392,26 @@ class FormattingChecker(BaseChecker):
     @CheckRegistry.register('format')
     def check_section_symbol_usage(self, lines: List[str]) -> DocumentCheckResult:
         """Check for proper section symbol usage."""
-        logger.debug("Checking section symbols")
+        logger.debug("Checking section symbols (including CFR-specific rule)")
         issues = []
+
+        # --- 1️⃣  Explicit CFR rule --------------------------------------------------
+        cfr_pattern = re.compile(r'\b14\s+CFR\s+§\s*(\d+\.\d+)\b')
+        for i, line in enumerate(lines, 1):
+            if match := cfr_pattern.search(line):
+                sect = match.group(1)
+                incorrect = match.group(0)
+                correct = f"14 CFR {sect}"
+                logger.debug(f"CFR-§ usage found on line {i}: {incorrect!r}")
+                issues.append({
+                    "incorrect": incorrect,
+                    "correct": correct,
+                    "description": 'Remove the section symbol after "14 CFR"',
+                    "severity": Severity.ERROR,
+                    "line_number": i,
+                    "checker": "FormattingChecker"
+                })
+        # ---------------------------------------------------------------------------
 
         # Pattern for valid section symbol usage
         # Must have exactly one space after § and be followed by numbers or valid subsection markers

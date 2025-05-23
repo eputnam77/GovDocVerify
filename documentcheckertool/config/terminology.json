@@ -207,7 +207,8 @@
                 "PURPOSE",
                 "BACKGROUND",
                 "DEFINITIONS",
-                "APPLICABILITY"
+                "APPLICABILITY",
+                {"name": "CANCELLATION", "optional": true, "condition": "if_cancels_previous"}
             ],
             "skip_title_check": false
         },

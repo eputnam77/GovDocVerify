@@ -20,8 +20,8 @@ classifiers = [
 ]
 
 [tool.poetry.dependencies]
-python = ">=3.9,<3.13"
-gradio = "4.19.2"
+python = "^3.10"
+gradio = ">=5.31.0,<6.0"
 python-docx = "1.1.2"
 nltk = "3.9.1"
 pandas = "2.2.1"

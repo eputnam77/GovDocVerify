@@ -376,3 +376,17 @@ class TestSectionSymbolUsage:
         result = self.formatting_checker.check_section_symbol_usage(content)
         assert not result.success
         assert len(result.issues) == 5  # Should flag all except regular space
+
+    def test_cfr_section_symbol_flagged(self):
+        """Test that '14 CFR § <section>' is flagged and suggested as '14 CFR <section>' (no section symbol)."""
+        test_cases = [
+            ("A good reference is 14 CFR § 21.21.", "14 CFR 21.21"),
+            ("See 14 CFR § 25.1309 for details.", "14 CFR 25.1309"),
+        ]
+        for text, expected in test_cases:
+            result = self.formatting_checker.check_text(text)
+            assert not result.success
+            assert any(
+                issue.get("correct") == expected and issue.get("incorrect")
+                for issue in result.issues
+            ), f"Expected correction '{expected}' not found in issues: {result.issues}"

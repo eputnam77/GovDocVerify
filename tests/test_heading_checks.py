@@ -241,5 +241,23 @@ class TestHeadingChecks:
         assert any("exceeds maximum length" in issue["message"] for issue in result.issues)
         assert any("Shorten heading" in issue["suggestion"] for issue in result.issues)
 
+    def test_missing_cancellation_heading_info(self):
+        """Test that missing 'CANCELLATION' heading in AC emits INFO, not error/warning."""
+        doc = [
+            "1. PURPOSE",
+            "2. BACKGROUND",
+            "3. DEFINITIONS",
+            "4. APPLICABILITY"
+        ]
+        result = self.heading_checks.check_heading_title(doc, "Advisory Circular")
+        # Should succeed (no blocking errors/warnings)
+        assert result.success is True
+        # Should have an INFO-level issue for CANCELLATION
+        info_issues = [i for i in result.issues if i.get('type') == 'missing_optional_heading']
+        assert len(info_issues) == 1
+        assert info_issues[0]['missing'] == 'CANCELLATION'
+        assert info_issues[0]['severity'].name == 'INFO'
+        assert "can be ignored" in info_issues[0]['message']
+
 if __name__ == '__main__':
     pytest.main()

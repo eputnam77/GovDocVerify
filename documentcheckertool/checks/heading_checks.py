@@ -99,20 +99,22 @@ class HeadingChecks(BaseChecker):
         heading_words = self.terminology_manager.terminology_data.get('heading_words', [])
         logger.debug(f"Available heading words: {heading_words}")
 
+        # Normalize required_headings to support both string and dict entries
+        normalized_required_headings = []
+        for h in required_headings:
+            if isinstance(h, dict):
+                normalized_required_headings.append(h)
+            else:
+                normalized_required_headings.append({"name": h})
+
+        # Build a set of found headings (uppercase, no period)
         for i, line in enumerate(doc, 1):
             logger.debug(f"Checking line {i} for heading format: {line}")
-            # Check if line starts with a number followed by a dot
             if not self.heading_pattern.match(line):
                 logger.debug(f"Line {i} is not a numbered heading")
                 continue
-
-            # Extract the heading text (everything after the number)
             heading_text = line.split('.', 1)[1].strip()
-            logger.debug(f"Found heading text: {heading_text}")
-
-            # Strip period for comparison
             heading_text_no_period = heading_text.rstrip('.')
-            logger.debug(f"Heading text without period: {heading_text_no_period}")
 
             # Check heading length first
             if len(heading_text_no_period) > self.MAX_HEADING_LENGTH:
@@ -163,28 +165,54 @@ class HeadingChecks(BaseChecker):
             # Only add to headings_found if it passed all validations
             headings_found.add(heading_text_no_period.upper())
 
-        # Additional required headings check
-        if required_headings:
-            missing_headings = set(required_headings) - headings_found
-            if missing_headings:
-                issues.append({
-                    'type': 'missing_headings',
-                    'missing': list(missing_headings),
-                    'message': f'Missing required headings: {", ".join(missing_headings)}'
-                })
+        # Additional required headings check with conditional logic
+        missing_headings = []
+        for h in normalized_required_headings:
+            heading_name = h["name"]
+            is_optional = h.get("optional", False)
+            condition = h.get("condition")
+            if heading_name.upper() not in headings_found:
+                if is_optional or condition:
+                    # INFO-level, non-blocking
+                    info_message = (
+                        f"Missing '{heading_name}' heading. This section is only needed if the document cancels an earlier version. "
+                        "If not applicable, this message can be ignored."
+                    )
+                    logger.info(f"Optional/conditional heading '{heading_name}' missing; issued INFO-level message.")
+                    issues.append({
+                        'type': 'missing_optional_heading',
+                        'missing': heading_name,
+                        'message': info_message,
+                        'severity': Severity.INFO
+                    })
+                else:
+                    missing_headings.append(heading_name)
+        if missing_headings:
+            issues.append({
+                'type': 'missing_headings',
+                'missing': list(missing_headings),
+                'message': f'Missing required headings: {", ".join(missing_headings)}',
+                'severity': Severity.ERROR
+            })
 
         details = {
             'found_headings': list(headings_found),
-            'required_headings': required_headings,
+            'required_headings': [h["name"] for h in normalized_required_headings],
             'document_type': doc_type_norm,
             'missing_count': len(missing_headings) if required_headings else 0
         }
 
         logger.info(f"Heading title check completed. Found {len(issues)} issues")
         logger.debug(f"Result details: {details}")
+        # Determine overall severity
+        overall_severity = Severity.ERROR if any(issue.get('severity') == Severity.ERROR for issue in issues) else (
+            Severity.WARNING if any(issue.get('severity') == Severity.WARNING for issue in issues) else (
+                Severity.INFO if any(issue.get('severity') == Severity.INFO for issue in issues) else None
+            )
+        )
         return DocumentCheckResult(
-            success=len(issues) == 0,
-            severity=Severity.ERROR if any(issue.get('type') == 'length_violation' for issue in issues) else Severity.WARNING,
+            success=not any(issue.get('severity') == Severity.ERROR or issue.get('severity') == Severity.WARNING for issue in issues),
+            severity=overall_severity,
             issues=issues,
             details=details
         )
