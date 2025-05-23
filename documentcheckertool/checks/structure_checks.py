@@ -8,6 +8,7 @@ import re
 import logging
 from functools import wraps
 from documentcheckertool.checks.check_registry import CheckRegistry
+from documentcheckertool.utils.boilerplate_utils import is_boilerplate
 
 logger = logging.getLogger(__name__)
 
@@ -53,6 +54,8 @@ class StructureChecks(BaseChecker):
         """Check for overly long paragraphs."""
         MAX_WORDS = 150
         for i, para in enumerate(paragraphs):
+            if is_boilerplate(para.text):
+                continue
             words = len(para.text.split())
             if words > MAX_WORDS:
                 results.add_issue(
@@ -68,6 +71,8 @@ class StructureChecks(BaseChecker):
         for i, para in enumerate(paragraphs):
             sentences = para.text.split('. ')
             for sentence in sentences:
+                if is_boilerplate(sentence):
+                    continue
                 words = len(sentence.split())
                 if words > MAX_WORDS:
                     results.add_issue(

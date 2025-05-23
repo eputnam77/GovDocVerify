@@ -317,6 +317,13 @@ class FormatChecks(BaseChecker):
 class FormattingChecker(BaseChecker):
     """Checks for formatting issues in documents."""
 
+    # ── spacing helpers ──────────────────────────────────────────────────────
+    _DOUBLE_SPACE_RE = re.compile(r' {2,}')
+    _MISSING_SPACE_REF_RE = re.compile(
+        r'(?<!\s)(?P<prefix>(AC|AD|CFR|FAA|N|SFAR|Part))'
+        r'(?P<number>\d+(?:[-]\d+)?[A-Z]?)'
+    )
+
     @CheckRegistry.register('format')
     def check_text(self, content: str) -> DocumentCheckResult:
         """Check text content for formatting issues."""
@@ -357,19 +364,44 @@ class FormattingChecker(BaseChecker):
 
     @CheckRegistry.register('format')
     def check_spacing(self, lines: List[str]) -> DocumentCheckResult:
-        """Check for spacing issues."""
-        logger.debug("Checking spacing")
-        issues = []
+        """
+        Detect **all** spacing errors in one pass:
+        • double (or more) consecutive spaces
+        • missing space before the numeric part of regulatory references
+          (e.g. "AC25.1" → "AC 25.1", "§25.1309" handled elsewhere)
+        All spacing rules are centralised here and processed before other format checks.
+        """
+        logger.debug("Checking spacing (double & missing).")
+        issues: list[dict] = []
+
         for i, line in enumerate(lines, 1):
-            if '  ' in line:  # Double space
-                logger.debug(f"Found extra spaces in line {i}")
+            # 1) Double or multiple spaces anywhere in the line
+            for m in self._DOUBLE_SPACE_RE.finditer(line):
+                logger.debug(f"Double space found at pos {m.start()} in line {i}: {line!r}")
                 issues.append({
-                    "message": f"Extra spaces found in line {i}",
+                    "message": "Remove extra spaces",
                     "severity": Severity.WARNING,
                     "line_number": i,
+                    "context": line.strip(),
                     "checker": "FormattingChecker"
                 })
-        return DocumentCheckResult(success=len(issues) == 0, severity=Severity.WARNING if issues else None, issues=issues)
+
+            # 2) Missing space between prefix and number (AC25.1, CFR14 etc.)
+            for m in self._MISSING_SPACE_REF_RE.finditer(line):
+                logger.debug(f"Missing space in regulatory reference at pos {m.start()} in line {i}: {line!r}")
+                issues.append({
+                    "message": f"Add space between '{m.group('prefix')}' and '{m.group('number')}'",
+                    "severity": Severity.WARNING,
+                    "line_number": i,
+                    "context": line.strip(),
+                    "checker": "FormattingChecker"
+                })
+
+        return DocumentCheckResult(
+            success=len(issues) == 0,
+            severity=Severity.WARNING if issues else None,
+            issues=issues,
+        )
 
     @CheckRegistry.register('format')
     def check_parentheses(self, lines: List[str]) -> DocumentCheckResult:

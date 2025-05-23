@@ -40,8 +40,10 @@ class TerminologyChecks(BaseChecker):
         logger.info(f"Running terminology checks for document type: {doc_type}")
 
         text_content = [p.text for p in document.paragraphs]
+        self._check_proposed_wording(text_content, doc_type, results)
         self._check_consistency(text_content, results)
         self._check_forbidden_terms(text_content, results)
+        self._check_term_replacements(text_content, results)
 
     @CheckRegistry.register('terminology')
     def _check_consistency(self, paragraphs, results):
@@ -68,6 +70,23 @@ class TerminologyChecks(BaseChecker):
                         message=message,
                         severity=Severity.WARNING,
                         line_number=i+1
+                    )
+
+    @CheckRegistry.register('terminology')
+    def _check_term_replacements(self, paragraphs, results):
+        """
+        Flag any outdated terms that have a direct replacement in
+        TERM_REPLACEMENTS.  Suggest the approved wording.
+        """
+        for i, text in enumerate(paragraphs):
+            for obsolete, approved in TERM_REPLACEMENTS.items():
+                # whole-word, case-insensitive search
+                pattern = fr'\b{re.escape(obsolete)}\b'
+                if re.search(pattern, text, re.IGNORECASE):
+                    results.add_issue(
+                        message=f'Use "{approved}" instead of "{obsolete}".',
+                        severity=Severity.WARNING,
+                        line_number=i + 1
                     )
 
     @CheckRegistry.register('terminology')
@@ -99,6 +118,21 @@ class TerminologyChecks(BaseChecker):
                             'message': f'Inconsistent terminology: use "{standard}" instead of "{variant}"',
                             'severity': Severity.WARNING
                         })
+
+        # Check for forbidden terms & obsolete replacements
+        for i, line in enumerate(lines, 1):
+            for term, message in FORBIDDEN_TERMS.items():
+                if term in line.lower():
+                    issues.append({
+                        'message': message,
+                        'severity': Severity.WARNING
+                    })
+            for obsolete, approved in TERM_REPLACEMENTS.items():
+                if re.search(fr'\b{re.escape(obsolete)}\b', line, re.IGNORECASE):
+                    issues.append({
+                        'message': f'Use "{approved}" instead of "{obsolete}".',
+                        'severity': Severity.WARNING
+                    })
 
         # Add issues to the result
         result.issues.extend(issues)
@@ -229,17 +263,68 @@ class TerminologyChecks(BaseChecker):
                         'severity': Severity.WARNING
                     })
 
-        # Check authority citations
+        # Enhanced check for obsolete authority citations
+        AUTHORITY_LINE_REGEX = re.compile(r'Authority\s*:(.*)', re.IGNORECASE)
+        OBSOLETE_CITATIONS = [
+            (re.compile(r'(49\s*U\.?S\.?C\.?\s*)?(§\s*)?106\(g\)', re.IGNORECASE), "49 U.S.C. 106(g)")
+        ]
         for i, paragraph in enumerate(paragraphs, 1):
-            if 'Authority:' in paragraph and '49 U.S.C. 106(g)' in paragraph:
-                warnings.append({
-                    'line': i,
-                    'message': '49 U.S.C. 106(g) should not be included',
-                    'severity': Severity.WARNING
-                })
+            m = AUTHORITY_LINE_REGEX.search(paragraph)
+            if m:
+                text = m.group(1)
+                for pattern, citation in OBSOLETE_CITATIONS:
+                    if pattern.search(text):
+                        # Remove obsolete citation from authority line (quick fix)
+                        corrected = re.sub(r'(,?\s*(49\s*U\.?S\.?C\.?\s*)?(§\s*)?106\(g\),?)', '', paragraph)
+                        # Clean up double commas/extra spaces
+                        corrected = re.sub(r',\s*,', ',', corrected).replace(' ,', ',').replace('  ', ' ').strip(' ,')
+                        warnings.append({
+                            'line': i,
+                            'message': f'{citation} is no longer valid; confirm or remove this citation.',
+                            'severity': Severity.WARNING,
+                            'suggestion': corrected
+                        })
 
         return {
             'has_errors': len(errors) > 0,
             'errors': errors,
             'warnings': warnings
         }
+
+    # ----------------------------------------------------------
+    # Proposed-language guardrail
+    # ----------------------------------------------------------
+    _PROPOSE_REGEX = re.compile(r"\\bpropos\\w*\\b", re.IGNORECASE)
+    _PROPOSE_PHASES = {
+        "NPRM",                       # Notice of Proposed Rulemaking
+        "NOTICE_OF_PROPOSED_RULEMAKING",
+        "PROPOSED_SC",                # Proposed Special Conditions
+        "NOTICE_OF_PROPOSED_SPECIAL_CONDITIONS",
+    }
+
+    def _is_proposed_phase(self, doc_type: str) -> bool:
+        """Return True if this document type is *supposed* to contain
+        proposed-phase language (and thus the guardrail should be skipped)."""
+        if not doc_type:
+            return False
+        normalised = doc_type.strip().upper().replace(" ", "_")
+        return normalised in self._PROPOSE_PHASES
+
+    def _check_proposed_wording(
+        self,
+        paragraphs: list[str],
+        doc_type: str,
+        results: DocumentCheckResult,
+    ) -> None:
+        """Flag any occurrence of 'propos*' in non-proposed documents."""
+        if self._is_proposed_phase(doc_type):
+            logger.debug("Document is in proposed phase – skipping proposed-wording check")
+            return
+
+        for idx, text in enumerate(paragraphs, start=1):
+            if self._PROPOSE_REGEX.search(text):
+                results.add_issue(
+                    message="Found 'proposed' wording—remove draft phrasing for final documents.",
+                    severity=Severity.INFO,
+                    line_number=idx,
+                )

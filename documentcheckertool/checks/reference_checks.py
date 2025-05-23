@@ -99,9 +99,6 @@ class TableFigureReferenceCheck(BaseChecker):
         # Track if we're inside a code block
         in_code_block = False
 
-        def is_clause_start(text_before_clean):
-            return not text_before_clean or text_before_clean.endswith(('.', ':', ';'))
-
         for line_idx, line in enumerate(content):
             logger.debug(f"Processing line {line_idx + 1}: {line[:50]}...")
 
@@ -169,8 +166,8 @@ class TableFigureReferenceCheck(BaseChecker):
                     text_before_clean = re.sub(r'^[\s\W]+', '', text_before)
                     logger.debug(f"Text before reference: '{text_before}' (cleaned: '{text_before_clean}')")
 
-                    # Determine if reference is at start of sentence
-                    is_sentence_start = not text_before_clean or text_before_clean.endswith((':',';'))
+                    # Start of a (sub-)sentence if nothing before, or previous char is . : ;
+                    is_sentence_start = not text_before_clean or text_before_clean.endswith(('.', ':', ';'))
                     logger.debug(f"Reference is at sentence start: {is_sentence_start}")
 
                     # Skip validation for special contexts
@@ -194,7 +191,7 @@ class TableFigureReferenceCheck(BaseChecker):
                             'line': line,
                             'correct_form': ref_text.lower()
                         })
-                    elif not is_clause_start(text_before_clean) and word[0].isupper():
+                    elif not is_sentence_start and word[0].isupper():
                         logger.debug(f"Found uppercase {ref_type} reference within sentence")
                         issues.append({
                             'reference': ref_text,

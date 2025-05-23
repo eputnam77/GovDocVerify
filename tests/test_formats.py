@@ -1,5 +1,8 @@
 # pytest -v tests/test_formats.py --log-cli-level=DEBUG
 
+# This file consolidates all format-checking tests for both string and DOCX inputs.
+# Shared test data ensures DRY, maintainable coverage of all public APIs.
+
 import pytest
 import logging
 from documentcheckertool.checks.format_checks import FormatChecks, FormattingChecker
@@ -339,6 +342,116 @@ class TestFormatChecks:
         assert len(result.issues) == 2
         assert all(issue["severity"] == Severity.ERROR for issue in result.issues)
         assert all("incorrect_caption" in issue for issue in result.issues)
+
+    def test_date_format_check_tso_reference(self):
+        """Test that TSO references are not flagged as date format errors (regression test for FAA technical references)."""
+        content = [
+            "The equipment meets TSO-C16b requirements.",
+            "Refer to TSO-C123 for details.",
+            "This is compliant with TSO-C2d.",
+            "TSO-C151a is referenced in the document.",
+        ]
+        doc_path = self.create_test_docx(content, "tso_reference.docx")
+        result = DocumentCheckResult()
+        self.format_checks.run_checks(Document(doc_path), "ORDER", result)
+        assert result.success
+        assert len(result.issues) == 0
+
+    def test_date_format_check_faa_technical_references(self):
+        """Test that FAA technical references (AC, AD, SFAR, etc.) are not flagged as date format errors."""
+        content = [
+            "See AC 25-1 for more information.",
+            "Refer to AD 2020-12-05 for compliance.",
+            "SFAR 88 is applicable.",
+            "Order 8900.1 is referenced.",
+            "Notice 8900.2 was issued.",
+            "Policy 8900.3 applies.",
+            "Memo 8900.4 is included.",
+        ]
+        doc_path = self.create_test_docx(content, "faa_technical_references.docx")
+        result = DocumentCheckResult()
+        self.format_checks.run_checks(Document(doc_path), "ORDER", result)
+        assert result.success
+        assert len(result.issues) == 0
+
+    def test_date_format_check_tso_reference_string(self):
+        """Test that TSO references are not flagged as date format errors in string-based checks."""
+        content = "The equipment meets TSO-C16b requirements. Refer to TSO-C123 for details. This is compliant with TSO-C2d. TSO-C151a is referenced in the document."
+        result = self.formatting_checker.check_text(content)
+        assert result.success
+        assert len(result.issues) == 0
+
+    def test_date_format_check_faa_technical_references_string(self):
+        """Test that FAA technical references are not flagged as date format errors in string-based checks."""
+        content = "See AC 25-1 for more information. Refer to AD 2020-12-05 for compliance. SFAR 88 is applicable. Order 8900.1 is referenced. Notice 8900.2 was issued. Policy 8900.3 applies. Memo 8900.4 is included."
+        result = self.formatting_checker.check_text(content)
+        assert result.success
+        assert len(result.issues) == 0
+
+# --- Shared test data for consolidation ---
+DATE_CASES = [
+    (["Date: 01/01/2023", "Date: May 11, 2025"], 1),
+    (["Date: 12/31/2023", "Date: December 31, 2023"], 1),
+    (["Date: May 11, 2025", "Date: December 31, 2023"], 0),
+]
+
+PHONE_CASES = [
+    (["Phone: (123) 456-7890", "Phone: 123-456-7890"], 2),
+    (["Phone: 123.456.7890", "Phone: 1234567890"], 2),
+    (["Phone: 123-456-7890", "Phone: 123-456-7890"], 0),
+]
+
+PLACEHOLDER_CASES = [
+    (["Lorem ipsum dolor sit amet", "TODO: Add content here"], 1),
+    (["FIXME: Update this", "DRAFT: Review needed"], 2),
+    (["Regular content", "More content"], 0),
+]
+
+def make_docx(lines, path):
+    doc = Document()
+    for line in lines:
+        doc.add_paragraph(line)
+    doc.save(path)
+    return path
+
+@pytest.mark.parametrize("lines,expect_errors", DATE_CASES)
+def test_date_formats(managers, tmp_path, lines, expect_errors):
+    fmt, txt = managers
+    # text-level
+    result = txt.check_text("\n".join(lines))
+    assert len(result.issues) == expect_errors
+
+    # docx-level
+    docx_path = make_docx(lines, tmp_path/"tmp.docx")
+    doc_result = DocumentCheckResult()
+    fmt.run_checks(Document(docx_path), "ORDER", doc_result)
+    assert len(doc_result.issues) == expect_errors
+
+@pytest.mark.parametrize("lines,expect_errors", PHONE_CASES)
+def test_phone_formats(managers, tmp_path, lines, expect_errors):
+    fmt, txt = managers
+    # text-level
+    result = txt.check_text("\n".join(lines))
+    assert len(result.issues) == expect_errors
+
+    # docx-level
+    docx_path = make_docx(lines, tmp_path/"tmp.docx")
+    doc_result = DocumentCheckResult()
+    fmt.run_checks(Document(docx_path), "ORDER", doc_result)
+    assert len(doc_result.issues) == expect_errors
+
+@pytest.mark.parametrize("lines,expect_errors", PLACEHOLDER_CASES)
+def test_placeholder_formats(managers, tmp_path, lines, expect_errors):
+    fmt, txt = managers
+    # text-level
+    result = txt.check_text("\n".join(lines))
+    assert len(result.issues) == expect_errors
+
+    # docx-level
+    docx_path = make_docx(lines, tmp_path/"tmp.docx")
+    doc_result = DocumentCheckResult()
+    fmt.run_checks(Document(docx_path), "ORDER", doc_result)
+    assert len(doc_result.issues) == expect_errors
 
 if __name__ == '__main__':
     pytest.main()

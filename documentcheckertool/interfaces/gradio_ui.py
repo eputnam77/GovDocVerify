@@ -1,6 +1,6 @@
 import gradio as gr
 from documentcheckertool.document_checker import FAADocumentChecker
-from documentcheckertool.utils.formatting import ResultFormatter, FormatStyle
+from documentcheckertool.utils.formatting import ResultFormatter, FormatStyle, format_results_to_html
 from documentcheckertool.utils.security import validate_file, SecurityError
 from documentcheckertool.models import DocumentCheckResult, Severity, DocumentType, VisibilitySettings
 from documentcheckertool.constants import DOCUMENT_TYPES
@@ -271,7 +271,6 @@ def create_interface():
                             """
 
                         def process_and_format(file_obj, doc_type_value, template_type_value):
-                            """Process document and format results as HTML."""
                             try:
                                 if not file_obj:
                                     return "Please upload a document file.", gr.update(visible=False), gr.update(visible=False), None
@@ -291,187 +290,22 @@ def create_interface():
                                 try:
                                     validate_file(temp_file_path)
                                     checker = FAADocumentChecker()
-                                    formatter = ResultFormatter(style=FormatStyle.HTML)
-
-                                    logger.info(f"Running checks for document type: {doc_type_value}")
-                                    results_data = checker.run_all_document_checks(
+                                    results_dict = checker.run_all_document_checks(
                                         document_path=temp_file_path,
                                         doc_type=doc_type_value
                                     )
 
-                                    # Debug the raw results structure
-                                    logger.debug(f"Raw results type: {type(results_data)}")
-                                    logger.debug(f"Raw results dir: {dir(results_data)}")
-                                    logger.debug(f"Raw results dict: {results_data.__dict__ if hasattr(results_data, '__dict__') else 'No __dict__'}")
+                                    # Use the unified formatter
+                                    formatter = ResultFormatter(style=FormatStyle.HTML)
+                                    html_results = format_results_to_html(
+                                        formatter.format_results(results_dict, doc_type_value)
+                                    )
 
-                                    # Create a dictionary with check results organized by category
-                                    results_dict = {}
-                                    total_issues = 0
-
-                                    # Define category mappings
-                                    category_mappings = {
-                                        'heading_checks': ['heading_title_check', 'heading_title_period_check'],
-                                        'reference_checks': ['table_figure_reference_check', 'cross_references_check', 'document_title_check'],
-                                        'acronym_checks': ['acronym_check', 'acronym_usage_check'],
-                                        'terminology_checks': ['terminology_check', 'section_symbol_usage_check', 'double_period_check', 'spacing_check', 'date_formats_check', 'parentheses_check'],
-                                        'structure_checks': ['paragraph_length_check', 'sentence_length_check', 'placeholders_check', 'boilerplate_check'],
-                                        'accessibility_checks': ['508_compliance_check', 'hyperlink_check', 'accessibility'],
-                                        'document_status_checks': ['watermark_check'],
-                                        'readability_checks': ['readability_check']
-                                    }
-
-                                    # First, check if we have direct issues on the results object
-                                    if hasattr(results_data, 'issues') and results_data.issues:
-                                        logger.debug(f"Found {len(results_data.issues)} direct issues")
-                                        logger.debug(f"Direct issues: {results_data.issues}")
-                                        # Create a general category for direct issues
-                                        results_dict['general_issues'] = {
-                                            'document_check': {
-                                                'success': False,
-                                                'issues': results_data.issues,
-                                                'details': {}
-                                            }
-                                        }
-                                        total_issues += len(results_data.issues)
-
-                                    # Then process each category
-                                    for category, checkers in category_mappings.items():
-                                        category_results = {}
-                                        for checker in checkers:
-                                            if hasattr(results_data, checker):
-                                                result = getattr(results_data, checker)
-                                                logger.debug(f"Processing {checker} in {category}")
-                                                logger.debug(f"  Result type: {type(result)}")
-                                                logger.debug(f"  Result dir: {dir(result)}")
-
-                                                # Convert DocumentCheckResult to dict format
-                                                if hasattr(result, 'issues') and result.issues:
-                                                    logger.debug(f"  Found {len(result.issues)} issues in {checker}")
-                                                    logger.debug(f"  Issues: {result.issues}")
-                                                    total_issues += len(result.issues)
-                                                    category_results[checker] = {
-                                                        'success': False,
-                                                        'issues': result.issues,
-                                                        'details': getattr(result, 'details', {}) if hasattr(result, 'details') else {}
-                                                    }
-
-                                        if category_results:
-                                            results_dict[category] = category_results
-                                            logger.debug(f"Added {len(category_results)} results for category {category}")
-
-                                    logger.info(f"Total issues organized: {total_issues}")
-                                    logger.debug(f"Final results dictionary structure: {json.dumps(results_dict, indent=2, default=str)}")
-
-                                    # Filter results based on visibility settings
-                                    filtered_results = {}
-                                    for category, category_results in results_dict.items():
-                                        if getattr(visibility_settings, f"show_{category}", True):
-                                            filtered_results[category] = category_results
-
-                                    # Generate summary counts
-                                    summary = {
-                                        'total': total_issues,
-                                        'by_category': {}
-                                    }
-
-                                    for category, category_results in results_dict.items():
-                                        category_issues = sum(
-                                            len(result.get('issues', []))
-                                            for result in category_results.values()
-                                        )
-                                        summary['by_category'][category] = category_issues
-
-                                    # Format results with visibility controls
-                                    formatted_results = f"""
-                                    <div style="font-family: system-ui, -apple-system, sans-serif; max-width: 1200px; margin: 0 auto; padding: 20px;">
-                                        <h1 style="color: #0056b3; text-align: center;">Document Check Results</h1>
-
-                                        <!-- Summary Section -->
-                                        <div style="margin-bottom: 40px; padding: 20px; background-color: #f8f9fa; border-radius: 8px;">
-                                            <h2 style="color: #0056b3; margin-bottom: 20px; border-bottom: 2px solid #0056b3; padding-bottom: 10px;">
-                                                Summary
-                                            </h2>
-                                            <p style="color: #856404; text-align: center;">Found {total_issues} issues that need attention:</p>
-                                            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-top: 20px;">
-                                    """
-
-                                    for category, count in summary['by_category'].items():
-                                        if count > 0:
-                                            formatted_results += f"""
-                                                <div style="background: white; padding: 15px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
-                                                    <h3 style="color: #0056b3; margin: 0 0 10px 0;">{category.replace('_', ' ').title()}</h3>
-                                                    <p style="margin: 0; font-size: 1.2em; color: #dc3545;">{count} issues</p>
-                                                </div>
-                                            """
-
-                                    formatted_results += """
-                                            </div>
-                                        </div>
-
-                                        <!-- Detailed Results -->
-                                    """
-
-                                    # Process each category with visibility filtering
-                                    for category, category_results in filtered_results.items():
-                                        if category_results:  # Only show categories that have results
-                                            formatted_results += f"""
-                                            <div style="margin-bottom: 40px; padding: 20px; background-color: #f8f9fa; border-radius: 8px;">
-                                                <h2 style="color: #0056b3; margin-bottom: 20px; border-bottom: 2px solid #0056b3; padding-bottom: 10px;">
-                                                    {category.replace('_', ' ').title()}
-                                                </h2>
-                                            """
-
-                                            # Process each checker in the category
-                                            for check_name, result in category_results.items():
-                                                if result['issues']:
-                                                    formatted_results += f"""
-                                                    <div style="margin-bottom: 30px; padding: 20px; background-color: #ffffff; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-                                                        <h3 style="color: #0056b3; margin-bottom: 15px;">■ {check_name.replace('_', ' ').title()}</h3>
-                                                        <ul style="list-style-type: none; padding-left: 20px;">
-                                                    """
-
-                                                    for issue in result['issues']:
-                                                        severity = issue.get('severity', '')
-                                                        message = issue.get('message', '')
-                                                        line = issue.get('line_number')
-                                                        line_info = f" (Line {line})" if line is not None else ""
-
-                                                        # Format the issue message with proper HTML and severity indicator
-                                                        severity_indicator = ""
-                                                        if severity == Severity.ERROR:
-                                                            severity_indicator = '<span style="color: #721c24; font-weight: bold;">[ERROR]</span> '
-                                                        elif severity == Severity.WARNING:
-                                                            severity_indicator = '<span style="color: #856404; font-weight: bold;">[WARNING]</span> '
-                                                        else:
-                                                            severity_indicator = '<span style="color: #0c5460; font-weight: bold;">[INFO]</span> '
-
-                                                        formatted_results += f"""
-                                                        <li style="margin-bottom: 8px;">
-                                                            {severity_indicator}{message}{line_info}
-                                                        </li>
-                                                        """
-
-                                                    formatted_results += """
-                                                        </ul>
-                                                    </div>
-                                                    """
-
-                                            formatted_results += """
-                                            </div>
-                                            """
-
-                                    formatted_results += "</div>"
-
-                                    # Store the results dictionary for report generation
+                                    # Store for download handlers
                                     global _last_results
-                                    _last_results = {
-                                        'results': results_dict,
-                                        'visibility': visibility_settings.to_dict(),
-                                        'summary': summary,
-                                        'formatted_results': formatted_results
-                                    }
+                                    _last_results = results_dict
 
-                                    return formatted_results, gr.update(visible=True), gr.update(visible=True), None
+                                    return html_results, gr.update(visible=True), gr.update(visible=True), None
 
                                 finally:
                                     try:
@@ -515,6 +349,17 @@ def create_interface():
                                     if getattr(visibility_settings, f"show_{category}", True):
                                         filtered_results[category] = category_results
 
+                                # Defensive: Log the number of issues to be exported
+                                total_issues = sum(
+                                    len(result['issues'])
+                                    for cat in filtered_results.values()
+                                    for result in cat.values()
+                                    if 'issues' in result and result['issues']
+                                )
+                                logger.info(f"Exporting {total_issues} issues to DOCX")
+                                if not filtered_results:
+                                    logger.warning("No filtered results found for DOCX export. The report will be empty except for the header.")
+
                                 # Format results based on output format
                                 if format == "docx":
                                     try:
@@ -542,19 +387,22 @@ def create_interface():
                                                 )
 
                                         # Add detailed results
-                                        for category, category_results in filtered_results.items():
-                                            if category_results:
-                                                doc.add_heading(category.replace('_', ' ').title(), level=1)
+                                        if total_issues == 0:
+                                            doc.add_paragraph("No issues found in this document.", style='Normal')
+                                        else:
+                                            for category, category_results in filtered_results.items():
+                                                if category_results:
+                                                    doc.add_heading(category.replace('_', ' ').title(), level=1)
 
-                                                for check_name, result in category_results.items():
-                                                    if result.get('issues'):
-                                                        doc.add_heading(check_name.replace('_', ' ').title(), level=2)
+                                                    for check_name, result in category_results.items():
+                                                        if result.get('issues'):
+                                                            doc.add_heading(check_name.replace('_', ' ').title(), level=2)
 
-                                                        for issue in result['issues']:
-                                                            p = doc.add_paragraph(style='List Bullet')
-                                                            p.add_run(issue['message'])
-                                                            if issue.get('line_number'):
-                                                                p.add_run(f' (Line {issue["line_number"]})').italic = True
+                                                            for issue in result['issues']:
+                                                                p = doc.add_paragraph(style='List Bullet')
+                                                                p.add_run(issue['message'])
+                                                                if issue.get('line_number'):
+                                                                    p.add_run(f' (Line {issue["line_number"]})').italic = True
 
                                         doc.save(filepath)
                                         logger.info(f"DOCX report saved to: {filepath}")

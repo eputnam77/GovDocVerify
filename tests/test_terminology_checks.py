@@ -5,6 +5,7 @@ import logging
 from test_base import TestBase
 from documentcheckertool.checks.terminology_checks import TerminologyChecks
 from documentcheckertool.models import DocumentCheckResult
+import pytest
 
 logger = logging.getLogger(__name__)
 
@@ -104,6 +105,39 @@ class TestTerminologyChecks(TestBase):
         logger.debug(f"Issues found: {result['warnings']}")
         self.assertFalse(result['has_errors'])
         self.assert_issue_contains(result, "Split infinitive detected")
+
+    def test_obsolete_agency_name_flagged(self):
+        """Test that obsolete agency names are flagged and replacement is suggested."""
+        doc = "Read the European Aviation Safety Agency documentation."
+        result = self.terminology_checks.check_text(doc)
+        msgs = [iss["message"] for iss in result.issues]
+        self.assertTrue(any("European Union Aviation Safety Agency (EASA)" in m for m in msgs))
+
+@pytest.mark.parametrize("doc_type,content,expect_flag", [
+    # FINAL document → should flag
+    ("Advisory Circular",
+     ["This AC proposes a change to ..."],
+     True),
+    # NPRM (proposed phase) → should NOT flag
+    ("NPRM",
+     ["This NPRM proposes a change to ..."],
+     False),
+])
+def test_proposed_wording(doc_type, content, expect_flag):
+    from documentcheckertool.checks.terminology_checks import TerminologyChecks
+    from documentcheckertool.utils.terminology_utils import TerminologyManager
+    from documentcheckertool.models import DocumentCheckResult
+    # Minimal TerminologyManager stub for test
+    class DummyManager:
+        terminology_data = {}
+    tc = TerminologyChecks(DummyManager())
+    # Simulate the run_checks interface
+    class DummyDoc:
+        paragraphs = [type('P', (), {'text': t}) for t in content]
+    results = DocumentCheckResult()
+    tc.run_checks(DummyDoc(), doc_type, results)
+    flagged = any("proposed" in i.message for i in results.issues)
+    assert flagged == expect_flag
 
 if __name__ == '__main__':
     unittest.main()

@@ -109,8 +109,20 @@ class TestTerminologyChecks:
     def test_authority_citations(self):
         content = "\n".join([
             "Authority: 49 U.S.C. 106(g)",
-            "Authority: 49 U.S.C. 106(f), 40113, 44701, 44702, and 44704"
+            "Authority: 49 U.S.C. 106(f), 40113, 44701, 44702, and 44704",
+            "Authority: 49 USC §106(g), 40113, 44701",
+            "Authority: §106(g), 40113, 44701",
+            "Authority: 106(g), 40113, 44701"
         ])
         result = self.terminology_checks.check(content)
         assert not result['has_errors']
-        assert any("49 U.S.C. 106(g) should not be included" in issue['message'] for issue in result['warnings'])
+        # Check that the new message is present for all forms
+        flagged = [
+            issue for issue in result['warnings']
+            if "49 U.S.C. 106(g) is no longer valid; confirm or remove this citation." in issue['message']
+        ]
+        assert len(flagged) >= 1
+        # Check that a suggestion is present and 106(g) is removed from the suggestion
+        for issue in flagged:
+            assert 'suggestion' in issue
+            assert "106(g)" not in issue['suggestion']

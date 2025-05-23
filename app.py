@@ -13,6 +13,7 @@ from documentcheckertool.document_checker import FAADocumentChecker
 from documentcheckertool.utils.formatting import ResultFormatter, FormatStyle
 import mimetypes
 from documentcheckertool.models import DocumentCheckResult, Severity, DocumentType, VisibilitySettings
+from documentcheckertool.checks.check_registry import CheckRegistry  # Added for registry-driven category mapping
 
 # Configure logging
 logging.basicConfig(
@@ -62,17 +63,9 @@ def process_document(file_path: str, doc_type: str, visibility_settings: Visibil
         # Create a dictionary with check results organized by category
         results_dict = {}
 
-        # Define category mappings
-        category_mappings = {
-            'heading_checks': ['heading_title_check', 'heading_title_period_check'],
-            'reference_checks': ['table_figure_reference_check', 'cross_references_check', 'document_title_check'],
-            'acronym_checks': ['acronym_check', 'acronym_usage_check'],
-            'terminology_checks': ['terminology_check', 'section_symbol_usage_check', 'double_period_check', 'spacing_check', 'date_formats_check', 'parentheses_check'],
-            'structure_checks': ['paragraph_length_check', 'sentence_length_check', 'placeholders_check', 'boilerplate_check'],
-            'accessibility_checks': ['508_compliance_check', 'hyperlink_check', 'accessibility'],
-            'document_status_checks': ['watermark_check'],
-            'readability_checks': ['readability_check']
-        }
+        # Use the registry-driven category mappings for future-proof extensibility
+        # This ensures all registered checks are included automatically, reducing maintenance overhead.
+        category_mappings = CheckRegistry.get_category_mappings()
 
         # Organize results by category
         for category, checkers in category_mappings.items():

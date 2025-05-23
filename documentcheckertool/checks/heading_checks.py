@@ -226,7 +226,7 @@ class HeadingChecks(BaseChecker):
 
         # Get period requirements from terminology data
         period_requirements = self.terminology_manager.terminology_data.get('heading_periods', {})
-        requires_period = doc_type_norm != 'ADVISORY_CIRCULAR' and period_requirements.get(doc_type_norm, False)
+        requires_period = period_requirements.get(doc_type_norm, False)
         logger.debug(f"Document type {doc_type_norm} {'requires' if requires_period else 'does not require'} periods")
 
         # Get heading words from terminology data

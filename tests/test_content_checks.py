@@ -30,6 +30,20 @@ class TestContentChecks:
         result = self.readability_checks.check(content)
         assert any("active voice" in issue['message'] for issue in result['warnings'])
 
+    def test_passive_voice_advisory_tag_and_message(self):
+        """Test that passive voice warning includes advisory message and tag."""
+        content = "The process was completed by the team."
+        result = self.readability_checks.check(content)
+        # Check that the advisory message is present
+        assert any(
+            "Passive voice is flagged as a readability recommendation" in issue["message"]
+            for issue in result["warnings"]
+        )
+        # Check that the advisory tag is present
+        assert any(
+            issue.get("type") == "advisory" for issue in result["warnings"]
+        )
+
     def test_clear_definitions(self):
         content = "Aircraft means a device that is used or intended to be used for flight."
         result = self.terminology_checks.check(content)

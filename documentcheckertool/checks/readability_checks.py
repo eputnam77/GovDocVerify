@@ -14,6 +14,7 @@ from documentcheckertool.utils.terminology_utils import TerminologyManager
 import re
 import logging
 from documentcheckertool.checks.check_registry import CheckRegistry
+from documentcheckertool.utils.boilerplate_utils import is_boilerplate
 
 logger = logging.getLogger(__name__)
 
@@ -55,6 +56,8 @@ class ReadabilityChecks(BaseChecker):
     def _check_readability_thresholds(self, text: str, results: DocumentCheckResult) -> None:
         """Check readability metrics against thresholds."""
         try:
+            if is_boilerplate(text):
+                return  # skip mandated boiler-plate completely
             # Calculate basic metrics
             words = text.split()
             sentences = text.split('.')
@@ -176,8 +179,9 @@ class ReadabilityChecks(BaseChecker):
             if passive_regex.search(sentence):
                 warnings.append({
                     'line': i,
-                    'message': 'Consider using active voice instead of passive voice.',
-                    'severity': Severity.WARNING
+                    'message': 'Consider using active voice instead of passive voice. Note: Passive voice is flagged as a readability recommendation. It is not a style requirement, and may be acceptable depending on context.',
+                    'severity': Severity.WARNING,
+                    'type': 'advisory'
                 })
 
         return {

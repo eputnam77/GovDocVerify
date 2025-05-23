@@ -15,6 +15,7 @@ from docx.document import Document as DocxDocument
 from documentcheckertool.checks.base_checker import BaseChecker
 from documentcheckertool.utils.terminology_utils import TerminologyManager
 from documentcheckertool.checks.check_registry import CheckRegistry
+from documentcheckertool.utils.link_utils import find_urls, deprecated_lookup
 
 logger = logging.getLogger(__name__)
 
@@ -299,7 +300,7 @@ class AccessibilityChecks(BaseChecker):
 
     @CheckRegistry.register('accessibility')
     def _check_hyperlinks(self, content: Union[Document, List[str]], results: DocumentCheckResult) -> None:
-        """Check hyperlinks for accessibility issues."""
+        """Check hyperlinks for accessibility issues, including deprecated FAA links."""
         from docx.document import Document as DocxDocument
 
         if content is None:
@@ -313,6 +314,7 @@ class AccessibilityChecks(BaseChecker):
         # Handle both Document and Mock objects
         if hasattr(content, 'paragraphs'):  # Check for Document-like object
             links = []
+            lines = [p.text for p in content.paragraphs]
             for paragraph in content.paragraphs:
                 for run in paragraph.runs:
                     if hasattr(run, '_element') and hasattr(run._element, 'xpath'):
@@ -326,7 +328,7 @@ class AccessibilityChecks(BaseChecker):
                     severity=Severity.ERROR
                 )
                 return
-
+            lines = content
             link_pattern = re.compile(r'\[([^\]]+)\]\(([^)]+)\)')
             links = [match.group(1) for match in link_pattern.finditer('\n'.join(content))]
 
@@ -340,6 +342,17 @@ class AccessibilityChecks(BaseChecker):
                 results.add_issue(
                     message=f"Non-descriptive link text: '{link_text}'. Use more descriptive text for better accessibility.",
                     severity=Severity.WARNING
+                )
+
+        # --- NEW: detect deprecated FAA links --------------------------------
+        text_source = "\n".join(lines)
+        for url, span in find_urls(text_source):
+            replacement = deprecated_lookup(url)
+            if replacement:
+                results.add_issue(
+                    message=f"Deprecated FAA link detected: '{url}'. Replace with '{replacement}'.",
+                    severity=Severity.ERROR,
+                    line_number=span[0]
                 )
 
     def run_checks(self, document: Document, doc_type: str, results: DocumentCheckResult) -> None:

@@ -6,6 +6,7 @@ from pathlib import Path
 from ..models import DocumentCheckResult
 import logging
 from functools import lru_cache
+from documentcheckertool.config.boilerplate_texts import BOILERPLATE_PARAGRAPHS
 
 logger = logging.getLogger(__name__)
 

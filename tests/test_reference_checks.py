@@ -444,3 +444,17 @@ class TestTableFigureReferenceCheck:
 
         assert result.success
         assert len(result.issues) == 0
+
+    @pytest.mark.parametrize("text, violations", [
+        ("Analyze table 1 of this AC, Table 1-1 of this AC.", 1),
+        ("As shown in Table 3-2, the component values...", 0),
+        ("Refer to table 3-2 for limits.", 0),
+        ('"Table 2-1" lists the data.', 1),
+    ])
+    def test_table_figure_case_param(self, text, violations):
+        """Parametrized test for table/figure reference case and context edge cases."""
+        logger.debug(f"Param test: '{text}' expecting {violations} violations")
+        result = self.checker.check(text.split("\n"))
+        assert len(result.issues) == violations
+        if violations:
+            assert result.issues[0]["issue"].endswith("lowercase")

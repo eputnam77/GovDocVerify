@@ -6,6 +6,7 @@ from documentcheckertool.checks.structure_checks import StructureChecks
 from documentcheckertool.utils.terminology_utils import TerminologyManager
 from documentcheckertool.models import DocumentCheckResult, Severity
 from docx import Document
+from documentcheckertool.config.boilerplate_texts import BOILERPLATE_PARAGRAPHS
 
 logger = logging.getLogger(__name__)
 
@@ -263,3 +264,21 @@ class TestStructureChecks:
         self.structure_checks._check_section_balance(doc.paragraphs, results)
         logger.debug(f"Section balance with list patterns test issues: {results.issues}")
         assert len(results.issues) == 0  # Should not flag the list section
+
+    def test_boilerplate_not_flagged(self):
+        boiler = BOILERPLATE_PARAGRAPHS[0]
+        doc = Document()
+        doc.add_paragraph(boiler)
+        results = DocumentCheckResult(success=True, issues=[])
+        self.structure_checks._check_paragraph_length(doc.paragraphs, results)
+        assert not results.issues, "Boilerplate should be ignored by length check"
+
+    def test_mixed_content_flags_only_non_boiler(self):
+        boiler = BOILERPLATE_PARAGRAPHS[0]
+        long_para = boiler + " Additional text exceeding limits."
+        doc = Document()
+        doc.add_paragraph(boiler)
+        doc.add_paragraph(long_para)
+        results = DocumentCheckResult(success=True, issues=[])
+        self.structure_checks._check_paragraph_length(doc.paragraphs, results)
+        assert len(results.issues) == 1, "Only non-boilerplate should be flagged"

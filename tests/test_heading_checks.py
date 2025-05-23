@@ -259,5 +259,48 @@ class TestHeadingChecks:
         assert info_issues[0]['severity'].name == 'INFO'
         assert "can be ignored" in info_issues[0]['message']
 
+    def test_ac_headings_require_period(self):
+        doc = ["1. PURPOSE.", "2. BACKGROUND."]
+        result = self.heading_checks.check_heading_period(doc, "Advisory Circular")
+        assert result.success
+        assert len(result.issues) == 0
+
+    def test_ac_headings_missing_period(self):
+        doc = ["1. PURPOSE", "2. BACKGROUND"]
+        result = self.heading_checks.check_heading_period(doc, "Advisory Circular")
+        assert not result.success
+        assert any("missing required period" in issue["message"] for issue in result.issues)
+
+    def test_ac_headings_extra_period(self):
+        doc = ["1. PURPOSE..", "2. BACKGROUND."]
+        result = self.heading_checks.check_heading_period(doc, "Advisory Circular")
+        assert not result.success
+        # Accept either double period or generic period error
+        assert any("should not end with period" in issue["message"] or "double period" in issue["message"] for issue in result.issues)
+
+    def test_order_headings_require_period(self):
+        doc = ["1. PURPOSE.", "2. BACKGROUND."]
+        result = self.heading_checks.check_heading_period(doc, "ORDER")
+        assert result.success
+        assert len(result.issues) == 0
+
+    def test_order_headings_missing_period(self):
+        doc = ["1. PURPOSE", "2. BACKGROUND"]
+        result = self.heading_checks.check_heading_period(doc, "ORDER")
+        assert not result.success
+        assert any("missing required period" in issue["message"] for issue in result.issues)
+
+    def test_policy_statement_headings_require_period(self):
+        doc = ["1. PURPOSE.", "2. BACKGROUND."]
+        result = self.heading_checks.check_heading_period(doc, "POLICY_STATEMENT")
+        assert result.success
+        assert len(result.issues) == 0
+
+    def test_policy_statement_headings_missing_period(self):
+        doc = ["1. PURPOSE", "2. BACKGROUND"]
+        result = self.heading_checks.check_heading_period(doc, "POLICY_STATEMENT")
+        assert not result.success
+        assert any("missing required period" in issue["message"] for issue in result.issues)
+
 if __name__ == '__main__':
     pytest.main()
