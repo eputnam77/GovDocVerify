@@ -100,6 +100,15 @@ class TerminologyChecks(BaseChecker):
         lines = text.split('\n')
         logger.debug(f"Split text into {len(lines)} lines")
 
+        # Split infinitive detection (info-level, may be acceptable)
+        split_infinitive_pattern = re.compile(r"\bto\s+\w+ly\b", re.IGNORECASE)
+        for i, line in enumerate(lines, 1):
+            if split_infinitive_pattern.search(line):
+                issues.append({
+                    'message': 'Split infinitive detected (may be acceptable in some contexts)',
+                    'severity': Severity.INFO
+                })
+
         # Check for forbidden terms
         for i, line in enumerate(lines, 1):
             for term, message in FORBIDDEN_TERMS.items():
@@ -294,7 +303,7 @@ class TerminologyChecks(BaseChecker):
     # ----------------------------------------------------------
     # Proposed-language guardrail
     # ----------------------------------------------------------
-    _PROPOSE_REGEX = re.compile(r"\\bpropos\\w*\\b", re.IGNORECASE)
+    _PROPOSE_REGEX = re.compile(r"\bpropos\w*\b", re.IGNORECASE)
     _PROPOSE_PHASES = {
         "NPRM",                       # Notice of Proposed Rulemaking
         "NOTICE_OF_PROPOSED_RULEMAKING",
@@ -322,7 +331,10 @@ class TerminologyChecks(BaseChecker):
             return
 
         for idx, text in enumerate(paragraphs, start=1):
-            if self._PROPOSE_REGEX.search(text):
+            logger.debug(f"_check_proposed_wording: line {idx}: {repr(text)}")
+            match = self._PROPOSE_REGEX.search(text)
+            logger.debug(f"_check_proposed_wording: regex match: {match}")
+            if match:
                 results.add_issue(
                     message="Found 'proposed' wording—remove draft phrasing for final documents.",
                     severity=Severity.INFO,
