@@ -653,34 +653,43 @@ class StructureChecks(BaseChecker):
     @CheckRegistry.register('structure')
     def _check_list_formatting(self, lines: List[str], results: DocumentCheckResult) -> None:
         """Check list formatting consistency."""
-        list_pattern = re.compile(r'^[\s]*[-*+]\s')
+        bullet_pattern = re.compile(r'^[\s]*([•\-*+])\s')
         numbered_pattern = re.compile(r'^[\s]*\d+\.\s')
 
         in_list = False
         list_type = None
+        last_bullet = None
 
         for i, line in enumerate(lines, 1):
-            if list_pattern.match(line):
+            bullet_match = bullet_pattern.match(line)
+            if bullet_match:
+                bullet = bullet_match.group(1)
                 if not in_list:
                     in_list = True
                     list_type = 'bullet'
-                elif list_type != 'bullet':
-                    results.add_issue(
-                        message=f"Inconsistent list formatting at line {i}. Mixing bullet and numbered lists.",
-                        severity=Severity.WARNING
-                    )
+                    last_bullet = bullet
+                else:
+                    if list_type != 'bullet' or (last_bullet and bullet != last_bullet):
+                        results.add_issue(
+                            message=f"Inconsistent list formatting at line {i}. Mixing bullet styles ('{last_bullet}' vs '{bullet}').",
+                            severity=Severity.WARNING
+                        )
+                    last_bullet = bullet
             elif numbered_pattern.match(line):
                 if not in_list:
                     in_list = True
                     list_type = 'numbered'
+                    last_bullet = None
                 elif list_type != 'numbered':
                     results.add_issue(
                         message=f"Inconsistent list formatting at line {i}. Mixing bullet and numbered lists.",
                         severity=Severity.WARNING
                     )
+                    last_bullet = None
             elif line.strip() and in_list:
                 in_list = False
                 list_type = None
+                last_bullet = None
 
     @CheckRegistry.register('structure')
     def _check_parentheses(self, lines: List[str], results: DocumentCheckResult) -> None:
