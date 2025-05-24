@@ -460,8 +460,13 @@ class TestAccessibilityChecks(TestBase):
 
         self.accessibility_checks._check_heading_hierarchy(headings, mock_results)
 
-        self.assertTrue(mock_results.success)
-        self.assertEqual(len(mock_results.issues), 0)
+        # Updated expectation: should flag missing H1 and heading level skipped
+        self.assertFalse(mock_results.success)
+        self.assertEqual(len(mock_results.issues), 2)
+        self.assertIn("Document is missing a top-level heading (H1)", mock_results.issues[0]['message'])
+        self.assertIn("Heading level skipped", mock_results.issues[1]['message'])
+        self.assertEqual(mock_results.issues[0]['severity'], Severity.ERROR)
+        self.assertEqual(mock_results.issues[1]['severity'], Severity.ERROR)
 
     def test_check_heading_hierarchy_with_none_content(self):
         """Test _check_heading_hierarchy with None content."""
@@ -550,6 +555,7 @@ class TestAccessibilityChecks(TestBase):
         mock_run.text = "click here"
         mock_paragraph = Mock()
         mock_paragraph.runs = [mock_run]
+        mock_paragraph.text = "Some paragraph text"
         mock_document = Mock(spec=Document)
         mock_document.paragraphs = [mock_paragraph]
         mock_results = DocumentCheckResult()

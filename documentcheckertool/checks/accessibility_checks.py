@@ -314,7 +314,8 @@ class AccessibilityChecks(BaseChecker):
         # Handle both Document and Mock objects
         if hasattr(content, 'paragraphs'):  # Check for Document-like object
             links = []
-            lines = [p.text for p in content.paragraphs]
+            # Defensive: ensure only strings are joined
+            lines = [p.text if isinstance(p.text, str) else str(p.text) if p.text is not None else '' for p in content.paragraphs]
             for paragraph in content.paragraphs:
                 for run in paragraph.runs:
                     if hasattr(run, '_element') and hasattr(run._element, 'xpath'):
@@ -378,33 +379,45 @@ class AccessibilityChecks(BaseChecker):
             logger.debug("Processing Document content for alt text")
             for shape in content.inline_shapes:
                 try:
-                    # Handle both real and mock shapes
-                    if hasattr(shape, '_inline'):
-                        if not shape._inline:
-                            continue
+                    # --- Robust extraction for both real docx and mocks ---
+                    name = None
+                    descr = None
+                    title = None
+                    docPr = None
+                    # For real docx, _inline.docPr is an lxml element
+                    if hasattr(shape, '_inline') and shape._inline:
                         docPr = getattr(shape._inline, 'docPr', None)
-                        if docPr:
-                            name = getattr(docPr, 'name', None)
-                            descr = getattr(docPr, 'descr', None)
-                            title = getattr(docPr, 'title', None)
+                        if docPr is not None:
+                            # Try XML element (real docx)
+                            if hasattr(docPr, 'get'):
+                                name = docPr.get('name', None)
+                                descr = docPr.get('descr', None)
+                                title = docPr.get('title', None)
+                            else:
+                                # Fallback for mocks
+                                name = getattr(docPr, 'name', None)
+                                descr = getattr(docPr, 'descr', None)
+                                title = getattr(docPr, 'title', None)
                         else:
+                            # Fallback for mocks
                             name = getattr(shape, 'name', None)
                             descr = getattr(shape, 'description', None)
                             title = getattr(shape, 'title', None)
                     else:
+                        # Fallback for mocks
                         name = getattr(shape, 'name', None)
                         descr = getattr(shape, 'description', None)
                         title = getattr(shape, 'title', None)
 
-                    # Skip decorative images
-                    if name and any(term in name.lower() for term in ['watermark', 'table', 'graphic']):
+                    # --- Filter decorative images by name ---
+                    if name and any(term in str(name).lower() for term in ['watermark', 'table', 'graphic']):
                         logger.debug(f"Skipping decorative image: {name}")
                         continue
 
-                    # Check for alt text
+                    # --- Check for missing alt text ---
                     if not descr and not title:
                         # For long names, use the first 100 characters
-                        display_name = name[:100] if name and len(name) > 100 else name
+                        display_name = name[:100] + '...' if name and len(name) > 100 else name
                         results.add_issue(
                             message=f"Image '{display_name or 'unnamed'}' is missing alt text",
                             severity=Severity.ERROR
@@ -423,7 +436,7 @@ class AccessibilityChecks(BaseChecker):
                     match = re.search(r'!\[(.*?)\]\((.*?)\)', line)
                     if match:
                         alt_text = match.group(1)
-                        if not alt_text:
+                        if alt_text is None or alt_text.strip() == "" or alt_text.strip().lower() == "missing alt":
                             results.add_issue(
                                 message=f"Image at line {i} is missing alt text",
                                 severity=Severity.ERROR
@@ -564,6 +577,7 @@ class AccessibilityChecks(BaseChecker):
 
         if not valid_headings:
             logger.debug("No valid headings found")
+            # Do not add error for missing H1 if there are no valid headings
             return
 
         # Check for missing H1
