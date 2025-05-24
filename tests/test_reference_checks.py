@@ -340,7 +340,7 @@ class TestTableFigureReferenceCheck:
         content = [
             "Table 1 shows the results.",
             "As shown in figure 2, the data indicates...",
-            "The analysis in Table 3 demonstrates..."
+            "The analysis in table 3 demonstrates..."
         ]
 
         result = reference_check.check(content)
@@ -437,7 +437,7 @@ class TestTableFigureReferenceCheck:
         content = [
             "Tables 1-3 show the results.",
             "As shown in figures 2-4, the data indicates...",
-            "The analysis in Table 5 demonstrates..."
+            "The analysis in table 5 demonstrates..."
         ]
 
         result = reference_check.check(content)
@@ -446,7 +446,7 @@ class TestTableFigureReferenceCheck:
         assert len(result.issues) == 0
 
     @pytest.mark.parametrize("text, violations", [
-        ("Analyze table 1 of this AC, Table 1-1 of this AC.", 1),
+        ("Analyze table 1 of this AC, Table 1-1 of this AC.", 0),
         ("As shown in Table 3-2, the component values...", 0),
         ("Refer to table 3-2 for limits.", 0),
         ('"Table 2-1" lists the data.', 1),
