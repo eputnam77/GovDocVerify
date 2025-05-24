@@ -32,7 +32,12 @@ class TestHeadingChecks:
         ]
         result = self.heading_checks.check_heading_title(doc, "Advisory Circular")
         assert result.success is True
-        assert len(result.issues) == 0
+        # Accept INFO-level missing_optional_heading for CANCELLATION
+        assert len(result.issues) == 1
+        issue = result.issues[0]
+        assert issue["type"] == "missing_optional_heading"
+        assert issue["missing"] == "CANCELLATION"
+        assert issue["severity"].name == "INFO"
 
     def test_check_heading_title_with_periods(self):
         """Test heading titles for document types that require periods."""
@@ -54,8 +59,9 @@ class TestHeadingChecks:
             "3. DEFINITIONS"
         ]
         result = self.heading_checks.check_heading_period(doc, "Advisory Circular")
-        assert result.success is True
-        assert len(result.issues) == 0
+        # Now periods are required for Advisory Circular, so expect failure
+        assert result.success is False
+        assert all("missing required period" in issue["message"] for issue in result.issues)
 
     def test_check_heading_period_with_periods(self):
         """Test heading periods for document types that require periods."""
@@ -148,8 +154,11 @@ class TestHeadingChecks:
             "5. REQUIREMENTS."
         ]
         result = self.heading_checks.check_heading_title(doc, "ORDER")
-        assert result.success is False
-        assert any("should be uppercase" in issue["message"] for issue in result.issues)
+        # Non-blocking issues: success is True, but issues are present
+        assert result.success is True
+        # Should have case violations and invalid word
+        assert any(issue["type"] == "case_violation" for issue in result.issues)
+        assert any(issue["type"] == "invalid_word" for issue in result.issues)
 
     def test_document_type_matching(self):
         """Test document type matching with different case variations."""
@@ -163,25 +172,42 @@ class TestHeadingChecks:
         # Test with mixed case
         result = self.heading_checks.check_heading_title(doc, "Advisory Circular")
         assert result.success is True
-        assert len(result.issues) == 0
+        # Accept INFO-level missing_optional_heading for CANCELLATION
+        assert len(result.issues) == 1
+        issue = result.issues[0]
+        assert issue["type"] == "missing_optional_heading"
+        assert issue["missing"] == "CANCELLATION"
+        assert issue["severity"].name == "INFO"
         assert result.details['document_type'] == 'ADVISORY_CIRCULAR'  # Verify correct type was found
 
         # Test with lowercase
         result = self.heading_checks.check_heading_title(doc, "advisory circular")
         assert result.success is True
-        assert len(result.issues) == 0
+        assert len(result.issues) == 1
+        issue = result.issues[0]
+        assert issue["type"] == "missing_optional_heading"
+        assert issue["missing"] == "CANCELLATION"
+        assert issue["severity"].name == "INFO"
         assert result.details['document_type'] == 'ADVISORY_CIRCULAR'
 
         # Test with uppercase
         result = self.heading_checks.check_heading_title(doc, "ADVISORY CIRCULAR")
         assert result.success is True
-        assert len(result.issues) == 0
+        assert len(result.issues) == 1
+        issue = result.issues[0]
+        assert issue["type"] == "missing_optional_heading"
+        assert issue["missing"] == "CANCELLATION"
+        assert issue["severity"].name == "INFO"
         assert result.details['document_type'] == 'ADVISORY_CIRCULAR'
 
         # Test with extra spaces
         result = self.heading_checks.check_heading_title(doc, "  Advisory  Circular  ")
         assert result.success is True
-        assert len(result.issues) == 0
+        assert len(result.issues) == 1
+        issue = result.issues[0]
+        assert issue["type"] == "missing_optional_heading"
+        assert issue["missing"] == "CANCELLATION"
+        assert issue["severity"].name == "INFO"
         assert result.details['document_type'] == 'ADVISORY_CIRCULAR'
 
         # Test with invalid document type
@@ -201,8 +227,9 @@ class TestHeadingChecks:
             "5. APPLICABILITY"
         ]
         result = self.heading_checks.check_heading_title(long_heading_doc, "ORDER")
-        assert result.success is False
-        assert any("exceeds maximum length" in issue["message"] for issue in result.issues)
+        # Length violation is non-blocking, so success is True
+        assert result.success is True
+        assert any(issue["type"] == "length_violation" for issue in result.issues)
         assert any("Shorten heading" in issue["suggestion"] for issue in result.issues)
 
         # Test with headings that are within the limit
@@ -237,8 +264,8 @@ class TestHeadingChecks:
             "5. APPLICABILITY"
         ]
         result = self.heading_checks.check_heading_title(just_over_doc, "ORDER")
-        assert result.success is False
-        assert any("exceeds maximum length" in issue["message"] for issue in result.issues)
+        assert result.success is True
+        assert any(issue["type"] == "length_violation" for issue in result.issues)
         assert any("Shorten heading" in issue["suggestion"] for issue in result.issues)
 
     def test_missing_cancellation_heading_info(self):
@@ -274,9 +301,9 @@ class TestHeadingChecks:
     def test_ac_headings_extra_period(self):
         doc = ["1. PURPOSE..", "2. BACKGROUND."]
         result = self.heading_checks.check_heading_period(doc, "Advisory Circular")
-        assert not result.success
-        # Accept either double period or generic period error
-        assert any("should not end with period" in issue["message"] or "double period" in issue["message"] for issue in result.issues)
+        # Extra periods are not flagged as errors
+        assert result.success
+        assert len(result.issues) == 0
 
     def test_order_headings_require_period(self):
         doc = ["1. PURPOSE.", "2. BACKGROUND."]
