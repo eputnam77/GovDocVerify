@@ -3,6 +3,7 @@ from enum import Enum, auto, IntEnum
 from typing import List, Dict, Any, Optional
 from pydantic import BaseModel
 from documentcheckertool.models import DocumentType, DocumentTypeError
+import json
 
 class DocumentCheckError(Exception):
     """Base exception for document checking errors."""
@@ -164,3 +165,12 @@ class VisibilitySettings:
             show_accessibility=data.get('accessibility', True),
             show_document_status=data.get('document_status', True)
         )
+
+    @classmethod
+    def from_dict_json(cls, json_str: str) -> 'VisibilitySettings':
+        """Create settings from a JSON string."""
+        try:
+            data = json.loads(json_str)
+        except Exception:
+            data = {}
+        return cls.from_dict(data)

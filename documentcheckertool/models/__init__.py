@@ -2,6 +2,7 @@ from enum import Enum
 from dataclasses import dataclass, field
 from typing import List, Dict, Any, Optional
 import re
+import json
 
 class Severity(Enum):
     """Enum for issue severity levels."""
@@ -143,3 +144,12 @@ class VisibilitySettings:
             show_accessibility=settings.get('accessibility', True),
             show_document_status=settings.get('document_status', True)
         )
+
+    @classmethod
+    def from_dict_json(cls, json_str: str) -> 'VisibilitySettings':
+        """Create settings from a JSON string."""
+        try:
+            data = json.loads(json_str)
+        except Exception:
+            data = {}
+        return cls.from_dict(data)
