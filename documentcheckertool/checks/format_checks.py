@@ -326,7 +326,7 @@ class FormattingChecker(BaseChecker):
 
     @CheckRegistry.register('format')
     def check_text(self, content: str) -> DocumentCheckResult:
-        """Check text content for formatting issues."""
+        """Check text content for formatting issues, including date and phone number formats."""
         logger.debug("Starting text formatting check")
         issues = []
 
@@ -342,6 +342,10 @@ class FormattingChecker(BaseChecker):
         issues.extend(self.check_list_formatting(lines).issues)
         issues.extend(self.check_quotation_marks(lines).issues)
         issues.extend(self.check_placeholders(lines).issues)  # Add placeholder check
+
+        # --- Additional checks for date and phone number formats ---
+        issues.extend(self._check_date_formats_text(lines))
+        issues.extend(self._check_phone_numbers_text(lines))
 
         logger.debug(f"Found {len(issues)} total issues")
         return DocumentCheckResult(success=len(issues) == 0, severity=Severity.ERROR if issues else None, issues=issues)
@@ -567,3 +571,79 @@ class FormattingChecker(BaseChecker):
                     })
                     break  # Only add one issue per line
         return DocumentCheckResult(success=len(issues) == 0, severity=Severity.ERROR if issues else None, issues=issues)
+
+    def _check_date_formats_text(self, lines: list) -> list:
+        """
+        Check for consistent date formats in plain text (line-by-line),
+        skipping lines that match skip patterns (e.g., technical references).
+        Returns a list of issues.
+        """
+        logger.debug(f"[Text] Checking date formats with {len(lines)} lines")
+        issues = []
+        for i, text in enumerate(lines):
+            # Skip if text matches any skip patterns
+            if any(re.search(pattern, text) for pattern in DATE_PATTERNS['skip_patterns']):
+                logger.debug(f"[Text] Skipping line {i+1} due to skip pattern: {text!r}")
+                continue
+            # Check for incorrect date format (MM/DD/YYYY)
+            if re.search(DATE_PATTERNS['incorrect'], text):
+                logger.debug(f"[Text] Found incorrect date format in line {i+1}: {text!r}")
+                issues.append({
+                    "message": "Incorrect date format. Use Month Day, Year format (e.g., May 11, 2025)",
+                    "severity": Severity.ERROR,
+                    "line_number": i+1,
+                    "context": text.strip(),
+                    "checker": "FormattingChecker"
+                })
+        return issues
+
+    def _check_phone_numbers_text(self, lines: list) -> list:
+        """
+        Check for inconsistent phone number formats in plain text (line-by-line).
+        Flags all lines with phone numbers if more than one style is present.
+        Returns a list of issues.
+        """
+        logger.debug(f"[Text] Checking phone numbers with {len(lines)} lines")
+        def _categorise(num: str) -> str:
+            # Normalize whitespace and separators for consistent categorization
+            normalized = re.sub(r'\s+', ' ', num)
+            normalized = re.sub(r'[-.]+', '-', normalized)
+            if re.fullmatch(r"\(\d{3}\)\s*\d{3}-\d{4}", normalized):
+                return "paren"
+            if re.fullmatch(r"\d{3}-\d{3}-\d{4}", normalized):
+                return "dash"
+            if re.fullmatch(r"\d{3}\.\d{3}\.\d{4}", normalized):
+                return "dot"
+            if re.fullmatch(r"\d{10}", normalized):
+                return "plain"
+            return "other"
+        found = []  # (line_number, style)
+        for idx, line in enumerate(lines, start=1):
+            for pattern in PHONE_PATTERNS:
+                match = re.search(pattern, line)
+                if match:
+                    style = _categorise(match.group(0))
+                    logger.debug(f"[Text] Found phone number in line {idx}: {match.group(0)} (style={style})")
+                    found.append((idx, style))
+                    break  # Only add each number once
+        if not found:
+            return []
+        styles_present = {style for _, style in found}
+        logger.debug(f"[Text] Detected phone-number styles: {styles_present}")
+        if len(styles_present) == 1:
+            return []
+        # Flag all lines with phone numbers when styles are inconsistent
+        seen = set()
+        issues = []
+        for line_no, _ in found:
+            if line_no in seen:
+                continue
+            issues.append({
+                "message": "Inconsistent phone number format",
+                "severity": Severity.WARNING,
+                "line_number": line_no,
+                "checker": "FormattingChecker"
+            })
+            seen.add(line_no)
+            logger.debug(f"[Text] Flagged line {line_no} for inconsistent phone number format")
+        return issues
