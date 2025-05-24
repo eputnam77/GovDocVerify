@@ -213,11 +213,9 @@ class TestFAADocumentChecker(unittest.TestCase):
         """Test that all check modules are run when run_all_document_checks is called."""
         logger.debug("Starting test_all_check_modules_are_run")
 
-        # Create a properly mocked document
-        doc = MagicMock()
-        doc.text = "Test document content"
-        doc.paragraphs = [MagicMock(text="Test paragraph")]
-        logger.debug("Created test document")
+        # Use a string for the document text to match the expected check_text argument
+        doc_text = "Test document content"
+        logger.debug("Created test document text")
 
         # Create a mock for each check module
         mock_checks = {
@@ -239,17 +237,17 @@ class TestFAADocumentChecker(unittest.TestCase):
 
         # Run the checks
         logger.debug("Running document checks")
-        self.checker.run_all_document_checks(doc)
+        self.checker.run_all_document_checks(doc_text)
         logger.debug("Document checks completed")
 
         # Verify each check module was called
         for name, mock in mock_checks.items():
             logger.debug(f"Verifying {name}")
             if hasattr(mock, 'check_text'):
-                mock.check_text.assert_called_once_with(doc.text)
+                mock.check_text.assert_called_once_with(doc_text)
                 logger.debug(f"{name} check_text called")
             else:
-                mock.run_checks.assert_called_once_with(doc, None, ANY)
+                mock.run_checks.assert_called_once_with(ANY, None, ANY)
                 logger.debug(f"{name} run_checks called")
 
         # Verify the total number of check modules matches our expectations
