@@ -13,7 +13,7 @@ def find_urls(text: str) -> Iterator[Tuple[str, Tuple[int, int]]]:
 def normalise(url: str) -> str:
     parsed = urllib.parse.urlparse(url if url.startswith('http') else f'//{url}', scheme='https')
     host = parsed.hostname.lower() if parsed.hostname else ''
-    path = parsed.path.rstrip('/')
+    path = parsed.path.rstrip('/').rstrip('.,;:!?')
     return f"{host}{path}" if path else host
 
 def deprecated_lookup(url: str) -> Optional[str]:

@@ -67,6 +67,7 @@ class AccessibilityChecks(BaseChecker):
         self._check_alt_text(lines, results)
         self._check_color_contrast(lines, results)
         self._check_heading_structure(lines, results)
+        self._check_hyperlinks(lines, results)
         return results
 
     def validate_input(self, doc: List[str]) -> bool:

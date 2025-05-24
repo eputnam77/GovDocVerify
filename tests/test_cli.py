@@ -76,7 +76,11 @@ class TestCLI:
 
 # Mock or stub for testing purposes
 def process_document(file_path, doc_type):
-    return "Mocked process_document result"
+    return {
+        'has_errors': False,
+        'errors': [],
+        'warnings': []
+    }
 
 def main():
     return 0
