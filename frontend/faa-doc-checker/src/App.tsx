@@ -3,8 +3,32 @@ import axios from "axios";
 import UploadPanel from "./components/UploadPanel";
 import VisibilityToggles from "./components/VisibilityToggles";
 import ResultsPane from "./components/ResultsPane";
+import { ThemeProvider, createTheme } from '@mui/material/styles';
+import CssBaseline from '@mui/material/CssBaseline';
+import AppBar from '@mui/material/AppBar';
+import Toolbar from '@mui/material/Toolbar';
+import Typography from '@mui/material/Typography';
+import Container from '@mui/material/Container';
+import Grid from '@mui/material/Grid';
 
 const API_BASE = import.meta.env.VITE_API_BASE || "http://127.0.0.1:8000";
+
+const theme = createTheme({
+  palette: {
+    primary: {
+      main: '#1976d2',
+    },
+    secondary: {
+      main: '#7c3aed',
+    },
+    background: {
+      default: '#f3f4f6',
+    },
+  },
+  typography: {
+    fontFamily: 'Roboto, Arial, sans-serif',
+  },
+});
 
 export default function App() {
   const [html, setHtml] = useState<string>("");
@@ -32,21 +56,31 @@ export default function App() {
     const { data: resp } = await axios.post(`${API_BASE}/process`, data, {
       headers: { "Content-Type": "multipart/form-data" },
     });
+    console.log(resp);
     setHtml(resp.html);
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 p-8 md:p-12">
-      <h1 className="text-3xl font-semibold text-center text-blue-700 mb-8">
-        FAA Document Checker
-      </h1>
-      <div className="grid gap-8 lg:grid-cols-3">
-        <div className="lg:col-span-1 space-y-6">
-          <UploadPanel onSubmit={handleSubmit} visibility={visibility} />
-          <VisibilityToggles visibility={visibility} setVisibility={setVisibility} />
-        </div>
-        <ResultsPane html={html} />
-      </div>
-    </div>
+    <ThemeProvider theme={theme}>
+      <CssBaseline />
+      <AppBar position="static" color="primary" elevation={2}>
+        <Toolbar>
+          <Typography variant="h5" component="div" sx={{ flexGrow: 1, textAlign: 'center', fontWeight: 600 }}>
+            FAA Document Checker
+          </Typography>
+        </Toolbar>
+      </AppBar>
+      <Container maxWidth="lg" sx={{ mt: 6, mb: 6 }}>
+        <Grid container spacing={4} alignItems="flex-start">
+          <Grid item xs={12} md={4}>
+            <UploadPanel onSubmit={handleSubmit} visibility={visibility} />
+            <VisibilityToggles visibility={visibility} setVisibility={setVisibility} />
+          </Grid>
+          <Grid item xs={12} md={8}>
+            <ResultsPane html={html} />
+          </Grid>
+        </Grid>
+      </Container>
+    </ThemeProvider>
   );
 }

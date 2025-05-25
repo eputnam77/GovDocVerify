@@ -595,7 +595,7 @@ class ResultFormatter:
 
                             for issue in result.issues:
                                 severity = issue.get('severity', '')
-                                message = issue.get('message', '')
+                                message = issue.get('message') or issue.get('error', '')
                                 line = issue.get('line_number')
                                 line_info = f" (Line {line})" if line is not None else ""
 

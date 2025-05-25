@@ -1,0 +1,3 @@
+DEPRECATED: patterns.json is not used by the codebase.
+All patterns must be defined in config/terminology.json.
+This file is retained for reference only.

@@ -88,8 +88,19 @@ def process_document(file_path: str, doc_type: str, visibility_settings: Visibil
                 results_dict[category] = category_results
                 logger.debug(f"Added {len(category_results)} results for category {category}")
 
-        # Use the ResultFormatter to format the results
-        formatted_results = formatter.format_results(results_dict, doc_type)
+        logger.info(f"Raw results object: {results}")
+        if isinstance(results, DocumentCheckResult):
+            formatted_results = ResultFormatter(style=FormatStyle.HTML).format_results(
+                {"all": {"all": {
+                    "success": results.success,
+                    "issues": results.issues,
+                    "details": getattr(results, "details", {})
+                }}},
+                doc_type
+            )
+        else:
+            logger.info(f"Results dict before formatting: {results_dict}")
+            formatted_results = formatter.format_results(results_dict, doc_type)
         logger.info("Document processing completed successfully")
         return formatted_results
 

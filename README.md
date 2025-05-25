@@ -111,9 +111,14 @@ npm install
 
 ## Running the Application
 
+> **Note:** You will need to use **two separate terminals** (or terminal tabs/windows):
+> - **Terminal 1:** For running the backend API (FastAPI)
+> - **Terminal 2:** For running the frontend (React app)
+> This allows both the backend and frontend to run simultaneously. Do **not** close the backend terminal when starting the frontend.
+
 ### 1. Start the Backend API
 
-**From the backend directory:**
+**In Terminal 1, from the backend directory:**
 ```bash
 cd backend
 pip install -r requirements.txt  # Only needed once
@@ -121,11 +126,9 @@ uvicorn backend.main:app --reload
 ```
 - The API will be available at [http://127.0.0.1:8000](http://127.0.0.1:8000).
 
----
-
 ### 2. Start the Frontend Website
 
-**From the frontend directory:**
+**In Terminal 2, from the frontend directory:**
 ```bash
 cd frontend/faa-doc-checker
 npm run dev
