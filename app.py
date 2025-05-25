@@ -51,10 +51,10 @@ logging.config.dictConfig(LOGGING_CONFIG)
 logger = logging.getLogger(__name__)
 logger.debug("[UI DEBUG] Logging is active at module import time.")
 
-def process_document(file_path: str, doc_type: str, visibility_settings: VisibilitySettings) -> str:
+def process_document(file_path: str, doc_type: str, visibility_settings: VisibilitySettings, group_by: str = "category") -> str:
     """Process a document and return formatted results."""
     try:
-        logger.info(f"Processing document of type: {doc_type}")
+        logger.info(f"Processing document of type: {doc_type}, group_by: {group_by}")
         formatter = ResultFormatter(style=FormatStyle.HTML)
 
         # Initialize the document checker
@@ -95,7 +95,7 @@ def process_document(file_path: str, doc_type: str, visibility_settings: Visibil
             }}}
 
         logger.info(f"Results dict before formatting: {results_dict}")
-        formatted_results = formatter.format_results(results_dict, doc_type)
+        formatted_results = formatter.format_results(results_dict, doc_type, group_by=group_by)
         logger.info("Document processing completed successfully")
         return formatted_results
 
@@ -120,6 +120,7 @@ def main() -> int:
         parser.add_argument('--cli', action='store_true', help='Run in CLI mode')
         parser.add_argument('--file', type=str, help='Path to document file')
         parser.add_argument('--type', type=str, help='Document type')
+        parser.add_argument('--group-by', type=str, choices=['category', 'severity'], default='category', help='Group results by category or severity')
         parser.add_argument('--debug', action='store_true', help='Enable debug mode')
         parser.add_argument('--host', type=str, default='127.0.0.1', help='Server host')
         parser.add_argument('--port', type=int, default=7860, help='Server port')
@@ -161,7 +162,7 @@ def main() -> int:
                     show_document_status=not args.hide_document_status
                 )
 
-                results = process_document(args.file, args.type, visibility_settings)
+                results = process_document(args.file, args.type, visibility_settings, group_by=args.group_by)
                 print(results)
                 return 0
             except Exception as e:

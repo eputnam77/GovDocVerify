@@ -15,12 +15,12 @@ logging.basicConfig(
     format='%(asctime)s %(levelname)s %(name)s: %(message)s',
 )
 
-def process_document(file_path: str, doc_type: str) -> Dict[str, Any]:
+def process_document(file_path: str, doc_type: str, group_by: str = "category") -> Dict[str, Any]:
     """
     Process a document using FAADocumentChecker and return a result dict.
     Includes detailed logging and error handling.
     """
-    logger.info(f"Processing document: {file_path} with type: {doc_type}")
+    logger.info(f"Processing document: {file_path} with type: {doc_type}, group_by: {group_by}")
     checker = FAADocumentChecker()
     try:
         # Validate document type
@@ -32,14 +32,22 @@ def process_document(file_path: str, doc_type: str) -> Dict[str, Any]:
                 'warnings': []
             }
         result = checker.run_all_document_checks(file_path, doc_type)
-        errors = [issue for issue in result.issues if issue.get('severity', 'error') == 'error']
-        warnings = [issue for issue in result.issues if issue.get('severity', 'error') == 'warning']
-        logger.info(f"Check complete. Errors: {len(errors)}, Warnings: {len(warnings)}")
-        return {
-            'has_errors': not result.success,
-            'errors': errors,
-            'warnings': warnings
+
+        # ── keep category structure intact ────────────────────────────────
+        results_dict = getattr(result, "per_check_results", None) or {
+            "all": {"all": {'success': result.success,
+                                'issues': result.issues,
+                                'details': getattr(result, 'details', {})}}
         }
+
+        from documentcheckertool.utils.formatting import ResultFormatter, FormatStyle
+        formatter = ResultFormatter(style=FormatStyle.MARKDOWN)
+        rendered = formatter.format_results(results_dict, doc_type, group_by=group_by)
+
+        logger.info("Check complete. Results grouped by %s.", group_by)
+        return {"has_errors": not result.success,
+                "rendered": rendered,
+                "by_category": results_dict}
     except FileNotFoundError:
         logger.error(f"File not found: {file_path}")
         return {
@@ -68,24 +76,30 @@ def main() -> int:
     Returns 0 on success, 1 on error. Logs all actions.
     Handles exceptions robustly for test compatibility.
     """
-    logger.debug(f"CLI arguments: {sys.argv}")
-    if len(sys.argv) != 3:
-        logger.error("Usage: script.py <file_path> <doc_type>")
-        return 1
-    file_path = sys.argv[1]
-    doc_type = sys.argv[2]
+    import argparse
+    parser = argparse.ArgumentParser(description='FAA Document Checker CLI')
+    parser.add_argument('file_path', type=str, help='Path to document file')
+    parser.add_argument('doc_type', type=str, help='Document type')
+    parser.add_argument('--group-by', type=str, choices=['category', 'severity'], default='category', help='Group results by category or severity')
+    args = parser.parse_args()
     try:
-        result = process_document(file_path, doc_type)
+        print("Checking document...", flush=True)
+        result = process_document(args.file_path, args.doc_type, group_by=args.group_by)
     except Exception as e:
         logger.error(f"Exception in process_document: {e}")
+        print(f"Error: {e}", flush=True)
         return 1
     if not isinstance(result, dict) or 'has_errors' not in result:
         logger.error("process_document did not return a valid result dict.")
+        print("Error: Invalid result from document checker.", flush=True)
         return 1
     if result['has_errors']:
-        logger.error(f"Errors found: {result.get('errors', [])}")
+        logger.error(f"Errors found: {result.get('rendered', '')}")
+        print("Check complete. Errors found.", flush=True)
         return 1
     logger.info("Document processed successfully with no errors.")
+    print(result['rendered'])
+    print("Check complete. No errors found.", flush=True)
     return 0
 
 # For direct CLI usage

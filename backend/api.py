@@ -10,6 +10,7 @@ async def process_doc_endpoint(
     doc_file: UploadFile = File(...),
     doc_type: str        = Form(...),
     visibility_json: str = Form("{}"),
+    group_by: str        = Form("category"),
 ):
     tmp_path = None
     try:
@@ -18,9 +19,17 @@ async def process_doc_endpoint(
             tmp_path = tmp.name
 
         vis = VisibilitySettings.from_dict_json(visibility_json)
-        html = process_document(tmp_path, doc_type, vis)
+        html_result = process_document(tmp_path, doc_type, vis, group_by=group_by)
 
-        return JSONResponse({"html": html})
+        # If process_document returns a dict (new structure), unpack it
+        if isinstance(html_result, dict):
+            return JSONResponse({
+                "has_errors": html_result.get("has_errors", False),
+                "rendered": html_result.get("rendered", ""),
+                "by_category": html_result.get("by_category", {})
+            })
+        # Fallback for legacy string output
+        return JSONResponse({"html": html_result})
 
     except Exception as e:
         log.exception("processing failed")

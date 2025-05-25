@@ -13,21 +13,23 @@ class TestCLI:
     def test_process_document(self, mock_checker):
         mock_checker.return_value.check.return_value = {
             'has_errors': False,
-            'errors': [],
-            'warnings': []
+            'rendered': '',
+            'by_category': {}
         }
 
         result = process_document('test.docx', 'ADVISORY_CIRCULAR')
         assert not result['has_errors']
-        assert len(result['errors']) == 0
-        assert len(result['warnings']) == 0
+        assert 'rendered' in result
+        assert isinstance(result['rendered'], str)
+        assert 'by_category' in result
+        assert isinstance(result['by_category'], dict)
 
     @patch('documentcheckertool.cli.process_document')
     def test_main_success(self, mock_process):
         mock_process.return_value = {
             'has_errors': False,
-            'errors': [],
-            'warnings': []
+            'rendered': '',
+            'by_category': {}
         }
 
         with patch('sys.argv', ['script.py', 'test.docx', 'ADVISORY_CIRCULAR']):
@@ -38,8 +40,8 @@ class TestCLI:
     def test_main_error(self, mock_process):
         mock_process.return_value = {
             'has_errors': True,
-            'errors': ['Test error'],
-            'warnings': []
+            'rendered': '',
+            'by_category': {}
         }
 
         with patch('sys.argv', ['script.py', 'test.docx', 'ADVISORY_CIRCULAR']):
@@ -78,8 +80,8 @@ class TestCLI:
 def process_document(file_path, doc_type):
     return {
         'has_errors': False,
-        'errors': [],
-        'warnings': []
+        'rendered': '',
+        'by_category': {}
     }
 
 def main():

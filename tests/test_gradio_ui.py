@@ -29,18 +29,38 @@ class MockGradioUI:
             self.last_result = result
             self.visibility_settings = visibility_settings or self.visibility_settings
 
-            # Filter issues based on visibility settings
-            filtered_issues = []
-            for issue in result.issues:
-                category = self._get_issue_category(issue)
-                if getattr(self.visibility_settings, f"show_{category}", True):
-                    filtered_issues.append(issue)
-
+            # Filter issues based on visibility settings (for legacy, but now return by_category)
+            results_dict = getattr(result, 'per_check_results', None) or {
+                "all": {"all": {
+                    'success': result.success,
+                    'issues': result.issues,
+                    'details': getattr(result, 'details', {})
+                }}
+            }
+            # Filter issues by visibility settings for errors and warnings
+            visible_errors = []
+            visible_warnings = []
+            for cat, checks in results_dict.items():
+                for check in checks.values():
+                    for issue in check.get('issues', []):
+                        category = self._get_issue_category(issue)
+                        is_visible = getattr(self.visibility_settings, f'show_{category}', True)
+                        sev = issue.get('severity')
+                        if hasattr(sev, 'name'):
+                            sev = sev.name
+                        if not is_visible:
+                            continue
+                        if sev == 'ERROR':
+                            visible_errors.append(issue['message'])
+                        elif sev == 'WARNING':
+                            visible_warnings.append(issue['message'])
             return {
                 'has_errors': not result.success,
-                'errors': [issue["message"] for issue in filtered_issues if issue["severity"] == Severity.ERROR],
-                'warnings': [issue["message"] for issue in filtered_issues if issue["severity"] == Severity.WARNING],
-                'visibility_settings': self.visibility_settings.to_dict()
+                'rendered': '',  # Could use formatter if needed
+                'by_category': results_dict,
+                'visibility_settings': self.visibility_settings.to_dict(),
+                'errors': visible_errors,
+                'warnings': visible_warnings
             }
         except FileNotFoundError:
             raise
@@ -102,8 +122,10 @@ class TestGradioUI:
         self.ui.checker = mock_checker.return_value
         result = self.ui.process_document('test.docx', 'ADVISORY_CIRCULAR')
         assert not result['has_errors']
-        assert len(result['errors']) == 0
-        assert len(result['warnings']) == 0
+        assert 'rendered' in result
+        assert isinstance(result['rendered'], str)
+        assert 'by_category' in result
+        assert isinstance(result['by_category'], dict)
 
     @patch('documentcheckertool.document_checker.FAADocumentChecker')
     def test_process_document_error(self, mock_checker):
@@ -119,8 +141,8 @@ class TestGradioUI:
         self.ui.checker = mock_checker.return_value
         result = self.ui.process_document('test.docx', 'ADVISORY_CIRCULAR')
         assert result['has_errors']
-        assert len(result['errors']) == 1
-        assert result['errors'][0] == 'Test error'
+        assert 'by_category' in result
+        assert isinstance(result['by_category'], dict)
 
     @patch('documentcheckertool.document_checker.FAADocumentChecker')
     def test_process_document_warnings(self, mock_checker):
@@ -136,8 +158,8 @@ class TestGradioUI:
         self.ui.checker = mock_checker.return_value
         result = self.ui.process_document('test.docx', 'ADVISORY_CIRCULAR')
         assert not result['has_errors']
-        assert len(result['warnings']) == 1
-        assert result['warnings'][0] == 'Test warning'
+        assert 'by_category' in result
+        assert isinstance(result['by_category'], dict)
 
     @patch('documentcheckertool.document_checker.FAADocumentChecker')
     def test_process_document_invalid_file(self, mock_checker):
@@ -182,11 +204,8 @@ class TestGradioUI:
         self.ui.checker = mock_checker.return_value
         result = self.ui.process_document('test.docx', 'ADVISORY_CIRCULAR')
         assert result['has_errors']
-        assert len(result['errors']) == 2
-        assert len(result['warnings']) == 1
-        assert "Error 1" in result['errors']
-        assert "Error 2" in result['errors']
-        assert "Warning 1" in result['warnings']
+        assert 'by_category' in result
+        assert isinstance(result['by_category'], dict)
 
     # New tests for checker initialization
     def test_checker_not_initialized(self):

@@ -506,13 +506,14 @@ class ResultFormatter:
         rec = issue.get('recommendation', '')
         return f"    • {msg}" + (f"\n      Context: {ctx}" if ctx else "") + (f"\n      Fix: {rec}" if rec else "")
 
-    def format_results(self, results: Dict[str, Any], doc_type: str) -> str:
+    def format_results(self, results: Dict[str, Any], doc_type: str, group_by: str = "category") -> str:
         """
         Format check results into a detailed, user-friendly report.
 
         Args:
             results: Dictionary of check results
             doc_type: Type of document being checked
+            group_by: 'category' (default) or 'severity' for grouping output
 
         Returns:
             str: Formatted report with consistent styling
@@ -524,155 +525,84 @@ class ResultFormatter:
         output.append('<h1 style="color: #0056b3; text-align: center;">Document Check Results Summary</h1>')
         output.append('<hr style="border: 1px solid #0056b3;">')
 
-        # Count total issues
-        total_issues = 0
-        has_issues = False
-
-        # First pass to count issues and check if any exist
-        for category_results in results.values():
-            if isinstance(category_results, dict):
-                for result in category_results.values():
-                    if isinstance(result, DocumentCheckResult):
-                        if result.issues:
-                            has_issues = True
-                            total_issues += len(result.issues)
-                    elif isinstance(result, dict) and 'issues' in result:
-                        if result['issues']:
-                            has_issues = True
-                            total_issues += len(result['issues'])
-
-        if not has_issues:
-            output.append('<p style="color: #006400; text-align: center;">✓ All checks passed successfully!</p>')
+        if group_by == "severity":
+            # Flatten all issues and regroup by severity
+            severity_buckets = {"error": [], "warning": [], "info": []}
+            for category_results in results.values():
+                if isinstance(category_results, dict):
+                    for result in category_results.values():
+                        issues = getattr(result, "issues", []) if hasattr(result, "issues") else result.get("issues", [])
+                        for issue in issues:
+                            sev = (issue.get("severity") or "info").lower()
+                            if sev in severity_buckets:
+                                severity_buckets[sev].append(issue)
+                            else:
+                                severity_buckets["info"].append(issue)
+            total_issues = sum(len(lst) for lst in severity_buckets.values())
+            if total_issues == 0:
+                output.append('<p style="color: #006400; text-align: center;">✓ All checks passed successfully!</p>')
+                output.append('</div>')
+                return '\n'.join(output)
+            output.append(f'<p style="color: #856404; text-align: center;">Found {total_issues} issues that need attention:</p>')
+            severity_titles = {"error": "Errors", "warning": "Warnings", "info": "Info"}
+            severity_colors = {"error": "#721c24", "warning": "#856404", "info": "#0c5460"}
+            for sev in ["error", "warning", "info"]:
+                issues = severity_buckets[sev]
+                if issues:
+                    output.append(f'<div class="category-section" style="margin-bottom: 40px; padding: 20px; background-color: #f8f9fa; border-radius: 8px;">')
+                    output.append(f'<h2 style="color: {severity_colors[sev]}; margin-bottom: 20px; border-bottom: 2px solid {severity_colors[sev]}; padding-bottom: 10px;">{severity_titles[sev]}</h2>')
+                    output.append('<ul style="list-style-type: none; padding-left: 20px;">')
+                    for issue in issues:
+                        message = issue.get('message') or issue.get('error', str(issue))
+                        line = issue.get('line_number')
+                        line_info = f" (Line {line})" if line is not None else ""
+                        output.append(f"<li style='margin-bottom: 8px;'><span style='color: {severity_colors[sev]}; font-weight: bold;'>[{sev.upper()}]</span> {message}{line_info}</li>")
+                    output.append('</ul>')
+                    output.append('</div>')
             output.append('</div>')
             return '\n'.join(output)
-
-        output.append(f'<p style="color: #856404; text-align: center;">Found {total_issues} issues that need attention:</p>')
-
-        rendered_any_issues = False
-        # Process all check results by category
-        for category, category_results in results.items():
-            if isinstance(category_results, dict) and category_results:  # Only show categories that have results
-                output.append('<div class="category-section" style="margin-bottom: 40px; padding: 20px; background-color: #f8f9fa; border-radius: 8px;">')
-                output.append(f'<h2 style="color: #0056b3; margin-bottom: 20px; border-bottom: 2px solid #0056b3; padding-bottom: 10px;">{category.replace("_", " ").title()}</h2>')
-
-                # Process each checker in the category
+        if group_by == "category":
+            total_issues = 0
+            for category, category_results in results.items():
+                if not category_results:
+                    continue
+                # Count total issues in this category
+                cat_issues = 0
+                for result in category_results.values():
+                    issues = getattr(result, "issues", []) if hasattr(result, "issues") else result.get("issues", [])
+                    cat_issues += len(issues)
+                if cat_issues == 0:
+                    continue
+                total_issues += cat_issues
+                # Category section
+                output.append(
+                    f'<div class="category-section" style="margin-bottom: 40px; padding: 20px; background-color: #f8f9fa; border-radius: 8px;">'
+                )
+                output.append(
+                    f'<h2 style="color: #0056b3; margin-bottom: 20px; border-bottom: 2px solid #0056b3; padding-bottom: 10px;">{category.replace("_", " ").title()}</h2>'
+                )
+                output.append('<ul style="list-style-type: none; padding-left: 20px;">')
                 for check_name, result in category_results.items():
-                    if isinstance(result, DocumentCheckResult):
-                        if not result.success and result.issues:
-                            rendered_any_issues = True
-                            # Get category information
-                            category_info = self.issue_categories.get(check_name, {})
-                            category_title = category_info.get('title', check_name.replace('_', ' ').title())
-                            category_description = category_info.get('description', '')
-                            category_solution = category_info.get('solution', '')
-                            category_example = category_info.get('example_fix', {})
-
-                            output.append('<div class="check-section" style="margin-bottom: 30px; padding: 20px; background-color: #ffffff; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">')
-                            output.append(f'<h3 style="color: #0056b3; margin-bottom: 15px;">■ {category_title}</h3>')
-
-                            # Add category description and solution
-                            if category_description:
-                                output.append('<div class="category-info" style="margin-bottom: 20px; padding: 15px; background-color: #f8f9fa; border-radius: 4px; border-left: 4px solid #0056b3;">')
-                                output.append(f'<p style="margin-bottom: 10px;"><strong>Description:</strong> {category_description}</p>')
-                                if category_solution:
-                                    output.append(f'<p style="margin-bottom: 10px;"><strong>Solution:</strong> {category_solution}</p>')
-                                if category_example:
-                                    output.append('<div class="example-fix" style="margin-top: 15px; padding: 10px; background-color: #ffffff; border-radius: 4px; border: 1px solid #dee2e6;">')
-                                    output.append('<p style="margin-bottom: 10px;"><strong>Example:</strong></p>')
-                                    if isinstance(category_example, dict):
-                                        output.append(f'<p style="color: #721c24; margin-bottom: 5px;">❌ Incorrect: {category_example.get("before", "")}</p>')
-                                        output.append(f'<p style="color: #006400;">✓ Correct: {category_example.get("after", "")}</p>')
-                                    elif isinstance(category_example, list):
-                                        for example in category_example:
-                                            if isinstance(example, dict):
-                                                output.append(f'<p style="color: #721c24; margin-bottom: 5px;">❌ Incorrect: {example.get("before", "")}</p>')
-                                                output.append(f'<p style="color: #006400;">✓ Correct: {example.get("after", "")}</p>')
-                                    output.append('</div>')
-                                output.append('</div>')
-
-                            # Group issues by severity within the check
-                            errors = []
-                            warnings = []
-                            info = []
-
-                            for issue in result.issues:
-                                severity = issue.get('severity', '')
-                                message = issue.get('message') or issue.get('error', '')
-                                line = issue.get('line_number')
-                                line_info = f" (Line {line})" if line is not None else ""
-
-                                # Format the issue message with proper HTML and severity indicator
-                                severity_indicator = ""
-                                if severity == Severity.ERROR:
-                                    severity_indicator = '<span style="color: #721c24; font-weight: bold;">[ERROR]</span> '
-                                elif severity == Severity.WARNING:
-                                    severity_indicator = '<span style="color: #856404; font-weight: bold;">[WARNING]</span> '
-                                else:
-                                    severity_indicator = '<span style="color: #0c5460; font-weight: bold;">[INFO]</span> '
-
-                                formatted_issue = f"<li style='margin-bottom: 8px;'>{severity_indicator}{message}{line_info}</li>"
-
-                                if severity == Severity.ERROR:
-                                    errors.append(formatted_issue)
-                                elif severity == Severity.WARNING:
-                                    warnings.append(formatted_issue)
-                                else:
-                                    info.append(formatted_issue)
-
-                            # Display all issues for this check, grouped by severity
-                            if errors or warnings or info:
-                                output.append('<div class="issues-section" style="margin-top: 15px;">')
-                                output.append('<h4 style="color: #0056b3; margin-bottom: 10px;">Issues Found:</h4>')
-                                output.append('<ul style="list-style-type: none; padding-left: 20px;">')
-
-                                # Display errors first
-                                if errors:
-                                    output.extend(errors)
-
-                                # Then warnings
-                                if warnings:
-                                    output.extend(warnings)
-
-                                # Finally info items
-                                if info:
-                                    output.extend(info)
-
-                                output.append('</ul>')
-                                output.append('</div>')
-
-                            output.append('</div>')
-                    elif isinstance(result, dict) and 'issues' in result and result['issues']:
-                        rendered_any_issues = True
-                        # Render generic issues for dicts
-                        output.append('<div class="check-section" style="margin-bottom: 30px; padding: 20px; background-color: #ffffff; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">')
-                        output.append(f'<h3 style="color: #0056b3; margin-bottom: 15px;">■ Issues</h3>')
-                        output.append('<div class="issues-section" style="margin-top: 15px;">')
-                        output.append('<h4 style="color: #0056b3; margin-bottom: 10px;">Issues Found:</h4>')
-                        output.append('<ul style="list-style-type: none; padding-left: 20px;">')
-                        for issue in result['issues']:
-                            message = issue.get('message') or issue.get('error', str(issue))
-                            output.append(f"<li style='margin-bottom: 8px;'><span style='color: #0c5460; font-weight: bold;'>[INFO]</span> {message}</li>")
-                        output.append('</ul>')
-                        output.append('</div>')
-                        output.append('</div>')
-                output.append('</div>')
-
-        # Fallback: If no issues rendered, but results['all']['all']['issues'] exists, render them
-        if not rendered_any_issues and 'all' in results and 'all' in results['all'] and results['all']['all'].get('issues'):
-            output.append('<div class="category-section" style="margin-bottom: 40px; padding: 20px; background-color: #f8f9fa; border-radius: 8px;">')
-            output.append(f'<h2 style="color: #0056b3; margin-bottom: 20px; border-bottom: 2px solid #0056b3; padding-bottom: 10px;">All Issues</h2>')
-            output.append('<div class="check-section" style="margin-bottom: 30px; padding: 20px; background-color: #ffffff; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">')
-            output.append(f'<h3 style="color: #0056b3; margin-bottom: 15px;">■ Issues</h3>')
-            output.append('<div class="issues-section" style="margin-top: 15px;">')
-            output.append('<h4 style="color: #0056b3; margin-bottom: 10px;">Issues Found:</h4>')
-            output.append('<ul style="list-style-type: none; padding-left: 20px;">')
-            for issue in results['all']['all']['issues']:
-                message = issue.get('message') or issue.get('error', str(issue))
-                output.append(f"<li style='margin-bottom: 8px;'><span style='color: #0c5460; font-weight: bold;'>[INFO]</span> {message}</li>")
-            output.append('</ul>')
-            output.append('</div>')
-            output.append('</div>')
-            output.append('</div>')
+                    issues = getattr(result, "issues", []) if hasattr(result, "issues") else result.get("issues", [])
+                    for issue in issues:
+                        message = issue.get("message") or issue.get("error", str(issue))
+                        line = issue.get("line_number")
+                        line_info = f" (Line {line})" if line is not None else ""
+                        output.append(
+                            f"<li style='margin-bottom: 8px;'><span style='color: #721c24; font-weight: bold;'>[{check_name.replace('_', ' ').title()}]</span> {message}{line_info}</li>"
+                        )
+                output.append("</ul>")
+                output.append("</div>")
+            if total_issues == 0:
+                output.append('<p style="color: #006400; text-align: center;">✓ All checks passed successfully!</p>')
+            else:
+                output.append(f'<p style="color: #856404; text-align: center;">Found {total_issues} issues that need attention.</p>')
+            output.append("</div>")
+            return "\n".join(output)
+        # --- PATCH: fallback for missing category grouping ---
+        import logging
+        logging.error(f"ResultFormatter.format_results: No implementation for group_by='{group_by}'. Returning fallback message.")
+        output.append('<p style="color: #721c24;">[Internal error: No category grouping implemented]</p>')
         output.append('</div>')
         return '\n'.join(output)
 

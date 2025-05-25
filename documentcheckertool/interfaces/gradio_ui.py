@@ -203,6 +203,13 @@ def create_interface():
                                         elem_classes="gr-box gr-padded"
                                     )
 
+                                    group_by = gr.Radio(
+                                        choices=["category", "severity"],
+                                        value="category",
+                                        label="Group Results By",
+                                        info="Choose how to group the results: by functional category or by severity."
+                                    )
+
                                     with gr.Group(elem_classes="visibility-controls"):
                                         gr.Markdown("### 📊 Visibility Controls")
                                         with gr.Row():
@@ -257,6 +264,7 @@ def create_interface():
 
                                 with gr.Column(scale=2):
                                     results = gr.HTML(elem_classes="results-container")
+                                    status_box = gr.Markdown("", elem_id="status-box")
                                     with gr.Row():
                                         download_docx = gr.Button("📄 Download Report (DOCX)", visible=False)
                                         download_pdf = gr.Button("📑 Download Report (PDF)", visible=False)
@@ -271,12 +279,12 @@ def create_interface():
                             </div>
                             """
 
-                        def process_and_format(file_obj, doc_type_value, template_type_value):
+                        def process_and_format(file_obj, doc_type_value, template_type_value, group_by_value):
                             logger.debug("[UI DEBUG] process_and_format called")
+                            status = "Checking document..."
                             try:
                                 if not file_obj:
-                                    return "Please upload a document file.", gr.update(visible=False), gr.update(visible=False), None
-
+                                    return "Please upload a document file.", gr.update(visible=False), gr.update(visible=False), None, ""
                                 logger.info("Starting document processing...")
 
                                 # Create temporary file for validation
@@ -322,7 +330,10 @@ def create_interface():
                                     logger.debug(f"[UI DEBUG] Issues by category: {issues_by_category}")
                                     # Format results
                                     formatter = ResultFormatter(style=FormatStyle.HTML)
-                                    formatted_results = formatter.format_results(results_dict, doc_type_value)
+                                    formatted_results = formatter.format_results(results_dict, doc_type_value, group_by=group_by_value)
+                                    if formatted_results is None:
+                                        logger.error(f"ResultFormatter.format_results returned None. Inputs: results_dict={pformat(results_dict)}, doc_type_value={doc_type_value}, group_by_value={group_by_value}")
+                                        return format_error_message("Internal error: Could not format results."), gr.update(visible=True), gr.update(visible=False), None, status
                                     logger.debug(f"Formatted HTML results: {formatted_results[:500]}")
                                     # Check if the UI will display 'All checks passed'
                                     if 'All checks passed successfully' in formatted_results:
@@ -338,8 +349,8 @@ def create_interface():
                                     # Store for download handlers
                                     global _last_results
                                     _last_results = results_dict
-
-                                    return html_results, gr.update(visible=True), gr.update(visible=True), None
+                                    status = "Check complete."
+                                    return html_results, gr.update(visible=True), gr.update(visible=True), None, status
 
                                 finally:
                                     try:
@@ -349,8 +360,8 @@ def create_interface():
 
                             except Exception as e:
                                 logger.error(f"Error processing document: {str(e)}", exc_info=True)
-                                # Always show the error message in the results HTML output
-                                return format_error_message(str(e)), gr.update(visible=True), gr.update(visible=False), None
+                                status = f"Error: {str(e)}"
+                                return format_error_message(str(e)), gr.update(visible=True), gr.update(visible=False), None, status
 
                         def update_template_visibility(doc_type_value):
                             return gr.update(visible=doc_type_value == "Advisory Circular")
@@ -539,8 +550,8 @@ def create_interface():
 
                         submit_btn.click(
                             fn=process_and_format,
-                            inputs=[file_input, doc_type, template_type],
-                            outputs=[results, download_docx, download_pdf, report_file]
+                            inputs=[file_input, doc_type, template_type, group_by],
+                            outputs=[results, download_docx, download_pdf, report_file, status_box]
                         )
 
                         download_docx.click(
