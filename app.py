@@ -7,6 +7,7 @@ import sys
 import os
 import logging
 import traceback
+import logging.config
 from documentcheckertool.interfaces.gradio_ui import create_interface
 from documentcheckertool.utils.terminology_utils import TerminologyManager
 from documentcheckertool.document_checker import FAADocumentChecker
@@ -15,16 +16,40 @@ import mimetypes
 from documentcheckertool.models import DocumentCheckResult, Severity, DocumentType, VisibilitySettings
 from documentcheckertool.checks.check_registry import CheckRegistry  # Added for registry-driven category mapping
 
-# Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    handlers=[
-        logging.StreamHandler(sys.stdout),
-        logging.FileHandler('document_checker.log')
-    ]
-)
+log_path = os.path.abspath("document_checker.log")
+
+LOGGING_CONFIG = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'formatters': {
+        'default': {
+            'format': '%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+        },
+    },
+    'handlers': {
+        'console': {
+            'class': 'logging.StreamHandler',
+            'level': 'DEBUG',
+            'formatter': 'default',
+            'stream': sys.stdout,
+        },
+        'file': {
+            'class': 'logging.FileHandler',
+            'level': 'DEBUG',
+            'formatter': 'default',
+            'filename': log_path,
+            'mode': 'w',
+        },
+    },
+    'root': {
+        'handlers': ['console', 'file'],
+        'level': 'DEBUG',
+    },
+}
+
+logging.config.dictConfig(LOGGING_CONFIG)
 logger = logging.getLogger(__name__)
+logger.debug("[UI DEBUG] Logging is active at module import time.")
 
 def process_document(file_path: str, doc_type: str, visibility_settings: VisibilitySettings) -> str:
     """Process a document and return formatted results."""
@@ -60,47 +85,17 @@ def process_document(file_path: str, doc_type: str, visibility_settings: Visibil
         logger.debug(f"Raw results type: {type(results)}")
         logger.debug(f"Raw results dir: {dir(results)}")
 
-        # Create a dictionary with check results organized by category
-        results_dict = {}
+        # Use per_check_results if available
+        results_dict = getattr(results, 'per_check_results', None)
+        if not results_dict:
+            results_dict = {"all": {"all": {
+                "success": results.success,
+                "issues": results.issues,
+                "details": getattr(results, "details", {})
+            }}}
 
-        # Use the registry-driven category mappings for future-proof extensibility
-        # This ensures all registered checks are included automatically, reducing maintenance overhead.
-        category_mappings = CheckRegistry.get_category_mappings()
-
-        # Organize results by category
-        for category, checkers in category_mappings.items():
-            category_results = {}
-            for checker in checkers:
-                if hasattr(results, checker):
-                    result = getattr(results, checker)
-                    logger.debug(f"Category {category}, Checker {checker}:")
-                    logger.debug(f"  Result type: {type(result)}")
-                    logger.debug(f"  Has issues attr: {hasattr(result, 'issues')}")
-                    if hasattr(result, 'issues'):
-                        logger.debug(f"  Number of issues: {len(result.issues)}")
-                        # Convert DocumentCheckResult to dict format expected by formatter
-                        category_results[checker] = {
-                            'success': result.success,
-                            'issues': result.issues,
-                            'details': result.details if hasattr(result, 'details') else {}
-                        }
-            if category_results:
-                results_dict[category] = category_results
-                logger.debug(f"Added {len(category_results)} results for category {category}")
-
-        logger.info(f"Raw results object: {results}")
-        if isinstance(results, DocumentCheckResult):
-            formatted_results = ResultFormatter(style=FormatStyle.HTML).format_results(
-                {"all": {"all": {
-                    "success": results.success,
-                    "issues": results.issues,
-                    "details": getattr(results, "details", {})
-                }}},
-                doc_type
-            )
-        else:
-            logger.info(f"Results dict before formatting: {results_dict}")
-            formatted_results = formatter.format_results(results_dict, doc_type)
+        logger.info(f"Results dict before formatting: {results_dict}")
+        formatted_results = formatter.format_results(results_dict, doc_type)
         logger.info("Document processing completed successfully")
         return formatted_results
 

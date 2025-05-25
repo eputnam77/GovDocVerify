@@ -40,22 +40,16 @@ class AccessibilityChecks(BaseChecker):
         logger.info("Initialized AccessibilityChecks")
 
     @CheckRegistry.register('accessibility')
-    def check_document(self, document: Union[str, Path, Document], doc_type: str) -> DocumentCheckResult:
-        """Check document for accessibility issues."""
+    def check_document(self, document, doc_type) -> DocumentCheckResult:
         results = DocumentCheckResult()
-
-        # Handle file path input
-        if isinstance(document, (str, Path)):
-            try:
-                with open(document, 'r', encoding='utf-8') as f:
-                    content = f.read().splitlines()
-                self.run_checks(content, doc_type, results)
-            except Exception as e:
-                logger.error(f"Error reading file {document}: {e}")
-                results.add_issue(f"Error reading file: {str(e)}", Severity.ERROR)
+        # Accept Document, list, or str
+        if hasattr(document, 'paragraphs'):
+            lines = [p.text for p in document.paragraphs]
+        elif isinstance(document, list):
+            lines = document
         else:
-            self.run_checks(document, doc_type, results)
-
+            lines = str(document).split('\n')
+        self.run_checks(lines, doc_type, results)
         return results
 
     @CheckRegistry.register('accessibility')

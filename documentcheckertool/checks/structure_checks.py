@@ -434,277 +434,30 @@ class StructureChecks(BaseChecker):
                     'severity': Severity.ERROR
                 })
 
-    def check(self, content):
-        """Check document structure and cross-references."""
-        errors = []
-        warnings = []
-        has_errors = False
-
-        # Extract section numbers from content
-        section_numbers = []
-        for i, line in enumerate(content, 1):
-            match = re.match(r'^(\d+(\.\d+)*)\s+', line)
-            if match:
-                section_numbers.append(match.group(1))
-
-        # Track reference formats for consistency check
-        reference_formats = {}
-        current_section = None
-
-        # Check cross-references
-        for i, line in enumerate(content, 1):
-            # Update current section if this line is a section header
-            match = re.match(r'^(\d+(\.\d+)*)\s+', line)
-            if match:
-                current_section = match.group(1)
-
-            # Check for malformed references
-            if re.search(r'(?i)(see|refer to|under)\s*(section|paragraph|subsection)\d', line):
-                errors.append({
-                    'line': i,
-                    'message': 'Malformed reference - missing space after reference type',
-                    'severity': Severity.ERROR
-                })
-                has_errors = True
-
-            # Check for invalid section numbers
-            for ref in re.finditer(r'(?i)(section|paragraph|subsection)\s+(\d+(\.\d+)*)', line):
-                section_num = ref.group(2)
-                if len(section_num.split('.')) > 4:  # Maximum 4 levels deep
-                    errors.append({
-                        'line': i,
-                        'message': 'Invalid section number - too many levels',
-                        'severity': Severity.ERROR
-                    })
-                    has_errors = True
-
-            # Check for references to non-existent sections
-            for ref in re.finditer(r'(?i)(section|paragraph|subsection)\s+(\d+(\.\d+)*)', line):
-                section_num = ref.group(2)
-                if section_num not in section_numbers:
-                    errors.append({
-                        'line': i,
-                        'message': f'Reference to non-existent section {section_num}',
-                        'severity': Severity.ERROR
-                    })
-                    has_errors = True
-
-            # Check for circular references
-            if current_section:
-                for ref in re.finditer(r'(?i)(section|paragraph|subsection)\s+(\d+(\.\d+)*)', line):
-                    section_num = ref.group(2)
-                    # Only flag as circular if the reference is to the current section (i.e., self-reference)
-                    if section_num == current_section:
-                        warnings.append({
-                            'line': i,
-                            'message': 'Circular reference detected',
-                            'severity': Severity.WARNING
-                        })
-                        break  # Only need to flag once per line
-
-            # Check for inconsistent reference formats
-            # Only check for inconsistency if we have a numbered reference
-            if re.search(r'(?i)(section|paragraph|subsection)\s+\d+(\.\d+)*', line):
-                ref_types = re.findall(r'(?i)(section|paragraph|subsection)', line)
-                if len(ref_types) > 0:
-                    ref_type = ref_types[0].lower()
-                    if ref_type not in reference_formats:
-                        reference_formats[ref_type] = set()
-                    reference_formats[ref_type].add(i)
-
-                    # If we have multiple reference types in the document, check for inconsistency
-                    if len(reference_formats) > 1:
-                        warnings.append({
-                            'line': i,
-                            'message': 'Inconsistent reference format used',
-                            'severity': Severity.WARNING
-                        })
-
-            # Check for spacing issues
-            if re.search(r'(?i)(see|refer to|under)\s{2,}(section|paragraph|subsection)', line):
-                warnings.append({
-                    'line': i,
-                    'message': 'Incorrect spacing in reference',
-                    'severity': Severity.WARNING
-                })
-
-            # Check for punctuation issues
-            if re.search(r'(?i)(section|paragraph|subsection)\s+\d+(\.\d+)*[.,]', line):
-                warnings.append({
-                    'line': i,
-                    'message': 'Incorrect punctuation in reference',
-                    'severity': Severity.WARNING
-                })
-
-            # Check for capitalization issues
-            if re.search(r'(?i)(see|refer to|under)\s+(Section|Paragraph|Subsection)', line):
-                warnings.append({
-                    'line': i,
-                    'message': 'Incorrect capitalization in reference',
-                    'severity': Severity.WARNING
-                })
-
-        return {
-            'has_errors': has_errors,
-            'errors': errors,
-            'warnings': warnings
-        }
-
     @CheckRegistry.register('structure')
     def check_document(self, document: Document, doc_type: str) -> DocumentCheckResult:
-        """Check document for structure issues."""
+        """Check document for structure issues. Accepts a python-docx Document object."""
+        logger.info("[StructureChecks] check_document called")
         results = DocumentCheckResult()
         self.run_checks(document, doc_type, results)
+        logger.info("[StructureChecks] check_document completed")
         return results
 
     @CheckRegistry.register('structure')
     def check_text(self, text: str) -> DocumentCheckResult:
-        """Check text for structure issues."""
+        """Check text for structure issues. Accepts a plain string."""
+        logger.info("[StructureChecks] check_text called")
         results = DocumentCheckResult()
         lines = text.split('\n')
-
-        # Check paragraph length
-        current_paragraph = []
-        for line in lines:
-            if line.strip():
-                current_paragraph.append(line)
-            elif current_paragraph:
-                self._check_paragraph_length(''.join(current_paragraph), results)
-                current_paragraph = []
-        if current_paragraph:
-            self._check_paragraph_length(''.join(current_paragraph), results)
-
-        # Check sentence length
-        for line in lines:
-            if line.strip():
-                self._check_sentence_length(line, results)
-
-        # Check section balance
-        self._check_section_balance(lines, results)
-
-        # Check list formatting
-        self._check_list_formatting(lines, results)
-
-        # Check parentheses
-        self._check_parentheses(lines, results)
-
+        # For text, treat each non-empty line as a paragraph
+        paragraphs = [type('Para', (), {'text': l, 'style': type('Style', (), {'name': ''})()})() for l in lines if l.strip()]
+        self._check_paragraph_length(paragraphs, results)
+        self._check_sentence_length(paragraphs, results)
+        self._check_section_balance(paragraphs, results)
+        self._check_list_formatting(paragraphs, results)
+        self._check_parentheses(paragraphs, results)
+        logger.info("[StructureChecks] check_text completed")
         return results
 
-    @CheckRegistry.register('structure')
-    def _check_paragraph_length(self, text: str, results: DocumentCheckResult) -> None:
-        """Check if paragraph length is within acceptable limits."""
-        logger.debug(f"Checking paragraph length for text: {text[:100]}...")
-        word_count = len(text.split())
-        logger.debug(f"Word count: {word_count}")
-        if word_count > 150:  # Maximum words per paragraph
-            logger.warning(f"Paragraph exceeds maximum length: {word_count} words")
-            results.add_issue(
-                message=f"Paragraph is too long ({word_count} words). Consider breaking it into smaller paragraphs.",
-                severity=Severity.WARNING
-            )
-
-    @CheckRegistry.register('structure')
-    def _check_sentence_length(self, text: str, results: DocumentCheckResult) -> None:
-        """Check if sentence length is within acceptable limits."""
-        logger.debug(f"Checking sentence length for text: {text[:100]}...")
-        sentences = text.split('.')
-        for i, sentence in enumerate(sentences, 1):
-            if sentence.strip():
-                word_count = len(sentence.split())
-                logger.debug(f"Sentence {i} word count: {word_count}")
-                if word_count > 25:  # Maximum words per sentence
-                    logger.warning(f"Sentence {i} exceeds maximum length: {word_count} words")
-                    results.add_issue(
-                        message=f"Sentence is too long ({word_count} words). Consider breaking it into smaller sentences.",
-                        severity=Severity.WARNING
-                    )
-
-    @CheckRegistry.register('structure')
-    def _check_section_balance(self, lines: List[str], results: DocumentCheckResult) -> None:
-        """Check if sections are balanced in length."""
-        logger.debug("Starting section balance check")
-        sections = []
-        current_section = []
-
-        for line in lines:
-            if line.strip().startswith('#'):
-                if current_section:
-                    logger.debug(f"Found section with {len(current_section)} lines")
-                    sections.append(len(current_section))
-                current_section = []
-            else:
-                current_section.append(line)
-
-        if current_section:
-            logger.debug(f"Found final section with {len(current_section)} lines")
-            sections.append(len(current_section))
-
-        if sections:
-            avg_length = sum(sections) / len(sections)
-            logger.debug(f"Average section length: {avg_length:.1f} lines")
-            for i, length in enumerate(sections, 1):
-                if length > avg_length * 2:
-                    logger.warning(f"Section {i} is significantly longer than average: {length} vs {avg_length:.1f}")
-                    results.add_issue(
-                        message=f"Section {i} is significantly longer than average. Consider breaking it into smaller sections.",
-                        severity=Severity.WARNING
-                    )
-
-    @CheckRegistry.register('structure')
-    def _check_list_formatting(self, lines: List[str], results: DocumentCheckResult) -> None:
-        """Check list formatting consistency."""
-        bullet_pattern = re.compile(r'^[\s]*([•\-*+])\s')
-        numbered_pattern = re.compile(r'^[\s]*\d+\.\s')
-
-        in_list = False
-        list_type = None
-        last_bullet = None
-
-        for i, line in enumerate(lines, 1):
-            bullet_match = bullet_pattern.match(line)
-            if bullet_match:
-                bullet = bullet_match.group(1)
-                if not in_list:
-                    in_list = True
-                    list_type = 'bullet'
-                    last_bullet = bullet
-                else:
-                    if list_type != 'bullet' or (last_bullet and bullet != last_bullet):
-                        results.add_issue(
-                            message=f"Inconsistent list formatting at line {i}. Mixing bullet styles ('{last_bullet}' vs '{bullet}').",
-                            severity=Severity.WARNING
-                        )
-                    last_bullet = bullet
-            elif numbered_pattern.match(line):
-                if not in_list:
-                    in_list = True
-                    list_type = 'numbered'
-                    last_bullet = None
-                elif list_type != 'numbered':
-                    results.add_issue(
-                        message=f"Inconsistent list formatting at line {i}. Mixing bullet and numbered lists.",
-                        severity=Severity.WARNING
-                    )
-                    last_bullet = None
-            elif line.strip() and in_list:
-                in_list = False
-                list_type = None
-                last_bullet = None
-
-    @CheckRegistry.register('structure')
-    def _check_parentheses(self, lines: List[str], results: DocumentCheckResult) -> None:
-        """Check for balanced parentheses and proper usage."""
-        for i, line in enumerate(lines, 1):
-            # Check for balanced parentheses
-            if line.count('(') != line.count(')'):
-                results.add_issue(
-                    message=f"Unbalanced parentheses at line {i}",
-                    severity=Severity.ERROR
-                )
-
-            # Check for proper spacing around parentheses
-            if re.search(r'[a-zA-Z]\(', line) or re.search(r'\)[a-zA-Z]', line):
-                results.add_issue(
-                    message=f"Missing space around parentheses at line {i}",
-                    severity=Severity.WARNING
-                )
+    # CONTRACT: All internal checkers expect a list of paragraph-like objects (with .text).
+    # check_text always converts input to this format before calling internal checkers.

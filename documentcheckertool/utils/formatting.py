@@ -548,6 +548,7 @@ class ResultFormatter:
 
         output.append(f'<p style="color: #856404; text-align: center;">Found {total_issues} issues that need attention:</p>')
 
+        rendered_any_issues = False
         # Process all check results by category
         for category, category_results in results.items():
             if isinstance(category_results, dict) and category_results:  # Only show categories that have results
@@ -558,6 +559,7 @@ class ResultFormatter:
                 for check_name, result in category_results.items():
                     if isinstance(result, DocumentCheckResult):
                         if not result.success and result.issues:
+                            rendered_any_issues = True
                             # Get category information
                             category_info = self.issue_categories.get(check_name, {})
                             category_title = category_info.get('title', check_name.replace('_', ' ').title())
@@ -639,9 +641,38 @@ class ResultFormatter:
                                 output.append('</div>')
 
                             output.append('</div>')
-
+                    elif isinstance(result, dict) and 'issues' in result and result['issues']:
+                        rendered_any_issues = True
+                        # Render generic issues for dicts
+                        output.append('<div class="check-section" style="margin-bottom: 30px; padding: 20px; background-color: #ffffff; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">')
+                        output.append(f'<h3 style="color: #0056b3; margin-bottom: 15px;">■ Issues</h3>')
+                        output.append('<div class="issues-section" style="margin-top: 15px;">')
+                        output.append('<h4 style="color: #0056b3; margin-bottom: 10px;">Issues Found:</h4>')
+                        output.append('<ul style="list-style-type: none; padding-left: 20px;">')
+                        for issue in result['issues']:
+                            message = issue.get('message') or issue.get('error', str(issue))
+                            output.append(f"<li style='margin-bottom: 8px;'><span style='color: #0c5460; font-weight: bold;'>[INFO]</span> {message}</li>")
+                        output.append('</ul>')
+                        output.append('</div>')
+                        output.append('</div>')
                 output.append('</div>')
 
+        # Fallback: If no issues rendered, but results['all']['all']['issues'] exists, render them
+        if not rendered_any_issues and 'all' in results and 'all' in results['all'] and results['all']['all'].get('issues'):
+            output.append('<div class="category-section" style="margin-bottom: 40px; padding: 20px; background-color: #f8f9fa; border-radius: 8px;">')
+            output.append(f'<h2 style="color: #0056b3; margin-bottom: 20px; border-bottom: 2px solid #0056b3; padding-bottom: 10px;">All Issues</h2>')
+            output.append('<div class="check-section" style="margin-bottom: 30px; padding: 20px; background-color: #ffffff; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">')
+            output.append(f'<h3 style="color: #0056b3; margin-bottom: 15px;">■ Issues</h3>')
+            output.append('<div class="issues-section" style="margin-top: 15px;">')
+            output.append('<h4 style="color: #0056b3; margin-bottom: 10px;">Issues Found:</h4>')
+            output.append('<ul style="list-style-type: none; padding-left: 20px;">')
+            for issue in results['all']['all']['issues']:
+                message = issue.get('message') or issue.get('error', str(issue))
+                output.append(f"<li style='margin-bottom: 8px;'><span style='color: #0c5460; font-weight: bold;'>[INFO]</span> {message}</li>")
+            output.append('</ul>')
+            output.append('</div>')
+            output.append('</div>')
+            output.append('</div>')
         output.append('</div>')
         return '\n'.join(output)
 

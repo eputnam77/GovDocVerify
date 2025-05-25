@@ -256,3 +256,11 @@ class ReadabilityChecks(BaseChecker):
         """Check for overly long paragraphs."""
         results = DocumentCheckResult()
         # ... existing code ...
+
+    def run_checks(self, document: Document, doc_type: str, results: DocumentCheckResult) -> None:
+        """Run all readability-related checks."""
+        logger.info(f"Running readability checks for document type: {doc_type}")
+        text = '\n'.join([p.text for p in document.paragraphs])
+        check_result = self.check_text(text)
+        results.issues.extend(check_result.issues)
+        results.success = check_result.success

@@ -16,7 +16,6 @@ class TableFigureReferenceCheck(BaseChecker):
         self.terminology_manager = TerminologyManager()
         logger.info("Initialized TableFigureReferenceCheck")
 
-    @CheckRegistry.register('reference')
     def check(self, doc: List[str], doc_type: str = "GENERAL") -> DocumentCheckResult:
         """Check for correctly formatted table and figure references.
 
@@ -38,7 +37,7 @@ class TableFigureReferenceCheck(BaseChecker):
         logger.debug(f"Starting reference check with document type: {doc_type}")
         logger.debug(f"Document length: {len(doc)} lines")
 
-        return self.check_text(doc)
+        return self._check_core(doc)
 
     def validate_input(self, doc: List[str]) -> bool:
         """Validate input document content."""
@@ -52,19 +51,30 @@ class TableFigureReferenceCheck(BaseChecker):
         logger.debug(f"Document validation successful: {len(doc)} lines")
         return True
 
-    def check_text(self, content: List[str]) -> DocumentCheckResult:
-        """Check text content for table and figure reference issues."""
-        logger.debug(f"Starting text check with {len(content)} lines")
+    @CheckRegistry.register('reference')
+    def check_text(self, text) -> DocumentCheckResult:
+        """
+        Accepts a string or list of strings, and calls the main check logic.
+        """
+        if isinstance(text, list):
+            lines = text
+        else:
+            lines = str(text).split('\n')
+        return self._check_core(lines)
+
+    def _check_core(self, lines: List[str]) -> DocumentCheckResult:
+        """Main logic for checking references, expects a list of strings."""
+        logger.debug(f"Starting text check with {len(lines)} lines")
 
         # Handle empty list case (success) vs empty string (error)
-        if content == []:                       # explicit empty list → success
+        if lines == []:                       # explicit empty list → success
             logger.debug("Empty list provided - nothing to check")
             return DocumentCheckResult(
                 success=True,
                 issues=[],
                 details={'total_issues': 0, 'issues_by_type': {'table': 0, 'figure': 0}}
             )
-        if not content:
+        if not lines:
             logger.debug("Empty content provided")
             return DocumentCheckResult(
                 success=False,
@@ -99,7 +109,7 @@ class TableFigureReferenceCheck(BaseChecker):
         # Track if we're inside a code block
         in_code_block = False
 
-        for line_idx, line in enumerate(content):
+        for line_idx, line in enumerate(lines):
             logger.debug(f"Processing line {line_idx + 1}: {line[:50]}...")
 
             # Handle code block markers
@@ -215,3 +225,28 @@ class TableFigureReferenceCheck(BaseChecker):
                 }
             }
         )
+
+    @CheckRegistry.register('reference')
+    def run_checks(self, document, doc_type, results: DocumentCheckResult) -> None:
+        if hasattr(document, 'paragraphs'):
+            lines = [p.text for p in document.paragraphs]
+        elif isinstance(document, list):
+            lines = document
+        else:
+            lines = str(document).split('\n')
+        check_result = self._check_core(lines)
+        results.issues.extend(check_result.issues)
+        results.success = check_result.success
+
+    @CheckRegistry.register('reference')
+    def check_document(self, document, doc_type) -> DocumentCheckResult:
+        """
+        Accepts a Document, list, or str. Normalizes to a list of strings (paragraphs) and calls check_text.
+        """
+        if hasattr(document, 'paragraphs'):
+            lines = [p.text for p in document.paragraphs]
+        elif isinstance(document, list):
+            lines = document
+        else:
+            lines = str(document).split('\n')
+        return self._check_core('\n'.join(lines))

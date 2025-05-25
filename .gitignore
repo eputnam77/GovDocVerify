@@ -97,3 +97,39 @@ wheels/
 *.egg-info/
 .installed.cfg
 *.egg
+
+# --- Added by AI: Ignore temp, log, and environment files ---
+document_checker.log
+__pycache__/
+.pytest_cache/
+node_modules/
+.coverage
+downloads/
+.gradio/
+*.pyc
+*.pyo
+*.log
+.env
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+.mypy_cache/
+.ruff_cache/
+.ipynb_checkpoints/
+.venv/
+venv/
+dist/
+build/
+coverage.xml
+pip-wheel-metadata/
+*.egg-info/
+*.bak
+*.swp
+*.tmp
+npm-debug.log
+yarn-debug.log
+yarn-error.log
+test-results/
+# Uncomment if FAA_Style_Manual.md is not needed in repo
+# FAA_Style_Manual.md

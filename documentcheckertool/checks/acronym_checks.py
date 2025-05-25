@@ -22,11 +22,15 @@ class AcronymChecker(BaseChecker):
         logger.info("Initialized AcronymChecker")
 
     @CheckRegistry.register('acronym')
-    def check_document(self, document: Document, doc_type: str) -> DocumentCheckResult:
-        """Check document for acronym issues."""
-        results = DocumentCheckResult()
-        self.run_checks(document, doc_type, results)
-        return results
+    def check_document(self, document, doc_type) -> DocumentCheckResult:
+        # Accept Document, list, or str
+        if hasattr(document, 'paragraphs'):
+            text = '\n'.join([p.text for p in document.paragraphs])
+        elif isinstance(document, list):
+            text = '\n'.join(document)
+        else:
+            text = str(document)
+        return self.check_text(text)
 
     @CheckRegistry.register('acronym')
     def check_text(self, content: str) -> DocumentCheckResult:

@@ -14,6 +14,7 @@ from documentcheckertool.utils.text_utils import split_sentences, count_words, n
 from documentcheckertool.utils.pattern_cache import PatternCache
 from documentcheckertool.utils.terminology_utils import TerminologyManager
 from .utils.check_discovery import validate_check_registration
+from documentcheckertool.checks.check_registry import CheckRegistry
 
 logger = logging.getLogger(__name__)
 
@@ -65,15 +66,14 @@ class FAADocumentChecker:
         try:
             # Create a new DocumentCheckResult to store combined results
             combined_results = DocumentCheckResult()
+            per_check_results = {}
 
             # Load the document
             if isinstance(document_path, str) and (document_path.lower().endswith('.docx') or document_path.lower().endswith('.doc')):
                 doc = Document(document_path)
-                # Extract text from the document
                 doc.text = '\n'.join([paragraph.text for paragraph in doc.paragraphs])
                 logger.debug(f"Loaded document from file: {document_path}, extracted text length: {len(doc.text)}")
             else:
-                # For text content, create a simple document structure
                 doc = Document()
                 if isinstance(document_path, list):
                     doc.text = '\n'.join(document_path)
@@ -84,37 +84,67 @@ class FAADocumentChecker:
 
             # Define all check modules with their names for logging
             check_modules = [
-                (self.heading_checks, "Heading Checks"),
-                (self.accessibility_checks, "Accessibility Checks"),
-                (self.format_checks, "Format Checks"),
-                (self.structure_checks, "Structure Checks"),
-                (self.terminology_checks, "Terminology Checks"),
-                (self.readability_checks, "Readability Checks"),
-                (self.acronym_checker, "Acronym Checks"),
-                (self.table_figure_checks, "Table/Figure Reference Checks")
+                (self.heading_checks, "heading"),
+                (self.accessibility_checks, "accessibility"),
+                (self.format_checks, "format"),
+                (self.structure_checks, "structure"),
+                (self.terminology_checks, "terminology"),
+                (self.readability_checks, "readability"),
+                (self.acronym_checker, "acronym"),
+                (self.table_figure_checks, "reference")
             ]
 
             # Run all checks
-            for check_module, check_name in check_modules:
+            for check_module, category in check_modules:
                 try:
-                    logger.info(f"Running {check_name}...")
-                    if hasattr(check_module, 'check_text'):
-                        # Special case for modules with check_text interface
-                        result = check_module.check_text(doc.text)
-                        if not result.success:
-                            combined_results.issues.extend(result.issues)
-                    else:
-                        # Standard interface
-                        check_module.run_checks(doc, doc_type, combined_results)
+                    logger.info(f"Running {category} checks...")
+                    # Always pass the Document object to check_document
+                    result = check_module.check_document(doc, doc_type)
+                    per_check_results.setdefault(category, {})
+                    for check_func in CheckRegistry.get_checks_for_category(category):
+                        if hasattr(result, 'checker_name') and result.checker_name == check_func:
+                            per_check_results[category][check_func] = result
+                        elif hasattr(result, check_func):
+                            per_check_results[category][check_func] = getattr(result, check_func)
+                    if not result.success:
+                        combined_results.issues.extend(result.issues)
                 except Exception as e:
-                    logger.error(f"Error in {check_name}: {str(e)}")
+                    logger.error(f"Error in {category} checks: {str(e)}")
+                    per_check_results.setdefault(category, {})
+                    for check_func in CheckRegistry.get_checks_for_category(category):
+                        dcr = DocumentCheckResult(
+                            success=False,
+                            issues=[{'error': f"Error in {category} checks: {str(e)}"}]
+                        )
+                        per_check_results[category][check_func] = dcr
                     combined_results.issues.append({
-                        'error': f"Error in {check_name}: {str(e)}"
+                        'error': f"Error in {category} checks: {str(e)}"
                     })
 
-            # Set success based on whether any issues were found
-            combined_results.success = len(combined_results.issues) == 0
+            # Always ensure per_check_results is populated with all issues
+            # If per_check_results is empty or contains only empty sub-dicts, but there are issues, wrap them
+            def _has_any_issues(per_check_results):
+                for cat in per_check_results.values():
+                    for check in cat.values():
+                        if hasattr(check, 'issues') and check.issues:
+                            return True
+                        if isinstance(check, dict) and check.get('issues'):
+                            return True
+                return False
 
+            if not per_check_results or not _has_any_issues(per_check_results):
+                if combined_results.issues:
+                    per_check_results = {
+                        'all': {
+                            'all': {
+                                'success': combined_results.success,
+                                'issues': combined_results.issues,
+                                'details': getattr(combined_results, 'details', {})
+                            }
+                        }
+                    }
+            combined_results.per_check_results = per_check_results
+            combined_results.success = len(combined_results.issues) == 0
             logger.info(f"Completed all checks. Found {len(combined_results.issues)} issues.")
             return combined_results
 

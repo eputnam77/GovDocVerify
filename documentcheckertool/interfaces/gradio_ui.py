@@ -17,6 +17,7 @@ from datetime import datetime
 import json
 
 logger = logging.getLogger(__name__)
+logger.debug("[UI DEBUG] gradio_ui.py module loaded")
 GRADIO_VERSION = pkg_resources.get_distribution('gradio').version
 
 def create_interface():
@@ -271,6 +272,7 @@ def create_interface():
                             """
 
                         def process_and_format(file_obj, doc_type_value, template_type_value):
+                            logger.debug("[UI DEBUG] process_and_format called")
                             try:
                                 if not file_obj:
                                     return "Please upload a document file.", gr.update(visible=False), gr.update(visible=False), None
@@ -290,16 +292,48 @@ def create_interface():
                                 try:
                                     validate_file(temp_file_path)
                                     checker = FAADocumentChecker()
-                                    results_dict = checker.run_all_document_checks(
+                                    result_obj = checker.run_all_document_checks(
                                         document_path=temp_file_path,
                                         doc_type=doc_type_value
                                     )
-
-                                    # Use the unified formatter
+                                    results_dict = getattr(result_obj, 'per_check_results', None)
+                                    if not results_dict:
+                                        # fallback for legacy
+                                        results_dict = {"all": {"all": {
+                                            "success": result_obj.success,
+                                            "issues": result_obj.issues,
+                                            "details": getattr(result_obj, "details", {})
+                                        }}}
+                                    # --- PATCH: Add explicit debug logs for UI display ---
+                                    # Count issues in results_dict
+                                    total_issues = 0
+                                    issues_by_category = {}
+                                    for category, category_results in results_dict.items():
+                                        cat_issues = 0
+                                        if isinstance(category_results, dict):
+                                            for result in category_results.values():
+                                                if isinstance(result, dict) and 'issues' in result:
+                                                    cat_issues += len(result['issues'])
+                                                elif hasattr(result, 'issues'):
+                                                    cat_issues += len(result.issues)
+                                        issues_by_category[category] = cat_issues
+                                        total_issues += cat_issues
+                                    logger.debug(f"[UI DEBUG] Total issues in results_dict: {total_issues}")
+                                    logger.debug(f"[UI DEBUG] Issues by category: {issues_by_category}")
+                                    # Format results
                                     formatter = ResultFormatter(style=FormatStyle.HTML)
-                                    html_results = format_results_to_html(
-                                        formatter.format_results(results_dict, doc_type_value)
-                                    )
+                                    formatted_results = formatter.format_results(results_dict, doc_type_value)
+                                    logger.debug(f"Formatted HTML results: {formatted_results[:500]}")
+                                    # Check if the UI will display 'All checks passed'
+                                    if 'All checks passed successfully' in formatted_results:
+                                        if total_issues > 0:
+                                            logger.warning("[UI DEBUG] Issues present in results_dict, but UI will display 'All checks passed'! Possible formatter/structure bug.")
+                                        else:
+                                            logger.debug("[UI DEBUG] No issues found; UI will display 'All checks passed'.")
+                                    else:
+                                        logger.debug("[UI DEBUG] UI will display issues.")
+                                    # --- END PATCH ---
+                                    html_results = formatted_results
 
                                     # Store for download handlers
                                     global _last_results
@@ -315,7 +349,8 @@ def create_interface():
 
                             except Exception as e:
                                 logger.error(f"Error processing document: {str(e)}", exc_info=True)
-                                return format_error_message(str(e)), gr.update(visible=False), gr.update(visible=False), None
+                                # Always show the error message in the results HTML output
+                                return format_error_message(str(e)), gr.update(visible=True), gr.update(visible=False), None
 
                         def update_template_visibility(doc_type_value):
                             return gr.update(visible=doc_type_value == "Advisory Circular")
