@@ -133,3 +133,6 @@ yarn-error.log
 test-results/
 # Uncomment if FAA_Style_Manual.md is not needed in repo
 # FAA_Style_Manual.md
+
+# Ignore all node_modules folders recursively
+**/node_modules/
