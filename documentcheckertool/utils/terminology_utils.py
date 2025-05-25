@@ -355,14 +355,22 @@ class TerminologyManager:
         # Acronyms are defined as two or more uppercase letters
         return re.findall(r'\b[A-Z]{2,}\b', text)
 
-    def find_acronym_definition(self, text: str, acronym: str) -> str:
+    def find_acronym_definition(self, text: str, acronym: str) -> Optional[str]:
         """Find the definition of an acronym in the given text."""
-        # Look for patterns like 'Full Term (ACRONYM)'
-        pattern = re.compile(rf'([A-Za-z\s]+)\s*\(\s*{re.escape(acronym)}\s*\)')
-        match = pattern.search(text)
-        if match:
-            return match.group(1).strip()
-        return self.get_acronym_definition(acronym)
+        logger = logging.getLogger(__name__)
+        if not text:
+            logger.debug(f"find_acronym_definition: empty text for acronym={acronym}")
+            return None
+        # Only match in this text instance, do not use cache or dictionary fallback
+        pattern_before = rf'\b({acronym})\s*\(\s*([^)]+?)\s*\)'
+        pattern_after  = rf'\b([A-Za-z][A-Za-z ,&-]+?)\s*\(\s*{acronym}\s*\)'
+        m = re.search(pattern_before, text)
+        if m:
+            return m.group(2).strip()
+        m = re.search(pattern_after, text)
+        if m:
+            return m.group(1).strip()
+        return None
 
     def load_config(self):
         """Reload the configuration from the config file."""
