@@ -31,7 +31,10 @@ FORBIDDEN_TERMS = {
     'aforementioned': "Avoid using 'aforementioned' as it can be unclear",
     'latter': "Avoid using 'latter'; specify the item explicitly",
     'former': "Avoid using 'former'; specify the item explicitly",
-    'respectively': "Avoid using 'respectively' as it can be confusing"
+    'respectively': "Avoid using 'respectively' as it can be confusing",
+    'above': "Avoid using 'above'",
+    'below': "Avoid using 'below'",
+    'additionally': "Avoid using 'Additionally'"
 }
 
 # Multiple accepted forms - only for terms where either form is acceptable at any point

@@ -2,7 +2,7 @@
 
 import unittest
 import logging
-from test_base import TestBase
+from .test_base import TestBase
 from documentcheckertool.checks.terminology_checks import TerminologyChecks
 from documentcheckertool.models import DocumentCheckResult
 import pytest

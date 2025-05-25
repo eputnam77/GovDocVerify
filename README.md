@@ -11,61 +11,214 @@ pinned: false
 
 # Document Checker Tool
 
-A tool for checking and validating documents against FAA standards.
+A tool for checking and validating documents against FAA standards, with a modern web frontend, FastAPI backend, and legacy Gradio UI.
 
-## Local Development
+---
 
-### Using Conda
+## Table of Contents
+
+1. [Project Overview](#project-overview)
+2. [Project Structure](#project-structure)
+3. [Setup Instructions](#setup-instructions)
+    - [Python Environment (Backend & Gradio)](#python-environment-backend--gradio)
+    - [Frontend (React App)](#frontend-react-app)
+4. [Running the Application](#running-the-application)
+    - [Start the Backend API](#start-the-backend-api)
+    - [Start the Frontend Website](#start-the-frontend-website)
+    - [Run the Gradio App (Legacy/Alternative)](#run-the-gradio-app-legacyalternative)
+5. [Running Tests](#running-tests)
+6. [Development Tools & Best Practices](#development-tools--best-practices)
+7. [Rationale & Architecture](#rationale--architecture)
+8. [License](#license)
+
+---
+
+## Project Overview
+
+- **Document validation** against FAA and regulatory standards.
+- **Multiple document type support**.
+- **Modern web interface** (React + Vite).
+- **API backend** (FastAPI).
+- **Legacy Gradio UI** for quick local or Hugging Face Spaces use.
+- **Detailed error reporting** and structured logging.
+
+---
+
+## Project Structure
+
+```
+project-root/
+├── backend/                   # FastAPI backend (API for document processing)
+│   ├── main.py
+│   ├── api.py
+│   └── requirements.txt
+├── frontend/faa-doc-checker/  # React frontend (user-facing web app)
+│   ├── package.json
+│   ├── src/
+│   └── ...
+├── documentcheckertool/       # Core Python logic, checks, models, utils
+├── tests/                     # Python tests (pytest)
+├── app.py                     # Gradio app entry point (legacy/alternative)
+├── requirements.txt           # Python dependencies (core)
+├── pyproject.toml             # Poetry config (preferred for dev)
+└── ...
+```
+
+---
+
+## Setup Instructions
+
+### 1. Python Environment (Backend & Gradio)
+
+**From the project root directory:**
+
+#### a. Using Conda (Recommended for Windows)
 ```bash
-# Create and activate conda environment
+# In project root
 conda create -n docchecker python=3.9
 conda activate docchecker
-
-# Install dependencies
 pip install -r requirements.txt
-
-# Run the application
-python app.py
 ```
 
-### Using pip
+#### b. Using venv + pip
 ```bash
-# Create and activate virtual environment (optional)
+# In project root
 python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
-
-# Install dependencies
+# On Windows:
+venv\Scripts\activate
+# On Mac/Linux:
+source venv/bin/activate
 pip install -r requirements.txt
-
-# Run the application
-python app.py
 ```
 
-## Deployment
+#### c. Using Poetry (Recommended for Devs)
+```bash
+# In project root
+poetry install
+```
 
-### Hugging Face Spaces
-1. Create a new Space on Hugging Face
-2. Choose Gradio as the SDK
-3. Upload the following files:
-   - `app.py`
-   - `requirements.txt`
-   - `documentcheckertool/` directory
+---
 
-### Other Web Platforms
-The application can be deployed to any platform that supports Python web applications:
-- Heroku
-- Google Cloud Run
-- AWS Lambda
-- Azure Functions
+### 2. Frontend (React App)
 
-## Features
-- Document validation against FAA standards
-- Multiple document type support
-- Web interface using Gradio
-- Detailed error reporting
+**From the frontend directory:**
+```bash
+cd frontend/faa-doc-checker
+npm install
+```
+
+---
+
+## Running the Application
+
+### 1. Start the Backend API
+
+**From the backend directory:**
+```bash
+cd backend
+pip install -r requirements.txt  # Only needed once
+uvicorn backend.main:app --reload
+```
+- The API will be available at [http://127.0.0.1:8000](http://127.0.0.1:8000).
+
+---
+
+### 2. Start the Frontend Website
+
+**From the frontend directory:**
+```bash
+cd frontend/faa-doc-checker
+npm run dev
+```
+- The app will be available at [http://localhost:5173](http://localhost:5173).
+- The frontend expects the backend API to be running at `http://127.0.0.1:8000`.
+
+---
+
+### 3. Run the Gradio App (Legacy/Alternative)
+
+**From the project root:**
+```bash
+python app.py
+# Or with Poetry:
+poetry run python app.py
+```
+- Use `--debug` for verbose logging.
+- Use `--host` and `--port` to specify the server address.
+
+---
+
+## Running Tests
+
+**From the project root directory:**
+
+### a. With Poetry (Recommended)
+```bash
+poetry run pytest
+```
+
+### b. With pip/venv
+```bash
+pip install pytest pytest-cov pytest-asyncio
+pytest
+```
+
+### c. Run a specific test file (e.g., terminology checks)
+```bash
+pytest -v tests/test_terminology_checks.py --log-cli-level=DEBUG
+```
+
+### d. Test Coverage
+```bash
+poetry run pytest --cov=documentcheckertool
+```
+
+**Note:**
+If you see `ModuleNotFoundError: No module named 'documentcheckertool'`, run:
+```bash
+pip install -e .
+```
+from the project root, or always use `poetry run ...` if using Poetry.
+
+---
+
+## Development Tools & Best Practices
+
+- **Pre-commit hooks:**
+  ```bash
+  poetry run pre-commit install
+  ```
+- **Linting:**
+  ```bash
+  poetry run ruff check .
+  ```
+- **Type Checking:**
+  ```bash
+  poetry run mypy .
+  ```
+- **Logging:**
+  All major modules use Python's `logging`. Enable debug with `--debug`.
+- **Pydantic:**
+  Used for runtime type-checking and validation.
+
+---
+
+## Rationale & Architecture
+
+- **Modern React frontend** and **FastAPI backend** for scalability and maintainability.
+- **Gradio UI** remains for quick local use or Hugging Face Spaces.
+- **Testing** is managed with `pytest` and integrated with Poetry and CI.
+- **Frontend and backend are decoupled**: run both for the full web experience, or just the backend/Gradio for API/CLI use.
+
+---
 
 ## License
+
 MIT License
+
+---
+
+**If you have any issues or need further help, please open an issue or contact the maintainers.**
 
 ---
 
