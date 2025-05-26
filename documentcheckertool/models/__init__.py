@@ -11,6 +11,10 @@ class Severity(IntEnum):
     WARNING = 1
     INFO = 2
 
+    @property
+    def value_str(self) -> str:
+        return ["error", "warning", "info"][self]
+
 class DocumentTypeError(Exception):
     """Raised when an invalid document type is provided."""
     pass

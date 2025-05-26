@@ -533,7 +533,11 @@ class ResultFormatter:
                     for result in category_results.values():
                         issues = getattr(result, "issues", []) if hasattr(result, "issues") else result.get("issues", [])
                         for issue in issues:
-                            sev = (issue.get("severity") or "info").lower()
+                            sev_obj = issue.get("severity")
+                            if isinstance(sev_obj, Severity):
+                                sev = sev_obj.value_str.lower()
+                            else:
+                                sev = (sev_obj or "info").lower()
                             if sev in severity_buckets:
                                 severity_buckets[sev].append(issue)
                             else:
