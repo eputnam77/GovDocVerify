@@ -32,13 +32,14 @@ class BaseChecker:
             content = f.read()
         return self.check_text(content)
 
-    def create_issue(self, message: str, line_number: int = 0, severity: str = "warning") -> Dict[str, Any]:
+    def create_issue(self, message: str, line_number: int = 0, severity: str = "warning", category: str = None) -> Dict[str, Any]:
         """Create a standardized issue dictionary."""
         return {
             "message": message,
             "line_number": line_number,
             "severity": severity,
-            "checker": self.name
+            "checker": self.name,
+            "category": category or getattr(self, "category", None)
         }
 
     def create_result(self, issues: List[Dict[str, Any]], success: bool = True) -> DocumentCheckResult:

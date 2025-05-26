@@ -24,12 +24,14 @@ class HeadingChecks(BaseChecker):
     # Maximum allowed length for a heading (excluding numbering)
     MAX_HEADING_LENGTH = 25
 
-    def __init__(self, pattern_cache):
+    def __init__(self, pattern_cache=None):
+        super().__init__()
         self.pattern_cache = pattern_cache
         self.terminology_manager = TerminologyManager()
         logger.info("Initialized HeadingChecks with pattern cache")
         self.heading_pattern = re.compile(r'^(\d+\.)+\s')
         logger.debug(f"Using heading pattern: {self.heading_pattern.pattern}")
+        self.category = "heading"
 
     @staticmethod
     def _normalize_doc_type(doc_type: str) -> str:

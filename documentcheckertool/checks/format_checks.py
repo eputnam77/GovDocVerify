@@ -14,6 +14,10 @@ from documentcheckertool.checks.check_registry import CheckRegistry
 logger = logging.getLogger(__name__)
 
 class FormatChecks(BaseChecker):
+    def __init__(self):
+        super().__init__()
+        self.category = "format"
+
     def run_checks(self, document: Document, doc_type: str, results: DocumentCheckResult) -> None:
         """Run all format-related checks."""
         logger.info(f"Running format checks for document type: {doc_type}")
@@ -572,6 +576,7 @@ class FormattingChecker(BaseChecker):
                     break  # Only add one issue per line
         return DocumentCheckResult(success=len(issues) == 0, severity=Severity.ERROR if issues else None, issues=issues)
 
+    @CheckRegistry.register('format')
     def _check_date_formats_text(self, lines: list) -> list:
         """
         Check for consistent date formats in plain text (line-by-line),
@@ -597,6 +602,7 @@ class FormattingChecker(BaseChecker):
                 })
         return issues
 
+    @CheckRegistry.register('format')
     def _check_phone_numbers_text(self, lines: list) -> list:
         """
         Check for inconsistent phone number formats in plain text (line-by-line).

@@ -122,7 +122,7 @@ class FAADocumentChecker:
                     })
 
             # Always ensure per_check_results is populated with all issues
-            # If per_check_results is empty or contains only empty sub-dicts, but there are issues, wrap them
+            # If per_check_results is empty or contains only empty sub-dicts, but there are issues, group them by category
             def _has_any_issues(per_check_results):
                 for cat in per_check_results.values():
                     for check in cat.values():
@@ -132,17 +132,19 @@ class FAADocumentChecker:
                             return True
                 return False
 
-            if not per_check_results or not _has_any_issues(per_check_results):
-                if combined_results.issues:
-                    per_check_results = {
-                        'all': {
-                            'all': {
-                                'success': combined_results.success,
-                                'issues': combined_results.issues,
-                                'details': getattr(combined_results, 'details', {})
-                            }
-                        }
-                    }
+            if (not per_check_results or not _has_any_issues(per_check_results)) and combined_results.issues:
+                # Group issues by category if possible
+                grouped = {}
+                for issue in combined_results.issues:
+                    category = issue.get('category')
+                    if not category:
+                        # Try to infer from checker_name if present
+                        category = issue.get('checker') or 'general'
+                    if category not in grouped:
+                        grouped[category] = {'success': False, 'issues': [], 'details': {}}
+                    grouped[category]['issues'].append(issue)
+                # Convert to per_check_results structure
+                per_check_results = {cat: {'general': res} for cat, res in grouped.items()}
             combined_results.per_check_results = per_check_results
             combined_results.success = len(combined_results.issues) == 0
             logger.info(f"Completed all checks. Found {len(combined_results.issues)} issues.")

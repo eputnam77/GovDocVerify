@@ -22,8 +22,9 @@ logger = logging.getLogger(__name__)
 class TerminologyChecks(BaseChecker):
     """Class for handling terminology-related checks."""
 
-    def __init__(self, terminology_manager: TerminologyManager):
+    def __init__(self, terminology_manager=None):
         super().__init__(terminology_manager)
+        self.category = "terminology"
         self.heading_words = terminology_manager.terminology_data.get('heading_words', [])
         logger.info("Initialized TerminologyChecks with terminology manager")
 
@@ -34,7 +35,6 @@ class TerminologyChecks(BaseChecker):
         self.run_checks(document, doc_type, results)
         return results
 
-    @CheckRegistry.register('terminology')
     def run_checks(self, document: Document, doc_type: str, results: DocumentCheckResult) -> None:
         """Run all terminology-related checks."""
         logger.info(f"Running terminology checks for document type: {doc_type}")
@@ -340,6 +340,7 @@ class TerminologyChecks(BaseChecker):
         normalised = doc_type.strip().upper().replace(" ", "_")
         return normalised in self._PROPOSE_PHASES
 
+    @CheckRegistry.register('terminology')
     def _check_proposed_wording(
         self,
         paragraphs: list[str],

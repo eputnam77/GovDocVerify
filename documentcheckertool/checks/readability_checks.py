@@ -24,6 +24,7 @@ class ReadabilityChecks(BaseChecker):
     def __init__(self, terminology_manager: TerminologyManager):
         super().__init__(terminology_manager)
         self.readability_config = terminology_manager.terminology_data.get('readability', {})
+        self.category = "readability"
         logger.info("Initialized ReadabilityChecks with terminology manager")
 
     @CheckRegistry.register('readability')

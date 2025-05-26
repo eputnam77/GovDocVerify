@@ -18,6 +18,8 @@ class AcronymChecker(BaseChecker):
             terminology_manager: Optional TerminologyManager instance. If not provided,
                                a new instance will be created.
         """
+        super().__init__(terminology_manager)
+        self.category = "acronym"
         self.terminology_manager = terminology_manager or TerminologyManager()
         logger.info("Initialized AcronymChecker")
 
@@ -54,7 +56,6 @@ class AcronymChecker(BaseChecker):
                 issues=[{'error': f"Error during acronym check: {str(e)}"}]
             )
 
-    @CheckRegistry.register('acronym')
     def get_acronym_definition(self, acronym: str) -> Optional[str]:
         """Get the definition of an acronym.
 

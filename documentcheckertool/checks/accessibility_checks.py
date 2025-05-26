@@ -36,6 +36,8 @@ class AccessibilityChecks(BaseChecker):
             terminology_manager: Optional TerminologyManager instance. If not provided,
                                a new instance will be created.
         """
+        super().__init__(terminology_manager)
+        self.category = "accessibility"
         self.terminology_manager = terminology_manager or TerminologyManager()
         logger.info("Initialized AccessibilityChecks")
 

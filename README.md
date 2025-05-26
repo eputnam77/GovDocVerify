@@ -744,3 +744,119 @@ Example:
    - Fix in terminology.json if pattern-related
    - Update affected code
    - Add regression tests
+
+## Command-Line Arguments
+
+> **Note:** The only supported CLI entry point is the root-level `cli.py` in the project root. Do **not** use any `cli.py` inside the `documentcheckertool` package for CLI usage. All CLI commands should be run as:
+>
+> ```sh
+> python cli.py [arguments]
+> ```
+
+The Document Checker Tool supports the following command-line arguments when run via `python cli.py`:
+
+| Argument                  | Type/Choices           | Description                                         |
+|---------------------------|------------------------|-----------------------------------------------------|
+| `--file FILE`             | string                 | Path to document file (**required**)                |
+| `--type TYPE`             | string (see below)     | Document type (**required**)                        |
+| `--group-by`              | category, severity     | Group results by category or severity               |
+| `--debug`                 | flag                   | Enable debug mode                                   |
+| `--show-all`              | flag                   | Show all sections (default)                         |
+| `--hide-readability`      | flag                   | Hide readability metrics                            |
+| `--hide-paragraph-length` | flag                   | Hide paragraph and sentence length checks           |
+| `--hide-terminology`      | flag                   | Hide terminology checks                             |
+| `--hide-headings`         | flag                   | Hide heading checks                                 |
+| `--hide-structure`        | flag                   | Hide structure checks                               |
+| `--hide-format`           | flag                   | Hide format checks                                  |
+| `--hide-accessibility`    | flag                   | Hide accessibility checks                           |
+| `--hide-document-status`  | flag                   | Hide document status checks                         |
+
+### Document Type Options for `--type`
+
+- `Advisory Circular`
+- `Airworthiness Criteria`
+- `Deviation Memo`
+- `Exemption`
+- `Federal Register Notice`
+- `Order`
+- `Policy Statement`
+- `Rule`
+- `Special Condition`
+- `Technical Standard Order`
+- `Other`
+
+### Group By Options for `--group-by`
+
+- `category`
+- `severity`
+
+### Group-By Categories
+
+When using `--group-by category`, results are grouped into the following categories:
+
+- **heading**: Headings and heading structure
+- **format**: Formatting and style
+- **structure**: Document structure and organization
+- **terminology**: Terminology and word usage
+- **readability**: Readability metrics and checks
+- **acronym**: Acronym usage and definitions
+- **accessibility**: 508/accessibility checks
+- **reference**: Table, figure, and cross-reference checks
+
+**Example usage:**
+```sh
+python cli.py --file mydoc.docx --type "Advisory Circular" --group-by category
+```
+
+### Example CLI Usage
+
+Here are several example commands demonstrating different CLI options:
+
+- **Basic usage (group by category, all sections shown):**
+  ```sh
+  python cli.py --file mydoc.docx --type "Advisory Circular" --group-by category
+  ```
+
+- **Enable debug mode for verbose logging:**
+  ```sh
+  python cli.py --file mydoc.docx --type "Order" --debug
+  ```
+
+- **Hide readability checks:**
+  ```sh
+  python cli.py --file mydoc.docx --type "Order" --hide-readability
+  ```
+
+- **Group results by severity:**
+  ```sh
+  python cli.py --file mydoc.docx --type "Federal Register Notice" --group-by severity
+  ```
+
+- **Combine multiple options (debug, hide readability, group by severity):**
+  ```sh
+  python cli.py --file mydoc.docx --type "Technical Standard Order" --group-by severity --debug --hide-readability
+  ```
+
+### Specifying the `--file` Argument
+
+The value for `--file` should be the path to your document file. This can be:
+
+- Just the filename (if the file is in your current working directory)
+- A relative path (if the file is in a subdirectory)
+- An absolute path (if the file is elsewhere on your system)
+
+**Examples:**
+
+| File Location                | Example `--file` Argument                                      |
+|------------------------------|---------------------------------------------------------------|
+| Current directory            | `--file AC_20-176B_Formal_FAA_Draft_v1a.docx`                 |
+| Subdirectory (e.g., Downloads) | `--file Downloads/AC_20-176B_Formal_FAA_Draft_v1a.docx`      |
+| Absolute path (Windows)      | `--file "C:\\Users\\computername\\Downloads\\AC_20-176B_Formal_FAA_Draft_v1a.docx"` |
+| Absolute path (Unix/Mac)     | `--file "/home/computername/Downloads/AC_20-176B_Formal_FAA_Draft_v1a.docx"`        |
+
+- Quotes are only needed if your path or filename contains spaces.
+- Both forward slashes (`/`) and backslashes (`\`) work on Windows in Python.
+
+**In summary:**
+- Use just the filename if the file is in your current directory.
+- Otherwise, provide a relative or absolute path to the file.

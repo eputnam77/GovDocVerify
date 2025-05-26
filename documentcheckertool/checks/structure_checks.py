@@ -35,6 +35,10 @@ class StructureChecks(BaseChecker):
         WatermarkRequirement("DRAFT - FOR AGC REVIEW OF FINAL ISSUANCE", "agc_final_review")
     ]
 
+    def __init__(self):
+        super().__init__()
+        self.category = "structure"
+
     @CheckRegistry.register('structure')
     def run_checks(self, document: Document, doc_type: str, results: DocumentCheckResult) -> None:
         """Run all structure-related checks."""

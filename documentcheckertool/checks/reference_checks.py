@@ -13,7 +13,9 @@ class TableFigureReferenceCheck(BaseChecker):
     """Class for checking table and figure references."""
 
     def __init__(self):
+        super().__init__()
         self.terminology_manager = TerminologyManager()
+        self.category = "reference"
         logger.info("Initialized TableFigureReferenceCheck")
 
     def check(self, doc: List[str], doc_type: str = "GENERAL") -> DocumentCheckResult:
