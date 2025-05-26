@@ -49,10 +49,12 @@ class TerminologyChecks(BaseChecker):
     def _check_consistency(self, paragraphs, results):
         """Check for consistent terminology usage."""
         for i, text in enumerate(paragraphs):
+            logger.debug(f"[Terminology] Checking line {i+1}: {text!r}")
             for standard, variants in TERMINOLOGY_VARIANTS.items():
-                pattern = fr'\b{standard}\b'
                 for variant in variants:
-                    if re.search(variant, text, re.IGNORECASE):
+                    pattern = rf"\\b{re.escape(variant)}\\b"
+                    if re.search(pattern, text, re.IGNORECASE):
+                        logger.debug(f"[Terminology] Matched variant '{variant}' (should use '{standard}') in line {i+1}")
                         results.add_issue(
                             message=f"Inconsistent terminology: use '{standard}' instead of '{variant}'",
                             severity=Severity.INFO,
@@ -64,9 +66,11 @@ class TerminologyChecks(BaseChecker):
     def _check_forbidden_terms(self, paragraphs, results):
         """Check for forbidden or discouraged terms."""
         for i, text in enumerate(paragraphs):
+            logger.debug(f"[Terminology] Checking forbidden terms in line {i+1}: {text!r}")
             for term, message in FORBIDDEN_TERMS.items():
-                pattern = fr'\b{term}\b'
+                pattern = rf"\\b{re.escape(term)}\\b"
                 if re.search(pattern, text, re.IGNORECASE):
+                    logger.debug(f"[Terminology] Matched forbidden term '{term}' in line {i+1}")
                     results.add_issue(
                         message=message,
                         severity=Severity.WARNING,
@@ -81,10 +85,11 @@ class TerminologyChecks(BaseChecker):
         TERM_REPLACEMENTS.  Suggest the approved wording.
         """
         for i, text in enumerate(paragraphs):
+            logger.debug(f"[Terminology] Checking term replacements in line {i+1}: {text!r}")
             for obsolete, approved in TERM_REPLACEMENTS.items():
-                # whole-word, case-insensitive search
-                pattern = fr'\b{re.escape(obsolete)}\b'
+                pattern = rf"\\b{re.escape(obsolete)}\\b"
                 if re.search(pattern, text, re.IGNORECASE):
+                    logger.debug(f"[Terminology] Matched obsolete term '{obsolete}' in line {i+1}")
                     results.add_issue(
                         message=f'Use "{approved}" instead of "{obsolete}".',
                         severity=Severity.WARNING,
@@ -105,8 +110,9 @@ class TerminologyChecks(BaseChecker):
 
         # Split infinitive detection (info-level, may be acceptable)
         # Enhanced: match 'to' followed by 1-3 words, then a word (likely a verb)
-        split_infinitive_pattern = re.compile(r"\bto\s+(?:\w+\s+){1,3}\w+\b", re.IGNORECASE)
+        split_infinitive_pattern = re.compile(r"\\bto\\s+(?:\\w+\\s+){1,3}\\w+\\b", re.IGNORECASE)
         for i, line in enumerate(lines, 1):
+            logger.debug(f"[Terminology] Checking line {i}: {line!r}")
             for match in split_infinitive_pattern.finditer(line):
                 # Optionally, filter out common false positives (e.g., 'to in addition to')
                 # For now, flag all matches
@@ -119,8 +125,9 @@ class TerminologyChecks(BaseChecker):
         # Check for forbidden terms (whole-word, case-insensitive)
         for i, line in enumerate(lines, 1):
             for term, message in FORBIDDEN_TERMS.items():
-                pattern = fr'\b{re.escape(term)}\b'
+                pattern = rf"\\b{re.escape(term)}\\b"
                 if re.search(pattern, line, re.IGNORECASE):
+                    logger.debug(f"[Terminology] Matched forbidden term '{term}' in line {i}")
                     # Special handling for 'additionally' to match test expectation
                     if term == 'additionally':
                         issues.append({
@@ -138,7 +145,9 @@ class TerminologyChecks(BaseChecker):
         for i, line in enumerate(lines, 1):
             for standard, variants in TERMINOLOGY_VARIANTS.items():
                 for variant in variants:
-                    if variant in line.lower():
+                    pattern = rf"\\b{re.escape(variant)}\\b"
+                    if re.search(pattern, line, re.IGNORECASE):
+                        logger.debug(f"[Terminology] Matched variant '{variant}' (should use '{standard}') in line {i}")
                         issues.append({
                             'message': f'Inconsistent terminology: use "{standard}" instead of "{variant}"',
                             'severity': Severity.WARNING,
@@ -148,7 +157,8 @@ class TerminologyChecks(BaseChecker):
         # Check for forbidden terms & obsolete replacements
         for i, line in enumerate(lines, 1):
             for term, message in FORBIDDEN_TERMS.items():
-                if term in line.lower():
+                if re.search(rf"\\b{re.escape(term)}\\b", line, re.IGNORECASE):
+                    logger.debug(f"[Terminology] Matched forbidden term '{term}' in line {i}")
                     # Special handling for 'additionally' to match test expectation
                     if term == 'additionally':
                         issues.append({
@@ -162,7 +172,9 @@ class TerminologyChecks(BaseChecker):
                         'category': getattr(self, 'category', 'terminology')
                     })
             for obsolete, approved in TERM_REPLACEMENTS.items():
-                if re.search(fr'\b{re.escape(obsolete)}\b', line, re.IGNORECASE):
+                pattern = rf"\\b{re.escape(obsolete)}\\b"
+                if re.search(pattern, line, re.IGNORECASE):
+                    logger.debug(f"[Terminology] Matched obsolete term '{obsolete}' in line {i}")
                     # Only add the replacement message for 'additionally' if not already handled
                     if obsolete == 'additionally':
                         continue
