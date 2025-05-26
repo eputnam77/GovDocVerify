@@ -45,12 +45,29 @@ class AccessibilityChecks(BaseChecker):
     def check_document(self, document, doc_type) -> DocumentCheckResult:
         results = DocumentCheckResult()
         # Accept Document, list, or str
-        if hasattr(document, 'paragraphs'):
-            lines = [p.text for p in document.paragraphs]
-        elif isinstance(document, list):
-            lines = document
-        else:
-            lines = str(document).split('\n')
+        lines = None
+        # If document is a Path or a string that is a file path, read the file
+        if isinstance(document, (str, Path)):
+            try:
+                path = Path(document)
+                if path.exists() and path.is_file():
+                    with path.open(encoding='utf-8') as f:
+                        lines = f.read().splitlines()
+            except Exception as e:
+                logger.error(f"Failed to read file {document}: {e}")
+                results.add_issue(
+                    message=f"Failed to read file {document}: {e}",
+                    severity=Severity.ERROR
+                )
+                results.success = False
+                return results
+        if lines is None:
+            if hasattr(document, 'paragraphs'):
+                lines = [p.text for p in document.paragraphs]
+            elif isinstance(document, list):
+                lines = document
+            else:
+                lines = str(document).split('\n')
         self.run_checks(lines, doc_type, results)
         return results
 
