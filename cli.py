@@ -6,6 +6,9 @@ from documentcheckertool.document_checker import FAADocumentChecker
 from documentcheckertool.models import DocumentType, VisibilitySettings
 from documentcheckertool.utils.formatting import ResultFormatter, FormatStyle
 from documentcheckertool.utils.terminology_utils import TerminologyManager
+from documentcheckertool.logging_config import setup_logging
+
+setup_logging()
 
 logger = logging.getLogger(__name__)
 
@@ -16,6 +19,8 @@ logging.basicConfig(
 )
 
 def process_document(file_path: str, doc_type: str, visibility_settings: VisibilitySettings, group_by: str = "category") -> str:
+    print("[PROOF] process_document called")
+    logger.debug(f"[DIAG] process_document called with file_path={file_path}, doc_type={doc_type}, group_by={group_by}")
     """Process a document and return formatted results."""
     try:
         logger.info(f"Processing document of type: {doc_type}, group_by: {group_by}")

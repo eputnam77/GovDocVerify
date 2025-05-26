@@ -125,7 +125,8 @@ class HeadingChecks(BaseChecker):
                     'type': 'length_violation',
                     'line': line,
                     'message': f'Heading exceeds maximum length of {self.MAX_HEADING_LENGTH} characters',
-                    'suggestion': f'Shorten heading to {self.MAX_HEADING_LENGTH} characters or less'
+                    'suggestion': f'Shorten heading to {self.MAX_HEADING_LENGTH} characters or less',
+                    'category': self.category
                 })
                 # Don't add to headings_found and skip other validations
                 continue
@@ -137,7 +138,8 @@ class HeadingChecks(BaseChecker):
                     'type': 'invalid_word',
                     'line': line,
                     'message': 'Heading formatting issue',
-                    'suggestion': f'Use a valid heading word from: {", ".join(sorted(heading_words))}'
+                    'suggestion': f'Use a valid heading word from: {", ".join(sorted(heading_words))}',
+                    'category': self.category
                 })
                 # Don't add to headings_found if it's not a valid heading word
                 continue
@@ -149,7 +151,8 @@ class HeadingChecks(BaseChecker):
                     'type': 'case_violation',
                     'line': line,
                     'message': 'Heading should be uppercase',
-                    'suggestion': line.split('.', 1)[0] + '. ' + heading_text.upper()
+                    'suggestion': line.split('.', 1)[0] + '. ' + heading_text.upper(),
+                    'category': self.category
                 })
             else:
                 normalized = normalize_heading(line)
@@ -161,7 +164,8 @@ class HeadingChecks(BaseChecker):
                         'type': 'format_violation',
                         'line': line,
                         'message': 'Heading formatting issue',
-                        'suggestion': normalized
+                        'suggestion': normalized,
+                        'category': self.category
                     })
 
             # Only add to headings_found if it passed all validations
@@ -185,7 +189,8 @@ class HeadingChecks(BaseChecker):
                         'type': 'missing_optional_heading',
                         'missing': heading_name,
                         'message': info_message,
-                        'severity': Severity.INFO
+                        'severity': Severity.INFO,
+                        'category': self.category
                     })
                 else:
                     missing_headings.append(heading_name)
@@ -194,7 +199,8 @@ class HeadingChecks(BaseChecker):
                 'type': 'missing_headings',
                 'missing': list(missing_headings),
                 'message': f'Missing required headings: {", ".join(missing_headings)}',
-                'severity': Severity.ERROR
+                'severity': Severity.ERROR,
+                'category': self.category
             })
 
         details = {
@@ -244,14 +250,16 @@ class HeadingChecks(BaseChecker):
                     issues.append({
                         'line': line,
                         'message': 'Heading missing required period',
-                        'suggestion': f"{line.strip()}."
+                        'suggestion': f"{line.strip()}.",
+                        'category': self.category
                     })
                 elif not requires_period and has_period:
                     logger.warning(f"Unexpected period in line {i}")
                     issues.append({
                         'line': line,
                         'message': 'Heading should not end with period',
-                        'suggestion': line.strip()[:-1]
+                        'suggestion': line.strip()[:-1],
+                        'category': self.category
                     })
 
         logger.info(f"Heading period check completed. Found {len(issues)} issues")
@@ -293,7 +301,8 @@ class HeadingChecks(BaseChecker):
                     issues.append({
                         'text': text,
                         'message': f'Invalid heading sequence: skipped level {prev_level + 1}',
-                        'suggestion': 'Ensure heading levels are sequential'
+                        'suggestion': 'Ensure heading levels are sequential',
+                        'category': self.category
                     })
 
                 # Check sequence within same level
@@ -309,7 +318,8 @@ class HeadingChecks(BaseChecker):
                                 issues.append({
                                     'text': text,
                                     'message': f'Invalid heading sequence: expected {prev_last + 1}',
-                                    'suggestion': f'Use {".".join(numbers[:-1] + [str(prev_last + 1)])}'
+                                    'suggestion': f'Use {".".join(numbers[:-1] + [str(prev_last + 1)])}',
+                                    'category': self.category
                                 })
                         except ValueError:
                             logger.error(f"Invalid number format in paragraph {i}: {numbers[-1]}")
@@ -364,7 +374,8 @@ class HeadingChecks(BaseChecker):
                 results.add_issue(
                     message=f"{error_message} (Current heading: {heading.text})",
                     severity=Severity.ERROR,
-                    line_number=heading._element.sourceline
+                    line_number=heading._element.sourceline,
+                    category=getattr(self, "category", "heading")
                 )
             previous_level = level
 
@@ -377,5 +388,6 @@ class HeadingChecks(BaseChecker):
                 results.add_issue(
                     message=f"Heading should not end with period: {text}",
                     severity=Severity.WARNING,
-                    line_number=heading._element.sourceline
+                    line_number=heading._element.sourceline,
+                    category=getattr(self, "category", "heading")
                 )

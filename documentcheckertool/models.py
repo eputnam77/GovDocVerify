@@ -77,13 +77,17 @@ class DocumentCheckResult:
             self.issues = []
         self.severity = None  # Will be set on first issue
 
-    def add_issue(self, message: str, severity: 'Severity', line_number: int = None):
+    def add_issue(self, message: str, severity: 'Severity', line_number: int = None, category: str = None, **kwargs):
         """Add an issue to the result."""
-        self.issues.append({
+        issue = {
             "message": message,
             "severity": severity,
             "line_number": line_number
-        })
+        }
+        if category is not None:
+            issue["category"] = category
+        issue.update(kwargs)
+        self.issues.append(issue)
         # Any issue marks the run as unsuccessful
         self.success = False
 

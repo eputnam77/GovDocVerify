@@ -148,7 +148,8 @@ class AccessibilityChecks(BaseChecker):
         # Add disclaimer about readability metrics being guidelines
         issues.append({
             'type': 'readability_info',
-            'message': 'Note: Readability metrics are guidelines to help improve clarity. Not all documents will meet all targets, and that\'s okay. Use these suggestions to identify areas for potential improvement.'
+            'message': 'Note: Readability metrics are guidelines to help improve clarity. Not all documents will meet all targets, and that\'s okay. Use these suggestions to identify areas for potential improvement.',
+            'category': self.category
         })
 
         if flesch_ease < 50:
@@ -156,7 +157,8 @@ class AccessibilityChecks(BaseChecker):
                 'type': 'readability_score',
                 'metric': 'Flesch Reading Ease',
                 'score': round(flesch_ease, 1),
-                'message': 'Consider simplifying language where possible to improve readability, but maintain necessary technical terminology.'
+                'message': 'Consider simplifying language where possible to improve readability, but maintain necessary technical terminology.',
+                'category': self.category
             })
 
         if flesch_grade > 12:
@@ -164,7 +166,8 @@ class AccessibilityChecks(BaseChecker):
                 'type': 'readability_score',
                 'metric': 'Flesch-Kincaid Grade Level',
                 'score': round(flesch_grade, 1),
-                'message': 'The reading level may be high for some audiences. Where appropriate, consider simpler alternatives while preserving technical accuracy.'
+                'message': 'The reading level may be high for some audiences. Where appropriate, consider simpler alternatives while preserving technical accuracy.',
+                'category': self.category
             })
 
         if fog_index > 12:
@@ -172,14 +175,16 @@ class AccessibilityChecks(BaseChecker):
                 'type': 'readability_score',
                 'metric': 'Gunning Fog Index',
                 'score': round(fog_index, 1),
-                'message': 'Text complexity is high but may be necessary for your content. Review for opportunities to clarify without oversimplifying.'
+                'message': 'Text complexity is high but may be necessary for your content. Review for opportunities to clarify without oversimplifying.',
+                'category': self.category
             })
 
         if passive_percentage > 10:
             issues.append({
                 'type': 'passive_voice',
                 'percentage': round(passive_percentage, 1),
-                'message': f'Document uses {round(passive_percentage, 1)}% passive voice. While some passive voice is acceptable and sometimes necessary, consider active voice where it improves clarity.'
+                'message': f'Document uses {round(passive_percentage, 1)}% passive voice. While some passive voice is acceptable and sometimes necessary, consider active voice where it improves clarity.',
+                'category': self.category
             })
 
     @profile_performance
@@ -417,7 +422,8 @@ class AccessibilityChecks(BaseChecker):
                         display_name = name[:100] + '...' if name and len(name) > 100 else name
                         results.add_issue(
                             message=f"Image '{display_name or 'unnamed'}' is missing alt text",
-                            severity=Severity.ERROR
+                            severity=Severity.ERROR,
+                            category=self.category
                         )
                         logger.debug(f"Found image missing alt text: {display_name or 'unnamed'}")
 
@@ -436,7 +442,8 @@ class AccessibilityChecks(BaseChecker):
                         if alt_text is None or alt_text.strip() == "" or alt_text.strip().lower() == "missing alt":
                             results.add_issue(
                                 message=f"Image at line {i} is missing alt text",
-                                severity=Severity.ERROR
+                                severity=Severity.ERROR,
+                                category=self.category
                             )
                             logger.debug(f"Found markdown image missing alt text at line {i}")
                 except Exception as e:
@@ -445,7 +452,8 @@ class AccessibilityChecks(BaseChecker):
         else:
             results.add_issue(
                 message=f"Invalid content type for alt text check: {type(content).__name__}",
-                severity=Severity.ERROR
+                severity=Severity.ERROR,
+                category=self.category
             )
 
     @CheckRegistry.register('accessibility')
@@ -461,7 +469,8 @@ class AccessibilityChecks(BaseChecker):
             logger.error("Invalid content type for color contrast check: None")
             results.add_issue(
                 message="Invalid content type for color contrast check: None",
-                severity=Severity.ERROR
+                severity=Severity.ERROR,
+                category=self.category
             )
             return
 
@@ -476,7 +485,8 @@ class AccessibilityChecks(BaseChecker):
                 logger.error(f"Error extracting text from paragraphs: {e}")
                 results.add_issue(
                     message=f"Error processing document paragraphs: {str(e)}",
-                    severity=Severity.ERROR
+                    severity=Severity.ERROR,
+                    category=self.category
                 )
                 return
         else:
@@ -485,7 +495,8 @@ class AccessibilityChecks(BaseChecker):
                 logger.error(f"Invalid content type for color contrast check: {type(content).__name__}")
                 results.add_issue(
                     message=f"Invalid content type for color contrast check: {type(content).__name__}",
-                    severity=Severity.ERROR
+                    severity=Severity.ERROR,
+                    category=self.category
                 )
                 return
             lines = content
@@ -506,7 +517,8 @@ class AccessibilityChecks(BaseChecker):
                     logger.warning(f"Insufficient color contrast ratio ({ratio:.2f}:1) at line {i}")
                     results.add_issue(
                         message=f"Insufficient color contrast ratio ({ratio:.2f}:1) at line {i}",
-                        severity=Severity.ERROR
+                        severity=Severity.ERROR,
+                        category=self.category
                     )
 
         logger.debug(f"Color contrast check complete. Results: success={results.success}, issues={results.issues}")

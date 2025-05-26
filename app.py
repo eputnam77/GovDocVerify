@@ -15,43 +15,16 @@ from documentcheckertool.utils.formatting import ResultFormatter, FormatStyle
 import mimetypes
 from documentcheckertool.models import DocumentCheckResult, Severity, DocumentType, VisibilitySettings
 from documentcheckertool.checks.check_registry import CheckRegistry  # Added for registry-driven category mapping
+from documentcheckertool.logging_config import setup_logging
 
-log_path = os.path.abspath("document_checker.log")
+setup_logging()
 
-LOGGING_CONFIG = {
-    'version': 1,
-    'disable_existing_loggers': False,
-    'formatters': {
-        'default': {
-            'format': '%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-        },
-    },
-    'handlers': {
-        'console': {
-            'class': 'logging.StreamHandler',
-            'level': 'DEBUG',
-            'formatter': 'default',
-            'stream': sys.stdout,
-        },
-        'file': {
-            'class': 'logging.FileHandler',
-            'level': 'DEBUG',
-            'formatter': 'default',
-            'filename': log_path,
-            'mode': 'w',
-        },
-    },
-    'root': {
-        'handlers': ['console', 'file'],
-        'level': 'DEBUG',
-    },
-}
-
-logging.config.dictConfig(LOGGING_CONFIG)
 logger = logging.getLogger(__name__)
 logger.debug("[UI DEBUG] Logging is active at module import time.")
 
 def process_document(file_path: str, doc_type: str, visibility_settings: VisibilitySettings, group_by: str = "category") -> str:
+    print("[PROOF] process_document called")
+    logger.debug(f"[DIAG] process_document called with file_path={file_path}, doc_type={doc_type}, group_by={group_by}")
     """Process a document and return formatted results."""
     try:
         logger.info(f"Processing document of type: {doc_type}, group_by: {group_by}")

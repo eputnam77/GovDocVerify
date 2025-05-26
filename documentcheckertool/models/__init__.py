@@ -1,14 +1,15 @@
-from enum import Enum
-from dataclasses import dataclass, field
+from enum import Enum, auto, IntEnum
+from dataclasses import dataclass
 from typing import List, Dict, Any, Optional
 import re
 import json
+import logging
 
-class Severity(Enum):
+class Severity(IntEnum):
     """Enum for issue severity levels."""
-    ERROR = "error"
-    WARNING = "warning"
-    INFO = "info"
+    ERROR = 0
+    WARNING = 1
+    INFO = 2
 
 class DocumentTypeError(Exception):
     """Raised when an invalid document type is provided."""
@@ -77,34 +78,73 @@ class DocumentType(str, Enum):
 
 @dataclass
 class DocumentCheckResult:
+    """Result of a document check."""
     success: bool = True
-    severity: Severity = Severity.ERROR
-    issues: List[Dict[str, Any]] = field(default_factory=list)
+    issues: List[Dict[str, Any]] = None
+    checker_name: Optional[str] = None
+    score: float = 1.0
+    severity: Optional['Severity'] = None
     details: Optional[Dict[str, Any]] = None
 
-    def add_issue(self, message: str, severity: Severity, line_number: int = None) -> None:
+    def __post_init__(self):
+        """Initialize default values and ensure all issues have a category."""
+        if self.issues is None:
+            self.issues = []
+        # Defensive: ensure all issues have a category
+        for issue in self.issues:
+            if 'category' not in issue or not issue['category']:
+                issue['category'] = getattr(self, 'checker_name', None) or 'general'
+                logging.warning(f"[DEFENSIVE] Issue missing category. Assigned '{issue['category']}'. Issue: {issue}")
+        self.severity = None  # Will be set on first issue
+
+    def add_issue(self, message: str, severity: 'Severity', line_number: int = None, category: str = None, **kwargs):
         """Add an issue to the result."""
-        self.issues.append({
+        if category is None:
+            category = getattr(self, 'checker_name', None) or 'general'
+        issue = {
             "message": message,
             "severity": severity,
-            "line_number": line_number
-        })
-        if severity in [Severity.ERROR, Severity.WARNING]:  # Set success to False for both ERROR and WARNING
-            self.success = False
-        self.severity = severity
-
-    def add_detail(self, key: str, value: Any) -> None:
-        if self.details is None:
-            self.details = {}
-        self.details[key] = value
-
-    def to_dict(self) -> Dict[str, Any]:
-        return {
-            'success': self.success,
-            'severity': self.severity.value,
-            'issues': self.issues,
-            'details': self.details
+            "line_number": line_number,
+            "category": category
         }
+        issue.update(kwargs)
+        self.issues.append(issue)
+        # Any issue marks the run as unsuccessful
+        self.success = False
+
+        # Keep track of the most severe issue (ERROR < WARNING < INFO)
+        if self.severity is None or severity < self.severity:
+            self.severity = severity
+
+    def to_html(self) -> str:
+        """Convert the result to HTML."""
+        if not self.issues:
+            return "<div style='color: green;'>✓ No issues found</div>"
+
+        html = ["<div style='padding: 10px;'>"]
+
+        # Group issues by severity
+        by_severity = {}
+        for issue in self.issues:
+            sev = issue["severity"]
+            if sev not in by_severity:
+                by_severity[sev] = []
+            by_severity[sev].append(issue)
+
+        # Generate HTML for each severity group
+        for severity in sorted(by_severity.keys(), key=lambda x: x.value):
+            issues = by_severity[severity]
+            color = severity.to_color()
+
+            html.append(f"<h3 style='color: {color};'>{severity.value_str} Severity Issues:</h3>")
+            html.append("<ul>")
+            for issue in issues:
+                line_info = f" (line {issue['line_number']})" if issue.get('line_number') else ""
+                html.append(f"<li>{issue['message']}{line_info}</li>")
+            html.append("</ul>")
+
+        html.append("</div>")
+        return "\n".join(html)
 
 @dataclass
 class VisibilitySettings:

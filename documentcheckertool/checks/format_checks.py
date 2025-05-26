@@ -53,7 +53,8 @@ class FormatChecks(BaseChecker):
                 results.add_issue(
                     "Incorrect date format. Use Month Day, Year format (e.g., May 11, 2025)",
                     Severity.ERROR,
-                    i+1
+                    i+1,
+                    category=getattr(self, "category", "format")
                 )
 
     @BaseChecker.register_check('format')
@@ -113,7 +114,8 @@ class FormatChecks(BaseChecker):
             results.add_issue(
                 "Inconsistent phone number format",
                 Severity.WARNING,
-                line_no
+                line_no,
+                category=getattr(self, "category", "format")
             )
             seen.add(line_no)
             logger.debug(f"Flagged line {line_no} for inconsistent phone number format")
@@ -136,7 +138,8 @@ class FormatChecks(BaseChecker):
                         results.add_issue(
                             "Placeholder text found",
                             Severity.ERROR,
-                            i+1
+                            i+1,
+                            category=getattr(self, "category", "format")
                         )
                         logger.debug(f"Successfully added issue for line {i+1}")
                         break  # Only add one issue per line
@@ -164,7 +167,8 @@ class FormatChecks(BaseChecker):
                             results.add_issue(
                                 f"{message}: '{match.group(0)}'",
                                 Severity.WARNING,
-                                i+1
+                                i+1,
+                                category=getattr(self, "category", "format")
                             )
                             logger.debug(f"Successfully added issue for line {i+1}")
                         except Exception as e:
@@ -194,7 +198,8 @@ class FormatChecks(BaseChecker):
                                     'caption_type': 'Table'
                                 },
                                 Severity.ERROR,
-                                i+1
+                                i+1,
+                                category=getattr(self, "category", "format")
                             )
                     else:
                         if '-' in number_format:
@@ -205,7 +210,8 @@ class FormatChecks(BaseChecker):
                                     'caption_type': 'Table'
                                 },
                                 Severity.ERROR,
-                                i+1
+                                i+1,
+                                category=getattr(self, "category", "format")
                             )
 
             # Check for figure captions
@@ -222,7 +228,8 @@ class FormatChecks(BaseChecker):
                                     'caption_type': 'Figure'
                                 },
                                 Severity.ERROR,
-                                i+1
+                                i+1,
+                                category=getattr(self, "category", "format")
                             )
                     else:
                         if '-' in number_format:
@@ -233,7 +240,8 @@ class FormatChecks(BaseChecker):
                                     'caption_type': 'Figure'
                                 },
                                 Severity.ERROR,
-                                i+1
+                                i+1,
+                                category=getattr(self, "category", "format")
                             )
 
     def check(self, content: List[str]) -> Dict[str, Any]:

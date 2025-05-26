@@ -118,7 +118,8 @@ class FAADocumentChecker:
                         )
                         per_check_results[category][check_func] = dcr
                     combined_results.issues.append({
-                        'error': f"Error in {category} checks: {str(e)}"
+                        'error': f"Error in {category} checks: {str(e)}",
+                        'category': category
                     })
 
             # Always ensure per_check_results is populated with all issues

@@ -239,6 +239,13 @@ class TableFigureReferenceCheck(BaseChecker):
         check_result = self._check_core(lines)
         results.issues.extend(check_result.issues)
         results.success = check_result.success
+        for i, issue in enumerate(check_result.issues):
+            results.add_issue(
+                message="Cross-reference detected - verify target exists",
+                severity=Severity.INFO,
+                line_number=i+1,
+                category=getattr(self, "category", "reference")
+            )
 
     @CheckRegistry.register('reference')
     def check_document(self, document, doc_type) -> DocumentCheckResult:

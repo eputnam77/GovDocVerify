@@ -78,13 +78,15 @@ class ReadabilityChecks(BaseChecker):
             if flesch_ease < 60:
                 results.add_issue(
                     message=f"Text may be difficult to read (Flesch Reading Ease: {flesch_ease:.1f}). Consider simplifying language.",
-                    severity=Severity.WARNING
+                    severity=Severity.WARNING,
+                    category=getattr(self, "category", "readability")
                 )
 
             if flesch_grade > 12:
                 results.add_issue(
                     message=f"Text may be too complex for general audience (Flesch-Kincaid Grade Level: {flesch_grade:.1f}).",
-                    severity=Severity.WARNING
+                    severity=Severity.WARNING,
+                    category=getattr(self, "category", "readability")
                 )
 
             # Check sentence length
@@ -93,21 +95,24 @@ class ReadabilityChecks(BaseChecker):
                 if word_count > 25:
                     results.add_issue(
                         message=f"Sentence {i} is too long ({word_count} words). Consider breaking it into smaller sentences.",
-                        severity=Severity.WARNING
+                        severity=Severity.WARNING,
+                        category=getattr(self, "category", "readability")
                     )
 
             # Check paragraph length
             if len(words) > 150:
                 results.add_issue(
                     message=f"Paragraph is too long ({len(words)} words). Consider breaking it into smaller paragraphs.",
-                    severity=Severity.WARNING
+                    severity=Severity.WARNING,
+                    category=getattr(self, "category", "readability")
                 )
 
         except Exception as e:
             logger.error(f"Error in readability check: {str(e)}")
             results.add_issue(
                 message=f"Error calculating readability metrics: {str(e)}",
-                severity=Severity.ERROR
+                severity=Severity.ERROR,
+                category=getattr(self, "category", "readability")
             )
 
     def _count_syllables(self, word: str) -> int:

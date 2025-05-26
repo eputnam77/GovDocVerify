@@ -65,7 +65,8 @@ class StructureChecks(BaseChecker):
                 results.add_issue(
                     message=f"Paragraph exceeds {MAX_WORDS} words ({words} words)",
                     severity=Severity.WARNING,
-                    line_number=i+1
+                    line_number=i+1,
+                    category=getattr(self, "category", "structure")
                 )
 
     @CheckRegistry.register('structure')

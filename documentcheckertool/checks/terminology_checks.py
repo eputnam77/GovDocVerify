@@ -56,7 +56,8 @@ class TerminologyChecks(BaseChecker):
                         results.add_issue(
                             message=f"Inconsistent terminology: use '{standard}' instead of '{variant}'",
                             severity=Severity.INFO,
-                            line_number=i+1
+                            line_number=i+1,
+                            category=getattr(self, "category", "terminology")
                         )
 
     @CheckRegistry.register('terminology')
@@ -69,7 +70,8 @@ class TerminologyChecks(BaseChecker):
                     results.add_issue(
                         message=message,
                         severity=Severity.WARNING,
-                        line_number=i+1
+                        line_number=i+1,
+                        category=getattr(self, "category", "terminology")
                     )
 
     @CheckRegistry.register('terminology')
@@ -86,7 +88,8 @@ class TerminologyChecks(BaseChecker):
                     results.add_issue(
                         message=f'Use "{approved}" instead of "{obsolete}".',
                         severity=Severity.WARNING,
-                        line_number=i + 1
+                        line_number=i + 1,
+                        category=getattr(self, "category", "terminology")
                     )
 
     @CheckRegistry.register('terminology')
@@ -109,7 +112,8 @@ class TerminologyChecks(BaseChecker):
                 # For now, flag all matches
                 issues.append({
                     'message': 'Split infinitive detected (may be acceptable in some contexts)',
-                    'severity': Severity.INFO
+                    'severity': Severity.INFO,
+                    'category': getattr(self, 'category', 'terminology')
                 })
 
         # Check for forbidden terms (whole-word, case-insensitive)
@@ -121,11 +125,13 @@ class TerminologyChecks(BaseChecker):
                     if term == 'additionally':
                         issues.append({
                             'message': "Replace with 'In addition'",
-                            'severity': Severity.WARNING
+                            'severity': Severity.WARNING,
+                            'category': getattr(self, 'category', 'terminology')
                         })
                     issues.append({
                         'message': message,
-                        'severity': Severity.WARNING
+                        'severity': Severity.WARNING,
+                        'category': getattr(self, 'category', 'terminology')
                     })
 
         # Check for inconsistent terminology
@@ -135,7 +141,8 @@ class TerminologyChecks(BaseChecker):
                     if variant in line.lower():
                         issues.append({
                             'message': f'Inconsistent terminology: use "{standard}" instead of "{variant}"',
-                            'severity': Severity.WARNING
+                            'severity': Severity.WARNING,
+                            'category': getattr(self, 'category', 'terminology')
                         })
 
         # Check for forbidden terms & obsolete replacements
@@ -146,11 +153,13 @@ class TerminologyChecks(BaseChecker):
                     if term == 'additionally':
                         issues.append({
                             'message': "Replace with 'In addition'",
-                            'severity': Severity.WARNING
+                            'severity': Severity.WARNING,
+                            'category': getattr(self, 'category', 'terminology')
                         })
                     issues.append({
                         'message': message,
-                        'severity': Severity.WARNING
+                        'severity': Severity.WARNING,
+                        'category': getattr(self, 'category', 'terminology')
                     })
             for obsolete, approved in TERM_REPLACEMENTS.items():
                 if re.search(fr'\b{re.escape(obsolete)}\b', line, re.IGNORECASE):
@@ -159,7 +168,8 @@ class TerminologyChecks(BaseChecker):
                         continue
                     issues.append({
                         'message': f'Use "{approved}" instead of "{obsolete}".',
-                        'severity': Severity.WARNING
+                        'severity': Severity.WARNING,
+                        'category': getattr(self, 'category', 'terminology')
                     })
 
         # Add issues to the result
@@ -193,13 +203,15 @@ class TerminologyChecks(BaseChecker):
                 warnings.append({
                     'line': i,
                     'message': 'USC should be U.S.C.',
-                    'severity': Severity.WARNING
+                    'severity': Severity.WARNING,
+                    'category': getattr(self, "category", "terminology")
                 })
             if 'U.S.C ' in paragraph:
                 warnings.append({
                     'line': i,
                     'message': 'U.S.C should have a final period',
-                    'severity': Severity.WARNING
+                    'severity': Severity.WARNING,
+                    'category': getattr(self, "category", "terminology")
                 })
 
             # Check CFR formatting
@@ -207,13 +219,15 @@ class TerminologyChecks(BaseChecker):
                 warnings.append({
                     'line': i,
                     'message': 'C.F.R. should be CFR',
-                    'severity': Severity.WARNING
+                    'severity': Severity.WARNING,
+                    'category': getattr(self, "category", "terminology")
                 })
             if 'CFR Part' in paragraph:
                 warnings.append({
                     'line': i,
                     'message': 'CFR Part should be CFR part',
-                    'severity': Severity.WARNING
+                    'severity': Severity.WARNING,
+                    'category': getattr(self, "category", "terminology")
                 })
 
         # Check gendered terms
@@ -228,7 +242,8 @@ class TerminologyChecks(BaseChecker):
                     warnings.append({
                         'line': i,
                         'message': f'{term} should be {replacement}',
-                        'severity': Severity.WARNING
+                        'severity': Severity.WARNING,
+                        'category': getattr(self, "category", "terminology")
                     })
 
         # Check plain language
@@ -247,13 +262,15 @@ class TerminologyChecks(BaseChecker):
                         warnings.append({
                             'line': i,
                             'message': "Use simpler alternatives like 'under' or 'following'",
-                            'severity': Severity.WARNING
+                            'severity': Severity.WARNING,
+                            'category': getattr(self, "category", "terminology")
                         })
                     else:
                         warnings.append({
                             'line': i,
                             'message': 'Avoid archaic or legalese terms',
-                            'severity': Severity.WARNING
+                            'severity': Severity.WARNING,
+                            'category': getattr(self, "category", "terminology")
                         })
 
         # Check aviation terminology
@@ -268,7 +285,8 @@ class TerminologyChecks(BaseChecker):
                     warnings.append({
                         'line': i,
                         'message': f'{term} should be {replacement}',
-                        'severity': Severity.WARNING
+                        'severity': Severity.WARNING,
+                        'category': getattr(self, "category", "terminology")
                     })
 
         # Check qualifiers
@@ -279,7 +297,8 @@ class TerminologyChecks(BaseChecker):
                     warnings.append({
                         'line': i,
                         'message': 'Avoid unnecessary qualifiers',
-                        'severity': Severity.WARNING
+                        'severity': Severity.WARNING,
+                        'category': getattr(self, "category", "terminology")
                     })
 
         # Check plural usage
@@ -290,7 +309,8 @@ class TerminologyChecks(BaseChecker):
                     warnings.append({
                         'line': i,
                         'message': 'Ensure consistent singular/plural usage',
-                        'severity': Severity.WARNING
+                        'severity': Severity.WARNING,
+                        'category': getattr(self, "category", "terminology")
                     })
 
         # Enhanced check for obsolete authority citations
@@ -312,7 +332,8 @@ class TerminologyChecks(BaseChecker):
                             'line': i,
                             'message': f'{citation} is no longer valid; confirm or remove this citation.',
                             'severity': Severity.WARNING,
-                            'suggestion': corrected
+                            'suggestion': corrected,
+                            'category': getattr(self, "category", "terminology")
                         })
 
         return {
@@ -361,4 +382,5 @@ class TerminologyChecks(BaseChecker):
                     message="Found 'proposed' wording—remove draft phrasing for final documents.",
                     severity=Severity.INFO,
                     line_number=idx,
+                    category=getattr(self, "category", "terminology")
                 )
