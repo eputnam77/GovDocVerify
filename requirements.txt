@@ -1,4 +1,10 @@
+# Core runtime requirements for Document Checker Tool
+# Install with: pip install -r requirements.txt
+# For development/testing, see requirements-dev.txt or use Poetry (see pyproject.toml)
+
+# Main app dependencies
 gradio>=5.31.0
+fastapi>=0.100.0
 python-docx>=0.8.11
 beautifulsoup4>=4.12.0
 pdfkit>=1.0.0
@@ -10,3 +16,6 @@ colorama>=0.4.6
 typing-extensions>=4.9.0
 filetype>=1.2.0
 python-multipart>=0.0.20
+
+# Optional: Only needed if running the FastAPI backend directly
+# uvicorn>=0.23.0

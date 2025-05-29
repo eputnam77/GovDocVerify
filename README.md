@@ -44,6 +44,39 @@ A tool for checking and validating documents against FAA standards, with a moder
 
 ---
 
+## What Does the Document Checker Tool Check?
+
+The Document Checker Tool automatically reviews your document for a wide range of common FAA and regulatory issues. Here are the main types of checks it performs, with examples of what it can detect and suggest:
+
+| Issue Type | Description | Example Fix |
+|------------|-------------|-------------|
+| **Required Headings Check** | Verifies all mandatory section headings are present and correctly formatted. | _Before:_ Missing required heading "PURPOSE."<br>_After:_ Added heading "PURPOSE." at the beginning of the document |
+| **Heading Period Format** | Ensures headings have correct punctuation for your document type. | _Before:_ Purpose<br>_After:_ Purpose. |
+| **Table and Figure References** | Checks that references to tables/figures are capitalized correctly depending on sentence position. | _Before:_ The DTR values are specified in Table 3-1 and Figure 3-2.<br>_After:_ The DTR values are specified in table 3-1 and figure 3-2. |
+| **Acronym Definition Issues** | Ensures every acronym is defined at first use. | _Before:_ This order establishes general FAA organizational policies.<br>_After:_ This order establishes general Federal Aviation Administration (FAA) organizational policies. |
+| **Unused Acronym Definitions** | Flags acronyms that are defined but never used. | _Before:_ Operators must comply with airworthiness directives (AD)...<br>_After:_ Operators must comply with airworthiness directives... |
+| **Incorrect Terminology** | Flags non-compliant, ambiguous, or outdated terms. | _Before:_ Operators shall comply with ADs...<br>_After:_ Operators must comply with ADs... |
+| **Section Symbol (§) Format Issues** | Checks for correct use of section symbols in references. | _Before:_ § 23.3 establishes design criteria.<br>_After:_ Section 23.3 establishes design criteria. |
+| **Multiple Period Issues** | Detects accidental double periods at sentence ends. | _Before:_ ...in this document..<br>_After:_ ...in this document. |
+| **Spacing Issues** | Ensures proper spacing around references and sentences. | _Before:_ AC25.25 states that  SFAR88...<br>_After:_ AC 25.25 states that SFAR 88... |
+| **Date Format Issues** | Checks that dates use the correct format. | _Before:_ ...dated 7/25/2006.<br>_After:_ ...dated July 25, 2006. |
+| **Placeholder Content** | Flags incomplete content or placeholders like "TBD". | _Before:_ Pilots must submit the [Insert text] form...<br>_After:_ Pilots must submit the Report of Eye Evaluation form 8500-7... |
+| **Parentheses Balance Check** | Ensures all parentheses are properly paired. | _Before:_ The system (as defined in AC 25-11B performs...<br>_After:_ The system (as defined in AC 25-11B) performs... |
+| **Paragraph Length Issues** | Flags paragraphs that are too long for readability. | _Before:_ A very long paragraph...<br>_After:_ Multiple shorter paragraphs... |
+| **Sentence Length Issues** | Highlights sentences longer than 35 words. | _Before:_ The operator must ensure that all required maintenance procedures are performed...<br>_After:_ The operator must ensure all required maintenance procedures are performed... |
+| **Referenced Document Title Format Issues** | Checks formatting of referenced document titles. | _Before:_ See AC 25.1309-1B, System Design and Analysis...<br>_After:_ See AC 25.1309-1B, <i>System Design and Analysis</i>... |
+| **Section 508 Compliance Issues** | Checks for accessibility features like alt text, heading structure, and descriptive links. | _Before:_ Image without alt text, skipped heading levels<br>_After:_ Added alt text, fixed heading hierarchy |
+| **Hyperlink Issues** | Checks for broken or inaccessible URLs. | _Before:_ See https://broken-link.example.com...<br>_After:_ See https://www.faa.gov... |
+| **Cross-Reference Issues** | Checks for missing or invalid cross-references. | _Before:_ See table 5-2 for more information. (no table 5-2)<br>_After:_ Update the table reference or add table 5-2 |
+| **Readability Issues** | Analyzes readability and flags passive voice or jargon. | _Before:_ The implementation of the procedure was facilitated by technical personnel.<br>_After:_ Technical staff helped start the procedure. |
+| **Accessibility Issues** | Checks for missing accessibility features. | _Before:_ Image without alt text, skipped heading levels<br>_After:_ Added alt text, fixed heading hierarchy |
+| **Document Watermark Issues** | Verifies the document has the correct watermark for its stage. | _Before:_ Missing watermark or incorrect watermark "draft"<br>_After:_ Added correct watermark "draft for public comment" |
+| **Required Boilerplate Text Issues** | Ensures all required standard text sections are present. | _Before:_ Missing required disclaimer text for Advisory Circular<br>_After:_ Added "This AC is not mandatory and does not constitute a regulation." |
+| **Required Language Issues** | Verifies all required standardized language is present. | _Before:_ Missing Paperwork Reduction Act statement<br>_After:_ Added complete Paperwork Reduction Act statement |
+| **Table/Figure Caption Format Issues** | Checks that captions follow proper numbering format. | _Before:_ Table 5.<br>_After:_ Table 5-1. |
+
+---
+
 ## Project Structure
 
 ```
@@ -66,6 +99,31 @@ project-root/
 
 ---
 
+## Python Requirements: Which File to Use?
+
+**There are two requirements files for Python dependencies:**
+
+- `requirements.txt`: Core runtime requirements. Use this if you only want to *run* the app (Gradio UI or backend API) in production or as an end user.
+- `requirements-dev.txt`: Development and testing requirements. Use this if you want to *develop*, *test*, or *contribute* to the project. This file includes everything in `requirements.txt` plus extra tools for testing, linting, and code quality.
+
+**Which should you install?**
+
+- **For development, testing, or contributing:**
+  ```bash
+  pip install -r requirements-dev.txt
+  ```
+  This will install all runtime and dev dependencies (no need to install both files).
+
+- **For production or just running the app:**
+  ```bash
+  pip install -r requirements.txt
+  ```
+  This installs only the minimal set of packages needed to run the app.
+
+**Tip:** If you're not sure, use `requirements-dev.txt` for the most complete setup.
+
+---
+
 ## Setup Instructions
 
 ### 1. Python Environment (Backend & Gradio)
@@ -77,6 +135,8 @@ project-root/
 # In project root
 conda create -n docchecker python=3.9
 conda activate docchecker
+pip install -r requirements-dev.txt  # For development/testing
+# Or, for production only:
 pip install -r requirements.txt
 ```
 
@@ -88,6 +148,8 @@ python -m venv docchecker
 docchecker\Scripts\activate
 # On Mac/Linux:
 source docchecker/bin/activate
+pip install -r requirements-dev.txt  # For development/testing
+# Or, for production only:
 pip install -r requirements.txt
 ```
 
