@@ -10,7 +10,7 @@ import os
 import re
 import io
 import traceback
-import pkg_resources
+from importlib.metadata import version, PackageNotFoundError
 from pprint import pformat
 from enum import Enum
 from datetime import datetime
@@ -18,7 +18,10 @@ import json
 
 logger = logging.getLogger(__name__)
 logger.debug("[UI DEBUG] gradio_ui.py module loaded")
-GRADIO_VERSION = pkg_resources.get_distribution('gradio').version
+try:
+    GRADIO_VERSION = version('gradio')
+except PackageNotFoundError:
+    GRADIO_VERSION = 'unknown'
 
 def create_interface():
     """Create and configure the Gradio interface."""
