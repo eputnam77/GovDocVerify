@@ -279,7 +279,11 @@ def create_interface():
                             </div>
                             """
 
-                        def process_and_format(file_obj, doc_type_value, template_type_value, group_by_value):
+                        def process_and_format(
+                            file_obj, doc_type_value, template_type_value, group_by_value,
+                            show_readability_value, show_paragraph_length_value, show_terminology_value, show_headings_value,
+                            show_structure_value, show_format_value, show_accessibility_value, show_document_status_value
+                        ):
                             logger.debug("[UI DEBUG] process_and_format called")
                             status = "Checking document..."
                             try:
@@ -328,9 +332,61 @@ def create_interface():
                                         total_issues += cat_issues
                                     logger.debug(f"[UI DEBUG] Total issues in results_dict: {total_issues}")
                                     logger.debug(f"[UI DEBUG] Issues by category: {issues_by_category}")
+
+                                    # --- NEW: Filter results based on visibility settings with mapping ---
+                                    visibility_settings = VisibilitySettings(
+                                        show_readability=show_readability_value,
+                                        show_paragraph_length=show_paragraph_length_value,
+                                        show_terminology=show_terminology_value,
+                                        show_headings=show_headings_value,
+                                        show_structure=show_structure_value,
+                                        show_format=show_format_value,
+                                        show_accessibility=show_accessibility_value,
+                                        show_document_status=show_document_status_value
+                                    )
+                                    logger.debug(f"[UI DEBUG] Visibility settings: {visibility_settings}")
+
+                                    # Mapping from visibility fields to result categories
+                                    visibility_to_categories = {
+                                        'show_readability': ['readability'],
+                                        'show_paragraph_length': ['paragraph_length', 'sentence_length'],
+                                        'show_terminology': ['terminology'],
+                                        'show_headings': ['heading'],
+                                        'show_structure': ['structure'],
+                                        'show_format': ['format'],
+                                        'show_accessibility': ['accessibility'],
+                                        'show_document_status': ['document_status']
+                                    }
+                                    # Build a set of categories to show
+                                    selected_categories = set()
+                                    if visibility_settings.show_readability:
+                                        selected_categories.update(visibility_to_categories['show_readability'])
+                                    if visibility_settings.show_paragraph_length:
+                                        selected_categories.update(visibility_to_categories['show_paragraph_length'])
+                                    if visibility_settings.show_terminology:
+                                        selected_categories.update(visibility_to_categories['show_terminology'])
+                                    if visibility_settings.show_headings:
+                                        selected_categories.update(visibility_to_categories['show_headings'])
+                                    if visibility_settings.show_structure:
+                                        selected_categories.update(visibility_to_categories['show_structure'])
+                                    if visibility_settings.show_format:
+                                        selected_categories.update(visibility_to_categories['show_format'])
+                                    if visibility_settings.show_accessibility:
+                                        selected_categories.update(visibility_to_categories['show_accessibility'])
+                                    if visibility_settings.show_document_status:
+                                        selected_categories.update(visibility_to_categories['show_document_status'])
+                                    logger.debug(f"[UI DEBUG] Selected categories for display: {selected_categories}")
+
+                                    filtered_results = {}
+                                    for category, category_results in results_dict.items():
+                                        if category in selected_categories:
+                                            filtered_results[category] = category_results
+                                    logger.debug(f"[UI DEBUG] Filtered categories: {list(filtered_results.keys())}")
+                                    # --- END PATCH ---
+
                                     # Format results
                                     formatter = ResultFormatter(style=FormatStyle.HTML)
-                                    formatted_results = formatter.format_results(results_dict, doc_type_value, group_by=group_by_value)
+                                    formatted_results = formatter.format_results(filtered_results, doc_type_value, group_by=group_by_value)
                                     if formatted_results is None:
                                         logger.error(f"ResultFormatter.format_results returned None. Inputs: results_dict={pformat(results_dict)}, doc_type_value={doc_type_value}, group_by_value={group_by_value}")
                                         return format_error_message("Internal error: Could not format results."), gr.update(visible=True), gr.update(visible=False), None, status
@@ -348,7 +404,13 @@ def create_interface():
 
                                     # Store for download handlers
                                     global _last_results
-                                    _last_results = results_dict
+                                    _last_results = {
+                                        'results': results_dict,
+                                        'filtered_results': filtered_results,
+                                        'visibility': visibility_settings.to_dict(),
+                                        'summary': getattr(result_obj, 'summary', {}),
+                                        'formatted_results': formatted_results
+                                    }
                                     status = "Check complete."
                                     return html_results, gr.update(visible=True), gr.update(visible=True), None, status
 
@@ -550,7 +612,9 @@ def create_interface():
 
                         submit_btn.click(
                             fn=process_and_format,
-                            inputs=[file_input, doc_type, template_type, group_by],
+                            inputs=[file_input, doc_type, template_type, group_by,
+                                    show_readability, show_paragraph_length, show_terminology, show_headings,
+                                    show_structure, show_format, show_accessibility, show_document_status],
                             outputs=[results, download_docx, download_pdf, report_file, status_box]
                         )
 
