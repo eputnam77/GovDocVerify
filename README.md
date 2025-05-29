@@ -83,11 +83,11 @@ pip install -r requirements.txt
 #### b. Using venv + pip
 ```bash
 # In project root
-python -m venv venv
+python -m venv docchecker
 # On Windows:
-venv\Scripts\activate
+docchecker\Scripts\activate
 # On Mac/Linux:
-source venv/bin/activate
+source docchecker/bin/activate
 pip install -r requirements.txt
 ```
 
