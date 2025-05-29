@@ -135,4 +135,4 @@ test-results/
 # FAA_Style_Manual.md
 
 # Ignore all node_modules folders recursively
-**/node_modules/
+**/node_modules*/
