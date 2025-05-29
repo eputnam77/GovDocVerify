@@ -14,7 +14,7 @@ jobs:
         with:
           fetch-depth: 0
           lfs: true
-      
+
       - name: Clean repository
         run: |
           # Remove __pycache__ directories and files
@@ -22,17 +22,22 @@ jobs:
           find . -type f -name "*.pyc" -delete
           find . -type f -name "*.pyo" -delete
           find . -type f -name "*.pyd" -delete
-          
+
+          # Stage deletions
+          git add -A
+          # Commit if there are changes
+          git diff --cached --quiet || git commit -m "Remove Python cache and binary files before filter-branch"
+
           # Clean git history of binary files
           git filter-branch --force --index-filter \
             "git rm --cached --ignore-unmatch -r __pycache__/ *.pyc *.pyo *.pyd" \
             --prune-empty --tag-name-filter cat -- --all
-          
+
           # Clean up refs and garbage
           git for-each-ref --format='delete %(refname)' refs/original/ | git update-ref --stdin
           git reflog expire --expire=now --all
           git gc --prune=now --aggressive
-      
+
       - name: Push to hub
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
