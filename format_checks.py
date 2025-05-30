@@ -1,6 +1,8 @@
 from typing import List
 import re
-from logger import logger
+import logging
+
+logger = logging.getLogger(__name__)
 from documentcheckertool.models import DocumentCheckResult, Severity
 
 class FormattingChecker:
