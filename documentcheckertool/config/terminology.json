@@ -309,7 +309,9 @@
         "ADVISORY_CIRCULAR": true,
         "POLICY_STATEMENT": true,
         "FEDERAL_REGISTER_NOTICE": true,
-        "ORDER": true
+        "ORDER": true,
+        "TECHNICAL_STANDARD_ORDER": true,
+        "TSO": true
     },
     "document_types": {
         "ADVISORY_CIRCULAR": {

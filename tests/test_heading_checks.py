@@ -329,5 +329,33 @@ class TestHeadingChecks:
         assert not result.success
         assert any("missing required period" in issue["message"] for issue in result.issues)
 
+    def test_tso_headings_require_period(self):
+        """Test that Technical Standard Orders require periods in headings."""
+        doc = ["1. PURPOSE.", "2. BACKGROUND."]
+        result = self.heading_checks.check_heading_period(doc, "Technical Standard Order")
+        assert result.success
+        assert len(result.issues) == 0
+
+    def test_tso_headings_missing_period(self):
+        """Test that Technical Standard Orders flag missing periods as errors."""
+        doc = ["1. PURPOSE", "2. BACKGROUND"]
+        result = self.heading_checks.check_heading_period(doc, "Technical Standard Order")
+        assert not result.success
+        assert any("missing required period" in issue["message"] for issue in result.issues)
+
+    def test_tso_short_form_headings_require_period(self):
+        """Test that TSO (short form) requires periods in headings."""
+        doc = ["1. PURPOSE.", "2. BACKGROUND."]
+        result = self.heading_checks.check_heading_period(doc, "TSO")
+        assert result.success
+        assert len(result.issues) == 0
+
+    def test_tso_short_form_headings_missing_period(self):
+        """Test that TSO (short form) flags missing periods as errors."""
+        doc = ["1. PURPOSE", "2. BACKGROUND"]
+        result = self.heading_checks.check_heading_period(doc, "TSO")
+        assert not result.success
+        assert any("missing required period" in issue["message"] for issue in result.issues)
+
 if __name__ == '__main__':
     pytest.main()

@@ -24,6 +24,11 @@ class HeadingChecks(BaseChecker):
     # Maximum allowed length for a heading (excluding numbering)
     MAX_HEADING_LENGTH = 25
 
+    # Maximum character/word limits for period checks to avoid false positives
+    # from paragraphs incorrectly marked as headings
+    MAX_HEADING_CHARS_FOR_PERIOD_CHECK = 100  # Characters
+    MAX_HEADING_WORDS_FOR_PERIOD_CHECK = 15   # Words
+
     def __init__(self, pattern_cache=None):
         super().__init__()
         self.pattern_cache = pattern_cache
@@ -40,7 +45,7 @@ class HeadingChecks(BaseChecker):
         if not isinstance(doc_type, str):
             return str(doc_type)
         # Check if this is a known document type
-        known_types = {'ADVISORY_CIRCULAR', 'ORDER', 'NOTICE', 'AC'}
+        known_types = {'ADVISORY_CIRCULAR', 'ORDER', 'NOTICE', 'AC', 'TECHNICAL_STANDARD_ORDER', 'TSO'}
         normalized = re.sub(r'\s+', '_', doc_type.strip()).upper()
         if normalized not in known_types:
             return doc_type  # Preserve original for unknown types
@@ -227,7 +232,13 @@ class HeadingChecks(BaseChecker):
 
     @CheckRegistry.register('heading')
     def check_heading_period(self, doc: List[str], doc_type: str) -> DocumentCheckResult:
-        """Check heading period usage."""
+        """
+        Check heading period usage.
+
+        Skips period checks for text longer than MAX_HEADING_CHARS_FOR_PERIOD_CHECK characters
+        or MAX_HEADING_WORDS_FOR_PERIOD_CHECK words to avoid false positives from paragraphs
+        incorrectly marked as headings.
+        """
         issues = []
         doc_type_norm = self._normalize_doc_type(doc_type)
         logger.info(f"Starting heading period check for document type: {doc_type_norm}")
@@ -243,7 +254,17 @@ class HeadingChecks(BaseChecker):
         for i, line in enumerate(doc, 1):
             logger.debug(f"Checking line {i} for heading period: {line}")
             if any(word in line.upper() for word in heading_words):
-                has_period = line.strip().endswith('.')
+                # Skip period check for long text that's likely a paragraph incorrectly marked as heading
+                line_stripped = line.strip()
+                word_count = len(line_stripped.split())
+                char_count = len(line_stripped)
+
+                if (char_count > self.MAX_HEADING_CHARS_FOR_PERIOD_CHECK or
+                    word_count > self.MAX_HEADING_WORDS_FOR_PERIOD_CHECK):
+                    logger.debug(f"Skipping period check for line {i} - too long ({char_count} chars, {word_count} words)")
+                    continue
+
+                has_period = line_stripped.endswith('.')
                 logger.debug(f"Line {i} has period: {has_period}")
                 if requires_period and not has_period:
                     logger.warning(f"Missing required period in line {i}")
@@ -339,7 +360,7 @@ class HeadingChecks(BaseChecker):
 
         # Check heading structure
         self._check_heading_hierarchy(headings, results)
-        self._check_heading_format(headings, results)
+        self._check_heading_format(headings, results, doc_type)
 
     @CheckRegistry.register('heading')
     def _check_heading_sequence(self, current_level: int, previous_level: int) -> Optional[str]:
@@ -380,11 +401,43 @@ class HeadingChecks(BaseChecker):
             previous_level = level
 
     @CheckRegistry.register('heading')
-    def _check_heading_format(self, headings, results):
-        """Check heading format (capitalization, punctuation, etc)."""
+    def _check_heading_format(self, headings, results, doc_type: str = "GENERAL"):
+        """
+        Check heading format (capitalization, punctuation, etc).
+
+        Skips period checks for text longer than MAX_HEADING_CHARS_FOR_PERIOD_CHECK characters
+        or MAX_HEADING_WORDS_FOR_PERIOD_CHECK words to avoid false positives from paragraphs
+        incorrectly marked as headings.
+        """
+        doc_type_norm = self._normalize_doc_type(doc_type)
+
+        # Get period requirements from terminology data
+        period_requirements = self.terminology_manager.terminology_data.get('heading_periods', {})
+        requires_period = period_requirements.get(doc_type_norm, False)
+
         for heading in headings:
             text = heading.text.strip()
-            if text.endswith('.'):
+
+            # Skip period check for long text that's likely a paragraph incorrectly marked as heading
+            word_count = len(text.split())
+            char_count = len(text)
+
+            if (char_count > self.MAX_HEADING_CHARS_FOR_PERIOD_CHECK or
+                word_count > self.MAX_HEADING_WORDS_FOR_PERIOD_CHECK):
+                logger.debug(f"Skipping period check for heading - too long ({char_count} chars, {word_count} words): {text[:50]}...")
+                continue
+
+            has_period = text.endswith('.')
+
+            # Check period usage based on document type requirements
+            if requires_period and not has_period:
+                results.add_issue(
+                    message=f"Heading missing required period: {text}",
+                    severity=Severity.WARNING,
+                    line_number=heading._element.sourceline,
+                    category=getattr(self, "category", "heading")
+                )
+            elif not requires_period and has_period:
                 results.add_issue(
                     message=f"Heading should not end with period: {text}",
                     severity=Severity.WARNING,
