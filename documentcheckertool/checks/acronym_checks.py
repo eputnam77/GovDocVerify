@@ -104,3 +104,25 @@ class AcronymChecker(BaseChecker):
         logger.debug("Reloading acronym configuration")
         self.terminology_manager.load_config()
         logger.debug("Configuration reloaded successfully")
+
+    @staticmethod
+    def format_unused_acronym_issues(result: DocumentCheckResult) -> List[str]:
+        """Format unused acronym issues with a simple, clear message.
+
+        Args:
+            result: DocumentCheckResult containing acronym issues
+
+        Returns:
+            List[str]: Formatted list of unused acronym issues
+        """
+        formatted_issues = []
+
+        if result.issues:
+            for issue in result.issues:
+                if isinstance(issue, dict) and 'acronym' in issue:
+                    formatted_issues.append(f"    • Acronym '{issue['acronym']}' was defined but never used.")
+                elif isinstance(issue, str):
+                    # Handle case where issue might be just the acronym
+                    formatted_issues.append(f"    • Acronym '{issue}' was defined but never used.")
+
+        return formatted_issues

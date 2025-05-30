@@ -259,3 +259,24 @@ class TableFigureReferenceCheck(BaseChecker):
         else:
             lines = str(document).split('\n')
         return self._check_core('\n'.join(lines))
+
+    @staticmethod
+    def format_reference_issues(result: DocumentCheckResult) -> List[str]:
+        """Format reference issues with clear, concise descriptions."""
+        formatted_issues = []
+
+        for issue in result.issues:
+            ref_type = issue.get('type', '')
+            ref_num = issue.get('reference', '')
+            context = issue.get('context', '').strip()
+
+            if context:  # Only include context if it exists
+                formatted_issues.append(
+                    f"    • Confirm {ref_type} {ref_num} referenced in '{context}' exists in the document"
+                )
+            else:
+                formatted_issues.append(
+                    f"    • Confirm {ref_type} {ref_num} exists in the document"
+                )
+
+        return formatted_issues

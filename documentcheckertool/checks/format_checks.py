@@ -703,3 +703,50 @@ class FormattingChecker(BaseChecker):
             seen.add(line_no)
             logger.debug(f"[Text] Flagged line {line_no} for inconsistent phone number format")
         return issues
+
+    @staticmethod
+    def format_caption_issues(issues: List[Dict], doc_type: str) -> List[str]:
+        """Format caption check issues with clear replacement instructions."""
+        formatted_issues = []
+        for issue in issues:
+            if 'incorrect_caption' in issue:
+                caption_parts = issue['incorrect_caption'].split()
+                if len(caption_parts) >= 2:
+                    caption_type = caption_parts[0]  # "Table" or "Figure"
+                    number = caption_parts[1]
+
+                    # Determine correct format based on document type
+                    if doc_type in ["Advisory Circular", "Order"]:
+                        if '-' not in number:
+                            correct_format = f"{caption_type} {number}-1"
+                    else:
+                        if '-' in number:
+                            correct_format = f"{caption_type} {number.split('-')[0]}"
+                        else:
+                            correct_format = issue['incorrect_caption']
+
+                    formatted_issues.append(
+                        f"    • Replace '{issue['incorrect_caption']}' with '{correct_format}'"
+                    )
+
+        return formatted_issues
+
+    @staticmethod
+    def format_section_symbol_issues(result: DocumentCheckResult) -> List[str]:
+        """Format section symbol issues with clear replacement instructions."""
+        formatted_issues = []
+
+        if result.issues:
+            for issue in result.issues:
+                if 'incorrect' in issue and 'correct' in issue:
+                    if issue.get('is_sentence_start'):
+                        formatted_issues.append(
+                            f"    • Do not begin sentences with the section symbol. "
+                            f"Replace '{issue['incorrect']}' with '{issue['correct']}' at the start of the sentence"
+                        )
+                    else:
+                        formatted_issues.append(
+                            f"    • Replace '{issue['incorrect']}' with '{issue['correct']}'"
+                        )
+
+        return formatted_issues

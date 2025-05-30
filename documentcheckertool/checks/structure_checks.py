@@ -52,6 +52,41 @@ class ValidationFormatting:
         """Format watermark validation messages."""
         return self.WATERMARK_VALIDATION[result_type].format(**kwargs)
 
+    @staticmethod
+    def format_parentheses_issues(result: DocumentCheckResult) -> List[str]:
+        """Format parentheses issues with clear instructions for fixing."""
+        formatted_issues = []
+
+        if result.issues:
+            for issue in result.issues:
+                formatted_issues.append(f"    • {issue['message']}")
+
+        return formatted_issues
+
+    @staticmethod
+    def format_paragraph_length_issues(result: DocumentCheckResult) -> List[str]:
+        """Format paragraph length issues with clear instructions for fixing.
+
+        Args:
+            result: DocumentCheckResult containing paragraph length issues
+
+        Returns:
+            List[str]: Formatted list of paragraph length issues
+        """
+        formatted_issues = []
+
+        if result.issues:
+            for issue in result.issues:
+                if isinstance(issue, str):
+                    formatted_issues.append(f"    • {issue}")
+                elif isinstance(issue, dict) and 'message' in issue:
+                    formatted_issues.append(f"    • {issue['message']}")
+                else:
+                    # Fallback for unexpected issue format
+                    formatted_issues.append(f"    • Review paragraph for length issues: {str(issue)}")
+
+        return formatted_issues
+
 def profile_performance(func):
     @wraps(func)
     def wrapper(*args, **kwargs):

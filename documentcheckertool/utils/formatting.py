@@ -328,52 +328,6 @@ class ResultFormatter:
 
         return output
 
-    def _format_caption_issues(self, issues: List[Dict], doc_type: str) -> List[str]:
-        """Format caption check issues with clear replacement instructions."""
-        formatted_issues = []
-        for issue in issues:
-            if 'incorrect_caption' in issue:
-                caption_parts = issue['incorrect_caption'].split()
-                if len(caption_parts) >= 2:
-                    caption_type = caption_parts[0]  # "Table" or "Figure"
-                    number = caption_parts[1]
-
-                    # Determine correct format based on document type
-                    if doc_type in ["Advisory Circular", "Order"]:
-                        if '-' not in number:
-                            correct_format = f"{caption_type} {number}-1"
-                    else:
-                        if '-' in number:
-                            correct_format = f"{caption_type} {number.split('-')[0]}"
-                        else:
-                            correct_format = issue['incorrect_caption']
-
-                    formatted_issues.append(
-                        f"    • Replace '{issue['incorrect_caption']}' with '{correct_format}'"
-                    )
-
-        return formatted_issues
-
-    def _format_reference_issues(self, result: DocumentCheckResult) -> List[str]:
-        """Format reference issues with clear, concise descriptions."""
-        formatted_issues = []
-
-        for issue in result.issues:
-            ref_type = issue.get('type', '')
-            ref_num = issue.get('reference', '')
-            context = issue.get('context', '').strip()
-
-            if context:  # Only include context if it exists
-                formatted_issues.append(
-                    f"    • Confirm {ref_type} {ref_num} referenced in '{context}' exists in the document"
-                )
-            else:
-                formatted_issues.append(
-                    f"    • Confirm {ref_type} {ref_num} exists in the document"
-                )
-
-        return formatted_issues
-
     def _format_standard_issue(self, issue: Dict[str, Any]) -> str:
         """Format standard issues consistently."""
         if isinstance(issue, str):
@@ -399,79 +353,6 @@ class ResultFormatter:
 
         # Fallback for other issue formats
         return f"    • {str(issue)}"
-
-    def _format_unused_acronym_issues(self, result: DocumentCheckResult) -> List[str]:
-        """Format unused acronym issues with a simple, clear message.
-
-        Args:
-            result: DocumentCheckResult containing acronym issues
-
-        Returns:
-            List[str]: Formatted list of unused acronym issues
-        """
-        formatted_issues = []
-
-        if result.issues:
-            for issue in result.issues:
-                if isinstance(issue, dict) and 'acronym' in issue:
-                    formatted_issues.append(f"    • Acronym '{issue['acronym']}' was defined but never used.")
-                elif isinstance(issue, str):
-                    # Handle case where issue might be just the acronym
-                    formatted_issues.append(f"    • Acronym '{issue}' was defined but never used.")
-
-        return formatted_issues
-
-    def _format_parentheses_issues(self, result: DocumentCheckResult) -> List[str]:
-        """Format parentheses issues with clear instructions for fixing."""
-        formatted_issues = []
-
-        if result.issues:
-            for issue in result.issues:
-                formatted_issues.append(f"    • {issue['message']}")
-
-        return formatted_issues
-
-    def _format_section_symbol_issues(self, result: DocumentCheckResult) -> List[str]:
-        """Format section symbol issues with clear replacement instructions."""
-        formatted_issues = []
-
-        if result.issues:
-            for issue in result.issues:
-                if 'incorrect' in issue and 'correct' in issue:
-                    if issue.get('is_sentence_start'):
-                        formatted_issues.append(
-                            f"    • Do not begin sentences with the section symbol. "
-                            f"Replace '{issue['incorrect']}' with '{issue['correct']}' at the start of the sentence"
-                        )
-                    else:
-                        formatted_issues.append(
-                            f"    • Replace '{issue['incorrect']}' with '{issue['correct']}'"
-                        )
-
-        return formatted_issues
-
-    def _format_paragraph_length_issues(self, result: DocumentCheckResult) -> List[str]:
-        """Format paragraph length issues with clear instructions for fixing.
-
-        Args:
-            result: DocumentCheckResult containing paragraph length issues
-
-        Returns:
-            List[str]: Formatted list of paragraph length issues
-        """
-        formatted_issues = []
-
-        if result.issues:
-            for issue in result.issues:
-                if isinstance(issue, str):
-                    formatted_issues.append(f"    • {issue}")
-                elif isinstance(issue, dict) and 'message' in issue:
-                    formatted_issues.append(f"    • {issue['message']}")
-                else:
-                    # Fallback for unexpected issue format
-                    formatted_issues.append(f"    • Review paragraph for length issues: {str(issue)}")
-
-        return formatted_issues
 
     def _format_accessibility_issues(self, result: DocumentCheckResult) -> List[str]:
         """Format accessibility-specific issues."""
