@@ -26,7 +26,7 @@ class TestStructureChecks:
         for para in doc.paragraphs:
             self.structure_checks._check_paragraph_length(para.text, results)
         logger.debug(f"Paragraph length test issues: {results.issues}")
-        assert any("Paragraph is too long" in issue['message'] for issue in results.issues)
+        assert any("Paragraph" in issue['message'] and "exceeds" in issue['message'] for issue in results.issues)
 
     def test_sentence_length(self):
         doc = Document()
@@ -38,7 +38,7 @@ class TestStructureChecks:
         for para in doc.paragraphs:
             self.structure_checks._check_sentence_length(para.text, results)
         logger.debug(f"Sentence length test issues: {results.issues}")
-        assert any("Sentence is too long" in issue['message'] for issue in results.issues)
+        assert any("Sentence" in issue['message'] and "exceeds" in issue['message'] for issue in results.issues)
 
     def test_section_balance(self):
         doc = Document()
@@ -155,7 +155,7 @@ class TestStructureChecks:
         for para in doc.paragraphs:
             self.structure_checks._check_paragraph_length(para.text, results)
         logger.debug(f"Check paragraph length test issues: {results.issues}")
-        assert any("Paragraph is too long" in issue['message'] for issue in results.issues)
+        assert any("Paragraph" in issue['message'] and "exceeds" in issue['message'] for issue in results.issues)
 
     def test_check_sentence_length(self):
         doc = Document()
@@ -166,7 +166,7 @@ class TestStructureChecks:
         for para in doc.paragraphs:
             self.structure_checks._check_sentence_length(para.text, results)
         logger.debug(f"Check sentence length test issues: {results.issues}")
-        assert any("Sentence is too long" in issue['message'] for issue in results.issues)
+        assert any("Sentence" in issue['message'] and "exceeds" in issue['message'] for issue in results.issues)
 
     def test_check_section_balance(self):
         doc = Document()
@@ -277,7 +277,7 @@ class TestStructureChecks:
         results = DocumentCheckResult(success=True, issues=[])
         for para in doc.paragraphs:
             self.structure_checks._check_paragraph_length(para.text, results)
-        assert any("Paragraph is too long" in issue['message'] for issue in results.issues)
+        assert any("Paragraph" in issue['message'] and "exceeds" in issue['message'] for issue in results.issues)
 
     def test_mixed_content_flags_only_non_boiler(self):
         boiler = BOILERPLATE_PARAGRAPHS[0]
@@ -288,4 +288,4 @@ class TestStructureChecks:
         results = DocumentCheckResult(success=True, issues=[])
         for para in doc.paragraphs:
             self.structure_checks._check_paragraph_length(para.text, results)
-        assert len([issue for issue in results.issues if "Paragraph is too long" in issue['message']]) == 2
+        assert len([issue for issue in results.issues if "Paragraph" in issue['message'] and "exceeds" in issue['message']]) == 2

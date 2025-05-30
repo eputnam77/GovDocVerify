@@ -93,16 +93,18 @@ class ReadabilityChecks(BaseChecker):
             for i, sentence in enumerate(sentences, 1):
                 word_count = len(sentence.split())
                 if word_count > 25:
+                    sentence_preview = self._get_text_preview(sentence.strip())
                     results.add_issue(
-                        message=f"Sentence {i} is too long ({word_count} words). Consider breaking it into smaller sentences.",
+                        message=f"Sentence '{sentence_preview}' is too long ({word_count} words). Consider breaking it into smaller sentences.",
                         severity=Severity.WARNING,
                         category=getattr(self, "category", "readability")
                     )
 
             # Check paragraph length
             if len(words) > 150:
+                paragraph_preview = self._get_text_preview(text.strip())
                 results.add_issue(
-                    message=f"Paragraph is too long ({len(words)} words). Consider breaking it into smaller paragraphs.",
+                    message=f"Paragraph '{paragraph_preview}' is too long ({len(words)} words). Consider breaking it into smaller paragraphs.",
                     severity=Severity.WARNING,
                     category=getattr(self, "category", "readability")
                 )
@@ -137,6 +139,24 @@ class ReadabilityChecks(BaseChecker):
 
         return count
 
+    def _get_text_preview(self, text: str, max_words: int = 6) -> str:
+        """
+        Get a preview of the text showing the first few words.
+
+        Args:
+            text: The text to preview
+            max_words: Maximum number of words to include in preview
+
+        Returns:
+            A string containing the first few words followed by '...' if truncated
+        """
+        words = text.split()
+        if len(words) <= max_words:
+            return text
+        else:
+            preview_words = words[:max_words]
+            return ' '.join(preview_words) + '...'
+
     def check(self, content: str) -> Dict[str, Any]:
         """
         Check document content for readability issues.
@@ -155,9 +175,10 @@ class ReadabilityChecks(BaseChecker):
         for i, sentence in enumerate(sentences, 1):
             word_count = count_words(sentence)
             if word_count > self.readability_config.get('max_sentence_length', 20):
+                sentence_preview = self._get_text_preview(sentence.strip())
                 warnings.append({
                     'line': i,
-                    'message': f'Sentence is {word_count} words long. Consider breaking it into shorter sentences.',
+                    'message': f"Sentence '{sentence_preview}' is {word_count} words long. Consider breaking it into shorter sentences.",
                     'severity': Severity.WARNING
                 })
 
@@ -166,9 +187,10 @@ class ReadabilityChecks(BaseChecker):
         for i, paragraph in enumerate(paragraphs, 1):
             sentence_count = len(split_sentences(paragraph))
             if sentence_count > self.readability_config.get('max_paragraph_sentences', 5):
+                paragraph_preview = self._get_text_preview(paragraph.strip())
                 warnings.append({
                     'line': i,
-                    'message': f'Paragraph contains {sentence_count} sentences. Consider breaking it into shorter paragraphs.',
+                    'message': f"Paragraph '{paragraph_preview}' contains {sentence_count} sentences. Consider breaking it into shorter paragraphs.",
                     'severity': Severity.WARNING
                 })
 

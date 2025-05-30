@@ -28,11 +28,11 @@ class StructureChecks(BaseChecker):
     """Checks for document structure issues."""
 
     VALID_WATERMARKS = [
-        WatermarkRequirement("DRAFT - FOR INTERNAL FAA REVIEW", "internal_review"),
-        WatermarkRequirement("DRAFT - FOR PUBLIC COMMENTS", "public_comment"),
-        WatermarkRequirement("DRAFT - FOR AGC REVIEW OF PUBLIC COMMENTS", "agc_public_comment"),
-        WatermarkRequirement("DRAFT - FOR FINAL ISSUANCE", "final_draft"),
-        WatermarkRequirement("DRAFT - FOR AGC REVIEW OF FINAL ISSUANCE", "agc_final_review")
+        WatermarkRequirement("draft for FAA review", "internal_review"),
+        WatermarkRequirement("draft for public comments", "public_comment"),
+        WatermarkRequirement("draft for AGC review for public comment", "agc_public_comment"),
+        WatermarkRequirement("draft for final issuance", "final_draft"),
+        WatermarkRequirement("draft for AGC review for final issuance", "agc_final_review")
     ]
 
     def __init__(self):
@@ -53,6 +53,24 @@ class StructureChecks(BaseChecker):
         self._check_parentheses(paragraphs, results)
         self._check_watermark(document, results, doc_type)
 
+    def _get_text_preview(self, text: str, max_words: int = 6) -> str:
+        """
+        Get a preview of the text showing the first few words.
+
+        Args:
+            text: The text to preview
+            max_words: Maximum number of words to include in preview
+
+        Returns:
+            A string containing the first few words followed by '...' if truncated
+        """
+        words = text.split()
+        if len(words) <= max_words:
+            return text
+        else:
+            preview_words = words[:max_words]
+            return ' '.join(preview_words) + '...'
+
     @CheckRegistry.register('structure')
     def _check_paragraph_length(self, paragraphs, results):
         """Check for overly long paragraphs."""
@@ -62,8 +80,9 @@ class StructureChecks(BaseChecker):
                 continue
             words = len(para.text.split())
             if words > MAX_WORDS:
+                paragraph_preview = self._get_text_preview(para.text.strip())
                 results.add_issue(
-                    message=f"Paragraph exceeds {MAX_WORDS} words ({words} words)",
+                    message=f"Paragraph '{paragraph_preview}' exceeds {MAX_WORDS} words ({words} words)",
                     severity=Severity.WARNING,
                     line_number=i+1,
                     category=getattr(self, "category", "structure")
@@ -80,8 +99,9 @@ class StructureChecks(BaseChecker):
                     continue
                 words = len(sentence.split())
                 if words > MAX_WORDS:
+                    sentence_preview = self._get_text_preview(sentence.strip())
                     results.add_issue(
-                        message=f"Sentence exceeds {MAX_WORDS} words ({words} words)",
+                        message=f"Sentence '{sentence_preview}' exceeds {MAX_WORDS} words ({words} words)",
                         severity=Severity.INFO,
                         line_number=i+1
                     )
