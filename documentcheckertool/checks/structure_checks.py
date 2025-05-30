@@ -17,22 +17,22 @@ class StructureMessages:
     """Static message constants for structure checks."""
 
     # Paragraph length messages
-    PARAGRAPH_LENGTH_WARNING = "Paragraph '{preview}' exceeds {max_words} words ({word_count} words)"
+    PARAGRAPH_LENGTH_WARNING = "Paragraph '{preview}' is {word_count} words—above the {max_words}-word limit. Break it up for better clarity."
 
     # Sentence length messages
-    SENTENCE_LENGTH_INFO = "Sentence '{preview}' exceeds {max_words} words ({word_count} words)"
+    SENTENCE_LENGTH_INFO = "Sentence '{preview}' is {word_count} words—above the {max_words}-word limit. Break it up for better clarity."
 
     # Section balance messages
     SECTION_BALANCE_INFO = "Section '{name}' is significantly longer than average ({length} paragraphs vs {avg:.1f} average)"
 
     # List formatting messages
-    LIST_FORMAT_INCONSISTENT = "Inconsistent list formatting detected"
+    LIST_FORMAT_INCONSISTENT = "Inconsistent list formatting found. Review your lists and align their formatting."
 
     # Parentheses messages
-    PARENTHESES_UNMATCHED = "Unmatched parentheses detected"
+    PARENTHESES_UNMATCHED = "Unmatched parentheses detected. Add missing opening or closing parentheses."
 
     # Cross-reference messages
-    CROSS_REFERENCE_INFO = "Cross-reference detected - verify target exists"
+    CROSS_REFERENCE_INFO = "Cross-reference detected. Verify target exists."
 
     # Watermark messages
     WATERMARK_MISSING = "Document is missing required watermark"

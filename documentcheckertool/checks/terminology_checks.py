@@ -24,41 +24,41 @@ class TerminologyMessages:
     """Static message constants for terminology checks."""
 
     # Consistency messages
-    INCONSISTENT_TERMINOLOGY = "Inconsistent terminology: use '{standard}' instead of '{variant}'"
+    INCONSISTENT_TERMINOLOGY = "Inconsistent terminology: use '{standard}' instead of '{variant}'."
 
     # Term replacement messages
     TERM_REPLACEMENT = 'Use "{approved}" instead of "{obsolete}".'
 
     # Split infinitive messages
-    SPLIT_INFINITIVE_INFO = "Split infinitive detected (may be acceptable in some contexts)"
+    SPLIT_INFINITIVE_INFO = "Split infinitive detected (may be acceptable in some contexts)."
 
     # Special case messages
-    ADDITIONALLY_REPLACEMENT = "Replace with 'In addition'"
+    ADDITIONALLY_REPLACEMENT = "Replace with 'In addition'."
 
     # Proposed wording messages
-    PROPOSED_WORDING_INFO = "Found 'proposed' wording—remove draft phrasing for final documents."
+    PROPOSED_WORDING_INFO = "Found 'proposed' wording. Remove 'proposed' language if this is in final issuance phase."
 
     # USC/CFR formatting messages
     USC_FORMAT_WARNING = "USC should be U.S.C."
     USC_PERIOD_WARNING = "U.S.C should have a final period"
     CFR_FORMAT_WARNING = "C.F.R. should be CFR"
-    CFR_PART_WARNING = "CFR Part should be CFR part"
+    CFR_PART_WARNING = "CFR Part should be CFR part (if your document must be reviewed by DOT OGC, they might request CFR Part)."
 
     # Gendered terms messages
     GENDERED_TERM_WARNING = "{term} should be {replacement}"
 
     # Plain language messages
-    LEGALESE_SIMPLE_WARNING = "Use simpler alternatives like 'under' or 'following'"
+    LEGALESE_SIMPLE_WARNING = "Use simpler alternatives like 'under' or 'following'."
     LEGALESE_AVOID_WARNING = "Avoid archaic or legalese terms"
 
     # Aviation terminology messages
-    AVIATION_TERM_WARNING = "{term} should be {replacement}"
+    AVIATION_TERM_WARNING = "{term} should be {replacement}."
 
     # Qualifier messages
-    QUALIFIER_WARNING = "Avoid unnecessary qualifiers"
+    QUALIFIER_WARNING = "Avoid unnecessary qualifiers."
 
     # Plural usage messages
-    PLURAL_USAGE_WARNING = "Ensure consistent singular/plural usage"
+    PLURAL_USAGE_WARNING = "Ensure consistent singular/plural usage."
 
     # Authority citation messages
     OBSOLETE_CITATION_WARNING = "{citation} is no longer valid; confirm or remove this citation."
