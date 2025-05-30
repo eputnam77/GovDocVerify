@@ -24,7 +24,7 @@ def process_document(file_path: str, doc_type: str, visibility_settings: Visibil
     """Process a document and return formatted results."""
     try:
         logger.info(f"Processing document of type: {doc_type}, group_by: {group_by}")
-        formatter = ResultFormatter(style=FormatStyle.HTML)
+        formatter = ResultFormatter(style=FormatStyle.PLAIN)
 
         # Initialize the document checker
         terminology_manager = TerminologyManager()
@@ -68,17 +68,17 @@ def process_document(file_path: str, doc_type: str, visibility_settings: Visibil
         return formatted_results
 
     except FileNotFoundError:
-        error_msg = f"File not found: {file_path}"
+        error_msg = f"❌ ERROR: File not found: {file_path}"
         logger.error(error_msg)
-        return f"<div style='color: #721c24; background-color: #f8d7da; padding: 10px; border-radius: 4px;'>{error_msg}</div>"
+        return error_msg
     except PermissionError:
-        error_msg = f"Permission denied: {file_path}"
+        error_msg = f"❌ ERROR: Permission denied: {file_path}"
         logger.error(error_msg)
-        return f"<div style='color: #721c24; background-color: #f8d7da; padding: 10px; border-radius: 4px;'>{error_msg}</div>"
+        return error_msg
     except Exception as e:
-        error_msg = f"Error processing document: {str(e)}"
+        error_msg = f"❌ ERROR: Error processing document: {str(e)}"
         logger.error(error_msg)
-        return f"<div style='color: #721c24; background-color: #f8d7da; padding: 10px; border-radius: 4px;'>{error_msg}</div>"
+        return error_msg
 
 def main() -> int:
     """Main entry point for the CLI application."""
