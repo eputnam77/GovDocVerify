@@ -13,6 +13,45 @@ from documentcheckertool.checks.check_registry import CheckRegistry
 
 logger = logging.getLogger(__name__)
 
+# Message constants for format checks
+class FormatMessages:
+    """Static message constants for format checks."""
+
+    # Date format messages
+    DATE_FORMAT_ERROR = "Incorrect date format. Use Month Day, Year format (e.g., May 11, 2025)"
+
+    # Phone number messages
+    PHONE_FORMAT_WARNING = "Inconsistent phone number format"
+
+    # Placeholder messages
+    PLACEHOLDER_ERROR = "Placeholder text found"
+
+    # Spacing messages
+    DOUBLE_SPACE_WARNING = "Remove extra spaces"
+    MISSING_SPACE_WARNING = "Add space between '{prefix}' and '{number}'"
+
+    # Dash spacing messages
+    DASH_SPACE_REMOVE_AROUND = "Remove spaces around dash"
+    DASH_SPACE_REMOVE_BEFORE = "Remove space before dash"
+    DASH_SPACE_REMOVE_AFTER = "Remove space after dash"
+
+    # Punctuation messages
+    DOUBLE_PERIOD_WARNING = "Double periods found in line {line}"
+
+    # Parentheses messages
+    UNMATCHED_PARENTHESES_WARNING = "Unmatched parentheses in line {line}"
+
+    # Section symbol messages
+    SECTION_SYMBOL_CFR_ERROR = 'Remove the section symbol after "14 CFR"'
+    SECTION_SYMBOL_WARNING = "Incorrect section symbol usage in line {line}"
+
+    # List formatting messages
+    LIST_FORMAT_WARNING = "Inconsistent list formatting in line {line}"
+    BULLET_SPACING_WARNING = "Inconsistent bullet spacing in line {line}"
+
+    # Quotation marks messages
+    QUOTATION_MARKS_WARNING = "Inconsistent quotation marks in line {line}"
+
 class FormatChecks(BaseChecker):
     def __init__(self):
         super().__init__()
@@ -51,7 +90,7 @@ class FormatChecks(BaseChecker):
             # Check for incorrect date format (MM/DD/YYYY)
             if re.search(DATE_PATTERNS['incorrect'], text):
                 results.add_issue(
-                    "Incorrect date format. Use Month Day, Year format (e.g., May 11, 2025)",
+                    FormatMessages.DATE_FORMAT_ERROR,
                     Severity.ERROR,
                     i+1,
                     category=getattr(self, "category", "format")
@@ -112,7 +151,7 @@ class FormatChecks(BaseChecker):
             if line_no in seen:
                 continue
             results.add_issue(
-                "Inconsistent phone number format",
+                FormatMessages.PHONE_FORMAT_WARNING,
                 Severity.WARNING,
                 line_no,
                 category=getattr(self, "category", "format")
@@ -136,7 +175,7 @@ class FormatChecks(BaseChecker):
                     logger.debug(f"Found placeholder in line {i+1}: {text}")
                     try:
                         results.add_issue(
-                            "Placeholder text found",
+                            FormatMessages.PLACEHOLDER_ERROR,
                             Severity.ERROR,
                             i+1,
                             category=getattr(self, "category", "format")
@@ -371,7 +410,7 @@ class FormattingChecker(BaseChecker):
             if '..' in line:
                 logger.debug(f"Found double period in line {i}")
                 issues.append({
-                    "message": f"Double periods found in line {i}",
+                    "message": FormatMessages.DOUBLE_PERIOD_WARNING.format(line=i),
                     "severity": Severity.WARNING,
                     "line_number": i,
                     "checker": "FormattingChecker"
@@ -395,7 +434,7 @@ class FormattingChecker(BaseChecker):
             for m in self._DOUBLE_SPACE_RE.finditer(line):
                 logger.debug(f"Double space found at pos {m.start()} in line {i}: {line!r}")
                 issues.append({
-                    "message": "Remove extra spaces",
+                    "message": FormatMessages.DOUBLE_SPACE_WARNING,
                     "severity": Severity.WARNING,
                     "line_number": i,
                     "context": line.strip(),
@@ -406,7 +445,10 @@ class FormattingChecker(BaseChecker):
             for m in self._MISSING_SPACE_REF_RE.finditer(line):
                 logger.debug(f"Missing space in regulatory reference at pos {m.start()} in line {i}: {line!r}")
                 issues.append({
-                    "message": f"Add space between '{m.group('prefix')}' and '{m.group('number')}'",
+                    "message": FormatMessages.MISSING_SPACE_WARNING.format(
+                        prefix=m.group('prefix'),
+                        number=m.group('number')
+                    ),
                     "severity": Severity.WARNING,
                     "line_number": i,
                     "context": line.strip(),
@@ -430,7 +472,7 @@ class FormattingChecker(BaseChecker):
             if open_count != close_count:
                 logger.debug(f"Found unmatched parentheses in line {i}")
                 issues.append({
-                    "message": f"Unmatched parentheses in line {i}",
+                    "message": FormatMessages.UNMATCHED_PARENTHESES_WARNING.format(line=i),
                     "severity": Severity.WARNING,
                     "line_number": i,
                     "checker": "FormattingChecker"
@@ -454,7 +496,7 @@ class FormattingChecker(BaseChecker):
                 issues.append({
                     "incorrect": incorrect,
                     "correct": correct,
-                    "description": 'Remove the section symbol after "14 CFR"',
+                    "description": FormatMessages.SECTION_SYMBOL_CFR_ERROR,
                     "severity": Severity.ERROR,
                     "line_number": i,
                     "checker": "FormattingChecker"
@@ -474,7 +516,7 @@ class FormattingChecker(BaseChecker):
                 if not multiple_symbols_pattern.search(line):
                     logger.debug(f"Found incorrect section symbol usage in line {i}")
                     issues.append({
-                        "message": f"Incorrect section symbol usage in line {i}",
+                        "message": FormatMessages.SECTION_SYMBOL_WARNING.format(line=i),
                         "severity": Severity.WARNING,
                         "line_number": i,
                         "checker": "FormattingChecker"
@@ -489,7 +531,7 @@ class FormattingChecker(BaseChecker):
                     if re.match(r'\s{2,}|\S|\t|\n|\r|\f|\v', after_symbol):
                         logger.debug(f"Found incorrect section symbol usage in line {i}")
                         issues.append({
-                            "message": f"Incorrect section symbol usage in line {i}",
+                            "message": FormatMessages.SECTION_SYMBOL_WARNING.format(line=i),
                             "severity": Severity.WARNING,
                             "line_number": i,
                             "checker": "FormattingChecker"
@@ -499,7 +541,7 @@ class FormattingChecker(BaseChecker):
                     elif not re.match(r'\s+\d+(?:\.\d+)*(?:\([a-z0-9]+\))*', after_symbol):
                         logger.debug(f"Found incorrect section symbol usage in line {i}")
                         issues.append({
-                            "message": f"Incorrect section symbol usage in line {i}",
+                            "message": FormatMessages.SECTION_SYMBOL_WARNING.format(line=i),
                             "severity": Severity.WARNING,
                             "line_number": i,
                             "checker": "FormattingChecker"
@@ -509,7 +551,7 @@ class FormattingChecker(BaseChecker):
                     elif re.search(r'\s+\d+[a-zA-Z]', after_symbol):
                         logger.debug(f"Found incorrect section symbol usage in line {i}")
                         issues.append({
-                            "message": f"Incorrect section symbol usage in line {i}",
+                            "message": FormatMessages.SECTION_SYMBOL_WARNING.format(line=i),
                             "severity": Severity.WARNING,
                             "line_number": i,
                             "checker": "FormattingChecker"
@@ -528,7 +570,7 @@ class FormattingChecker(BaseChecker):
             if re.match(r'^\d+[^.\s]', line):
                 logger.debug(f"Found inconsistent list formatting in line {i}")
                 issues.append({
-                    "message": f"Inconsistent list formatting in line {i}",
+                    "message": FormatMessages.LIST_FORMAT_WARNING.format(line=i),
                     "severity": Severity.WARNING,
                     "line_number": i,
                     "checker": "FormattingChecker"
@@ -537,7 +579,7 @@ class FormattingChecker(BaseChecker):
             if line.startswith('•') and not line.startswith('• '):
                 logger.debug(f"Found inconsistent bullet spacing in line {i}")
                 issues.append({
-                    "message": f"Inconsistent bullet spacing in line {i}",
+                    "message": FormatMessages.BULLET_SPACING_WARNING.format(line=i),
                     "severity": Severity.WARNING,
                     "line_number": i,
                     "checker": "FormattingChecker"
@@ -553,7 +595,7 @@ class FormattingChecker(BaseChecker):
             if '"' in line and '"' in line:
                 logger.debug(f"Found inconsistent quotation marks in line {i}")
                 issues.append({
-                    "message": f"Inconsistent quotation marks in line {i}",
+                    "message": FormatMessages.QUOTATION_MARKS_WARNING.format(line=i),
                     "severity": Severity.WARNING,
                     "line_number": i,
                     "checker": "FormattingChecker"
@@ -576,7 +618,7 @@ class FormattingChecker(BaseChecker):
                 if re.search(pattern, line, re.IGNORECASE):
                     logger.debug(f"Found placeholder in line {i}")
                     issues.append({
-                        "message": "Placeholder text found",
+                        "message": FormatMessages.PLACEHOLDER_ERROR,
                         "severity": Severity.ERROR,
                         "line_number": i,
                         "checker": "FormattingChecker"
@@ -602,7 +644,7 @@ class FormattingChecker(BaseChecker):
             if re.search(DATE_PATTERNS['incorrect'], text):
                 logger.debug(f"[Text] Found incorrect date format in line {i+1}: {text!r}")
                 issues.append({
-                    "message": "Incorrect date format. Use Month Day, Year format (e.g., May 11, 2025)",
+                    "message": FormatMessages.DATE_FORMAT_ERROR,
                     "severity": Severity.ERROR,
                     "line_number": i+1,
                     "context": text.strip(),
@@ -653,7 +695,7 @@ class FormattingChecker(BaseChecker):
             if line_no in seen:
                 continue
             issues.append({
-                "message": "Inconsistent phone number format",
+                "message": FormatMessages.PHONE_FORMAT_WARNING,
                 "severity": Severity.WARNING,
                 "line_number": line_no,
                 "checker": "FormattingChecker"

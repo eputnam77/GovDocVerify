@@ -19,6 +19,50 @@ from documentcheckertool.checks.check_registry import CheckRegistry
 
 logger = logging.getLogger(__name__)
 
+# Message constants for terminology checks
+class TerminologyMessages:
+    """Static message constants for terminology checks."""
+
+    # Consistency messages
+    INCONSISTENT_TERMINOLOGY = "Inconsistent terminology: use '{standard}' instead of '{variant}'"
+
+    # Term replacement messages
+    TERM_REPLACEMENT = 'Use "{approved}" instead of "{obsolete}".'
+
+    # Split infinitive messages
+    SPLIT_INFINITIVE_INFO = "Split infinitive detected (may be acceptable in some contexts)"
+
+    # Special case messages
+    ADDITIONALLY_REPLACEMENT = "Replace with 'In addition'"
+
+    # Proposed wording messages
+    PROPOSED_WORDING_INFO = "Found 'proposed' wording—remove draft phrasing for final documents."
+
+    # USC/CFR formatting messages
+    USC_FORMAT_WARNING = "USC should be U.S.C."
+    USC_PERIOD_WARNING = "U.S.C should have a final period"
+    CFR_FORMAT_WARNING = "C.F.R. should be CFR"
+    CFR_PART_WARNING = "CFR Part should be CFR part"
+
+    # Gendered terms messages
+    GENDERED_TERM_WARNING = "{term} should be {replacement}"
+
+    # Plain language messages
+    LEGALESE_SIMPLE_WARNING = "Use simpler alternatives like 'under' or 'following'"
+    LEGALESE_AVOID_WARNING = "Avoid archaic or legalese terms"
+
+    # Aviation terminology messages
+    AVIATION_TERM_WARNING = "{term} should be {replacement}"
+
+    # Qualifier messages
+    QUALIFIER_WARNING = "Avoid unnecessary qualifiers"
+
+    # Plural usage messages
+    PLURAL_USAGE_WARNING = "Ensure consistent singular/plural usage"
+
+    # Authority citation messages
+    OBSOLETE_CITATION_WARNING = "{citation} is no longer valid; confirm or remove this citation."
+
 class TerminologyChecks(BaseChecker):
     """Class for handling terminology-related checks."""
 
@@ -56,7 +100,10 @@ class TerminologyChecks(BaseChecker):
                     if re.search(pattern, text, re.IGNORECASE):
                         logger.debug(f"[Terminology] Matched variant '{variant}' (should use '{standard}') in line {i+1}")
                         results.add_issue(
-                            message=f"Inconsistent terminology: use '{standard}' instead of '{variant}'",
+                            message=TerminologyMessages.INCONSISTENT_TERMINOLOGY.format(
+                                standard=standard,
+                                variant=variant
+                            ),
                             severity=Severity.INFO,
                             line_number=i+1,
                             category=getattr(self, "category", "terminology")
@@ -91,7 +138,10 @@ class TerminologyChecks(BaseChecker):
                 if re.search(pattern, text, re.IGNORECASE):
                     logger.debug(f"[Terminology] Matched obsolete term '{obsolete}' in line {i+1}")
                     results.add_issue(
-                        message=f'Use "{approved}" instead of "{obsolete}".',
+                        message=TerminologyMessages.TERM_REPLACEMENT.format(
+                            approved=approved,
+                            obsolete=obsolete
+                        ),
                         severity=Severity.WARNING,
                         line_number=i + 1,
                         category=getattr(self, "category", "terminology")
@@ -391,7 +441,7 @@ class TerminologyChecks(BaseChecker):
             logger.debug(f"_check_proposed_wording: regex match: {match}")
             if match:
                 results.add_issue(
-                    message="Found 'proposed' wording—remove draft phrasing for final documents.",
+                    message=TerminologyMessages.PROPOSED_WORDING_INFO,
                     severity=Severity.INFO,
                     line_number=idx,
                     category=getattr(self, "category", "terminology")

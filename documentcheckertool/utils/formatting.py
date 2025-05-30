@@ -736,19 +736,6 @@ class ResultFormatter:
 
         return formatted_issues
 
-class ValidationFormatting:
-    """Handles formatting of validation messages for consistency and clarity."""
-
-    WATERMARK_VALIDATION = {
-        'missing': 'Document is missing required watermark',
-        'incorrect': 'Incorrect watermark for {stage} stage. Found: "{found}", Expected: "{expected}"',
-        'success': 'Watermark validation passed: {watermark}'
-    }
-
-    def format_watermark_message(self, result_type: str, **kwargs) -> str:
-        """Format watermark validation messages."""
-        return self.WATERMARK_VALIDATION[result_type].format(**kwargs)
-
 def format_results_to_html(results: DocumentCheckResult) -> str:
     """Format check results as HTML.
 

@@ -12,6 +12,46 @@ from documentcheckertool.utils.boilerplate_utils import is_boilerplate
 
 logger = logging.getLogger(__name__)
 
+# Message constants for structure checks
+class StructureMessages:
+    """Static message constants for structure checks."""
+
+    # Paragraph length messages
+    PARAGRAPH_LENGTH_WARNING = "Paragraph '{preview}' exceeds {max_words} words ({word_count} words)"
+
+    # Sentence length messages
+    SENTENCE_LENGTH_INFO = "Sentence '{preview}' exceeds {max_words} words ({word_count} words)"
+
+    # Section balance messages
+    SECTION_BALANCE_INFO = "Section '{name}' is significantly longer than average ({length} paragraphs vs {avg:.1f} average)"
+
+    # List formatting messages
+    LIST_FORMAT_INCONSISTENT = "Inconsistent list formatting detected"
+
+    # Parentheses messages
+    PARENTHESES_UNMATCHED = "Unmatched parentheses detected"
+
+    # Cross-reference messages
+    CROSS_REFERENCE_INFO = "Cross-reference detected - verify target exists"
+
+    # Watermark messages
+    WATERMARK_MISSING = "Document is missing required watermark"
+    WATERMARK_UNKNOWN_STAGE = "Unknown document stage: {doc_type}"
+    WATERMARK_INCORRECT = "Incorrect watermark for {doc_type} stage. Expected: {expected}"
+
+class ValidationFormatting:
+    """Handles formatting of validation messages for consistency and clarity."""
+
+    WATERMARK_VALIDATION = {
+        'missing': 'Document is missing required watermark',
+        'incorrect': 'Incorrect watermark for {stage} stage. Found: "{found}", Expected: "{expected}"',
+        'success': 'Watermark validation passed: {watermark}'
+    }
+
+    def format_watermark_message(self, result_type: str, **kwargs) -> str:
+        """Format watermark validation messages."""
+        return self.WATERMARK_VALIDATION[result_type].format(**kwargs)
+
 def profile_performance(func):
     @wraps(func)
     def wrapper(*args, **kwargs):
@@ -82,7 +122,11 @@ class StructureChecks(BaseChecker):
             if words > MAX_WORDS:
                 paragraph_preview = self._get_text_preview(para.text.strip())
                 results.add_issue(
-                    message=f"Paragraph '{paragraph_preview}' exceeds {MAX_WORDS} words ({words} words)",
+                    message=StructureMessages.PARAGRAPH_LENGTH_WARNING.format(
+                        preview=paragraph_preview,
+                        max_words=MAX_WORDS,
+                        word_count=words
+                    ),
                     severity=Severity.WARNING,
                     line_number=i+1,
                     category=getattr(self, "category", "structure")
@@ -101,7 +145,11 @@ class StructureChecks(BaseChecker):
                 if words > MAX_WORDS:
                     sentence_preview = self._get_text_preview(sentence.strip())
                     results.add_issue(
-                        message=f"Sentence '{sentence_preview}' exceeds {MAX_WORDS} words ({words} words)",
+                        message=StructureMessages.SENTENCE_LENGTH_INFO.format(
+                            preview=sentence_preview,
+                            max_words=MAX_WORDS,
+                            word_count=words
+                        ),
                         severity=Severity.INFO,
                         line_number=i+1
                     )
@@ -194,7 +242,11 @@ class StructureChecks(BaseChecker):
                 logger.debug(f"Checking section '{name}': length={length}, is_list={is_list}, avg={avg_length:.1f}, threshold={threshold:.1f}")
 
                 if length > threshold:
-                    message = f"Section '{name}' is significantly longer than average ({length} paragraphs vs {avg_length:.1f} average)"
+                    message = StructureMessages.SECTION_BALANCE_INFO.format(
+                        name=name,
+                        length=length,
+                        avg=avg_length
+                    )
                     logger.debug(f"Adding issue: {message}")
                     results.add_issue(
                         message=message,
@@ -217,7 +269,7 @@ class StructureChecks(BaseChecker):
                 if text.startswith(marker):
                     if current_list_style and marker != current_list_style:
                         results.add_issue(
-                            message="Inconsistent list formatting detected",
+                            message=StructureMessages.LIST_FORMAT_INCONSISTENT,
                             severity=Severity.INFO,
                             line_number=i+1
                         )
@@ -235,7 +287,7 @@ class StructureChecks(BaseChecker):
             close_count = text.count(')')
             if open_count != close_count:
                 results.add_issue(
-                    message="Unmatched parentheses detected",
+                    message=StructureMessages.PARENTHESES_UNMATCHED,
                     severity=Severity.WARNING,
                     line_number=i+1
                 )
@@ -247,7 +299,7 @@ class StructureChecks(BaseChecker):
 
         if not watermark_text:
             results.add_issue(
-                message="Document is missing required watermark",
+                message=StructureMessages.WATERMARK_MISSING,
                 severity=Severity.ERROR,
                 line_number=1
             )
@@ -261,7 +313,7 @@ class StructureChecks(BaseChecker):
 
         if not expected_watermark:
             results.add_issue(
-                message=f"Unknown document stage: {doc_type}",
+                message=StructureMessages.WATERMARK_UNKNOWN_STAGE.format(doc_type=doc_type),
                 severity=Severity.ERROR,
                 line_number=1
             )
@@ -269,7 +321,10 @@ class StructureChecks(BaseChecker):
 
         if watermark_text != expected_watermark.text:
             results.add_issue(
-                message=f"Incorrect watermark for {doc_type} stage. Expected: {expected_watermark.text}",
+                message=StructureMessages.WATERMARK_INCORRECT.format(
+                    doc_type=doc_type,
+                    expected=expected_watermark.text
+                ),
                 severity=Severity.ERROR,
                 line_number=1
             )
@@ -293,7 +348,7 @@ class StructureChecks(BaseChecker):
             text = para.text
             if re.search(r'(?:see|refer to|as discussed in).*(?:paragraph|section)\s+\d+(?:\.\d+)*', text, re.IGNORECASE):
                 results.add_issue(
-                    message="Cross-reference detected - verify target exists",
+                    message=StructureMessages.CROSS_REFERENCE_INFO,
                     severity=Severity.INFO,
                     line_number=i+1
                 )
