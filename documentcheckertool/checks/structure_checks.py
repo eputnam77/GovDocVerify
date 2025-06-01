@@ -146,7 +146,7 @@ class StructureChecks(BaseChecker):
             preview_words = words[:max_words]
             return ' '.join(preview_words) + '...'
 
-    @CheckRegistry.register('structure')
+    @CheckRegistry.register('readability')
     def _check_paragraph_length(self, paragraphs, results):
         """Check for overly long paragraphs."""
         MAX_WORDS = 150
@@ -164,10 +164,10 @@ class StructureChecks(BaseChecker):
                     ),
                     severity=Severity.WARNING,
                     line_number=i+1,
-                    category=getattr(self, "category", "structure")
+                    category="readability"
                 )
 
-    @CheckRegistry.register('structure')
+    @CheckRegistry.register('readability')
     def _check_sentence_length(self, paragraphs, results):
         """Check for overly long sentences."""
         MAX_WORDS = 30
@@ -186,7 +186,8 @@ class StructureChecks(BaseChecker):
                             word_count=words
                         ),
                         severity=Severity.INFO,
-                        line_number=i+1
+                        line_number=i+1,
+                        category="readability"
                     )
 
     @CheckRegistry.register('structure')
