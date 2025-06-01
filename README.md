@@ -489,6 +489,30 @@ Flags paragraphs exceeding six sentences or eight lines.
 #### 21. Sentence Length Check
 Highlights sentences longer than 35 words.
 
+#### 22. Section Balance (Section Length) Check
+
+The Section Balance (Section Length) Check analyzes the length of each section in your document to ensure sections are reasonably balanced and not significantly longer than others. **This check uses heading levels to define the start of each section.**
+
+- **How it works:**
+  - The checker scans all paragraphs in the document.
+  - Whenever it encounters a paragraph styled as a heading (e.g., "Heading 1", "Heading 2"), it starts a new section.
+  - All content under that heading—including normal paragraphs, subheadings, and bulleted or numbered lists—is counted as part of the section until the next heading of the same or higher level is found.
+  - For each section, the checker records the section name (from the heading) and the number of paragraphs it contains.
+  - The checker also determines if a section is a "list section" (based on the heading text or if most paragraphs are bulleted) and uses a higher threshold for flagging long list sections.
+  - After processing the document, the checker compares the length of each section to the average for list and non-list sections, flagging any that are much longer than average.
+
+- **What gets flagged:**
+  - If a section contains significantly more paragraphs than the average for that type (list or non-list), it is flagged as "significantly longer than average."
+  - The warning includes the section name, its length, and the average length for comparison.
+
+- **What content is included in the count:**
+  - All paragraphs, subheadings, and bulleted/numbered lists under a heading are included in the section's length.
+  - The checker does **not** distinguish between different heading types or between bulleted lists and normal paragraphs—everything under the heading is counted.
+  - If you have subheadings or lists under a heading, they are all included in the parent section's length until the next heading of the same or higher level.
+
+**Example:**
+If a section titled "Background" contains 50 paragraphs (including text, subheadings, and lists) and the average section length is 10 paragraphs, this section will be flagged as significantly longer than average.
+
 ---
 
 **Note:** This tool is a work in progress. Expect more features and updates in the future to meet evolving document requirements.
@@ -832,6 +856,8 @@ The Document Checker Tool supports the following command-line arguments when run
 | `--hide-format`           | flag                   | Hide format checks                                  |
 | `--hide-accessibility`    | flag                   | Hide accessibility checks                           |
 | `--hide-document-status`  | flag                   | Hide document status checks                         |
+| `--hide CATEGORY`         | string/list            | Hide the specified categories (comma- or space-separated). Mutually exclusive with --hide-*, --show-only, and --show-all. Categories: readability, paragraph_length, terminology, headings, structure, format, accessibility, document_status |
+| `--show-only CATEGORY`    | string/list            | Show only the specified categories (comma- or space-separated). Mutually exclusive with --hide-* and --show-all. Categories: readability, paragraph_length, terminology, headings, structure, format, accessibility, document_status |
 
 ### Document Type Options for `--type`
 
@@ -874,6 +900,26 @@ python cli.py --file mydoc.docx --type "Advisory Circular" --group-by category
 
 Here are several example commands demonstrating different CLI options:
 
+- **Show only headings:**
+  ```sh
+  python cli.py --file mydoc.docx --type "Advisory Circular" --show-only headings
+  ```
+
+- **Show only multiple categories (e.g., headings and terminology):**
+  ```sh
+  python cli.py --file mydoc.docx --type "Advisory Circular" --show-only headings terminology
+  # or
+  python cli.py --file mydoc.docx --type "Advisory Circular" --show-only headings,terminology
+  ```
+
+- **Hide multiple categories (e.g., readability and accessibility):**
+  ```sh
+  python cli.py --file mydoc.docx --type "Advisory Circular" --hide readability accessibility
+  # or
+  python cli.py --file mydoc.docx --type "Advisory Circular" --hide readability,accessibility
+  ```
+  > **Note:** You can now use a single `--hide` flag with a comma- or space-separated list. This cannot be combined with any `--hide-*`, `--show-only`, or `--show-all` flags.
+
 - **Basic usage (group by category, all sections shown):**
   ```sh
   python cli.py --file mydoc.docx --type "Advisory Circular" --group-by category
@@ -899,6 +945,21 @@ Here are several example commands demonstrating different CLI options:
   python cli.py --file mydoc.docx --type "Technical Standard Order" --group-by severity --debug --hide-readability
   ```
 
+### Valid Categories for `--show-only`
+
+- readability
+- paragraph_length
+- terminology
+- headings
+- structure
+- format
+- accessibility
+- document_status
+
+**Note:**
+- `--show-only` cannot be combined with any `--hide-*` or `--show-all` flags.
+- If you specify an invalid category, the CLI will show an error with valid options.
+
 ### Specifying the `--file` Argument
 
 The value for `--file` should be the path to your document file. This can be:
@@ -922,3 +983,24 @@ The value for `--file` should be the path to your document file. This can be:
 **In summary:**
 - Use just the filename if the file is in your current directory.
 - Otherwise, provide a relative or absolute path to the file.
+
+### Hiding vs. Showing Only Categories
+
+| Action                | How to Specify Multiple Categories?         |
+|-----------------------|---------------------------------------------|
+| Hide categories       | Multiple `--hide-<category>` flags **or** single `--hide` with comma/space list |
+| Show only categories  | Single `--show-only` with comma/space list  |
+
+**Examples:**
+- Hide readability and accessibility:
+  ```sh
+  python cli.py --file mydoc.docx --type "Advisory Circular" --hide readability accessibility
+  # or
+  python cli.py --file mydoc.docx --type "Advisory Circular" --hide readability,accessibility
+  ```
+- Show only readability and accessibility:
+  ```sh
+  python cli.py --file mydoc.docx --type "Advisory Circular" --show-only readability accessibility
+  # or
+  python cli.py --file mydoc.docx --type "Advisory Circular" --show-only readability,accessibility
+  ```
