@@ -52,6 +52,12 @@ class FormatMessages:
     # Quotation marks messages
     QUOTATION_MARKS_WARNING = "Inconsistent quotation marks in line {line}"
 
+    # Caption format messages
+    CAPTION_FORMAT_ERROR = (
+        "Incorrect {caption_type} caption format: found '{incorrect_caption}' for document type '{doc_type}'. "
+        "Expected format: '{caption_type} X-Y' or '{caption_type} X' (depending on document type)."
+    )
+
 class FormatChecks(BaseChecker):
     def __init__(self):
         super().__init__()
@@ -231,26 +237,36 @@ class FormatChecks(BaseChecker):
                     if doc_type in ["Advisory Circular", "Order"]:
                         if '-' not in number_format:
                             results.add_issue(
-                                {
+                                FormatMessages.CAPTION_FORMAT_ERROR.format(
+                                    caption_type='Table',
+                                    incorrect_caption=f"Table {number_format}",
+                                    doc_type=doc_type
+                                ),
+                                Severity.ERROR,
+                                i+1,
+                                category=getattr(self, "category", "format"),
+                                context={
                                     'incorrect_caption': f"Table {number_format}",
                                     'doc_type': doc_type,
                                     'caption_type': 'Table'
-                                },
-                                Severity.ERROR,
-                                i+1,
-                                category=getattr(self, "category", "format")
+                                }
                             )
                     else:
                         if '-' in number_format:
                             results.add_issue(
-                                {
+                                FormatMessages.CAPTION_FORMAT_ERROR.format(
+                                    caption_type='Table',
+                                    incorrect_caption=f"Table {number_format}",
+                                    doc_type=doc_type
+                                ),
+                                Severity.ERROR,
+                                i+1,
+                                category=getattr(self, "category", "format"),
+                                context={
                                     'incorrect_caption': f"Table {number_format}",
                                     'doc_type': doc_type,
                                     'caption_type': 'Table'
-                                },
-                                Severity.ERROR,
-                                i+1,
-                                category=getattr(self, "category", "format")
+                                }
                             )
 
             # Check for figure captions
@@ -261,26 +277,36 @@ class FormatChecks(BaseChecker):
                     if doc_type in ["Advisory Circular", "Order"]:
                         if '-' not in number_format:
                             results.add_issue(
-                                {
+                                FormatMessages.CAPTION_FORMAT_ERROR.format(
+                                    caption_type='Figure',
+                                    incorrect_caption=f"Figure {number_format}",
+                                    doc_type=doc_type
+                                ),
+                                Severity.ERROR,
+                                i+1,
+                                category=getattr(self, "category", "format"),
+                                context={
                                     'incorrect_caption': f"Figure {number_format}",
                                     'doc_type': doc_type,
                                     'caption_type': 'Figure'
-                                },
-                                Severity.ERROR,
-                                i+1,
-                                category=getattr(self, "category", "format")
+                                }
                             )
                     else:
                         if '-' in number_format:
                             results.add_issue(
-                                {
+                                FormatMessages.CAPTION_FORMAT_ERROR.format(
+                                    caption_type='Figure',
+                                    incorrect_caption=f"Figure {number_format}",
+                                    doc_type=doc_type
+                                ),
+                                Severity.ERROR,
+                                i+1,
+                                category=getattr(self, "category", "format"),
+                                context={
                                     'incorrect_caption': f"Figure {number_format}",
                                     'doc_type': doc_type,
                                     'caption_type': 'Figure'
-                                },
-                                Severity.ERROR,
-                                i+1,
-                                category=getattr(self, "category", "format")
+                                }
                             )
 
     def check(self, content: List[str]) -> Dict[str, Any]:
