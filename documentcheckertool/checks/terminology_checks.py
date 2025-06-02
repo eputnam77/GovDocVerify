@@ -24,16 +24,16 @@ class TerminologyMessages:
     """Static message constants for terminology checks."""
 
     # Consistency messages
-    INCONSISTENT_TERMINOLOGY = "Inconsistent terminology: use '{standard}' instead of '{variant}'."
+    INCONSISTENT_TERMINOLOGY = "Found terminology issue. Use '{standard}' instead of '{variant}'."
 
     # Term replacement messages
-    TERM_REPLACEMENT = 'Use "{approved}" instead of "{obsolete}".'
+    TERM_REPLACEMENT = 'Found obsolete term. Use "{approved}" instead of "{obsolete}".'
 
     # Split infinitive messages
-    SPLIT_INFINITIVE_INFO = "Split infinitive detected (may be acceptable in some contexts)."
+    SPLIT_INFINITIVE_INFO = "Found split infinitive. Although the rule against splitting infinitives is widely considered obsolete, DOT OGC might flag it."
 
     # Special case messages
-    ADDITIONALLY_REPLACEMENT = "Replace with 'In addition'."
+    ADDITIONALLY_REPLACEMENT = "Found 'Additionally'. Replace with 'In addition' (per DOT OGC)."
 
     # Proposed wording messages
     PROPOSED_WORDING_INFO = "Found 'proposed' wording. Remove 'proposed' language if this is in final issuance phase."
@@ -45,14 +45,14 @@ class TerminologyMessages:
     CFR_PART_WARNING = "CFR Part should be CFR part (if your document must be reviewed by DOT OGC, they might request CFR Part)."
 
     # Gendered terms messages
-    GENDERED_TERM_WARNING = "{term} should be {replacement}"
+    GENDERED_TERM_WARNING = "Found gendered term. Use {replacement} instead of {term}."
 
     # Plain language messages
     LEGALESE_SIMPLE_WARNING = "Use simpler alternatives like 'under' or 'following'."
     LEGALESE_AVOID_WARNING = "Avoid archaic or legalese terms"
 
     # Aviation terminology messages
-    AVIATION_TERM_WARNING = "{term} should be {replacement}."
+    AVIATION_TERM_WARNING = "Found incorrect term. Use {replacement} instead of {term}."
 
     # Qualifier messages
     QUALIFIER_WARNING = "Avoid unnecessary qualifiers."
@@ -61,7 +61,7 @@ class TerminologyMessages:
     PLURAL_USAGE_WARNING = "Ensure consistent singular/plural usage."
 
     # Authority citation messages
-    OBSOLETE_CITATION_WARNING = "{citation} is no longer valid; confirm or remove this citation."
+    OBSOLETE_CITATION_WARNING = "Found invalid citation. Confirm or remove {citation}."
 
 class TerminologyChecks(BaseChecker):
     """Class for handling terminology-related checks."""

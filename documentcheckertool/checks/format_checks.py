@@ -18,44 +18,43 @@ class FormatMessages:
     """Static message constants for format checks."""
 
     # Date format messages
-    DATE_FORMAT_ERROR = "Incorrect date format. Use Month Day, Year format (e.g., May 11, 2025)"
+    DATE_FORMAT_ERROR = "Found incorrect date format. Use Month Day, Year format (e.g., May 11, 2025)."
 
     # Phone number messages
-    PHONE_FORMAT_WARNING = "Inconsistent phone number format"
+    PHONE_FORMAT_WARNING = "Found inconsistent phone number format. Use one format throughout."
 
     # Placeholder messages
-    PLACEHOLDER_ERROR = "Placeholder text found"
+    PLACEHOLDER_ERROR = "Found placeholder text ('TBD' or similar). Replace with final text."
 
     # Spacing messages
-    DOUBLE_SPACE_WARNING = "Remove extra spaces"
-    MISSING_SPACE_WARNING = "Add space between '{prefix}' and '{number}'"
+    DOUBLE_SPACE_WARNING = "Found spacing issues. Remove extra spaces."
+    MISSING_SPACE_WARNING = "Found spacing issues. Add a space between '{prefix}' and '{number}'."
 
     # Dash spacing messages
-    DASH_SPACE_REMOVE_AROUND = "Remove spaces around dash"
-    DASH_SPACE_REMOVE_BEFORE = "Remove space before dash"
-    DASH_SPACE_REMOVE_AFTER = "Remove space after dash"
+    DASH_SPACE_REMOVE_AROUND = "Found spacing issues. Remove spaces around dashes unless context specifically requires them."
+    DASH_SPACE_REMOVE_BEFORE = "Found spacing issues. Remove space before dash unless context specifically requires it."
+    DASH_SPACE_REMOVE_AFTER = "Found spacing issues. Remove space after dash unless context specifically requires it."
 
     # Punctuation messages
-    DOUBLE_PERIOD_WARNING = "Double periods found in line {line}"
+    DOUBLE_PERIOD_WARNING = "Found double periods in line {line}. Remove the unnecessary periods."
 
     # Parentheses messages
-    UNMATCHED_PARENTHESES_WARNING = "Unmatched parentheses in line {line}"
+    UNMATCHED_PARENTHESES_WARNING = "Found unmatched parentheses in line {line}. Add missing opening or closing parentheses."
 
     # Section symbol messages
     SECTION_SYMBOL_CFR_ERROR = 'Remove the section symbol after "14 CFR"'
-    SECTION_SYMBOL_WARNING = "Incorrect section symbol usage in line {line}"
+    SECTION_SYMBOL_WARNING = "Found incorrect section symbol usage in line {line}."
 
     # List formatting messages
-    LIST_FORMAT_WARNING = "Inconsistent list formatting in line {line}"
-    BULLET_SPACING_WARNING = "Inconsistent bullet spacing in line {line}"
+    LIST_FORMAT_WARNING = "Found inconsistent list formatting in line {line}"
+    BULLET_SPACING_WARNING = "Found inconsistent bullet spacing in line {line}"
 
     # Quotation marks messages
-    QUOTATION_MARKS_WARNING = "Inconsistent quotation marks in line {line}"
+    QUOTATION_MARKS_WARNING = "Found inconsistent quotation marks in line {line}"
 
     # Caption format messages
     CAPTION_FORMAT_ERROR = (
-        "Incorrect {caption_type} caption format: found '{incorrect_caption}' for document type '{doc_type}'. "
-        "Expected format: '{caption_type} X-Y' or '{caption_type} X' (depending on document type)."
+        "Incorrect caption format. Use '{caption_type} X-Y' (AC, Order) or '{caption_type} X' (other document types)."
     )
 
 class FormatChecks(BaseChecker):
@@ -198,9 +197,9 @@ class FormatChecks(BaseChecker):
         """Check for incorrect spacing around hyphens, en-dashes, and em-dashes."""
         logger.debug(f"Checking dash spacing with {len(paragraphs)} paragraphs")
         dash_patterns = [
-            (r'\s+[-–—]\s+', "Remove spaces around dash"),  # Spaces before and after
-            (r'\s+[-–—](?!\s)', "Remove space before dash"),  # Space only before
-            (r'(?<!\s)[-–—]\s+', "Remove space after dash")  # Space only after
+            (r'\s+[-–—]\s+', FormatMessages.DASH_SPACE_REMOVE_AROUND),  # Spaces before and after
+            (r'\s+[-–—](?!\s)', FormatMessages.DASH_SPACE_REMOVE_BEFORE),  # Space only before
+            (r'(?<!\s)[-–—]\s+', FormatMessages.DASH_SPACE_REMOVE_AFTER)  # Space only after
         ]
 
         for i, text in enumerate(paragraphs):
@@ -210,7 +209,7 @@ class FormatChecks(BaseChecker):
                         logger.debug(f"Found dash spacing issue in line {i+1}: {text}")
                         try:
                             results.add_issue(
-                                f"{message}: '{match.group(0)}'",
+                                message,
                                 Severity.WARNING,
                                 i+1,
                                 category=getattr(self, "category", "format")

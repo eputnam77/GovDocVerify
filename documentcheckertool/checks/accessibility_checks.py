@@ -360,7 +360,7 @@ class AccessibilityChecks(BaseChecker):
             if link_text.lower() in non_descriptive:
                 logger.warning(f"Found non-descriptive link text: '{link_text}'")
                 results.add_issue(
-                    message=f"Non-descriptive link text: '{link_text}'. Use more descriptive text for better accessibility.",
+                    message=f"Found non-descriptive link text: '{link_text}'. Use more descriptive text for better accessibility.",
                     severity=Severity.WARNING
                 )
 
@@ -370,7 +370,7 @@ class AccessibilityChecks(BaseChecker):
             replacement = deprecated_lookup(url)
             if replacement:
                 results.add_issue(
-                    message=f"Deprecated FAA link detected: '{url}'. Replace with '{replacement}'.",
+                    message=f"Found deprecated FAA link: '{url}'. Replace with '{replacement}'.",
                     severity=Severity.ERROR,
                     line_number=span[0]
                 )

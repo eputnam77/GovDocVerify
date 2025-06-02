@@ -17,27 +17,27 @@ class StructureMessages:
     """Static message constants for structure checks."""
 
     # Paragraph length messages
-    PARAGRAPH_LENGTH_WARNING = "Paragraph '{preview}' is {word_count} words—above the {max_words}-word limit. Break it up for better clarity."
+    PARAGRAPH_LENGTH_WARNING = "Paragraph '{preview}' is {word_count} words, which is above the {max_words}-word limit. Break it up for better clarity."
 
     # Sentence length messages
-    SENTENCE_LENGTH_INFO = "Sentence '{preview}' is {word_count} words—above the {max_words}-word limit. Break it up for better clarity."
+    SENTENCE_LENGTH_INFO = "Sentence '{preview}' is {word_count} words, which is above the {max_words}-word limit. Break it up for better clarity."
 
     # Section balance messages
     SECTION_BALANCE_INFO = "Section '{name}' is significantly longer than average ({length} paragraphs vs {avg:.1f} average)"
 
     # List formatting messages
-    LIST_FORMAT_INCONSISTENT = "Inconsistent list formatting found. Review your lists and align their formatting."
+    LIST_FORMAT_INCONSISTENT = "Found inconsistent list formatting. Review the formatting of your lists."
 
     # Parentheses messages
-    PARENTHESES_UNMATCHED = "Unmatched parentheses detected. Add missing opening or closing parentheses."
+    PARENTHESES_UNMATCHED = "Found unmatched parentheses. Add missing opening or closing parentheses."
 
     # Cross-reference messages
-    CROSS_REFERENCE_INFO = "Cross-reference detected. Verify target exists."
+    CROSS_REFERENCE_INFO = "Found cross-reference. Verify target exists."
 
     # Watermark messages
-    WATERMARK_MISSING = "Document is missing required watermark"
+    WATERMARK_MISSING = "Watermark missing. Include the correct watermark unless not needed for this context."
     WATERMARK_UNKNOWN_STAGE = "Unknown document stage: {doc_type}"
-    WATERMARK_INCORRECT = "Incorrect watermark for {doc_type} stage. Expected: {expected}"
+    WATERMARK_INCORRECT = "Found incorrect watermark for {doc_type} stage. Use {expected}"
 
 class ValidationFormatting:
     """Handles formatting of validation messages for consistency and clarity."""
