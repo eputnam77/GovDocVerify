@@ -1,12 +1,54 @@
 """Configuration file for terminology rules and mappings."""
 
+# Message templates for terminology checks
+class TerminologyMessages:
+    """Message templates for terminology checks."""
+
+    # Consistency messages
+    INCONSISTENT_TERMINOLOGY = "Found terminology issue. Use '{standard}' instead of '{variant}'."
+
+
+    # Split infinitive messages
+    SPLIT_INFINITIVE_INFO = "Found split infinitive. Although the rule against splitting infinitives is widely considered obsolete, DOT OGC might flag it."
+
+    # Special case messages
+    ADDITIONALLY_REPLACEMENT = "Found 'Additionally'. Replace with 'In addition' (per DOT OGC)."
+
+    # Proposed wording messages
+    PROPOSED_WORDING_INFO = "Found 'proposed' wording—remove draft phrasing for final documents."
+
+    # USC/CFR formatting messages
+    USC_FORMAT_WARNING = "USC should be U.S.C."
+    USC_PERIOD_WARNING = "U.S.C should have a final period"
+    CFR_FORMAT_WARNING = "C.F.R. should be CFR"
+    CFR_PART_WARNING = "CFR Part should be CFR part (if your document must be reviewed by DOT OGC, they might request CFR Part)."
+
+    # Gendered terms messages
+    GENDERED_TERM_WARNING = "Found gendered term. Use {replacement} instead of {term}."
+
+    # Plain language messages
+    LEGALESE_SIMPLE_WARNING = "Use simpler alternatives like 'under' or 'following'."
+    LEGALESE_AVOID_WARNING = "Avoid archaic or legalese terms"
+
+    # Aviation terminology messages
+    AVIATION_TERM_WARNING = "Found incorrect term. Use {replacement} instead of {term}."
+
+    # Qualifier messages
+    QUALIFIER_WARNING = "Avoid unnecessary qualifiers."
+
+    # Plural usage messages
+    PLURAL_USAGE_WARNING = "Ensure consistent singular/plural usage."
+
+    # Authority citation messages
+    OBSOLETE_CITATION_WARNING = "Found invalid citation. Confirm or remove {citation}."
+
 # Common replacements (specific word/phrase replacements only)
 TERM_REPLACEMENTS = {
     'and/or': 'written sentence breaking up and/or (per AGC)',
     'although': 'though (per DOT OGC Style Guide)',
     'additionally': 'in addition',
     'cockpit': 'flight deck (per AIR-600 Quick Reference Guide)',
-    'flight crew': 'flightcrew (per 14 CFR)',
+    'flight crew': 'flightcrew (per AIR-600 Quick Reference Guide)',
     'shall': 'must (per FAA Order 1320.46)',
     'cancelled': 'canceled (per the GPO Style Manual)',
     'RGL': 'DRS',
@@ -21,7 +63,13 @@ TERM_REPLACEMENTS = {
     'transmit': 'send (per Plain Language Guidelines)',
     'demonstrate': 'show or prove (per Plain Language Guidelines)',
     'facilitate': 'help or assist (per Plain Language Guidelines)',
-    'utilize': 'use (per Plain Language Guidelines)'
+    'utilize': 'use (per Plain Language Guidelines)',
+    'ACO': 'Certification Branch (as of 2023 AIR Reorganization)',
+    'CFR Part': 'CFR part (per Document Drafting Handbook & FAA Order 1320.46). However, if your document is being reviewed by DOT OGC, use CFR Part',
+    'U.S.C': 'U.S.C. (per the GPO Style Manual)',
+    'USC': 'U.S.C. (per the GPO Style Manual)',
+    'in accordance with': 'under (per FAA Order 1320.46)',
+    'in compliance with': 'under (per FAA Order 1320.46)'
 }
 
 # Terms to avoid (only subjective/style terms, not formatting issues)

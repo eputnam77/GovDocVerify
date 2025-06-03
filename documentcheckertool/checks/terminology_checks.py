@@ -6,7 +6,8 @@ from documentcheckertool.models import DocumentCheckResult, Severity
 from documentcheckertool.config.terminology_rules import (
     TERM_REPLACEMENTS,
     FORBIDDEN_TERMS,
-    TERMINOLOGY_VARIANTS
+    TERMINOLOGY_VARIANTS,
+    TerminologyMessages
 )
 from typing import List, Dict, Any, Optional
 from ..utils.decorators import profile_performance
@@ -18,50 +19,6 @@ import string
 from documentcheckertool.checks.check_registry import CheckRegistry
 
 logger = logging.getLogger(__name__)
-
-# Message constants for terminology checks
-class TerminologyMessages:
-    """Static message constants for terminology checks."""
-
-    # Consistency messages
-    INCONSISTENT_TERMINOLOGY = "Found terminology issue. Use '{standard}' instead of '{variant}'."
-
-    # Term replacement messages
-    TERM_REPLACEMENT = 'Found obsolete term. Use "{approved}" instead of "{obsolete}".'
-
-    # Split infinitive messages
-    SPLIT_INFINITIVE_INFO = "Found split infinitive. Although the rule against splitting infinitives is widely considered obsolete, DOT OGC might flag it."
-
-    # Special case messages
-    ADDITIONALLY_REPLACEMENT = "Found 'Additionally'. Replace with 'In addition' (per DOT OGC)."
-
-    # Proposed wording messages
-    PROPOSED_WORDING_INFO = "Found 'proposed' wording. Remove 'proposed' language if this is in final issuance phase."
-
-    # USC/CFR formatting messages
-    USC_FORMAT_WARNING = "USC should be U.S.C."
-    USC_PERIOD_WARNING = "U.S.C should have a final period"
-    CFR_FORMAT_WARNING = "C.F.R. should be CFR"
-    CFR_PART_WARNING = "CFR Part should be CFR part (if your document must be reviewed by DOT OGC, they might request CFR Part)."
-
-    # Gendered terms messages
-    GENDERED_TERM_WARNING = "Found gendered term. Use {replacement} instead of {term}."
-
-    # Plain language messages
-    LEGALESE_SIMPLE_WARNING = "Use simpler alternatives like 'under' or 'following'."
-    LEGALESE_AVOID_WARNING = "Avoid archaic or legalese terms"
-
-    # Aviation terminology messages
-    AVIATION_TERM_WARNING = "Found incorrect term. Use {replacement} instead of {term}."
-
-    # Qualifier messages
-    QUALIFIER_WARNING = "Avoid unnecessary qualifiers."
-
-    # Plural usage messages
-    PLURAL_USAGE_WARNING = "Ensure consistent singular/plural usage."
-
-    # Authority citation messages
-    OBSOLETE_CITATION_WARNING = "Found invalid citation. Confirm or remove {citation}."
 
 class TerminologyChecks(BaseChecker):
     """Class for handling terminology-related checks."""
@@ -96,7 +53,7 @@ class TerminologyChecks(BaseChecker):
             logger.debug(f"[Terminology] Checking line {i+1}: {text!r}")
             for standard, variants in TERMINOLOGY_VARIANTS.items():
                 for variant in variants:
-                    pattern = rf"\\b{re.escape(variant)}\\b"
+                    pattern = rf"\b{re.escape(variant)}\b"
                     if re.search(pattern, text, re.IGNORECASE):
                         logger.debug(f"[Terminology] Matched variant '{variant}' (should use '{standard}') in line {i+1}")
                         results.add_issue(
@@ -115,7 +72,7 @@ class TerminologyChecks(BaseChecker):
         for i, text in enumerate(paragraphs):
             logger.debug(f"[Terminology] Checking forbidden terms in line {i+1}: {text!r}")
             for term, message in FORBIDDEN_TERMS.items():
-                pattern = rf"\\b{re.escape(term)}\\b"
+                pattern = rf"\b{re.escape(term)}\b"
                 if re.search(pattern, text, re.IGNORECASE):
                     logger.debug(f"[Terminology] Matched forbidden term '{term}' in line {i+1}")
                     results.add_issue(
@@ -134,14 +91,30 @@ class TerminologyChecks(BaseChecker):
         for i, text in enumerate(paragraphs):
             logger.debug(f"[Terminology] Checking term replacements in line {i+1}: {text!r}")
             for obsolete, approved in TERM_REPLACEMENTS.items():
-                pattern = rf"\\b{re.escape(obsolete)}\\b"
+                # Handle special cases that need different regex patterns
+                if obsolete in ['CFR Part', 'U.S.C', 'USC', 'in accordance with', 'in compliance with']:
+                    # For phrases and specific formatting, use exact matching
+                    if obsolete == 'CFR Part':
+                        pattern = r'\bCFR\s+Part\b'
+                    elif obsolete == 'U.S.C':
+                        # Match U.S.C without a final period - more precise pattern
+                        pattern = r'\bU\.S\.C(?!\.)(?=\s|$)'
+                    elif obsolete == 'USC':
+                        # Match USC without periods
+                        pattern = r'\bUSC\b'
+                    elif obsolete in ['in accordance with', 'in compliance with']:
+                        # Match the full phrase
+                        pattern = rf'\b{re.escape(obsolete)}\b'
+                    else:
+                        pattern = rf'\b{re.escape(obsolete)}\b'
+                else:
+                    # Standard word boundary matching for other terms
+                    pattern = rf'\b{re.escape(obsolete)}\b'
+
                 if re.search(pattern, text, re.IGNORECASE):
                     logger.debug(f"[Terminology] Matched obsolete term '{obsolete}' in line {i+1}")
                     results.add_issue(
-                        message=TerminologyMessages.TERM_REPLACEMENT.format(
-                            approved=approved,
-                            obsolete=obsolete
-                        ),
+                        message=f'Replace "{obsolete}" with "{approved}"',
                         severity=Severity.WARNING,
                         line_number=i + 1,
                         category=getattr(self, "category", "terminology")
@@ -160,7 +133,7 @@ class TerminologyChecks(BaseChecker):
 
         # Split infinitive detection (info-level, may be acceptable)
         # Enhanced: match 'to' followed by 1-3 words, then a word (likely a verb)
-        split_infinitive_pattern = re.compile(r"\\bto\\s+(?:\\w+\\s+){1,3}\\w+\\b", re.IGNORECASE)
+        split_infinitive_pattern = re.compile(r"\bto\s+(?:\w+\s+){1,3}\w+\b", re.IGNORECASE)
         for i, line in enumerate(lines, 1):
             logger.debug(f"[Terminology] Checking line {i}: {line!r}")
             for match in split_infinitive_pattern.finditer(line):
@@ -175,7 +148,7 @@ class TerminologyChecks(BaseChecker):
         # Check for forbidden terms (whole-word, case-insensitive)
         for i, line in enumerate(lines, 1):
             for term, message in FORBIDDEN_TERMS.items():
-                pattern = rf"\\b{re.escape(term)}\\b"
+                pattern = rf"\b{re.escape(term)}\b"
                 if re.search(pattern, line, re.IGNORECASE):
                     logger.debug(f"[Terminology] Matched forbidden term '{term}' in line {i}")
                     # Special handling for 'additionally' to match test expectation
@@ -195,7 +168,7 @@ class TerminologyChecks(BaseChecker):
         for i, line in enumerate(lines, 1):
             for standard, variants in TERMINOLOGY_VARIANTS.items():
                 for variant in variants:
-                    pattern = rf"\\b{re.escape(variant)}\\b"
+                    pattern = rf"\b{re.escape(variant)}\b"
                     if re.search(pattern, line, re.IGNORECASE):
                         logger.debug(f"[Terminology] Matched variant '{variant}' (should use '{standard}') in line {i}")
                         issues.append({
@@ -204,32 +177,36 @@ class TerminologyChecks(BaseChecker):
                             'category': getattr(self, 'category', 'terminology')
                         })
 
-        # Check for forbidden terms & obsolete replacements
+        # Check for obsolete term replacements
         for i, line in enumerate(lines, 1):
-            for term, message in FORBIDDEN_TERMS.items():
-                if re.search(rf"\\b{re.escape(term)}\\b", line, re.IGNORECASE):
-                    logger.debug(f"[Terminology] Matched forbidden term '{term}' in line {i}")
-                    # Special handling for 'additionally' to match test expectation
-                    if term == 'additionally':
-                        issues.append({
-                            'message': "Replace with 'In addition'",
-                            'severity': Severity.WARNING,
-                            'category': getattr(self, 'category', 'terminology')
-                        })
-                    issues.append({
-                        'message': message,
-                        'severity': Severity.WARNING,
-                        'category': getattr(self, 'category', 'terminology')
-                    })
             for obsolete, approved in TERM_REPLACEMENTS.items():
-                pattern = rf"\\b{re.escape(obsolete)}\\b"
+                # Handle special cases that need different regex patterns
+                if obsolete in ['CFR Part', 'U.S.C', 'USC', 'in accordance with', 'in compliance with']:
+                    # For phrases and specific formatting, use exact matching
+                    if obsolete == 'CFR Part':
+                        pattern = r'\bCFR\s+Part\b'
+                    elif obsolete == 'U.S.C':
+                        # Match U.S.C without a final period - more precise pattern
+                        pattern = r'\bU\.S\.C(?!\.)(?=\s|$)'
+                    elif obsolete == 'USC':
+                        # Match USC without periods
+                        pattern = r'\bUSC\b'
+                    elif obsolete in ['in accordance with', 'in compliance with']:
+                        # Match the full phrase
+                        pattern = rf'\b{re.escape(obsolete)}\b'
+                    else:
+                        pattern = rf'\b{re.escape(obsolete)}\b'
+                else:
+                    # Standard word boundary matching for other terms
+                    pattern = rf'\b{re.escape(obsolete)}\b'
+
                 if re.search(pattern, line, re.IGNORECASE):
                     logger.debug(f"[Terminology] Matched obsolete term '{obsolete}' in line {i}")
-                    # Only add the replacement message for 'additionally' if not already handled
+                    # Skip 'additionally' since it's handled in forbidden terms
                     if obsolete == 'additionally':
                         continue
                     issues.append({
-                        'message': f'Use "{approved}" instead of "{obsolete}".',
+                        'message': f'Replace "{obsolete}" with "{approved}"',
                         'severity': Severity.WARNING,
                         'category': getattr(self, 'category', 'terminology')
                     })
