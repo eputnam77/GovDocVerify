@@ -14,19 +14,19 @@ class ReferenceMessages:
     """Static message constants for reference checks."""
 
     # Table/Figure reference messages
-    TABLE_REF_SENTENCE_START = "Table reference at sentence start should be capitalized"
-    TABLE_REF_WITHIN_SENTENCE = "Table reference within sentence should be lowercase"
-    TABLE_REF_IN_QUOTES_PARENS = "Table reference in quotes/parentheses should be lowercase"
+    TABLE_REF_SENTENCE_START = "Table reference at sentence start should be capitalized."
+    TABLE_REF_WITHIN_SENTENCE = "Table reference within sentence should be lowercase."
+    TABLE_REF_IN_QUOTES_PARENS = "Table reference in quotes/parentheses should be lowercase."
 
-    FIGURE_REF_SENTENCE_START = "Figure reference at sentence start should be capitalized"
-    FIGURE_REF_WITHIN_SENTENCE = "Figure reference within sentence should be lowercase"
-    FIGURE_REF_IN_QUOTES_PARENS = "Figure reference in quotes/parentheses should be lowercase"
+    FIGURE_REF_SENTENCE_START = "Figure reference at sentence start should be capitalized."
+    FIGURE_REF_WITHIN_SENTENCE = "Figure reference within sentence should be lowercase."
+    FIGURE_REF_IN_QUOTES_PARENS = "Figure reference in quotes/parentheses should be lowercase."
 
     # Document title format messages
-    AC_TITLE_USE_ITALICS = "AC document titles should use italics, not quotation marks"
-    AC_TITLE_FORMAT_ITALICS = "AC document titles should be formatted in italics"
-    NON_AC_TITLE_USE_QUOTES = "Document titles should use quotation marks, not italics"
-    NON_AC_TITLE_FORMAT_QUOTES = "Document titles should be formatted in quotation marks"
+    AC_TITLE_USE_ITALICS = "AC document titles should use italics, not quotation marks."
+    AC_TITLE_FORMAT_ITALICS = "AC document titles should be formatted in italics."
+    NON_AC_TITLE_USE_QUOTES = "Document titles should use quotation marks, not italics."
+    NON_AC_TITLE_FORMAT_QUOTES = "Document titles should be formatted in quotation marks."
 
 class DocumentTitleFormatCheck(BaseChecker):
     """Class for checking document title formatting based on document type."""
