@@ -46,9 +46,9 @@ class TerminologyMessages:
 TERM_REPLACEMENTS = {
     'and/or': 'written sentence breaking up and/or (per AGC)',
     'although': 'though (per DOT OGC Style Guide)',
-    'additionally': 'in addition',
+    'additionally': 'in addition (per DOT OGC Style Guide)',
     'cockpit': 'flight deck (per AIR-600 Quick Reference Guide)',
-    'flight crew': 'flightcrew (per AIR-600 Quick Reference Guide)',
+    'flight crew': 'flightcrew (per 14 CFR part 1)',
     'shall': 'must (per FAA Order 1320.46)',
     'cancelled': 'canceled (per the GPO Style Manual)',
     'RGL': 'DRS',

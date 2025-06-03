@@ -350,12 +350,18 @@ class HeadingChecks(BaseChecker):
         """Run all heading-related checks."""
         logger.info(f"Running heading checks for document type: {doc_type}")
 
-        # Get all paragraphs with heading style
-        headings = [p for p in document.paragraphs if p.style.name.startswith('Heading')]
+        # Get all paragraphs with heading style and track their line numbers
+        headings_with_lines = []
+        line_number = 1
+
+        for paragraph in document.paragraphs:
+            if paragraph.style.name.startswith('Heading'):
+                headings_with_lines.append((paragraph, line_number))
+            line_number += 1
 
         # Check heading structure
-        self._check_heading_hierarchy(headings, results)
-        self._check_heading_format(headings, results, doc_type)
+        self._check_heading_hierarchy(headings_with_lines, results)
+        self._check_heading_format(headings_with_lines, results, doc_type)
 
     def _check_heading_sequence(self, current_level: int, previous_level: int) -> Optional[str]:
         """
@@ -377,10 +383,10 @@ class HeadingChecks(BaseChecker):
         # - Going to any higher level (e.g., H3 to H1)
         return None
 
-    def _check_heading_hierarchy(self, headings, results):
+    def _check_heading_hierarchy(self, headings_with_lines, results):
         """Check if headings follow proper hierarchy."""
         previous_level = 0
-        for heading in headings:
+        for heading, line_number in headings_with_lines:
             level = int(heading.style.name.replace('Heading ', ''))
             error_message = self._check_heading_sequence(level, previous_level)
 
@@ -388,12 +394,12 @@ class HeadingChecks(BaseChecker):
                 results.add_issue(
                     message=f"{error_message} (Current heading: {heading.text})",
                     severity=Severity.ERROR,
-                    line_number=heading._element.sourceline,
+                    line_number=line_number,
                     category=getattr(self, "category", "heading")
                 )
             previous_level = level
 
-    def _check_heading_format(self, headings, results, doc_type: str = "GENERAL"):
+    def _check_heading_format(self, headings_with_lines, results, doc_type: str = "GENERAL"):
         """
         Check heading format (capitalization, punctuation, etc).
 
@@ -407,7 +413,7 @@ class HeadingChecks(BaseChecker):
         period_requirements = self.terminology_manager.terminology_data.get('heading_periods', {})
         requires_period = period_requirements.get(doc_type_norm, False)
 
-        for heading in headings:
+        for heading, line_number in headings_with_lines:
             text = heading.text.strip()
 
             # Skip period check for long text that's likely a paragraph incorrectly marked as heading
@@ -426,13 +432,13 @@ class HeadingChecks(BaseChecker):
                 results.add_issue(
                     message=f"Heading missing required period: {text}",
                     severity=Severity.WARNING,
-                    line_number=heading._element.sourceline,
+                    line_number=line_number,
                     category=getattr(self, "category", "heading")
                 )
             elif not requires_period and has_period:
                 results.add_issue(
                     message=f"Heading should not end with period: {text}",
                     severity=Severity.WARNING,
-                    line_number=heading._element.sourceline,
+                    line_number=line_number,
                     category=getattr(self, "category", "heading")
                 )
