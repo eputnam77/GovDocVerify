@@ -1,14 +1,14 @@
-from typing import List, Dict, Any, Optional
-from documentcheckertool.utils.text_utils import split_sentences, count_words
-from documentcheckertool.models import DocumentCheckResult, Severity
-from documentcheckertool.config.validation_patterns import HEADING_PATTERNS
-from docx import Document
-from .base_checker import BaseChecker
-import re
 import logging
+import re
 from functools import wraps
+from typing import List, Optional
+
+from docx import Document
+
 from documentcheckertool.checks.check_registry import CheckRegistry
-from documentcheckertool.utils.boilerplate_utils import is_boilerplate
+from documentcheckertool.models import DocumentCheckResult, Severity
+
+from .base_checker import BaseChecker
 
 logger = logging.getLogger(__name__)
 

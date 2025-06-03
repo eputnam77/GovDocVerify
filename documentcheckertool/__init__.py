@@ -1,1 +1,1 @@
-"""Document checker tool package.""" 
+"""Document checker tool package."""

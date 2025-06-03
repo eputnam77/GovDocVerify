@@ -1,7 +1,10 @@
-from typing import Dict, List, Any, Optional, Union
 from enum import Enum
+from typing import Any, Dict, List, Union
+
 from colorama import Fore, Style
+
 from documentcheckertool.models import DocumentCheckResult, Severity
+
 
 class FormatStyle(Enum):
     """Output format styles."""
@@ -310,7 +313,7 @@ class ResultFormatter:
                     output.append(f"    • {heading}")
             elif issue.get('type') == 'unexpected_headings':
                 unexpected = sorted(issue['unexpected'])
-                output.append(f"\n  Unexpected Headings Found:")
+                output.append("\n  Unexpected Headings Found:")
                 for heading in unexpected:
                     output.append(f"    • {heading}")
 
@@ -321,7 +324,7 @@ class ResultFormatter:
         output = []
 
         if result.issues:
-            output.append(f"\n  Heading Period Format Issues:")
+            output.append("\n  Heading Period Format Issues:")
             for issue in result.issues:
                 if 'message' in issue:
                     output.append(f"    • {issue['message']}")
@@ -455,7 +458,7 @@ class ResultFormatter:
                 issues = severity_buckets[sev]
                 if issues:
                     if self._style == FormatStyle.HTML:
-                        output.append(f'<div class="category-section" style="margin-bottom: 40px; padding: 20px; background-color: #f8f9fa; border-radius: 8px;">')
+                        output.append('<div class="category-section" style="margin-bottom: 40px; padding: 20px; background-color: #f8f9fa; border-radius: 8px;">')
                         output.append(f'<h2 style="color: {severity_colors_html[sev]}; margin-bottom: 20px; border-bottom: 2px solid {severity_colors_html[sev]}; padding-bottom: 10px;">{severity_titles[sev]}</h2>')
                         output.append('<ul style="list-style-type: none; padding-left: 20px;">')
                         for issue in issues:
@@ -524,7 +527,7 @@ class ResultFormatter:
 
                 if self._style == FormatStyle.HTML:
                     output.append(
-                        f'<div class="category-section" style="margin-bottom: 40px; padding: 20px; background-color: #f8f9fa; border-radius: 8px;">'
+                        '<div class="category-section" style="margin-bottom: 40px; padding: 20px; background-color: #f8f9fa; border-radius: 8px;">'
                     )
                     output.append(
                         f'<h2 style="color: #0056b3; margin-bottom: 20px; border-bottom: 2px solid #0056b3; padding-bottom: 10px;">{category_title}</h2>'

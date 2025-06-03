@@ -1,12 +1,12 @@
-import sys
-import logging
 import argparse
-import os
+import logging
+import sys
+
 from documentcheckertool.document_checker import FAADocumentChecker
-from documentcheckertool.models import DocumentType, VisibilitySettings
-from documentcheckertool.utils.formatting import ResultFormatter, FormatStyle
-from documentcheckertool.utils.terminology_utils import TerminologyManager
 from documentcheckertool.logging_config import setup_logging
+from documentcheckertool.models import VisibilitySettings
+from documentcheckertool.utils.formatting import FormatStyle, ResultFormatter
+from documentcheckertool.utils.terminology_utils import TerminologyManager
 
 logger = logging.getLogger(__name__)
 

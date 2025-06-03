@@ -1,12 +1,12 @@
 import json
-from typing import Dict, List, Set, Optional, Any
+import logging
 import re
 from dataclasses import dataclass
-from pathlib import Path
-from ..models import DocumentCheckResult
-import logging
 from functools import lru_cache
-from documentcheckertool.config.boilerplate_texts import BOILERPLATE_PARAGRAPHS
+from pathlib import Path
+from typing import Any, Dict, List, Optional, Set
+
+from ..models import DocumentCheckResult
 
 logger = logging.getLogger(__name__)
 

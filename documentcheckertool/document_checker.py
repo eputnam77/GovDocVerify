@@ -1,20 +1,24 @@
 import logging
-from typing import List, Dict, Any, Optional
+
 from docx import Document
-from documentcheckertool.models import DocumentCheckResult, DocumentType
-from documentcheckertool.checks.heading_checks import HeadingChecks
+
 from documentcheckertool.checks.accessibility_checks import AccessibilityChecks
+from documentcheckertool.checks.acronym_checks import AcronymChecker
+from documentcheckertool.checks.check_registry import CheckRegistry
 from documentcheckertool.checks.format_checks import FormatChecks
+from documentcheckertool.checks.heading_checks import HeadingChecks
+from documentcheckertool.checks.readability_checks import ReadabilityChecks
+from documentcheckertool.checks.reference_checks import (
+    DocumentTitleFormatCheck,
+    TableFigureReferenceCheck,
+)
 from documentcheckertool.checks.structure_checks import StructureChecks
 from documentcheckertool.checks.terminology_checks import TerminologyChecks
-from documentcheckertool.checks.reference_checks import TableFigureReferenceCheck, DocumentTitleFormatCheck
-from documentcheckertool.checks.readability_checks import ReadabilityChecks
-from documentcheckertool.checks.acronym_checks import AcronymChecker
-from documentcheckertool.utils.text_utils import split_sentences, count_words, normalize_reference
+from documentcheckertool.models import DocumentCheckResult
 from documentcheckertool.utils.pattern_cache import PatternCache
 from documentcheckertool.utils.terminology_utils import TerminologyManager
+
 from .utils.check_discovery import validate_check_registration
-from documentcheckertool.checks.check_registry import CheckRegistry
 
 logger = logging.getLogger(__name__)
 

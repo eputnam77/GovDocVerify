@@ -1,7 +1,7 @@
-import os
-import sys
 import logging
 import logging.config
+import os
+import sys
 
 log_path = os.path.abspath("document_checker.log")
 

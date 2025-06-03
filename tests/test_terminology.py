@@ -1,8 +1,10 @@
 # pytest -v tests/test_terminology.py --log-cli-level=DEBUG
 
 import pytest
+
 from documentcheckertool.checks.terminology_checks import TerminologyChecks
 from documentcheckertool.utils.terminology_utils import TerminologyManager
+
 
 class TestTerminologyChecks:
     @pytest.fixture(autouse=True)

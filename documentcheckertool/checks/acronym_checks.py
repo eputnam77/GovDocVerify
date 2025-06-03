@@ -1,10 +1,11 @@
 import logging
-from typing import Dict, List, Optional
-from docx import Document
-from ..utils.terminology_utils import TerminologyManager
-from ..models import DocumentCheckResult
-from documentcheckertool.checks.check_registry import CheckRegistry
+from typing import List, Optional
+
 from documentcheckertool.checks.base_checker import BaseChecker
+from documentcheckertool.checks.check_registry import CheckRegistry
+
+from ..models import DocumentCheckResult
+from ..utils.terminology_utils import TerminologyManager
 
 logger = logging.getLogger(__name__)
 

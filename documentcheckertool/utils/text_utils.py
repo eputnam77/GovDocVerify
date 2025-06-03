@@ -1,8 +1,10 @@
+import logging
 import re
 import unicodedata
 from typing import Dict, List, Optional, Set
+
 from .terminology_utils import TerminologyManager
-import logging
+
 
 def split_sentences(text: str) -> List[str]:
     """Split text into sentences while handling common abbreviations, including multi-period ones like 'U.S.'."""
@@ -86,7 +88,7 @@ def count_words(text: str) -> int:
     """Count words in text, handling hyphenated words, numbers, and email addresses. Test-aligned: count words before and after emails, plus all emails, and exclude a small stopword list."""
     logger = logging.getLogger(__name__)
     if not text:
-        logger.debug(f"count_words: empty input -> 0")
+        logger.debug("count_words: empty input -> 0")
         return 0
     email_pattern = r'[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}'
     emails = list(re.finditer(email_pattern, text))
@@ -132,7 +134,7 @@ def count_syllables(word: str) -> int:
     logger = logging.getLogger(__name__)
     word = word.strip()
     if not word:
-        logger.debug(f"count_syllables: empty input -> 0")
+        logger.debug("count_syllables: empty input -> 0")
         return 0
     if word.isdigit():
         logger.debug(f"count_syllables: digits '{word}' -> {len(word)}")

@@ -1,17 +1,18 @@
 # Run test: pytest -v
 # pytest -v tests/test_accessibility_checks.py --log-cli-level=DEBUG
 
+import logging
 import unittest
 from pathlib import Path
-from tests.test_base import TestBase
+from unittest.mock import Mock
+
+import pytest
+from docx import Document
+
 from documentcheckertool.checks.accessibility_checks import AccessibilityChecks
 from documentcheckertool.models import DocumentCheckResult, Severity
 from documentcheckertool.utils.terminology_utils import TerminologyManager
-from docx import Document
-import logging
-import pytest
-from unittest.mock import Mock, patch
-from typing import List
+from tests.test_base import TestBase
 
 logger = logging.getLogger(__name__)
 

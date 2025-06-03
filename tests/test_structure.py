@@ -1,8 +1,10 @@
 # pytest -v tests/test_structure.py --log-cli-level=DEBUG
 
-import unittest
-from test_base import TestBase
 import os
+import unittest
+
+from test_base import TestBase
+
 
 class TestStructureChecks(TestBase):
     """Test suite for document structure and readability checks."""

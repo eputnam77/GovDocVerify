@@ -1,11 +1,11 @@
 # pytest -v tests/test_document_checker.py --log-cli-level=DEBUG
 
-import unittest
 import logging
-from unittest.mock import Mock, patch, ANY, MagicMock
+import unittest
+from unittest.mock import ANY, MagicMock, Mock, patch
+
 from documentcheckertool.document_checker import FAADocumentChecker
 from documentcheckertool.models import DocumentCheckResult
-from docx import Document
 
 # Configure logging
 logging.basicConfig(level=logging.DEBUG)
@@ -135,7 +135,7 @@ class TestFAADocumentChecker(unittest.TestCase):
             return tracked_check_text
 
         mock_acronym.check_text = MagicMock(side_effect=make_tracked_check_text('acronym_checker'))
-        logger.debug(f"Set check_text on mock_acronym")
+        logger.debug("Set check_text on mock_acronym")
         logger.debug(f"mock_acronym.check_text type: {type(mock_acronym.check_text)}")
         logger.debug(f"mock_acronym.check_text.call_count: {mock_acronym.check_text.call_count}")
         self.checker.acronym_checker = mock_acronym
@@ -144,7 +144,7 @@ class TestFAADocumentChecker(unittest.TestCase):
         logger.debug("Creating mock for table_figure_checks")
         mock_table_figure = MagicMock()
         mock_table_figure.check_text = MagicMock(side_effect=make_tracked_check_text('table_figure_checks'))
-        logger.debug(f"Set check_text on mock_table_figure")
+        logger.debug("Set check_text on mock_table_figure")
         logger.debug(f"mock_table_figure.check_text type: {type(mock_table_figure.check_text)}")
         logger.debug(f"mock_table_figure.check_text.call_count: {mock_table_figure.check_text.call_count}")
         self.checker.table_figure_checks = mock_table_figure

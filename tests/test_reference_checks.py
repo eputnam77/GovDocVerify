@@ -1,11 +1,14 @@
 # pytest -v tests/test_reference_checks.py --log-cli-level=DEBUG
 
-import pytest
 import logging
-from documentcheckertool.checks.reference_checks import TableFigureReferenceCheck, DocumentTitleFormatCheck
+
+import pytest
+
+from documentcheckertool.checks.reference_checks import (
+    DocumentTitleFormatCheck,
+    TableFigureReferenceCheck,
+)
 from documentcheckertool.models import DocumentCheckResult
-from unittest.mock import Mock, patch
-from typing import List
 
 # Configure logging for tests
 logging.basicConfig(level=logging.DEBUG)

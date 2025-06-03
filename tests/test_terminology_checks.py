@@ -1,11 +1,14 @@
 # pytest -v tests/test_terminology_checks.py --log-cli-level=DEBUG
 
-import unittest
 import logging
-from .test_base import TestBase
+import unittest
+
+import pytest
+
 from documentcheckertool.checks.terminology_checks import TerminologyChecks
 from documentcheckertool.models import DocumentCheckResult
-import pytest
+
+from .test_base import TestBase
 
 logger = logging.getLogger(__name__)
 
@@ -127,8 +130,6 @@ class TestTerminologyChecks(TestBase):
 ])
 def test_proposed_wording(doc_type, content, expect_flag):
     from documentcheckertool.checks.terminology_checks import TerminologyChecks
-    from documentcheckertool.utils.terminology_utils import TerminologyManager
-    from documentcheckertool.models import DocumentCheckResult
     # Minimal TerminologyManager stub for test
     class DummyManager:
         terminology_data = {}

@@ -1,11 +1,12 @@
 # pytest -v tests/test_models.py --log-cli-level=DEBUG
 
-import unittest
 import logging
 import re
-import time
 import statistics
 import sys
+import time
+import unittest
+
 from documentcheckertool.models import DocumentType, DocumentTypeError
 
 # Configure logging with more detailed format

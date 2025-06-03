@@ -1,16 +1,17 @@
 # python -m unittest discover tests to run all tests
 
 import os
-import pytest
-import unittest
 import tempfile
+import unittest
 from pathlib import Path
 from typing import Dict, List, Optional
+
 from docx import Document
 
 from documentcheckertool.document_checker import FAADocumentChecker
-from documentcheckertool.models import DocumentCheckResult, DocumentType
+from documentcheckertool.models import DocumentCheckResult
 from documentcheckertool.utils.terminology_utils import TerminologyManager
+
 
 class TestBase(unittest.TestCase):
     """Base class for all document checker tests."""

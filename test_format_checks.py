@@ -1,8 +1,9 @@
 # pytest -v tests/test_format_checks.py --log-cli-level=DEBUG
 
 import unittest
+
 from format_checks import FormattingChecker
-from documentcheckertool.models import DocumentCheckResult
+
 
 class TestFormattingChecker(unittest.TestCase):
     def setUp(self):

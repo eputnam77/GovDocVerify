@@ -1,7 +1,9 @@
 import argparse
-import logging
+
 from gradio_ui import create_interface
+
 from documentcheckertool.logging_config import setup_logging
+
 
 def main():
     parser = argparse.ArgumentParser(description="Document Checker Gradio UI")

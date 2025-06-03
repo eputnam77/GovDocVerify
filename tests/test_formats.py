@@ -3,14 +3,16 @@
 # This file consolidates all format-checking tests for both string and DOCX inputs.
 # Shared test data ensures DRY, maintainable coverage of all public APIs.
 
-import pytest
 import logging
-from documentcheckertool.checks.format_checks import FormatChecks, FormattingChecker
-from documentcheckertool.utils.terminology_utils import TerminologyManager
-from documentcheckertool.models import DocumentCheckResult, Severity
-from docx import Document
 import os
 import tempfile
+
+import pytest
+from docx import Document
+
+from documentcheckertool.checks.format_checks import FormatChecks, FormattingChecker
+from documentcheckertool.models import DocumentCheckResult, Severity
+from documentcheckertool.utils.terminology_utils import TerminologyManager
 
 logger = logging.getLogger(__name__)
 

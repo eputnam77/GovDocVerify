@@ -1,9 +1,10 @@
-import re
-from typing import Pattern, Dict, List
-import threading
 import json
-from pathlib import Path
+import re
+import threading
 import warnings
+from pathlib import Path
+from typing import List, Pattern
+
 
 class PatternCache:
     """Thread-safe cache for compiled regex patterns and pattern registry."""

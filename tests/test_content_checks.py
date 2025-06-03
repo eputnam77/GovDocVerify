@@ -2,6 +2,7 @@
 # pytest -v tests/test_content_checks.py --log-cli-level=DEBUG
 
 import pytest
+
 from documentcheckertool.checks.readability_checks import ReadabilityChecks
 from documentcheckertool.checks.terminology_checks import TerminologyChecks
 from documentcheckertool.utils.terminology_utils import TerminologyManager

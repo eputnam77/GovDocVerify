@@ -1,20 +1,22 @@
-from typing import Dict, Any, List
-from docx import Document
-from .base_checker import BaseChecker
-from documentcheckertool.models import DocumentCheckResult, Severity
-from documentcheckertool.config.validation_patterns import PASSIVE_VOICE_PATTERNS
-from documentcheckertool.config.document_config import READABILITY_CONFIG
-from documentcheckertool.utils.text_utils import (
-    count_words,
-    count_syllables,
-    split_sentences,
-    calculate_readability_metrics
-)
-from documentcheckertool.utils.terminology_utils import TerminologyManager
-import re
 import logging
+import re
+from typing import Any, Dict, List
+
+from docx import Document
+
 from documentcheckertool.checks.check_registry import CheckRegistry
+from documentcheckertool.config.document_config import READABILITY_CONFIG
+from documentcheckertool.models import DocumentCheckResult, Severity
 from documentcheckertool.utils.boilerplate_utils import is_boilerplate
+from documentcheckertool.utils.terminology_utils import TerminologyManager
+from documentcheckertool.utils.text_utils import (
+    calculate_readability_metrics,
+    count_syllables,
+    count_words,
+    split_sentences,
+)
+
+from .base_checker import BaseChecker
 
 logger = logging.getLogger(__name__)
 

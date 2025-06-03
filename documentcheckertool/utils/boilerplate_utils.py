@@ -1,4 +1,5 @@
 import re
+
 from documentcheckertool.config.boilerplate_texts import BOILERPLATE_PARAGRAPHS
 
 _NORMALISE = re.compile(r'\s+')

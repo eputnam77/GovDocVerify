@@ -3,19 +3,21 @@
 # python app.py --host 127.0.0.1 --port 7861 --debug
 
 import argparse
-import sys
-import os
 import logging
-import traceback
 import logging.config
-from documentcheckertool.interfaces.gradio_ui import create_interface
-from documentcheckertool.utils.terminology_utils import TerminologyManager
-from documentcheckertool.document_checker import FAADocumentChecker
-from documentcheckertool.utils.formatting import ResultFormatter, FormatStyle
 import mimetypes
-from documentcheckertool.models import DocumentCheckResult, Severity, DocumentType, VisibilitySettings
-from documentcheckertool.checks.check_registry import CheckRegistry  # Added for registry-driven category mapping
+import os
+import sys
+import traceback
+
+from documentcheckertool.document_checker import FAADocumentChecker
+from documentcheckertool.interfaces.gradio_ui import create_interface
 from documentcheckertool.logging_config import setup_logging
+from documentcheckertool.models import (
+    VisibilitySettings,
+)
+from documentcheckertool.utils.formatting import FormatStyle, ResultFormatter
+from documentcheckertool.utils.terminology_utils import TerminologyManager
 
 logger = logging.getLogger(__name__)
 

@@ -1,6 +1,7 @@
-from typing import List, Dict, Any
 import re
+
 from ..models import DocumentCheckResult
+
 
 class DocumentFormatter:
     """Formats document text according to style guidelines."""

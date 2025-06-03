@@ -1,7 +1,9 @@
 import re
 import urllib.parse
-from typing import Iterator, Tuple, Optional
+from typing import Iterator, Optional, Tuple
+
 from documentcheckertool.config.deprecated_urls import DEPRECATED_URLS
+
 
 def find_urls(text: str) -> Iterator[Tuple[str, Tuple[int, int]]]:
     """Yield (url, (line_no, col)) for every URL or bare host in text."""

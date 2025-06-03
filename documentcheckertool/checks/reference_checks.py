@@ -1,11 +1,11 @@
-from typing import List, Dict, Any
-import re
-from documentcheckertool.models import DocumentCheckResult, Severity
-from .base_checker import BaseChecker
 import logging
-from documentcheckertool.checks.check_registry import CheckRegistry
+import re
+from typing import List
+
+from documentcheckertool.models import DocumentCheckResult, Severity
 from documentcheckertool.utils.terminology_utils import TerminologyManager
-from docx import Document
+
+from .base_checker import BaseChecker
 
 logger = logging.getLogger(__name__)
 

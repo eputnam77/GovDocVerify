@@ -1,6 +1,7 @@
 import time
 from functools import wraps
 
+
 def profile_performance(func):
     """Decorator to profile function performance."""
     @wraps(func)

@@ -1,8 +1,11 @@
 # pytest -v tests/test_cli.py --log-cli-level=DEBUG
 
+from unittest.mock import patch
+
 import pytest
-from unittest.mock import patch, MagicMock
+
 from documentcheckertool.utils.terminology_utils import TerminologyManager
+
 
 class TestCLI:
     @pytest.fixture(autouse=True)

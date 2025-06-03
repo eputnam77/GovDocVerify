@@ -1,7 +1,7 @@
 # pytest -v tests/test_check_registry.py --log-cli-level=DEBUG
 
-import pytest
 import logging
+
 from documentcheckertool.checks.check_registry import CheckRegistry
 from documentcheckertool.utils.check_discovery import discover_checks, validate_check_registration
 

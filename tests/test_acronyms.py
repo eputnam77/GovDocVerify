@@ -1,9 +1,11 @@
 # python -m pytest tests/test_acronyms.py -v
 # pytest -v tests/test_acronyms.py --log-cli-level=DEBUG
 
-import unittest
-import pytest
 import logging
+import unittest
+
+import pytest
+
 from documentcheckertool.checks.acronym_checks import AcronymChecker
 from documentcheckertool.models import DocumentCheckResult
 from documentcheckertool.utils.terminology_utils import TerminologyManager

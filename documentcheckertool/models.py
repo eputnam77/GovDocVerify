@@ -1,9 +1,12 @@
-from dataclasses import dataclass
-from enum import Enum, auto, IntEnum
-from typing import List, Dict, Any, Optional
-from pydantic import BaseModel
-from documentcheckertool.models import DocumentType, DocumentTypeError
 import json
+from dataclasses import dataclass
+from enum import Enum, IntEnum
+from typing import Any, Dict, List, Optional
+
+from pydantic import BaseModel
+
+from documentcheckertool.models import DocumentType, DocumentTypeError
+
 
 class DocumentCheckError(Exception):
     """Base exception for document checking errors."""

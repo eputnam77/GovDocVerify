@@ -1,10 +1,11 @@
+import logging
 import os
 import time
-import filetype
-from typing import Optional, Dict, Any
 from functools import wraps
+from typing import Dict
+
+import filetype
 from fastapi import HTTPException
-import logging
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -36,48 +37,48 @@ def validate_file(file_path: str) -> None:
         file_size = os.path.getsize(file_path)
         if file_size > MAX_FILE_SIZE:
             raise SecurityError(f"File size exceeds maximum allowed size of {MAX_FILE_SIZE/1024/1024}MB")
-        
+
         # Check file type using filetype
         kind = filetype.guess(file_path)
         if not kind or kind.mime not in ALLOWED_MIME_TYPES:
             raise SecurityError(f"Invalid file type. Allowed types: {', '.join(ALLOWED_MIME_TYPES.values())}")
-            
+
         logger.info(f"File validation successful for {file_path}")
-        
+
     except Exception as e:
         logger.error(f"File validation failed: {str(e)}")
         raise SecurityError(f"File validation failed: {str(e)}")
 
 class RateLimiter:
     """Simple rate limiter implementation."""
-    
+
     def __init__(self, max_requests: int = 10, time_window: int = 60):
         self.max_requests = max_requests
         self.time_window = time_window
         self.requests: Dict[str, list] = {}
-        
+
     def is_rate_limited(self, client_id: str) -> bool:
         """Check if a client has exceeded the rate limit."""
         current_time = time.time()
-        
+
         # Clean up old requests
         if client_id in self.requests:
             self.requests[client_id] = [
                 t for t in self.requests[client_id]
                 if current_time - t < self.time_window
             ]
-        
+
         # Add new request
         if client_id not in self.requests:
             self.requests[client_id] = []
-        
+
         self.requests[client_id].append(current_time)
-        
+
         # Check if rate limit exceeded
         if len(self.requests[client_id]) > self.max_requests:
             logger.warning(f"Rate limit exceeded for client {client_id}")
             return True
-            
+
         return False
 
 # Global rate limiter instance
@@ -89,13 +90,13 @@ def rate_limit(func):
     async def wrapper(*args, **kwargs):
         # In a real application, you'd get the client IP or API key here
         client_id = "default"  # Replace with actual client identification
-        
+
         if rate_limiter.is_rate_limited(client_id):
             raise HTTPException(
                 status_code=429,
                 detail="Too many requests. Please try again later."
             )
-        
+
         return await func(*args, **kwargs)
-    
-    return wrapper 
+
+    return wrapper

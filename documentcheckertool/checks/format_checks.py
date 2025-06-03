@@ -1,15 +1,17 @@
-import re
-from docx import Document
-from .base_checker import BaseChecker
-from documentcheckertool.models import DocumentCheckResult, Severity
-from documentcheckertool.config.validation_patterns import (
-    PHONE_PATTERNS,
-    PLACEHOLDER_PATTERNS,
-    DATE_PATTERNS
-)
 import logging
-from typing import List, Dict, Any
+import re
+from typing import Any, Dict, List
+
+from docx import Document
+
 from documentcheckertool.checks.check_registry import CheckRegistry
+from documentcheckertool.config.validation_patterns import (
+    DATE_PATTERNS,
+    PHONE_PATTERNS,
+)
+from documentcheckertool.models import DocumentCheckResult, Severity
+
+from .base_checker import BaseChecker
 
 logger = logging.getLogger(__name__)
 

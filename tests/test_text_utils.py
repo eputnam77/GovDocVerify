@@ -1,18 +1,20 @@
 # python -m pytest tests/test_text_utils.py -v --cov=documentcheckertool.utils.text_utils
 
 import pytest
-from documentcheckertool.utils.text_utils import (
-    split_sentences,
-    count_words,
-    normalize_reference,
-    count_syllables,
-    normalize_heading,
-    split_into_sentences,
-    normalize_document_type,
-    calculate_readability_metrics,
-    get_valid_words
-)
+
 from documentcheckertool.utils.terminology_utils import TerminologyManager
+from documentcheckertool.utils.text_utils import (
+    calculate_readability_metrics,
+    count_syllables,
+    count_words,
+    get_valid_words,
+    normalize_document_type,
+    normalize_heading,
+    normalize_reference,
+    split_into_sentences,
+    split_sentences,
+)
+
 
 class TestTextUtils:
     """Test cases for text utility functions."""

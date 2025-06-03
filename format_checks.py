@@ -1,9 +1,10 @@
-from typing import List
-import re
 import logging
+import re
+from typing import List
 
 logger = logging.getLogger(__name__)
 from documentcheckertool.models import DocumentCheckResult, Severity
+
 
 class FormattingChecker:
     def check_section_symbol_usage(self, lines: List[str]) -> DocumentCheckResult:

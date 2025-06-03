@@ -1,8 +1,11 @@
-from typing import List, Dict, Any, Optional
+from typing import Any, Dict, List
+
 from documentcheckertool.models import DocumentCheckResult
-from documentcheckertool.utils.formatting import ResultFormatter, FormatStyle
+from documentcheckertool.utils.formatting import FormatStyle, ResultFormatter
+
 from ..utils.formatting import DocumentFormatter
 from .check_registry import CheckRegistry
+
 
 class BaseChecker:
     """Base class for all document checkers."""

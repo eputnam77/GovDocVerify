@@ -1,12 +1,19 @@
 # python -m pytest tests/test_gradio_ui.py -v
 # pytest -v tests/test_gradio_ui.py --log-cli-level=DEBUG
 
-import pytest
-from unittest.mock import patch, MagicMock, call
-from documentcheckertool.utils.terminology_utils import TerminologyManager
-from documentcheckertool.models import DocumentCheckResult, Severity, DocumentType, VisibilitySettings
-from documentcheckertool.document_checker import FAADocumentChecker
 import logging
+from unittest.mock import patch
+
+import pytest
+
+from documentcheckertool.models import (
+    DocumentCheckResult,
+    DocumentType,
+    Severity,
+    VisibilitySettings,
+)
+from documentcheckertool.utils.terminology_utils import TerminologyManager
+
 
 class MockGradioUI:
     def __init__(self):
@@ -64,7 +71,7 @@ class MockGradioUI:
             }
         except FileNotFoundError:
             raise
-        except ValueError as e:
+        except ValueError:
             raise
 
     def _get_issue_category(self, issue: dict) -> str:

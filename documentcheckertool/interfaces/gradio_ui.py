@@ -1,20 +1,21 @@
-import gradio as gr
-from documentcheckertool.document_checker import FAADocumentChecker
-from documentcheckertool.utils.formatting import ResultFormatter, FormatStyle, format_results_to_html
-from documentcheckertool.utils.security import validate_file, SecurityError
-from documentcheckertool.models import DocumentCheckResult, Severity, DocumentType, VisibilitySettings
-from documentcheckertool.constants import DOCUMENT_TYPES
 import logging
-import tempfile
 import os
-import re
-import io
-import traceback
-from importlib.metadata import version, PackageNotFoundError
+import tempfile
+from importlib.metadata import PackageNotFoundError, version
 from pprint import pformat
-from enum import Enum
-from datetime import datetime
-import json
+
+import gradio as gr
+
+from documentcheckertool.document_checker import FAADocumentChecker
+from documentcheckertool.models import (
+    DocumentType,
+    VisibilitySettings,
+)
+from documentcheckertool.utils.formatting import (
+    FormatStyle,
+    ResultFormatter,
+)
+from documentcheckertool.utils.security import validate_file
 
 logger = logging.getLogger(__name__)
 logger.debug("[UI DEBUG] gradio_ui.py module loaded")
@@ -475,8 +476,8 @@ def create_interface():
                                 if format == "docx":
                                     try:
                                         from docx import Document
-                                        from docx.shared import Inches, Pt, RGBColor
                                         from docx.enum.text import WD_ALIGN_PARAGRAPH
+                                        from docx.shared import Inches, Pt, RGBColor
 
                                         doc = Document()
 

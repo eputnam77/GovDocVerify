@@ -2,10 +2,11 @@
 # pytest -v tests/test_heading_checks.py --log-cli-level=DEBUG
 
 import pytest
+from docx import Document
+
 from documentcheckertool.checks.heading_checks import HeadingChecks
 from documentcheckertool.utils.terminology_utils import TerminologyManager
-from docx import Document
-from documentcheckertool.models import DocumentType
+
 
 class TestHeadingChecks:
     @pytest.fixture(autouse=True)

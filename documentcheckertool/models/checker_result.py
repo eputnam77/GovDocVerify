@@ -1,5 +1,6 @@
-from typing import Optional
 from dataclasses import dataclass
+from typing import Optional
+
 
 @dataclass
 class DocumentValidationResults:
@@ -9,7 +10,7 @@ class DocumentValidationResults:
     found: Optional[str] = None
     expected: Optional[str] = None
     watermark_validation: Optional[dict] = None
-    
+
     def add_watermark_result(self, is_valid: bool, message: str, found_watermark: str = None, expected_watermark: str = None):
         """Add watermark validation results."""
         self.watermark_validation = {

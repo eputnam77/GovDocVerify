@@ -1,12 +1,14 @@
 # pytest -v tests/test_structure_checks.py --log-cli-level=DEBUG
 
-import pytest
 import logging
-from documentcheckertool.checks.structure_checks import StructureChecks
-from documentcheckertool.utils.terminology_utils import TerminologyManager
-from documentcheckertool.models import DocumentCheckResult, Severity
+
+import pytest
 from docx import Document
+
+from documentcheckertool.checks.structure_checks import StructureChecks
 from documentcheckertool.config.boilerplate_texts import BOILERPLATE_PARAGRAPHS
+from documentcheckertool.models import DocumentCheckResult
+from documentcheckertool.utils.terminology_utils import TerminologyManager
 
 logger = logging.getLogger(__name__)
 

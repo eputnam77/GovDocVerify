@@ -1,9 +1,10 @@
-from enum import Enum, auto, IntEnum
-from dataclasses import dataclass
-from typing import List, Dict, Any, Optional
-import re
 import json
 import logging
+import re
+from dataclasses import dataclass
+from enum import Enum, IntEnum, auto
+from typing import Any, Dict, List, Optional
+
 
 class Severity(IntEnum):
     """Enum for issue severity levels."""

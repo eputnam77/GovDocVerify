@@ -1,13 +1,16 @@
-from typing import List, Dict, Any, Optional, Tuple
-from functools import wraps
-from documentcheckertool.utils.text_utils import normalize_heading
-from documentcheckertool.models import DocumentCheckResult, DocumentType, Severity
-from documentcheckertool.utils.terminology_utils import TerminologyManager
-import re
 import logging
+import re
+from functools import wraps
+from typing import Any, Dict, List, Optional
+
 from docx import Document
-from .base_checker import BaseChecker
+
 from documentcheckertool.checks.check_registry import CheckRegistry
+from documentcheckertool.models import DocumentCheckResult, Severity
+from documentcheckertool.utils.terminology_utils import TerminologyManager
+from documentcheckertool.utils.text_utils import normalize_heading
+
+from .base_checker import BaseChecker
 
 logger = logging.getLogger(__name__)
 

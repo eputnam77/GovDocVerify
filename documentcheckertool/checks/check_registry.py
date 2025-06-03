@@ -1,6 +1,6 @@
 import logging
-from typing import Dict, List, Callable, Any
 from functools import wraps
+from typing import Any, Callable, Dict, List
 
 logger = logging.getLogger(__name__)
 

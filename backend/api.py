@@ -1,6 +1,10 @@
-import tempfile, os, logging
-from fastapi import UploadFile, File, Form, HTTPException
+import logging
+import os
+import tempfile
+
+from fastapi import File, Form, HTTPException, UploadFile
 from fastapi.responses import JSONResponse
+
 from app import process_document
 from documentcheckertool.models import VisibilitySettings
 

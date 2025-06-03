@@ -1,9 +1,10 @@
-import os
 import sys
 from pathlib import Path
+
 import pytest
-from documentcheckertool.utils.terminology_utils import TerminologyManager
+
 from documentcheckertool.checks.format_checks import FormatChecks, FormattingChecker
+from documentcheckertool.utils.terminology_utils import TerminologyManager
 
 # Add the project root directory to the Python path
 project_root = Path(__file__).parent.parent

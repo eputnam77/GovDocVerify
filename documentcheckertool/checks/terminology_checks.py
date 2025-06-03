@@ -1,22 +1,21 @@
 # pytest -v tests/test_terminology_checks.py --log-cli-level=DEBUG
 
-from docx import Document
-from .base_checker import BaseChecker
-from documentcheckertool.models import DocumentCheckResult, Severity
-from documentcheckertool.config.terminology_rules import (
-    TERM_REPLACEMENTS,
-    FORBIDDEN_TERMS,
-    TERMINOLOGY_VARIANTS,
-    TerminologyMessages
-)
-from typing import List, Dict, Any, Optional
-from ..utils.decorators import profile_performance
-import re
 import logging
-from documentcheckertool.utils.terminology_utils import TerminologyManager
-from documentcheckertool.utils.text_utils import count_words, count_syllables, split_sentences
-import string
+import re
+from typing import Any, Dict
+
+from docx import Document
+
 from documentcheckertool.checks.check_registry import CheckRegistry
+from documentcheckertool.config.terminology_rules import (
+    FORBIDDEN_TERMS,
+    TERM_REPLACEMENTS,
+    TERMINOLOGY_VARIANTS,
+    TerminologyMessages,
+)
+from documentcheckertool.models import DocumentCheckResult, Severity
+
+from .base_checker import BaseChecker
 
 logger = logging.getLogger(__name__)
 

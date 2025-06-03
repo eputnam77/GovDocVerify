@@ -1,21 +1,19 @@
-from typing import List, Dict, Any, Union, Optional, Tuple
-from pathlib import Path
-from documentcheckertool.utils.text_utils import count_words, count_syllables, split_sentences
-from documentcheckertool.models import DocumentCheckResult, Severity
-from functools import wraps
 import logging
 import re
-import requests
-from concurrent.futures import ThreadPoolExecutor, as_completed
+from functools import wraps
+from pathlib import Path
+from typing import Dict, List, Optional, Tuple, Union
+
 from docx import Document
-from ..utils.formatting import DocumentFormatter
-from .base_checker import BaseChecker
-from documentcheckertool.utils.formatting import ResultFormatter, FormatStyle
 from docx.document import Document as DocxDocument
+
 from documentcheckertool.checks.base_checker import BaseChecker
-from documentcheckertool.utils.terminology_utils import TerminologyManager
 from documentcheckertool.checks.check_registry import CheckRegistry
-from documentcheckertool.utils.link_utils import find_urls, deprecated_lookup
+from documentcheckertool.models import DocumentCheckResult, Severity
+from documentcheckertool.utils.link_utils import deprecated_lookup, find_urls
+from documentcheckertool.utils.terminology_utils import TerminologyManager
+
+from .base_checker import BaseChecker
 
 logger = logging.getLogger(__name__)
 
@@ -313,7 +311,6 @@ class AccessibilityChecks(BaseChecker):
 
     def _check_hyperlinks(self, content: Union[Document, List[str]], results: DocumentCheckResult) -> None:
         """Check hyperlinks for accessibility issues, including deprecated FAA links."""
-        from docx.document import Document as DocxDocument
 
         if content is None:
             logger.error("Invalid content type for hyperlink check: None")
@@ -467,7 +464,6 @@ class AccessibilityChecks(BaseChecker):
 
     def _check_color_contrast(self, content: Union[Document, List[str]], results: DocumentCheckResult) -> None:
         """Check for potential color contrast issues."""
-        from docx.document import Document as DocxDocument
 
         logger.debug(f"Starting color contrast check with content type: {type(content)}")
         logger.debug(f"Content type details: {type(content).__name__}")
