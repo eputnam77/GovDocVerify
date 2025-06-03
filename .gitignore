@@ -101,13 +101,15 @@ wheels/
 # --- Added by AI: Ignore temp, log, and environment files ---
 document_checker.log
 __pycache__/
+**/__pycache__/
+*.pyc
+*.pyo
 .pytest_cache/
 node_modules/
+**/node_modules/
 .coverage
 downloads/
 .gradio/
-*.pyc
-*.pyo
 *.log
 .env
 .DS_Store
@@ -133,6 +135,3 @@ yarn-error.log
 test-results/
 # Uncomment if FAA_Style_Manual.md is not needed in repo
 # FAA_Style_Manual.md
-
-# Ignore all node_modules folders recursively
-**/node_modules*/

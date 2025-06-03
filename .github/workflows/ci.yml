@@ -46,9 +46,14 @@ jobs:
 
       - name: Check coverage >= 90%
         run: |
-          COVERAGE=$(python -c "import xml.etree.ElementTree as ET; tree = ET.parse('coverage.xml'); root = tree.getroot(); print(float(root.attrib['line-rate'])*100)")
-          echo "Coverage: $COVERAGE%"
-          if (( $(echo "$COVERAGE < 90.0" | bc -l) )); then
-            echo "::error::Test coverage $COVERAGE% is below 90%"
-            exit 1
-          fi
+          python -c "
+          import xml.etree.ElementTree as ET
+          import sys
+          tree = ET.parse('coverage.xml')
+          root = tree.getroot()
+          coverage = float(root.attrib['line-rate']) * 100
+          print(f'Coverage: {coverage:.2f}%')
+          if coverage < 90.0:
+              print('::error::Test coverage {:.2f}% is below 90%'.format(coverage))
+              sys.exit(1)
+          "

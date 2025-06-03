@@ -12,6 +12,10 @@ email = "contact@example.com"
 requires = ["setuptools>=61.0"]
 build-backend = "setuptools.build_meta"
 
+[tool.setuptools.packages.find]
+include = ["documentcheckertool*"]
+exclude = ["backend*", "frontend*", "tests*"]
+
 [tool.black]
 line-length = 100
 target-version = ['py311']
