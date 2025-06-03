@@ -18,12 +18,22 @@ This ensures your code is formatted with Black before every commit.
 ## Development Setup
 
 1. Clone the repository
-2. Install dependencies:
+2. Set up Python 3.11+ environment (recommended: use virtual environment)
    ```bash
+   python -m venv venv
+   source venv/bin/activate  # On Windows: venv\Scripts\activate
+   ```
+3. Install dependencies:
+   ```bash
+   pip install --upgrade pip
    pip install -r requirements.txt
    pip install -r requirements-dev.txt
    ```
-3. Install pre-commit hooks:
+4. Install the project in editable mode:
+   ```bash
+   pip install -e .
+   ```
+5. Install pre-commit hooks:
    ```bash
    pre-commit install
    ```
