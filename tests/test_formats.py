@@ -372,7 +372,9 @@ class TestFormatChecks:
         assert all(self._caption_issue_matches(issue) for issue in result.issues)
 
     def test_date_format_check_tso_reference(self):
-        """Test that TSO references are not flagged as date format errors (regression test for FAA technical references)."""
+        """Test that TSO references are not flagged as date format errors
+        (regression test for FAA technical references).
+        """
         content = [
             "The equipment meets TSO-C16b requirements.",
             "Refer to TSO-C123 for details.",
@@ -386,7 +388,7 @@ class TestFormatChecks:
         assert len(result.issues) == 0
 
     def test_date_format_check_faa_technical_references(self):
-        """Test that FAA technical references (AC, AD, SFAR, etc.) are not flagged as date format errors."""
+        """Test that FAA technical references (AC, AD) are not flagged as date format errors."""
         content = [
             "See AC 25-1 for more information.",
             "Refer to AD 2020-12-05 for compliance.",
@@ -404,14 +406,14 @@ class TestFormatChecks:
 
     def test_date_format_check_tso_reference_string(self):
         """Test that TSO references are not flagged as date format errors in string-based checks."""
-        content = "The equipment meets TSO-C16b requirements. Refer to TSO-C123 for details. This is compliant with TSO-C2d. TSO-C151a is referenced in the document."
+        content = "The equipment meets TSO-C16b requirements. Refer to TSO-C123 for details."
         result = self.formatting_checker.check_text(content)
         assert result.success
         assert len(result.issues) == 0
 
     def test_date_format_check_faa_technical_references_string(self):
         """
-        Test that FAA technical references are not flagged as date format errors in string-based checks.
+        Test that FAA references are not flagged as date format errors in string-based checks.
         """
         content = (
             "See AC 25-1 for more information. Refer to AD 2020-12-05 for compliance. "

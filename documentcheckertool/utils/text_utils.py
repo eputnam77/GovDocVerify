@@ -7,7 +7,10 @@ from .terminology_utils import TerminologyManager
 
 
 def split_sentences(text: str) -> List[str]:
-    """Split text into sentences while handling common abbreviations, including multi-period ones like 'U.S.'."""
+    """
+    Split text into sentences while handling common abbreviations,
+    including multi-period ones like 'U.S.'
+    """
     if not text:
         return [""]
     logger = logging.getLogger(__name__)
@@ -55,6 +58,34 @@ def split_sentences(text: str) -> List[str]:
         "rd.",
     }
 
+    def _is_abbreviation(word):
+        """Check if a word is an abbreviation."""
+        for abbr in abbr_list:
+            abbr_len = len(abbr)
+            if abbr and i - abbr_len + 1 >= start:
+                candidate = text[i - abbr_len + 1 : i + 1]
+                if candidate.lower() == abbr.lower():
+                    logger.debug(
+                        f"split_sentences: MATCHED abbreviation '{abbr}' at idx={i}"
+                    )
+                    return True, abbr
+        return False, None
+
+    def _should_split(idx):
+        """Determine if we should split the sentence at the given index."""
+        is_abbrev, abbr_matched = _is_abbreviation(idx)
+        logger.debug(
+            f"split_sentences: idx={idx}, char='{text[idx]}', is_abbrev={is_abbrev}, abbr_matched={abbr_matched}"
+        )
+        # Decide whether we should split here
+        if is_abbrev:
+            # Titles et al. never terminate sentences
+            if abbr_matched.lower() not in non_term_abbr:
+                return True
+        else:
+            return True
+        return False
+
     while i < len(text):
         if text[i] in ".!?":
             # Skip the *first* dot in sequences such as "U.S." or "E.U."
@@ -72,32 +103,7 @@ def split_sentences(text: str) -> List[str]:
             while j < len(text) and text[j] in ' \n\r\t"\'"“"':
                 j += 1
             if j >= len(text) or text[j].isupper() or text[j].isdigit():
-                is_abbrev = False
-                abbr_matched = None
-                for abbr in abbr_list:
-                    abbr_len = len(abbr)
-                    if abbr and i - abbr_len + 1 >= start:
-                        candidate = text[i - abbr_len + 1 : i + 1]
-                        if candidate.lower() == abbr.lower():
-                            is_abbrev = True
-                            abbr_matched = abbr
-                            logger.debug(
-                                f"split_sentences: MATCHED abbreviation '{abbr}' at idx={i}"
-                            )
-                            break
-                logger.debug(
-                    f"split_sentences: idx={i}, char='{text[i]}', is_abbrev={is_abbrev}, abbr_matched={abbr_matched}"
-                )
-                # Decide whether we should split here
-                should_split = False
-                if is_abbrev:
-                    # Titles et al. never terminate sentences
-                    if abbr_matched.lower() not in non_term_abbr:
-                        should_split = True
-                else:
-                    should_split = True
-
-                if should_split:
+                if _should_split(i):
                     sentence = text[start:j].strip()
                     if sentence:
                         sentences.append(sentence)
@@ -116,7 +122,7 @@ def split_sentences(text: str) -> List[str]:
 
 
 def count_words(text: str) -> int:
-    """Count words in text, handling hyphenated words, numbers, and email addresses. Test-aligned: count words before and after emails, plus all emails, and exclude a small stopword list."""
+    """Count words in text, handling hyphenated words, numbers, and email addresses."""
     logger = logging.getLogger(__name__)
     if not text:
         logger.debug("count_words: empty input -> 0")

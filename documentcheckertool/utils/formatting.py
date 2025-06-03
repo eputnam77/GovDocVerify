@@ -410,7 +410,7 @@ class ResultFormatter:
             # HTML Header
             output.append('<div class="results-container">')
             output.append(
-                '<h1 style="color: #0056b3; text-align: center;">Document Check Results Summary</h1>'
+                '<h1 style="color: #0056b3; text-align: center;">Document Check Summary</h1>'
             )
             output.append('<hr style="border: 1px solid #0056b3;">')
         else:
@@ -445,24 +445,24 @@ class ResultFormatter:
             if total_issues == 0:
                 if self._style == FormatStyle.HTML:
                     output.append(
-                        '<p style="color: #006400; text-align: center;">✓ All checks passed successfully!</p>'
+                        '<p style="color: #006400; text-align: center;">✓ All checks passed!</p>'
                     )
                     output.append("</div>")
                 else:
                     output.append(
-                        self._format_colored_text("✓ All checks passed successfully!", Fore.GREEN)
+                        self._format_colored_text("✓ All checks passed!", Fore.GREEN)
                     )
                     output.append("")
                 return "\n".join(output)
 
             if self._style == FormatStyle.HTML:
                 output.append(
-                    f'<p style="color: #856404; text-align: center;">Found {total_issues} issues that need attention:</p>'
+                    f'<p style="color: #856404; text-align: center;">Found {total_issues} issues:</p>'
                 )
             else:
                 output.append(
                     self._format_colored_text(
-                        f"Found {total_issues} issues that need attention:", Fore.YELLOW
+                        f"Found {total_issues} issues:", Fore.YELLOW
                     )
                 )
                 output.append("")
@@ -541,7 +541,7 @@ class ResultFormatter:
             if total_issues == 0:
                 if self._style == FormatStyle.HTML:
                     output.append(
-                        '<p style="color: #006400; text-align: center;">✓ All checks passed successfully!</p>'
+                        '<p style="color: #006400; text-align: center;">✓ All checks passedy!</p>'
                     )
                     output.append("</div>")
                 else:
@@ -554,12 +554,12 @@ class ResultFormatter:
             # Show summary
             if self._style == FormatStyle.HTML:
                 output.append(
-                    f'<p style="color: #856404; text-align: center;">Found {total_issues} issues that need attention.</p>'
+                    f'<p style="color: #856404; text-align: center;">Found {total_issues} issues.</p>'
                 )
             else:
                 output.append(
                     self._format_colored_text(
-                        f"Found {total_issues} issues across {len(categories_with_issues)} categories that need attention:",
+                        f"Found {total_issues} issues across {len(categories_with_issues)} categories:",
                         Fore.YELLOW,
                     )
                 )
@@ -625,7 +625,7 @@ class ResultFormatter:
         import logging
 
         logging.error(
-            f"ResultFormatter.format_results: No implementation for group_by='{group_by}'. Returning fallback message."
+            f"ResultFormatter.format_results: No implementation for group_by='{group_by}'."
         )
         if self._style == FormatStyle.HTML:
             output.append(
@@ -667,16 +667,16 @@ class ResultFormatter:
             metrics = result.details["metrics"]
             formatted_issues.append("\n  Readability Scores:")
             formatted_issues.append(
-                f"    • Flesch Reading Ease: {metrics['flesch_reading_ease']} (Aim for 50+; higher is easier to read)"
+                f"    • Flesch Reading Ease: {metrics['flesch_reading_ease']} (Aim for 50+)"
             )
             formatted_issues.append(
-                f"    • Grade Level: {metrics['flesch_kincaid_grade']} (Aim for 10 or lower; 12 acceptable for technical/legal)"
+                f"    • Grade Level: {metrics['flesch_kincaid_grade']} (Aim for 10 or lower)"
             )
             formatted_issues.append(
                 f"    • Gunning Fog Index: {metrics['gunning_fog_index']} (Aim for 12 or lower)"
             )
             formatted_issues.append(
-                f"    • Passive Voice: {metrics['passive_voice_percentage']}% (Aim for less than 10%; use active voice for clarity)"
+                f"    • Passive Voice: {metrics['passive_voice_percentage']}% (Aim for less than 10%)"
             )
 
         if result.issues:

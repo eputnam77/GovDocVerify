@@ -133,7 +133,8 @@ class TerminologyManager:
             for pattern in self.ignored_patterns:
                 if pattern.search(full_text):
                     logger.debug(
-                        f"Skipping ignored pattern definition: {full_text} (matches pattern: {pattern.pattern})"
+                        "Skipping ignored pattern definition: %s (matches pattern: %s)",
+                        full_text, pattern.pattern
                     )
                     continue
 
@@ -191,7 +192,8 @@ class TerminologyManager:
             for pattern in self.ignored_patterns:
                 if pattern.search(text):
                     logger.debug(
-                        f"Skipping ignored pattern usage: {full_text} (matches pattern: {pattern.pattern})"
+                        "Skipping ignored pattern usage: %s (matches pattern: %s)",
+                        full_text, pattern.pattern
                     )
                     continue
 
@@ -203,7 +205,7 @@ class TerminologyManager:
             # Check if the lowercase version matches a defined acronym
             defined_lower = {a.lower(): a for a in defined_acronyms}
             logger.debug(
-                f"Checking case-insensitive match for {acronym} against defined acronyms: {defined_lower}"
+                f"Case-insensitive match for {acronym} against defined acronyms: {defined_lower}"
             )
             if acronym.lower() in defined_lower:
                 original_case = defined_lower[acronym.lower()]
@@ -215,7 +217,7 @@ class TerminologyManager:
             # Check if the lowercase version matches a known acronym
             known_lower = {a.lower(): a for a in all_known_acronyms}
             logger.debug(
-                f"Checking case-insensitive match for {acronym} against known acronyms: {known_lower}"
+                f"Case-insensitive match for {acronym} against known acronyms: {known_lower}"
             )
             if acronym.lower() in known_lower:
                 original_case = known_lower[acronym.lower()]

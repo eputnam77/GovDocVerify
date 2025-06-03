@@ -1,12 +1,17 @@
-# NOTE: Refactored to use StructureChecks, as cross_reference_checks.py does not exist.
-# pytest -v tests/test_cross_references.py --log-cli-level=DEBUG
-
 import logging
 
 import pytest
 
 from documentcheckertool.checks.structure_checks import StructureChecks
 from documentcheckertool.utils.terminology_utils import TerminologyManager
+
+# Example for a long line split:
+expected = [
+    "2.2 Requirements.",  # Only 2.2 is defined
+    "The following requirements apply...",
+    # Reference to non-existent paragraph
+    "As noted in paragraph 2.1, these requirements...",
+]
 
 logger = logging.getLogger(__name__)
 
@@ -62,14 +67,16 @@ class TestCrossReferenceChecks:
             "As discussed in paragraph 2.1, the requirements are...",
             "2.2 Requirements.",  # Only 2.2 is defined
             "The following requirements apply...",
-            "As noted in paragraph 2.1, these requirements...",  # Reference to non-existent paragraph
+            # Reference to non-existent paragraph
+            "As noted in paragraph 2.1, these requirements...",
         ]
         result = self.structure_checks.check(content)
         logger.debug(f"Invalid cross references test result: {result}")
         # Reference to 2.1 is not defined, so errors expected
         assert result["has_errors"]
         assert any(
-            "Reference to non-existent section 2.1" in e["message"] for e in result["errors"]
+            "Reference to non-existent section 2.1" in e["message"]
+            for e in result["errors"]
         )
 
     def test_missing_cross_references(self):
@@ -77,7 +84,7 @@ class TestCrossReferenceChecks:
             "PURPOSE.",
             "This document establishes requirements for...",
             "BACKGROUND.",
-            "The requirements are discussed in paragraph 2.1.",  # Reference to non-existent paragraph
+            "The requirements are discussed in paragraph 2.1.",
             "2.2 Requirements.",
             "The following requirements apply...",
         ]
