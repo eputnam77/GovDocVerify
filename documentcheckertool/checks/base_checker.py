@@ -26,11 +26,24 @@ class BaseChecker:
         """Check text content and return results."""
         raise NotImplementedError("Subclasses must implement check_text")
 
-    def check_document(self, file_path: str) -> DocumentCheckResult:
-        """Check a document file and return results."""
-        with open(file_path, 'r', encoding='utf-8') as f:
-            content = f.read()
-        return self.check_text(content)
+    def check_document(self, document: Any, doc_type: str = None) -> DocumentCheckResult:
+        """Check a document and return results."""
+        # If document is a file path string, read the file
+        if isinstance(document, str):
+            with open(document, 'r', encoding='utf-8') as f:
+                content = f.read()
+            return self.check_text(content)
+
+        # If document has text attribute, use it
+        if hasattr(document, 'text'):
+            return self.check_text(document.text)
+
+        # If document is already text content
+        if isinstance(document, (str, list)):
+            return self.check_text(document)
+
+        # Default fallback
+        return self.check_text(str(document))
 
     def create_issue(self, message: str, line_number: int = 0, severity: str = "warning", category: str = None) -> Dict[str, Any]:
         """Create a standardized issue dictionary."""

@@ -9,6 +9,220 @@ from docx import Document
 
 logger = logging.getLogger(__name__)
 
+# Message constants for reference checks
+class ReferenceMessages:
+    """Static message constants for reference checks."""
+
+    # Table/Figure reference messages
+    TABLE_REF_SENTENCE_START = "Table reference at sentence start should be capitalized"
+    TABLE_REF_WITHIN_SENTENCE = "Table reference within sentence should be lowercase"
+    TABLE_REF_IN_QUOTES_PARENS = "Table reference in quotes/parentheses should be lowercase"
+
+    FIGURE_REF_SENTENCE_START = "Figure reference at sentence start should be capitalized"
+    FIGURE_REF_WITHIN_SENTENCE = "Figure reference within sentence should be lowercase"
+    FIGURE_REF_IN_QUOTES_PARENS = "Figure reference in quotes/parentheses should be lowercase"
+
+    # Document title format messages
+    AC_TITLE_USE_ITALICS = "AC document titles should use italics, not quotation marks"
+    AC_TITLE_FORMAT_ITALICS = "AC document titles should be formatted in italics"
+    NON_AC_TITLE_USE_QUOTES = "Document titles should use quotation marks, not italics"
+    NON_AC_TITLE_FORMAT_QUOTES = "Document titles should be formatted in quotation marks"
+
+class DocumentTitleFormatCheck(BaseChecker):
+    """Class for checking document title formatting based on document type."""
+
+    def __init__(self):
+        super().__init__()
+        self.category = "reference"
+        logger.info("Initialized DocumentTitleFormatCheck")
+
+    @CheckRegistry.register('reference')
+    def check_text(self, text, doc_type: str = "GENERAL") -> DocumentCheckResult:
+        """
+        Check document title formatting based on document type.
+
+        Args:
+            text: String or list of strings representing document content
+            doc_type: Type of document being checked
+
+        Returns:
+            DocumentCheckResult containing check results and any issues found
+        """
+        if isinstance(text, list):
+            lines = text
+        else:
+            lines = str(text).split('\n')
+
+        return self._check_document_title_formatting(lines, doc_type)
+
+    def _check_document_title_formatting(self, lines: List[str], doc_type: str) -> DocumentCheckResult:
+        """Check for proper document title formatting based on document type."""
+        logger.debug(f"Checking document title formatting for doc_type: {doc_type}")
+        issues = []
+
+        # Pattern to match document references with titles
+        # Matches various document types: AC, Order, etc.
+        # Captures the title part between the document reference and "dated"
+        # Updated pattern to handle quoted titles with commas inside
+        doc_title_pattern = re.compile(
+            r'\b(?:AC|Order|AD|SFAR|Notice|Policy|Memo)\s+[\d.-]+[A-Z]?,\s*([^,]*(?:"[^"]*"[^,]*)*[^,]*?)(?:,\s*dated|\s+dated)',
+            re.IGNORECASE
+        )
+
+        for line_idx, line in enumerate(lines):
+            logger.debug(f"Processing line {line_idx + 1}: {line[:100]}...")
+
+            # Find document references with titles
+            matches = doc_title_pattern.finditer(line)
+
+            for match in matches:
+                title_text = match.group(1).strip()
+                # Clean up any trailing punctuation that might be captured
+                title_text = title_text.rstrip(',')
+                logger.debug(f"Found document title: '{title_text}'")
+
+                # Check if this is an Advisory Circular document
+                if doc_type == "Advisory Circular":
+                    # For ACs, titles should be in italics (markdown style *text*)
+                    # Check for incorrect formats
+
+                    # Check if title is in quotes (incorrect for ACs)
+                    if (title_text.startswith('"') and title_text.endswith('"')) or \
+                       (title_text.startswith("'") and title_text.endswith("'")):
+                        # Remove quotes and any trailing comma/punctuation
+                        clean_title = title_text.strip('\"\'').rstrip(',').strip()
+                        issues.append({
+                            "line": line,
+                            "line_number": line_idx + 1,
+                            "title": title_text,
+                            "issue": "AC document titles should use italics, not quotation marks",
+                            "incorrect_format": title_text,
+                            "correct_format": f"*{clean_title}*",
+                            "severity": Severity.ERROR
+                        })
+                        logger.debug(f"Found quoted title in AC: {title_text}")
+
+                    # Check if title has no formatting (incorrect for ACs)
+                    elif not (title_text.startswith('*') and title_text.endswith('*')) and \
+                         not (title_text.startswith('"') and title_text.endswith('"')) and \
+                         not (title_text.startswith("'") and title_text.endswith("'")):
+                        issues.append({
+                            "line": line,
+                            "line_number": line_idx + 1,
+                            "title": title_text,
+                            "issue": "AC document titles should be formatted in italics",
+                            "incorrect_format": title_text,
+                            "correct_format": f"*{title_text.strip()}*",
+                            "severity": Severity.ERROR
+                        })
+                        logger.debug(f"Found unformatted title in AC: {title_text}")
+
+                    # Title is correctly formatted in italics - no issue
+                    elif title_text.startswith('*') and title_text.endswith('*'):
+                        logger.debug(f"Correctly formatted AC title: {title_text}")
+
+                else:
+                    # For non-AC documents, titles should be in quotes
+                    # Check if title is in italics (incorrect for non-ACs)
+                    if title_text.startswith('*') and title_text.endswith('*'):
+                        # Remove asterisks
+                        clean_title = title_text.strip('*').strip()
+                        issues.append({
+                            "line": line,
+                            "line_number": line_idx + 1,
+                            "title": title_text,
+                            "issue": f"{doc_type} document titles should use quotation marks, not italics",
+                            "incorrect_format": title_text,
+                            "correct_format": f'"{clean_title}"',
+                            "severity": Severity.ERROR
+                        })
+                        logger.debug(f"Found italicized title in non-AC: {title_text}")
+
+                    # Check if title has no formatting (incorrect for non-ACs)
+                    elif not (title_text.startswith('"') and title_text.endswith('"')) and \
+                         not (title_text.startswith("'") and title_text.endswith("'")) and \
+                         not (title_text.startswith('*') and title_text.endswith('*')):
+                        issues.append({
+                            "line": line,
+                            "line_number": line_idx + 1,
+                            "title": title_text,
+                            "issue": f"{doc_type} document titles should be formatted in quotation marks",
+                            "incorrect_format": title_text,
+                            "correct_format": f'"{title_text.strip()}"',
+                            "severity": Severity.ERROR
+                        })
+                        logger.debug(f"Found unformatted title in non-AC: {title_text}")
+
+        logger.debug(f"Document title formatting check complete. Found {len(issues)} issues")
+
+        return DocumentCheckResult(
+            success=len(issues) == 0,
+            severity=Severity.ERROR if issues else Severity.INFO,
+            issues=issues,
+            details={
+                'total_issues': len(issues),
+                'doc_type': doc_type
+            }
+        )
+
+    @CheckRegistry.register('reference')
+    def run_checks(self, document, doc_type, results: DocumentCheckResult) -> None:
+        """Run document title formatting checks."""
+        if hasattr(document, 'paragraphs'):
+            lines = [p.text for p in document.paragraphs]
+        elif hasattr(document, 'text'):
+            lines = str(document.text).split('\n')
+        elif isinstance(document, list):
+            lines = document
+        else:
+            lines = str(document).split('\n')
+
+        check_result = self._check_document_title_formatting(lines, doc_type)
+
+        # Only mark as failed if there are actual errors
+        if not check_result.success:
+            results.success = False
+
+        # Add formatted issues to results using static messages
+        for issue in check_result.issues:
+            # Create user-friendly message
+            title = issue.get("title", "")
+            incorrect_format = issue.get("incorrect_format", "")
+            correct_format = issue.get("correct_format", "")
+            issue_text = issue.get("issue", "")
+
+            # Map issue text to static messages
+            if "AC document titles should use italics, not quotation marks" in issue_text:
+                message = f"{ReferenceMessages.AC_TITLE_USE_ITALICS}. Change '{incorrect_format}' to '{correct_format}'"
+            elif "AC document titles should be formatted in italics" in issue_text:
+                message = f"{ReferenceMessages.AC_TITLE_FORMAT_ITALICS}. Change '{incorrect_format}' to '{correct_format}'"
+            elif "document titles should use quotation marks, not italics" in issue_text:
+                message = f"{ReferenceMessages.NON_AC_TITLE_USE_QUOTES}. Change '{incorrect_format}' to '{correct_format}'"
+            elif "document titles should be formatted in quotation marks" in issue_text:
+                message = f"{ReferenceMessages.NON_AC_TITLE_FORMAT_QUOTES}. Change '{incorrect_format}' to '{correct_format}'"
+            else:
+                # Fallback for any unmapped messages
+                if incorrect_format and correct_format:
+                    message = f"{issue_text}. Change '{incorrect_format}' to '{correct_format}'"
+                else:
+                    message = issue_text
+
+            results.add_issue(
+                message=message,
+                severity=issue.get("severity", Severity.WARNING),
+                line_number=issue.get("line_number", 0),
+                category=getattr(self, "category", "reference")
+            )
+
+    @CheckRegistry.register('reference')
+    def check_document(self, document, doc_type) -> DocumentCheckResult:
+        """
+        Accepts a Document, list, or str. Uses run_checks to ensure proper formatting.
+        """
+        results = DocumentCheckResult()
+        self.run_checks(document, doc_type, results)
+        return results
+
 class TableFigureReferenceCheck(BaseChecker):
     """Class for checking table and figure references."""
 
@@ -76,7 +290,7 @@ class TableFigureReferenceCheck(BaseChecker):
                 issues=[],
                 details={'total_issues': 0, 'issues_by_type': {'table': 0, 'figure': 0}}
             )
-        if not lines:
+        if not lines or (len(lines) == 1 and not lines[0].strip()):
             logger.debug("Empty content provided")
             return DocumentCheckResult(
                 success=False,
@@ -232,33 +446,61 @@ class TableFigureReferenceCheck(BaseChecker):
     def run_checks(self, document, doc_type, results: DocumentCheckResult) -> None:
         if hasattr(document, 'paragraphs'):
             lines = [p.text for p in document.paragraphs]
+        elif hasattr(document, 'text'):
+            lines = str(document.text).split('\n')
         elif isinstance(document, list):
             lines = document
         else:
             lines = str(document).split('\n')
+
         check_result = self._check_core(lines)
-        results.issues.extend(check_result.issues)
-        results.success = check_result.success
-        for i, issue in enumerate(check_result.issues):
+
+        # Only mark as failed if there are actual errors
+        if not check_result.success:
+            results.success = False
+
+        # Add formatted issues to results using static messages like format_checks
+        for issue in check_result.issues:
+            # Create user-friendly message from the issue data
+            reference = issue.get('reference', '')
+            issue_text = issue.get('issue', '')
+            correct_form = issue.get('correct_form', '')
+
+            # Map issue text to static messages
+            if "Table reference at sentence start should be capitalized" in issue_text:
+                message = f"{ReferenceMessages.TABLE_REF_SENTENCE_START}. Change '{reference}' to '{correct_form}'"
+            elif "Table reference within sentence should be lowercase" in issue_text:
+                message = f"{ReferenceMessages.TABLE_REF_WITHIN_SENTENCE}. Change '{reference}' to '{correct_form}'"
+            elif "Table reference in quotes/parentheses should be lowercase" in issue_text:
+                message = f"{ReferenceMessages.TABLE_REF_IN_QUOTES_PARENS}. Change '{reference}' to '{correct_form}'"
+            elif "Figure reference at sentence start should be capitalized" in issue_text:
+                message = f"{ReferenceMessages.FIGURE_REF_SENTENCE_START}. Change '{reference}' to '{correct_form}'"
+            elif "Figure reference within sentence should be lowercase" in issue_text:
+                message = f"{ReferenceMessages.FIGURE_REF_WITHIN_SENTENCE}. Change '{reference}' to '{correct_form}'"
+            elif "Figure reference in quotes/parentheses should be lowercase" in issue_text:
+                message = f"{ReferenceMessages.FIGURE_REF_IN_QUOTES_PARENS}. Change '{reference}' to '{correct_form}'"
+            else:
+                # Fallback for any unmapped messages
+                if reference and correct_form:
+                    message = f"{issue_text}. Change '{reference}' to '{correct_form}'"
+                else:
+                    message = issue_text
+
             results.add_issue(
-                message="Cross-reference detected - verify target exists",
-                severity=Severity.INFO,
-                line_number=i+1,
+                message=message,
+                severity=Severity.WARNING,
+                line_number=0,  # Line numbers aren't tracked in the current issue format
                 category=getattr(self, "category", "reference")
             )
 
     @CheckRegistry.register('reference')
     def check_document(self, document, doc_type) -> DocumentCheckResult:
         """
-        Accepts a Document, list, or str. Normalizes to a list of strings (paragraphs) and calls check_text.
+        Accepts a Document, list, or str. Uses run_checks to ensure proper formatting.
         """
-        if hasattr(document, 'paragraphs'):
-            lines = [p.text for p in document.paragraphs]
-        elif isinstance(document, list):
-            lines = document
-        else:
-            lines = str(document).split('\n')
-        return self._check_core('\n'.join(lines))
+        results = DocumentCheckResult()
+        self.run_checks(document, doc_type, results)
+        return results
 
     @staticmethod
     def format_reference_issues(result: DocumentCheckResult) -> List[str]:

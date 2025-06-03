@@ -7,7 +7,7 @@ from documentcheckertool.checks.accessibility_checks import AccessibilityChecks
 from documentcheckertool.checks.format_checks import FormatChecks
 from documentcheckertool.checks.structure_checks import StructureChecks
 from documentcheckertool.checks.terminology_checks import TerminologyChecks
-from documentcheckertool.checks.reference_checks import TableFigureReferenceCheck
+from documentcheckertool.checks.reference_checks import TableFigureReferenceCheck, DocumentTitleFormatCheck
 from documentcheckertool.checks.readability_checks import ReadabilityChecks
 from documentcheckertool.checks.acronym_checks import AcronymChecker
 from documentcheckertool.utils.text_utils import split_sentences, count_words, normalize_reference
@@ -48,6 +48,8 @@ class FAADocumentChecker:
         logger.debug(f"AccessibilityChecks initialized with terminology_manager: {self.terminology_manager}")
         self.table_figure_checks = TableFigureReferenceCheck()
         logger.debug(f"TableFigureReferenceCheck initialized: {self.table_figure_checks}")
+        self.document_title_checks = DocumentTitleFormatCheck()
+        logger.debug(f"DocumentTitleFormatCheck initialized: {self.document_title_checks}")
 
         # Validate check registration
         validation_results = validate_check_registration()
@@ -91,7 +93,8 @@ class FAADocumentChecker:
                 (self.terminology_checks, "terminology"),
                 (self.readability_checks, "readability"),
                 (self.acronym_checker, "acronym"),
-                (self.table_figure_checks, "reference")
+                (self.table_figure_checks, "reference"),
+                (self.document_title_checks, "reference")
             ]
 
             # Run all checks
@@ -106,8 +109,13 @@ class FAADocumentChecker:
                             per_check_results[category][check_func] = result
                         elif hasattr(result, check_func):
                             per_check_results[category][check_func] = getattr(result, check_func)
-                    if not result.success:
+
+                    # Collect issues from the result (these should be properly formatted from add_issue calls)
+                    if hasattr(result, 'issues') and result.issues:
                         combined_results.issues.extend(result.issues)
+
+                    if not result.success:
+                        combined_results.success = False
                 except Exception as e:
                     logger.error(f"Error in {category} checks: {str(e)}")
                     per_check_results.setdefault(category, {})

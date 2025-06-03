@@ -2,7 +2,7 @@
 
 import pytest
 import logging
-from documentcheckertool.checks.reference_checks import TableFigureReferenceCheck
+from documentcheckertool.checks.reference_checks import TableFigureReferenceCheck, DocumentTitleFormatCheck
 from documentcheckertool.models import DocumentCheckResult
 from unittest.mock import Mock, patch
 from typing import List
@@ -458,3 +458,127 @@ class TestTableFigureReferenceCheck:
         assert len(result.issues) == violations
         if violations:
             assert result.issues[0]["issue"].endswith("lowercase")
+
+
+class TestDocumentTitleFormatting:
+    """Test document title formatting checks."""
+
+    def setup_method(self):
+        """Set up test fixtures."""
+        self.title_checker = DocumentTitleFormatCheck()
+
+    def test_ac_title_no_formatting_should_fail(self):
+        """Test that AC titles without formatting are flagged."""
+        content = [
+            "Use AC 33.91, Engine System and Component Tests, dated 7/25/2020."
+        ]
+        result = self.title_checker.check_text(content, "Advisory Circular")
+
+        assert not result.success
+        assert len(result.issues) == 1
+        assert "should be formatted in italics" in result.issues[0]["issue"]
+        assert result.issues[0]["correct_format"] == "*Engine System and Component Tests*"
+
+    def test_ac_title_with_quotes_should_fail(self):
+        """Test that AC titles with quotes are flagged."""
+        content = [
+            'Use AC 33.91, "Engine System and Component Tests," dated July 25, 2020.'
+        ]
+        result = self.title_checker.check_text(content, "Advisory Circular")
+
+        assert not result.success
+        assert len(result.issues) == 1
+        assert "should use italics, not quotation marks" in result.issues[0]["issue"]
+        assert result.issues[0]["correct_format"] == "*Engine System and Component Tests*"
+
+    def test_ac_title_with_italics_should_pass(self):
+        """Test that AC titles with italics are correct."""
+        content = [
+            "Use AC 33.91, *Engine System and Component Tests*, dated 25 July 2020."
+        ]
+        result = self.title_checker.check_text(content, "Advisory Circular")
+
+        assert result.success
+        assert len(result.issues) == 0
+
+    def test_non_ac_title_with_italics_should_fail(self):
+        """Test that non-AC titles with italics are flagged."""
+        content = [
+            "Use Order 8900.1, *Flight Standards Information System*, dated January 1, 2020."
+        ]
+        result = self.title_checker.check_text(content, "Order")
+
+        assert not result.success
+        assert len(result.issues) == 1
+        assert "should use quotation marks, not italics" in result.issues[0]["issue"]
+        assert result.issues[0]["correct_format"] == '"Flight Standards Information System"'
+
+    def test_non_ac_title_no_formatting_should_fail(self):
+        """Test that non-AC titles without formatting are flagged."""
+        content = [
+            "Use Order 8900.1, Flight Standards Information System, dated January 1, 2020."
+        ]
+        result = self.title_checker.check_text(content, "Order")
+
+        assert not result.success
+        assert len(result.issues) == 1
+        assert "should be formatted in quotation marks" in result.issues[0]["issue"]
+        assert result.issues[0]["correct_format"] == '"Flight Standards Information System"'
+
+    def test_non_ac_title_with_quotes_should_pass(self):
+        """Test that non-AC titles with quotes are correct."""
+        content = [
+            'Use Order 8900.1, "Flight Standards Information System," dated January 1, 2020.'
+        ]
+        result = self.title_checker.check_text(content, "Order")
+
+        assert result.success
+        assert len(result.issues) == 0
+
+    def test_multiple_ac_references_mixed_formatting(self):
+        """Test multiple AC references with mixed formatting."""
+        content = [
+            "Use AC 33.91, Engine System and Component Tests, dated 7/25/2020.",
+            "Use AC 33.91, *Engine System and Component Tests*, dated 25 July 2020.",
+            'Use AC 33.91, "Engine System and Component Tests," dated July 25, 2020.'
+        ]
+        result = self.title_checker.check_text(content, "Advisory Circular")
+
+        assert not result.success
+        assert len(result.issues) == 2  # Two incorrect formats
+
+        # Check that the issues are for the unformatted and quoted versions
+        issue_types = [issue["issue"] for issue in result.issues]
+        assert any("should be formatted in italics" in issue for issue in issue_types)
+        assert any("should use italics, not quotation marks" in issue for issue in issue_types)
+
+    def test_no_ac_references_should_pass(self):
+        """Test content without AC references."""
+        content = [
+            "This document contains no AC references.",
+            "It should pass without any issues."
+        ]
+        result = self.title_checker.check_text(content, "Advisory Circular")
+
+        assert result.success
+        assert len(result.issues) == 0
+
+    def test_ac_reference_without_title_should_pass(self):
+        """Test AC reference without a title."""
+        content = [
+            "See AC 33.91 for more information.",
+            "AC 25.1309 is also relevant."
+        ]
+        result = self.title_checker.check_text(content, "Advisory Circular")
+
+        assert result.success
+        assert len(result.issues) == 0
+
+    def test_string_input_instead_of_list(self):
+        """Test that string input is properly handled."""
+        content = "Use AC 33.91, Engine System and Component Tests, dated 7/25/2020."
+        result = self.title_checker.check_text(content, "Advisory Circular")
+
+        assert not result.success
+        assert len(result.issues) == 1
+        assert "should be formatted in italics" in result.issues[0]["issue"]
