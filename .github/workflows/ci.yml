@@ -1,0 +1,54 @@
+name: CI
+
+on:
+  push:
+    branches: [ main, gtihub-action ]
+  pull_request:
+    branches: [ main, gtihub-action ]
+
+jobs:
+  test:
+    name: Test on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Miniconda
+        uses: conda-incubator/setup-miniconda@v3
+        with:
+          environment-file: conda-env.yml
+          activate-environment: novelscript
+          auto-activate-base: false
+
+      - name: Install project (editable)
+        run: pip install -e .
+
+      - name: Ensure linters are installed (ruff, black, isort)
+        run: pip install ruff black isort
+
+      - name: Lint with ruff
+        run: ruff check .
+
+      - name: Check formatting with black
+        run: black --check .
+
+      - name: Check imports with isort
+        run: isort --check-only .
+
+      - name: Run tests with coverage
+        run: |
+          pip install pytest pytest-cov
+          pytest --cov=novelscript --cov-report=xml
+
+      - name: Check coverage >= 90%
+        run: |
+          COVERAGE=$(python -c "import xml.etree.ElementTree as ET; tree = ET.parse('coverage.xml'); root = tree.getroot(); print(float(root.attrib['line-rate'])*100)")
+          echo "Coverage: $COVERAGE%"
+          if (( $(echo "$COVERAGE < 90.0" | bc -l) )); then
+            echo "::error::Test coverage $COVERAGE% is below 90%"
+            exit 1
+          fi
