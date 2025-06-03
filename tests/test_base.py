@@ -43,7 +43,7 @@ class TestBase(unittest.TestCase):
         self,
         result: DocumentCheckResult,
         expected_issues: Optional[List[Dict]] = None,
-        expected_score: Optional[float] = None
+        expected_score: Optional[float] = None,
     ):
         """Assert that the check result matches expectations."""
         if expected_issues is not None:
@@ -79,5 +79,7 @@ class TestBase(unittest.TestCase):
     def assert_issue_contains(self, result: DocumentCheckResult, text: str):
         """Assert that a check result contains an issue with the given text."""
         self.assertFalse(result.success, "Expected issues but found none")
-        self.assertTrue(any(text in issue.get('message', '') for issue in result.issues),
-                       f"Expected to find issue containing '{text}' but found: {result.issues}")
+        self.assertTrue(
+            any(text in issue.get("message", "") for issue in result.issues),
+            f"Expected to find issue containing '{text}' but found: {result.issues}",
+        )

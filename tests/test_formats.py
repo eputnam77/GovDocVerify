@@ -16,6 +16,7 @@ from documentcheckertool.utils.terminology_utils import TerminologyManager
 
 logger = logging.getLogger(__name__)
 
+
 class TestFormatChecks:
     @pytest.fixture(autouse=True)
     def setup(self):
@@ -42,7 +43,7 @@ class TestFormatChecks:
             "This is normal text.",
             "This is BOLD text.",
             "This is italic text.",
-            "This is normal text again."
+            "This is normal text again.",
         ]
         doc_path = self.create_test_docx(content, "font_consistency.docx")
         result = DocumentCheckResult()
@@ -55,7 +56,7 @@ class TestFormatChecks:
             "This is a paragraph with single spacing.",
             "This is a paragraph with  double  spacing.",
             "This is a paragraph with   triple   spacing.",
-            "This is a paragraph with single spacing again."
+            "This is a paragraph with single spacing again.",
         ]
         # Use FormattingChecker for spacing checks
         result = self.formatting_checker.check_text("\n".join(content))
@@ -69,7 +70,7 @@ class TestFormatChecks:
             "This is a paragraph with normal margins.",
             "    This is a paragraph with indented margins.",
             "This is a paragraph with normal margins again.",
-            "        This is another paragraph with indented margins."
+            "        This is another paragraph with indented margins.",
         ]
         doc_path = self.create_test_docx(content, "margin_consistency.docx")
         result = DocumentCheckResult()
@@ -84,7 +85,7 @@ class TestFormatChecks:
             "2. Second item",
             "a. Sub-item",
             "b. Another sub-item",
-            "3. Third item"
+            "3. Third item",
         ]
         doc_path = self.create_test_docx(content, "list_formatting.docx")
         result = DocumentCheckResult()
@@ -98,7 +99,7 @@ class TestFormatChecks:
             "Column 1 | Column 2 | Column 3",
             "---------|----------|----------",
             "Data 1   | Data 2   | Data 3",
-            "Data 4   | Data 5   | Data 6"
+            "Data 4   | Data 5   | Data 6",
         ]
         doc_path = self.create_test_docx(content, "table_formatting.docx")
         result = DocumentCheckResult()
@@ -113,7 +114,7 @@ class TestFormatChecks:
             "BACKGROUND.",
             "This is the background section.",
             "DEFINITIONS.",
-            "This is the definitions section."
+            "This is the definitions section.",
         ]
         doc_path = self.create_test_docx(content, "heading_formatting.docx")
         result = DocumentCheckResult()
@@ -125,7 +126,7 @@ class TestFormatChecks:
         content = [
             "See paragraph 5.2.3 for more information.",
             "Refer to section 4.1.2 for details.",
-            "As discussed in paragraph 3.4.5"
+            "As discussed in paragraph 3.4.5",
         ]
         doc_path = self.create_test_docx(content, "reference_formatting.docx")
         result = DocumentCheckResult()
@@ -138,7 +139,7 @@ class TestFormatChecks:
             "Figure 1. Sample Figure",
             "This is a figure caption.",
             "Figure 2. Another Sample Figure",
-            "This is another figure caption."
+            "This is another figure caption.",
         ]
         doc_path = self.create_test_docx(content, "figure_formatting.docx")
         result = DocumentCheckResult()
@@ -150,7 +151,7 @@ class TestFormatChecks:
         content = [
             "Contact us at (202) 267-1000.",
             "For emergencies, call (800) 555-1212.",
-            "The office number is (703) 123-4567."
+            "The office number is (703) 123-4567.",
         ]
         doc_path = self.create_test_docx(content, "valid_phone_numbers.docx")
         result = DocumentCheckResult()
@@ -162,7 +163,7 @@ class TestFormatChecks:
         content = [
             "Contact us at 202-267-1000.",
             "For emergencies, call 800.555.1212.",
-            "The office number is 7031234567."
+            "The office number is 7031234567.",
         ]
         doc_path = self.create_test_docx(content, "invalid_phone_numbers.docx")
         result = DocumentCheckResult()
@@ -176,7 +177,7 @@ class TestFormatChecks:
         content = [
             "The document was issued on January 1, 2023.",
             "The meeting is scheduled for December 31, 2023.",
-            "The deadline is March 15, 2023."
+            "The deadline is March 15, 2023.",
         ]
         doc_path = self.create_test_docx(content, "valid_dates.docx")
         result = DocumentCheckResult()
@@ -188,7 +189,7 @@ class TestFormatChecks:
         content = [
             "The document was issued on 1/1/2023.",
             "The meeting is scheduled for 12-31-2023.",
-            "The deadline is 03.15.2023."
+            "The deadline is 03.15.2023.",
         ]
         doc_path = self.create_test_docx(content, "invalid_dates.docx")
         result = DocumentCheckResult()
@@ -203,7 +204,7 @@ class TestFormatChecks:
         content = [
             "This is a document without placeholders.",
             "This is another sentence without placeholders.",
-            "This is a third sentence without placeholders."
+            "This is a third sentence without placeholders.",
         ]
         doc_path = self.create_test_docx(content, "valid_placeholders.docx")
         result = DocumentCheckResult()
@@ -215,7 +216,7 @@ class TestFormatChecks:
         content = [
             "This is a document with [PLACEHOLDER].",
             "This is another sentence with <PLACEHOLDER>.",
-            "This is a third sentence with {PLACEHOLDER}."
+            "This is a third sentence with {PLACEHOLDER}.",
         ]
         doc_path = self.create_test_docx(content, "invalid_placeholders.docx")
         result = DocumentCheckResult()
@@ -292,7 +293,7 @@ class TestFormatChecks:
             "Table 5-1. Sample Table",
             "This is a table caption.",
             "Figure 3-2. Sample Figure",
-            "This is a figure caption."
+            "This is a figure caption.",
         ]
         doc_path = self.create_test_docx(content, "valid_captions_ac.docx")
         result = DocumentCheckResult()
@@ -305,20 +306,20 @@ class TestFormatChecks:
         msg = issue.get("message", "")
         if isinstance(msg, dict):
             # Check for incorrect_caption key or Table/Figure/Incorrect Caption in any value
-            return (
-                "incorrect_caption" in msg or
-                any(
-                    isinstance(v, str) and (
-                        "table" in v.lower() or "figure" in v.lower() or "incorrect caption" in v.lower()
-                    )
-                    for v in msg.values()
+            return "incorrect_caption" in msg or any(
+                isinstance(v, str)
+                and (
+                    "table" in v.lower()
+                    or "figure" in v.lower()
+                    or "incorrect caption" in v.lower()
                 )
+                for v in msg.values()
             )
         elif isinstance(msg, str):
             return (
-                "incorrect caption" in msg.lower() or
-                "table" in msg.lower() or
-                "figure" in msg.lower()
+                "incorrect caption" in msg.lower()
+                or "table" in msg.lower()
+                or "figure" in msg.lower()
             )
         return False
 
@@ -328,7 +329,7 @@ class TestFormatChecks:
             "Table 5. Sample Table",  # Missing hyphen
             "This is a table caption.",
             "Figure 3. Sample Figure",  # Missing hyphen
-            "This is a figure caption."
+            "This is a figure caption.",
         ]
         doc_path = self.create_test_docx(content, "invalid_captions_ac.docx")
         result = DocumentCheckResult()
@@ -345,7 +346,7 @@ class TestFormatChecks:
             "Table 5. Sample Table",
             "This is a table caption.",
             "Figure 3. Sample Figure",
-            "This is a figure caption."
+            "This is a figure caption.",
         ]
         doc_path = self.create_test_docx(content, "valid_captions_other.docx")
         result = DocumentCheckResult()
@@ -359,7 +360,7 @@ class TestFormatChecks:
             "Table 5-1. Sample Table",  # Has hyphen
             "This is a table caption.",
             "Figure 3-2. Sample Figure",  # Has hyphen
-            "This is a figure caption."
+            "This is a figure caption.",
         ]
         doc_path = self.create_test_docx(content, "invalid_captions_other.docx")
         result = DocumentCheckResult()
@@ -409,16 +410,25 @@ class TestFormatChecks:
         assert len(result.issues) == 0
 
     def test_date_format_check_faa_technical_references_string(self):
-        """Test that FAA technical references are not flagged as date format errors in string-based checks."""
-        content = "See AC 25-1 for more information. Refer to AD 2020-12-05 for compliance. SFAR 88 is applicable. Order 8900.1 is referenced. Notice 8900.2 was issued. Policy 8900.3 applies. Memo 8900.4 is included."
+        """
+        Test that FAA technical references are not flagged as date format errors in string-based checks.
+        """
+        content = (
+            "See AC 25-1 for more information. Refer to AD 2020-12-05 for compliance. "
+            "SFAR 88 is applicable. Order 8900.1 is referenced. Notice 8900.2 was issued. "
+            "Policy 8900.3 applies. Memo 8900.4 is included."
+        )
         result = self.formatting_checker.check_text(content)
         assert result.success
         assert len(result.issues) == 0
 
+
 # --- Shared test data for consolidation ---
 #
-# DATE_CASES: Only lines with MM/DD/YYYY format (not skipped by technical reference patterns) should be flagged.
-# PHONE_CASES: If more than one phone number style is present, all lines with phone numbers are flagged.
+# DATE_CASES: Only lines with MM/DD/YYYY format (not skipped by technical reference patterns)
+# should be flagged.
+# PHONE_CASES: If more than one phone number style is present, all lines with phone numbers
+# are flagged.
 # PLACEHOLDER_CASES: Each line with a placeholder is flagged.
 DATE_CASES = [
     (["Date: 01/01/2023", "Date: May 11, 2025"], 1),  # Only the first line is flagged
@@ -428,8 +438,8 @@ DATE_CASES = [
 
 PHONE_CASES = [
     (["Phone: (123) 456-7890", "Phone: 123-456-7890"], 2),  # Two styles present, both lines flagged
-    (["Phone: 123.456.7890", "Phone: 1234567890"], 2),      # Two styles present, both lines flagged
-    (["Phone: 123-456-7890", "Phone: 123-456-7890"], 0),    # Only one style, no issues
+    (["Phone: 123.456.7890", "Phone: 1234567890"], 2),  # Two styles present, both lines flagged
+    (["Phone: 123-456-7890", "Phone: 123-456-7890"], 0),  # Only one style, no issues
 ]
 
 PLACEHOLDER_CASES = [
@@ -438,6 +448,7 @@ PLACEHOLDER_CASES = [
     (["Regular content", "More content"], 0),
 ]
 
+
 def make_docx(lines, path):
     doc = Document()
     for line in lines:
@@ -445,11 +456,13 @@ def make_docx(lines, path):
     doc.save(path)
     return path
 
+
 @pytest.mark.parametrize("lines,expect_errors", DATE_CASES)
 def test_date_formats(managers, tmp_path, lines, expect_errors):
     """
     Test both text-level and docx-level date format checks.
-    - Only lines with MM/DD/YYYY format (not skipped by technical reference patterns) should be flagged.
+    - Only lines with MM/DD/YYYY format (not skipped by technical reference patterns)
+      should be flagged.
     - The expected error count should match the number of such lines.
     """
     fmt, txt = managers
@@ -458,10 +471,11 @@ def test_date_formats(managers, tmp_path, lines, expect_errors):
     assert len(result.issues) == expect_errors
 
     # docx-level
-    docx_path = make_docx(lines, tmp_path/"tmp.docx")
+    docx_path = make_docx(lines, tmp_path / "tmp.docx")
     doc_result = DocumentCheckResult()
     fmt.run_checks(Document(docx_path), "ORDER", doc_result)
     assert len(doc_result.issues) == expect_errors
+
 
 @pytest.mark.parametrize("lines,expect_errors", PHONE_CASES)
 def test_phone_formats(managers, tmp_path, lines, expect_errors):
@@ -476,10 +490,11 @@ def test_phone_formats(managers, tmp_path, lines, expect_errors):
     assert len(result.issues) == expect_errors
 
     # docx-level
-    docx_path = make_docx(lines, tmp_path/"tmp.docx")
+    docx_path = make_docx(lines, tmp_path / "tmp.docx")
     doc_result = DocumentCheckResult()
     fmt.run_checks(Document(docx_path), "ORDER", doc_result)
     assert len(doc_result.issues) == expect_errors
+
 
 @pytest.mark.parametrize("lines,expect_errors", PLACEHOLDER_CASES)
 def test_placeholder_formats(managers, tmp_path, lines, expect_errors):
@@ -493,10 +508,11 @@ def test_placeholder_formats(managers, tmp_path, lines, expect_errors):
     assert len(result.issues) == expect_errors
 
     # docx-level
-    docx_path = make_docx(lines, tmp_path/"tmp.docx")
+    docx_path = make_docx(lines, tmp_path / "tmp.docx")
     doc_result = DocumentCheckResult()
     fmt.run_checks(Document(docx_path), "ORDER", doc_result)
     assert len(doc_result.issues) == expect_errors
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     pytest.main()

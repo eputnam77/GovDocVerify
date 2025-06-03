@@ -17,12 +17,15 @@ from .base_checker import BaseChecker
 
 logger = logging.getLogger(__name__)
 
+
 def profile_performance(func):
     @wraps(func)
     def wrapper(*args, **kwargs):
         # Add performance profiling logic here if needed
         return func(*args, **kwargs)
+
     return wrapper
+
 
 class AccessibilityChecks(BaseChecker):
     """Class for handling accessibility-related checks."""
@@ -39,7 +42,7 @@ class AccessibilityChecks(BaseChecker):
         self.terminology_manager = terminology_manager or TerminologyManager()
         logger.info("Initialized AccessibilityChecks")
 
-    @CheckRegistry.register('accessibility')
+    @CheckRegistry.register("accessibility")
     def check_document(self, document, doc_type) -> DocumentCheckResult:
         results = DocumentCheckResult()
         # Accept Document, list, or str
@@ -49,23 +52,22 @@ class AccessibilityChecks(BaseChecker):
             try:
                 path = Path(document)
                 if path.exists() and path.is_file():
-                    with path.open(encoding='utf-8') as f:
+                    with path.open(encoding="utf-8") as f:
                         lines = f.read().splitlines()
             except Exception as e:
                 logger.error(f"Failed to read file {document}: {e}")
                 results.add_issue(
-                    message=f"Failed to read file {document}: {e}",
-                    severity=Severity.ERROR
+                    message=f"Failed to read file {document}: {e}", severity=Severity.ERROR
                 )
                 results.success = False
                 return results
         if lines is None:
-            if hasattr(document, 'paragraphs'):
+            if hasattr(document, "paragraphs"):
                 lines = [p.text for p in document.paragraphs]
             elif isinstance(document, list):
                 lines = document
             else:
-                lines = str(document).split('\n')
+                lines = str(document).split("\n")
         self.run_checks(lines, doc_type, results)
         return results
 
@@ -73,7 +75,7 @@ class AccessibilityChecks(BaseChecker):
         """Check text for accessibility issues."""
         results = DocumentCheckResult()
         # Convert text to Document-like structure for processing
-        lines = text.split('\n')
+        lines = text.split("\n")
         self._check_alt_text(lines, results)
         self._check_color_contrast(lines, results)
         self._check_heading_structure(lines, results)
@@ -89,7 +91,7 @@ class AccessibilityChecks(BaseChecker):
         results = DocumentCheckResult()
 
         if not self.validate_input(doc):
-            results.add_issue('Invalid input format for readability check', Severity.ERROR)
+            results.add_issue("Invalid input format for readability check", Severity.ERROR)
             results.success = False
             return results
 
@@ -104,7 +106,7 @@ class AccessibilityChecks(BaseChecker):
         """Count syllables in a word using basic rules."""
         word = word.lower()
         count = 0
-        vowels = 'aeiouy'
+        vowels = "aeiouy"
         on_vowel = False
 
         for char in word:
@@ -113,9 +115,9 @@ class AccessibilityChecks(BaseChecker):
                 count += 1
             on_vowel = is_vowel
 
-        if word.endswith('e'):
+        if word.endswith("e"):
             count -= 1
-        if word.endswith('le') and len(word) > 2 and word[-3] not in vowels:
+        if word.endswith("le") and len(word) > 2 and word[-3] not in vowels:
             count += 1
         if count == 0:
             count = 1
@@ -126,77 +128,110 @@ class AccessibilityChecks(BaseChecker):
         """Calculate readability metrics and generate issues."""
         try:
             # Calculate metrics
-            flesch_ease = 206.835 - 1.015 * (stats['total_words'] / stats['total_sentences']) - 84.6 * (stats['total_syllables'] / stats['total_words'])
-            flesch_grade = 0.39 * (stats['total_words'] / stats['total_sentences']) + 11.8 * (stats['total_syllables'] / stats['total_words']) - 15.59
-            fog_index = 0.4 * ((stats['total_words'] / stats['total_sentences']) + 100 * (stats['complex_words'] / stats['total_words']))
-            passive_percentage = (stats['passive_voice_count'] / stats['total_sentences']) * 100 if stats['total_sentences'] > 0 else 0
+            flesch_ease = (
+                206.835
+                - 1.015 * (stats["total_words"] / stats["total_sentences"])
+                - 84.6 * (stats["total_syllables"] / stats["total_words"])
+            )
+            flesch_grade = (
+                0.39 * (stats["total_words"] / stats["total_sentences"])
+                + 11.8 * (stats["total_syllables"] / stats["total_words"])
+                - 15.59
+            )
+            fog_index = 0.4 * (
+                (stats["total_words"] / stats["total_sentences"])
+                + 100 * (stats["complex_words"] / stats["total_words"])
+            )
+            passive_percentage = (
+                (stats["passive_voice_count"] / stats["total_sentences"]) * 100
+                if stats["total_sentences"] > 0
+                else 0
+            )
 
             issues = []
-            self._add_readability_issues(issues, flesch_ease, flesch_grade, fog_index, passive_percentage)
+            self._add_readability_issues(
+                issues, flesch_ease, flesch_grade, fog_index, passive_percentage
+            )
 
             return DocumentCheckResult(
                 success=len(issues) == 0,
                 issues=issues,
                 details={
-                    'metrics': {
-                        'flesch_reading_ease': round(flesch_ease, 1),
-                        'flesch_kincaid_grade': round(flesch_grade, 1),
-                        'gunning_fog_index': round(fog_index, 1),
-                        'passive_voice_percentage': round(passive_percentage, 1)
+                    "metrics": {
+                        "flesch_reading_ease": round(flesch_ease, 1),
+                        "flesch_kincaid_grade": round(flesch_grade, 1),
+                        "gunning_fog_index": round(fog_index, 1),
+                        "passive_voice_percentage": round(passive_percentage, 1),
                     }
-                }
+                },
             )
         except Exception as e:
             logger.error(f"Error calculating readability metrics: {str(e)}")
             return DocumentCheckResult(
                 success=False,
-                issues=[{'error': f'Error calculating readability metrics: {str(e)}'}]
+                issues=[{"error": f"Error calculating readability metrics: {str(e)}"}],
             )
 
-    def _add_readability_issues(self, issues: List[Dict], flesch_ease: float, flesch_grade: float,
-                              fog_index: float, passive_percentage: float) -> None:
+    def _add_readability_issues(
+        self,
+        issues: List[Dict],
+        flesch_ease: float,
+        flesch_grade: float,
+        fog_index: float,
+        passive_percentage: float,
+    ) -> None:
         """Add readability issues based on metrics."""
         # Add disclaimer about readability metrics being guidelines
-        issues.append({
-            'type': 'readability_info',
-            'message': 'Note: Readability metrics are guidelines to help improve clarity. Not all documents will meet all targets, and that\'s okay. Use these suggestions to identify areas for potential improvement.',
-            'category': self.category
-        })
+        issues.append(
+            {
+                "type": "readability_info",
+                "message": "Note: Readability metrics are guidelines to help improve clarity. Not all documents will meet all targets, and that's okay. Use these suggestions to identify areas for potential improvement.",
+                "category": self.category,
+            }
+        )
 
         if flesch_ease < 50:
-            issues.append({
-                'type': 'readability_score',
-                'metric': 'Flesch Reading Ease',
-                'score': round(flesch_ease, 1),
-                'message': 'Consider simplifying language where possible to improve readability, but maintain necessary technical terminology.',
-                'category': self.category
-            })
+            issues.append(
+                {
+                    "type": "readability_score",
+                    "metric": "Flesch Reading Ease",
+                    "score": round(flesch_ease, 1),
+                    "message": "Consider simplifying language where possible to improve readability, but maintain necessary technical terminology.",
+                    "category": self.category,
+                }
+            )
 
         if flesch_grade > 12:
-            issues.append({
-                'type': 'readability_score',
-                'metric': 'Flesch-Kincaid Grade Level',
-                'score': round(flesch_grade, 1),
-                'message': 'The reading level may be high for some audiences. Where appropriate, consider simpler alternatives while preserving technical accuracy.',
-                'category': self.category
-            })
+            issues.append(
+                {
+                    "type": "readability_score",
+                    "metric": "Flesch-Kincaid Grade Level",
+                    "score": round(flesch_grade, 1),
+                    "message": "The reading level may be high for some audiences. Where appropriate, consider simpler alternatives while preserving technical accuracy.",
+                    "category": self.category,
+                }
+            )
 
         if fog_index > 12:
-            issues.append({
-                'type': 'readability_score',
-                'metric': 'Gunning Fog Index',
-                'score': round(fog_index, 1),
-                'message': 'Text complexity is high but may be necessary for your content. Review for opportunities to clarify without oversimplifying.',
-                'category': self.category
-            })
+            issues.append(
+                {
+                    "type": "readability_score",
+                    "metric": "Gunning Fog Index",
+                    "score": round(fog_index, 1),
+                    "message": "Text complexity is high but may be necessary for your content. Review for opportunities to clarify without oversimplifying.",
+                    "category": self.category,
+                }
+            )
 
         if passive_percentage > 10:
-            issues.append({
-                'type': 'passive_voice',
-                'percentage': round(passive_percentage, 1),
-                'message': f'Document uses {round(passive_percentage, 1)}% passive voice. While some passive voice is acceptable and sometimes necessary, consider active voice where it improves clarity.',
-                'category': self.category
-            })
+            issues.append(
+                {
+                    "type": "passive_voice",
+                    "percentage": round(passive_percentage, 1),
+                    "message": f"Document uses {round(passive_percentage, 1)}% passive voice. While some passive voice is acceptable and sometimes necessary, consider active voice where it improves clarity.",
+                    "category": self.category,
+                }
+            )
 
     @profile_performance
     def check_section_508_compliance(self, content: Union[str, List[str]]) -> DocumentCheckResult:
@@ -206,14 +241,13 @@ class AccessibilityChecks(BaseChecker):
 
         # Convert string input to list
         if isinstance(content, str):
-            content = content.split('\n')
+            content = content.split("\n")
         elif not isinstance(content, list):
-            error_msg = f"Invalid content type for Section 508 compliance check: {type(content).__name__}"
-            logger.error(error_msg)
-            results.add_issue(
-                message=error_msg,
-                severity=Severity.ERROR
+            error_msg = (
+                f"Invalid content type for Section 508 compliance check: {type(content).__name__}"
             )
+            logger.error(error_msg)
+            results.add_issue(message=error_msg, severity=Severity.ERROR)
             results.success = False
             return results
 
@@ -230,33 +264,37 @@ class AccessibilityChecks(BaseChecker):
 
         # Set success based on whether any issues were found
         results.success = len(results.issues) == 0
-        logger.debug(f"Section 508 compliance check complete. Results: success={results.success}, issues={results.issues}")
+        logger.debug(
+            f"Section 508 compliance check complete. Results: success={results.success}, issues={results.issues}"
+        )
         return results
 
-    def _check_heading_structure(self, content: Union[DocxDocument, List[str]], results: DocumentCheckResult) -> None:
+    def _check_heading_structure(
+        self, content: Union[DocxDocument, List[str]], results: DocumentCheckResult
+    ) -> None:
         """Check for proper heading structure and hierarchy."""
         logger.debug("Starting heading structure check")
 
         if content is None:
             results.add_issue(
                 message="Invalid content type for heading structure check: None",
-                severity=Severity.ERROR
+                severity=Severity.ERROR,
             )
             return
 
         headings = []
-        if isinstance(content, DocxDocument) or hasattr(content, 'paragraphs'):
+        if isinstance(content, DocxDocument) or hasattr(content, "paragraphs"):
             logger.debug("Processing Document content for heading structure")
             for paragraph in content.paragraphs:
                 try:
-                    if not hasattr(paragraph, 'style'):
+                    if not hasattr(paragraph, "style"):
                         continue
 
-                    style_name = getattr(paragraph.style, 'name', '')
-                    if not style_name.startswith('Heading'):
+                    style_name = getattr(paragraph.style, "name", "")
+                    if not style_name.startswith("Heading"):
                         continue
 
-                    level = int(style_name.replace('Heading ', ''))
+                    level = int(style_name.replace("Heading ", ""))
                     text = paragraph.text.strip()
                     if text:
                         headings.append((level, text))
@@ -271,7 +309,7 @@ class AccessibilityChecks(BaseChecker):
             for i, line in enumerate(content, 1):
                 try:
                     # Check for markdown headings
-                    match = re.match(r'^(#{1,6})\s+(.+)$', line.strip())
+                    match = re.match(r"^(#{1,6})\s+(.+)$", line.strip())
                     if match:
                         level = len(match.group(1))
                         text = match.group(2).strip()
@@ -285,15 +323,14 @@ class AccessibilityChecks(BaseChecker):
         else:
             results.add_issue(
                 message=f"Invalid content type for heading structure check: {type(content).__name__}",
-                severity=Severity.ERROR
+                severity=Severity.ERROR,
             )
             return
 
         # Check for missing H1
         if not any(level == 1 for level, _ in headings):
             results.add_issue(
-                message="Document is missing a top-level heading (H1)",
-                severity=Severity.ERROR
+                message="Document is missing a top-level heading (H1)", severity=Severity.ERROR
             )
             logger.debug("No H1 heading found")
 
@@ -304,54 +341,73 @@ class AccessibilityChecks(BaseChecker):
                 if level > prev_level + 1:
                     results.add_issue(
                         message=f"Inconsistent heading structure: H{level} '{text}' follows H{prev_level}",
-                        severity=Severity.ERROR
+                        severity=Severity.ERROR,
                     )
-                    logger.debug(f"Found inconsistent heading structure: H{level} after H{prev_level}")
+                    logger.debug(
+                        f"Found inconsistent heading structure: H{level} after H{prev_level}"
+                    )
                 prev_level = level
 
-    def _check_hyperlinks(self, content: Union[Document, List[str]], results: DocumentCheckResult) -> None:
+    def _check_hyperlinks(
+        self, content: Union[Document, List[str]], results: DocumentCheckResult
+    ) -> None:
         """Check hyperlinks for accessibility issues, including deprecated FAA links."""
 
         if content is None:
             logger.error("Invalid content type for hyperlink check: None")
             results.add_issue(
-                message="Invalid content type for hyperlink check: None",
-                severity=Severity.ERROR
+                message="Invalid content type for hyperlink check: None", severity=Severity.ERROR
             )
             return
 
         # Handle both Document and Mock objects
-        if hasattr(content, 'paragraphs'):  # Check for Document-like object
+        if hasattr(content, "paragraphs"):  # Check for Document-like object
             links = []
             # Defensive: ensure only strings are joined
-            lines = [p.text if isinstance(p.text, str) else str(p.text) if p.text is not None else '' for p in content.paragraphs]
+            lines = [
+                p.text if isinstance(p.text, str) else str(p.text) if p.text is not None else ""
+                for p in content.paragraphs
+            ]
             for paragraph in content.paragraphs:
                 for run in paragraph.runs:
-                    if hasattr(run, '_element') and hasattr(run._element, 'xpath'):
-                        if run._element.xpath('.//w:hyperlink'):
+                    if hasattr(run, "_element") and hasattr(run._element, "xpath"):
+                        if run._element.xpath(".//w:hyperlink"):
                             links.append(run.text)
         else:
             if not isinstance(content, list):
                 logger.error(f"Invalid content type for hyperlink check: {type(content).__name__}")
                 results.add_issue(
                     message=f"Invalid content type for hyperlink check: {type(content).__name__}",
-                    severity=Severity.ERROR
+                    severity=Severity.ERROR,
                 )
                 return
             lines = content
-            link_pattern = re.compile(r'\[([^\]]+)\]\(([^)]+)\)')
-            links = [match.group(1) for match in link_pattern.finditer('\n'.join(content))]
+            link_pattern = re.compile(r"\[([^\]]+)\]\(([^)]+)\)")
+            links = [match.group(1) for match in link_pattern.finditer("\n".join(content))]
 
-        non_descriptive = ['click here', 'here', 'link', 'this link', 'more',
-                          'read more', 'learn more', 'click', 'see this',
-                          'see here', 'go', 'url', 'this', 'page']
+        non_descriptive = [
+            "click here",
+            "here",
+            "link",
+            "this link",
+            "more",
+            "read more",
+            "learn more",
+            "click",
+            "see this",
+            "see here",
+            "go",
+            "url",
+            "this",
+            "page",
+        ]
 
         for link_text in links:
             if link_text.lower() in non_descriptive:
                 logger.warning(f"Found non-descriptive link text: '{link_text}'")
                 results.add_issue(
                     message=f"Found non-descriptive link text: '{link_text}'. Use more descriptive text for better accessibility.",
-                    severity=Severity.WARNING
+                    severity=Severity.WARNING,
                 )
 
         # --- NEW: detect deprecated FAA links --------------------------------
@@ -362,7 +418,7 @@ class AccessibilityChecks(BaseChecker):
                 results.add_issue(
                     message=f"Found deprecated FAA link: '{url}'. Replace with '{replacement}'.",
                     severity=Severity.ERROR,
-                    line_number=span[0]
+                    line_number=span[0],
                 )
 
     def run_checks(self, document: Document, doc_type: str, results: DocumentCheckResult) -> None:
@@ -372,18 +428,19 @@ class AccessibilityChecks(BaseChecker):
         self._check_alt_text(document, results)
         self._check_color_contrast(document, results)
 
-    def _check_alt_text(self, content: Union[DocxDocument, List[str]], results: DocumentCheckResult) -> None:
+    def _check_alt_text(
+        self, content: Union[DocxDocument, List[str]], results: DocumentCheckResult
+    ) -> None:
         """Check for missing alt text in images."""
         logger.debug("Starting alt text check")
 
         if content is None:
             results.add_issue(
-                message="Invalid content type for alt text check: None",
-                severity=Severity.ERROR
+                message="Invalid content type for alt text check: None", severity=Severity.ERROR
             )
             return
 
-        if isinstance(content, DocxDocument) or hasattr(content, 'inline_shapes'):
+        if isinstance(content, DocxDocument) or hasattr(content, "inline_shapes"):
             logger.debug("Processing Document content for alt text")
             for shape in content.inline_shapes:
                 try:
@@ -393,43 +450,45 @@ class AccessibilityChecks(BaseChecker):
                     title = None
                     docPr = None
                     # For real docx, _inline.docPr is an lxml element
-                    if hasattr(shape, '_inline') and shape._inline:
-                        docPr = getattr(shape._inline, 'docPr', None)
+                    if hasattr(shape, "_inline") and shape._inline:
+                        docPr = getattr(shape._inline, "docPr", None)
                         if docPr is not None:
                             # Try XML element (real docx)
-                            if hasattr(docPr, 'get'):
-                                name = docPr.get('name', None)
-                                descr = docPr.get('descr', None)
-                                title = docPr.get('title', None)
+                            if hasattr(docPr, "get"):
+                                name = docPr.get("name", None)
+                                descr = docPr.get("descr", None)
+                                title = docPr.get("title", None)
                             else:
                                 # Fallback for mocks
-                                name = getattr(docPr, 'name', None)
-                                descr = getattr(docPr, 'descr', None)
-                                title = getattr(docPr, 'title', None)
+                                name = getattr(docPr, "name", None)
+                                descr = getattr(docPr, "descr", None)
+                                title = getattr(docPr, "title", None)
                         else:
                             # Fallback for mocks
-                            name = getattr(shape, 'name', None)
-                            descr = getattr(shape, 'description', None)
-                            title = getattr(shape, 'title', None)
+                            name = getattr(shape, "name", None)
+                            descr = getattr(shape, "description", None)
+                            title = getattr(shape, "title", None)
                     else:
                         # Fallback for mocks
-                        name = getattr(shape, 'name', None)
-                        descr = getattr(shape, 'description', None)
-                        title = getattr(shape, 'title', None)
+                        name = getattr(shape, "name", None)
+                        descr = getattr(shape, "description", None)
+                        title = getattr(shape, "title", None)
 
                     # --- Filter decorative images by name ---
-                    if name and any(term in str(name).lower() for term in ['watermark', 'table', 'graphic']):
+                    if name and any(
+                        term in str(name).lower() for term in ["watermark", "table", "graphic"]
+                    ):
                         logger.debug(f"Skipping decorative image: {name}")
                         continue
 
                     # --- Check for missing alt text ---
                     if not descr and not title:
                         # For long names, use the first 100 characters
-                        display_name = name[:100] + '...' if name and len(name) > 100 else name
+                        display_name = name[:100] + "..." if name and len(name) > 100 else name
                         results.add_issue(
                             message=f"Image '{display_name or 'unnamed'}' is missing alt text",
                             severity=Severity.ERROR,
-                            category=self.category
+                            category=self.category,
                         )
                         logger.debug(f"Found image missing alt text: {display_name or 'unnamed'}")
 
@@ -442,14 +501,18 @@ class AccessibilityChecks(BaseChecker):
             for i, line in enumerate(content, 1):
                 try:
                     # Check for markdown image syntax
-                    match = re.search(r'!\[(.*?)\]\((.*?)\)', line)
+                    match = re.search(r"!\[(.*?)\]\((.*?)\)", line)
                     if match:
                         alt_text = match.group(1)
-                        if alt_text is None or alt_text.strip() == "" or alt_text.strip().lower() == "missing alt":
+                        if (
+                            alt_text is None
+                            or alt_text.strip() == ""
+                            or alt_text.strip().lower() == "missing alt"
+                        ):
                             results.add_issue(
                                 message=f"Image at line {i} is missing alt text",
                                 severity=Severity.ERROR,
-                                category=self.category
+                                category=self.category,
                             )
                             logger.debug(f"Found markdown image missing alt text at line {i}")
                 except Exception as e:
@@ -459,10 +522,12 @@ class AccessibilityChecks(BaseChecker):
             results.add_issue(
                 message=f"Invalid content type for alt text check: {type(content).__name__}",
                 severity=Severity.ERROR,
-                category=self.category
+                category=self.category,
             )
 
-    def _check_color_contrast(self, content: Union[Document, List[str]], results: DocumentCheckResult) -> None:
+    def _check_color_contrast(
+        self, content: Union[Document, List[str]], results: DocumentCheckResult
+    ) -> None:
         """Check for potential color contrast issues."""
 
         logger.debug(f"Starting color contrast check with content type: {type(content)}")
@@ -474,12 +539,12 @@ class AccessibilityChecks(BaseChecker):
             results.add_issue(
                 message="Invalid content type for color contrast check: None",
                 severity=Severity.ERROR,
-                category=self.category
+                category=self.category,
             )
             return
 
         # Handle Document-like objects
-        if hasattr(content, 'paragraphs'):
+        if hasattr(content, "paragraphs"):
             logger.debug("Processing Document-like object")
             logger.debug(f"Paragraphs attribute: {content.paragraphs}")
             try:
@@ -490,23 +555,25 @@ class AccessibilityChecks(BaseChecker):
                 results.add_issue(
                     message=f"Error processing document paragraphs: {str(e)}",
                     severity=Severity.ERROR,
-                    category=self.category
+                    category=self.category,
                 )
                 return
         else:
             logger.debug("Processing content as list of strings")
             if not isinstance(content, list):
-                logger.error(f"Invalid content type for color contrast check: {type(content).__name__}")
+                logger.error(
+                    f"Invalid content type for color contrast check: {type(content).__name__}"
+                )
                 results.add_issue(
                     message=f"Invalid content type for color contrast check: {type(content).__name__}",
                     severity=Severity.ERROR,
-                    category=self.category
+                    category=self.category,
                 )
                 return
             lines = content
             logger.debug(f"Using content as lines: {lines}")
 
-        color_pattern = re.compile(r'(?:color|background-color):\s*#([A-Fa-f0-9]{6})')
+        color_pattern = re.compile(r"(?:color|background-color):\s*#([A-Fa-f0-9]{6})")
         logger.debug("Starting color contrast analysis")
 
         for i, line in enumerate(lines, 1):
@@ -522,13 +589,16 @@ class AccessibilityChecks(BaseChecker):
                     results.add_issue(
                         message=f"Insufficient color contrast ratio ({ratio:.2f}:1) at line {i}",
                         severity=Severity.ERROR,
-                        category=self.category
+                        category=self.category,
                     )
 
-        logger.debug(f"Color contrast check complete. Results: success={results.success}, issues={results.issues}")
+        logger.debug(
+            f"Color contrast check complete. Results: success={results.success}, issues={results.issues}"
+        )
 
     def _calculate_contrast_ratio(self, color1: str, color2: str) -> float:
         """Calculate contrast ratio between two hex colors."""
+
         def relative_luminance(hex_color: str) -> float:
             r = int(hex_color[0:2], 16) / 255
             g = int(hex_color[2:4], 16) / 255
@@ -550,18 +620,20 @@ class AccessibilityChecks(BaseChecker):
     def check_image_accessibility(self, content: List[str]) -> DocumentCheckResult:
         """Check image accessibility including alt text."""
         results = DocumentCheckResult()
-        image_pattern = re.compile(r'!\[(.*?)\]\((.*?)\)')
+        image_pattern = re.compile(r"!\[(.*?)\]\((.*?)\)")
 
         for line in content:
             matches = image_pattern.finditer(line)
             for match in matches:
                 alt_text = match.group(1)
                 if not alt_text:
-                    results.add_issue('Missing alt text', Severity.ERROR)
+                    results.add_issue("Missing alt text", Severity.ERROR)
 
         return results
 
-    def _check_heading_hierarchy(self, headings: List[Tuple[str, Union[int, str]]], results: DocumentCheckResult) -> None:
+    def _check_heading_hierarchy(
+        self, headings: List[Tuple[str, Union[int, str]]], results: DocumentCheckResult
+    ) -> None:
         """Check heading hierarchy for accessibility issues."""
         logger.debug("Checking heading hierarchy")
         logger.debug(f"Input headings: {headings}")
@@ -570,7 +642,7 @@ class AccessibilityChecks(BaseChecker):
             logger.error("Invalid content type for heading hierarchy check: None")
             results.add_issue(
                 message="Invalid content type for heading hierarchy check: None",
-                severity=Severity.ERROR
+                severity=Severity.ERROR,
             )
             return
 
@@ -581,7 +653,9 @@ class AccessibilityChecks(BaseChecker):
                 valid_headings.append((text, level))
                 logger.debug(f"Added valid heading: {text} with level {level}")
             else:
-                logger.debug(f"Skipping invalid heading level type: {type(level)} for heading '{text}'")
+                logger.debug(
+                    f"Skipping invalid heading level type: {type(level)} for heading '{text}'"
+                )
 
         logger.debug(f"Valid headings after filtering: {valid_headings}")
 
@@ -594,8 +668,7 @@ class AccessibilityChecks(BaseChecker):
         if not any(level == 1 for _, level in valid_headings):
             logger.info("Document is missing a top-level heading (H1)")
             results.add_issue(
-                message="Document is missing a top-level heading (H1)",
-                severity=Severity.ERROR
+                message="Document is missing a top-level heading (H1)", severity=Severity.ERROR
             )
 
         # Check heading hierarchy
@@ -605,9 +678,11 @@ class AccessibilityChecks(BaseChecker):
                 logger.warning(f"Heading level skipped: H{level} '{text}' follows H{prev_level}")
                 results.add_issue(
                     message=f"Heading level skipped: H{level} '{text}' follows H{prev_level}",
-                    severity=Severity.ERROR
+                    severity=Severity.ERROR,
                 )
             prev_level = level
-            logger.debug(f"Processed heading: {text} with level {level}, prev_level was {prev_level}")
+            logger.debug(
+                f"Processed heading: {text} with level {level}, prev_level was {prev_level}"
+            )
 
         logger.debug(f"Final results: success={results.success}, issues={results.issues}")

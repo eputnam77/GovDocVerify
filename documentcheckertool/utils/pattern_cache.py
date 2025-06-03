@@ -15,25 +15,25 @@ class PatternCache:
         self._pattern_registry = {}
         # Default to config/terminology.json
         if patterns_file is None:
-            patterns_file = str(Path(__file__).parent.parent / 'config' / 'terminology.json')
-        elif patterns_file.endswith('patterns.json'):
+            patterns_file = str(Path(__file__).parent.parent / "config" / "terminology.json")
+        elif patterns_file.endswith("patterns.json"):
             warnings.warn("patterns.json is deprecated. Use config/terminology.json instead.")
         self._load_patterns(patterns_file)
 
     def _load_patterns(self, patterns_file: str) -> None:
         """Load patterns from JSON file into the registry."""
         try:
-            with open(patterns_file, 'r') as f:
+            with open(patterns_file, "r") as f:
                 patterns_data = json.load(f)
 
             # Support both top-level and nested under 'patterns'
-            for category in ['required_language', 'boilerplate']:
+            for category in ["required_language", "boilerplate"]:
                 if category in patterns_data:
                     self._pattern_registry[category] = patterns_data[category]
-                elif 'patterns' in patterns_data and category in patterns_data['patterns']:
-                    self._pattern_registry[category] = patterns_data['patterns'][category]
+                elif "patterns" in patterns_data and category in patterns_data["patterns"]:
+                    self._pattern_registry[category] = patterns_data["patterns"][category]
             # Pre-compile and cache all patterns
-            for category in ['required_language', 'boilerplate']:
+            for category in ["required_language", "boilerplate"]:
                 if category in self._pattern_registry:
                     for doc_type, patterns in self._pattern_registry[category].items():
                         for pattern in patterns:
@@ -54,16 +54,16 @@ class PatternCache:
     def get_required_language_patterns(self, doc_type: str) -> List[Pattern]:
         """Get compiled patterns for required language by document type."""
         patterns = []
-        if 'required_language' in self._pattern_registry:
-            doc_patterns = self._pattern_registry['required_language'].get(doc_type, [])
+        if "required_language" in self._pattern_registry:
+            doc_patterns = self._pattern_registry["required_language"].get(doc_type, [])
             patterns = [self.get_pattern(p) for p in doc_patterns]
         return patterns
 
     def get_boilerplate_patterns(self, doc_type: str) -> List[Pattern]:
         """Get compiled patterns for boilerplate text by document type."""
         patterns = []
-        if 'boilerplate' in self._pattern_registry:
-            doc_patterns = self._pattern_registry['boilerplate'].get(doc_type, [])
+        if "boilerplate" in self._pattern_registry:
+            doc_patterns = self._pattern_registry["boilerplate"].get(doc_type, [])
             patterns = [self.get_pattern(p) for p in doc_patterns]
         return patterns
 

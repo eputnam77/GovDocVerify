@@ -22,6 +22,7 @@ from .utils.check_discovery import validate_check_registration
 
 logger = logging.getLogger(__name__)
 
+
 class FAADocumentChecker:
     """Main document checker class that coordinates various checks."""
 
@@ -39,17 +40,27 @@ class FAADocumentChecker:
 
         # Initialize all check modules
         self.heading_checks = HeadingChecks(self.pattern_cache)
-        logger.debug(f"HeadingChecks initialized with pattern_cache: {self.heading_checks.pattern_cache}")
+        logger.debug(
+            f"HeadingChecks initialized with pattern_cache: {self.heading_checks.pattern_cache}"
+        )
         self.format_checks = FormatChecks()
         self.structure_checks = StructureChecks()
         self.terminology_checks = TerminologyChecks(self.terminology_manager)
-        logger.debug(f"TerminologyChecks initialized with terminology_manager: {self.terminology_manager}")
+        logger.debug(
+            f"TerminologyChecks initialized with terminology_manager: {self.terminology_manager}"
+        )
         self.readability_checks = ReadabilityChecks(self.terminology_manager)
-        logger.debug(f"ReadabilityChecks initialized with terminology_manager: {self.terminology_manager}")
+        logger.debug(
+            f"ReadabilityChecks initialized with terminology_manager: {self.terminology_manager}"
+        )
         self.acronym_checker = AcronymChecker(self.terminology_manager)
-        logger.debug(f"AcronymChecker initialized with terminology_manager: {self.terminology_manager}")
+        logger.debug(
+            f"AcronymChecker initialized with terminology_manager: {self.terminology_manager}"
+        )
         self.accessibility_checks = AccessibilityChecks(self.terminology_manager)
-        logger.debug(f"AccessibilityChecks initialized with terminology_manager: {self.terminology_manager}")
+        logger.debug(
+            f"AccessibilityChecks initialized with terminology_manager: {self.terminology_manager}"
+        )
         self.table_figure_checks = TableFigureReferenceCheck()
         logger.debug(f"TableFigureReferenceCheck initialized: {self.table_figure_checks}")
         self.document_title_checks = DocumentTitleFormatCheck()
@@ -57,17 +68,19 @@ class FAADocumentChecker:
 
         # Validate check registration
         validation_results = validate_check_registration()
-        if validation_results['missing_categories'] or validation_results['missing_checks']:
+        if validation_results["missing_categories"] or validation_results["missing_checks"]:
             logger.warning("Some checks are not properly registered:")
-            if validation_results['missing_categories']:
+            if validation_results["missing_categories"]:
                 logger.warning(f"Missing categories: {validation_results['missing_categories']}")
-            if validation_results['missing_checks']:
+            if validation_results["missing_checks"]:
                 logger.warning(f"Missing checks: {validation_results['missing_checks']}")
-        if validation_results['extra_checks']:
+        if validation_results["extra_checks"]:
             logger.warning(f"Extra registered checks: {validation_results['extra_checks']}")
         logger.debug("FAADocumentChecker initialized successfully")
 
-    def run_all_document_checks(self, document_path: str, doc_type: str = None) -> DocumentCheckResult:
+    def run_all_document_checks(
+        self, document_path: str, doc_type: str = None
+    ) -> DocumentCheckResult:
         """Run all document checks."""
         try:
             # Create a new DocumentCheckResult to store combined results
@@ -75,15 +88,21 @@ class FAADocumentChecker:
             per_check_results = {}
 
             # Load the document
-            if isinstance(document_path, str) and (document_path.lower().endswith('.docx') or document_path.lower().endswith('.doc')):
+            if isinstance(document_path, str) and (
+                document_path.lower().endswith(".docx") or document_path.lower().endswith(".doc")
+            ):
                 doc = Document(document_path)
-                doc.text = '\n'.join([paragraph.text for paragraph in doc.paragraphs])
-                logger.debug(f"Loaded document from file: {document_path}, extracted text length: {len(doc.text)}")
+                doc.text = "\n".join([paragraph.text for paragraph in doc.paragraphs])
+                logger.debug(
+                    f"Loaded document from file: {document_path}, extracted text length: {len(doc.text)}"
+                )
             else:
                 doc = Document()
                 if isinstance(document_path, list):
-                    doc.text = '\n'.join(document_path)
-                    logger.debug(f"Created document from list of strings, length: {len(document_path)}")
+                    doc.text = "\n".join(document_path)
+                    logger.debug(
+                        f"Created document from list of strings, length: {len(document_path)}"
+                    )
                 else:
                     doc.text = document_path
                     logger.debug(f"Created document from raw string, length: {len(document_path)}")
@@ -98,7 +117,7 @@ class FAADocumentChecker:
                 (self.readability_checks, "readability"),
                 (self.acronym_checker, "acronym"),
                 (self.table_figure_checks, "formatting"),
-                (self.document_title_checks, "formatting")
+                (self.document_title_checks, "formatting"),
             ]
 
             # Run all checks
@@ -109,13 +128,13 @@ class FAADocumentChecker:
                     result = check_module.check_document(doc, doc_type)
                     per_check_results.setdefault(category, {})
                     for check_func in CheckRegistry.get_checks_for_category(category):
-                        if hasattr(result, 'checker_name') and result.checker_name == check_func:
+                        if hasattr(result, "checker_name") and result.checker_name == check_func:
                             per_check_results[category][check_func] = result
                         elif hasattr(result, check_func):
                             per_check_results[category][check_func] = getattr(result, check_func)
 
                     # Collect issues from the result (these should be properly formatted from add_issue calls)
-                    if hasattr(result, 'issues') and result.issues:
+                    if hasattr(result, "issues") and result.issues:
                         combined_results.issues.extend(result.issues)
 
                     if not result.success:
@@ -126,38 +145,39 @@ class FAADocumentChecker:
                     for check_func in CheckRegistry.get_checks_for_category(category):
                         dcr = DocumentCheckResult(
                             success=False,
-                            issues=[{'error': f"Error in {category} checks: {str(e)}"}]
+                            issues=[{"error": f"Error in {category} checks: {str(e)}"}],
                         )
                         per_check_results[category][check_func] = dcr
-                    combined_results.issues.append({
-                        'error': f"Error in {category} checks: {str(e)}",
-                        'category': category
-                    })
+                    combined_results.issues.append(
+                        {"error": f"Error in {category} checks: {str(e)}", "category": category}
+                    )
 
             # Always ensure per_check_results is populated with all issues
             # If per_check_results is empty or contains only empty sub-dicts, but there are issues, group them by category
             def _has_any_issues(per_check_results):
                 for cat in per_check_results.values():
                     for check in cat.values():
-                        if hasattr(check, 'issues') and check.issues:
+                        if hasattr(check, "issues") and check.issues:
                             return True
-                        if isinstance(check, dict) and check.get('issues'):
+                        if isinstance(check, dict) and check.get("issues"):
                             return True
                 return False
 
-            if (not per_check_results or not _has_any_issues(per_check_results)) and combined_results.issues:
+            if (
+                not per_check_results or not _has_any_issues(per_check_results)
+            ) and combined_results.issues:
                 # Group issues by category if possible
                 grouped = {}
                 for issue in combined_results.issues:
-                    category = issue.get('category')
+                    category = issue.get("category")
                     if not category:
                         # Try to infer from checker_name if present
-                        category = issue.get('checker') or 'general'
+                        category = issue.get("checker") or "general"
                     if category not in grouped:
-                        grouped[category] = {'success': False, 'issues': [], 'details': {}}
-                    grouped[category]['issues'].append(issue)
+                        grouped[category] = {"success": False, "issues": [], "details": {}}
+                    grouped[category]["issues"].append(issue)
                 # Convert to per_check_results structure
-                per_check_results = {cat: {'general': res} for cat, res in grouped.items()}
+                per_check_results = {cat: {"general": res} for cat, res in grouped.items()}
             combined_results.per_check_results = per_check_results
             combined_results.success = len(combined_results.issues) == 0
             logger.info(f"Completed all checks. Found {len(combined_results.issues)} issues.")
@@ -166,6 +186,5 @@ class FAADocumentChecker:
         except Exception as e:
             logger.error(f"Error running document checks: {str(e)}")
             return DocumentCheckResult(
-                success=False,
-                issues=[{'error': f"Error running document checks: {str(e)}"}]
+                success=False, issues=[{"error": f"Error running document checks: {str(e)}"}]
             )

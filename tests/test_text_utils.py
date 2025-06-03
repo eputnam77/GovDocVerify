@@ -189,7 +189,10 @@ class TestTextUtils:
 
         # Basic definition
         text = "The FAA (Federal Aviation Administration) is an agency."
-        assert self.terminology_manager.find_acronym_definition(text, "FAA") == "Federal Aviation Administration"
+        assert (
+            self.terminology_manager.find_acronym_definition(text, "FAA")
+            == "Federal Aviation Administration"
+        )
 
         # No definition
         text = "The FAA is an agency."
@@ -197,7 +200,10 @@ class TestTextUtils:
 
         # Multiple definitions (should find first)
         text = "The FAA (Federal Aviation Administration) and FAA (Federal Aviation Agency)."
-        assert self.terminology_manager.find_acronym_definition(text, "FAA") == "Federal Aviation Administration"
+        assert (
+            self.terminology_manager.find_acronym_definition(text, "FAA")
+            == "Federal Aviation Administration"
+        )
 
         # Non-existent acronym
         assert self.terminology_manager.find_acronym_definition("Some text", "XYZ") is None
@@ -206,17 +212,11 @@ class TestTextUtils:
         """Test sentence splitting with complex abbreviation scenarios."""
         # Consecutive abbreviations
         text = "Dr. Mr. Smith went home. Ms. Dr. Jones arrived."
-        assert split_sentences(text) == [
-            "Dr. Mr. Smith went home.",
-            "Ms. Dr. Jones arrived."
-        ]
+        assert split_sentences(text) == ["Dr. Mr. Smith went home.", "Ms. Dr. Jones arrived."]
 
         # Abbreviations at sentence boundaries
         text = "He works at the U.S. The FAA is there too."
-        assert split_sentences(text) == [
-            "He works at the U.S.",
-            "The FAA is there too."
-        ]
+        assert split_sentences(text) == ["He works at the U.S.", "The FAA is there too."]
 
         # Mixed case abbreviations
         text = "dr. Smith and DR. Jones met Prof. Wilson."
@@ -224,11 +224,7 @@ class TestTextUtils:
 
         # Special punctuation with abbreviations
         text = "Visit the U.S.! Dr. Smith said ok. Really?"
-        assert split_sentences(text) == [
-            "Visit the U.S.!",
-            "Dr. Smith said ok.",
-            "Really?"
-        ]
+        assert split_sentences(text) == ["Visit the U.S.!", "Dr. Smith said ok.", "Really?"]
 
     def test_count_words_complex_email(self):
         """Test word counting with complex email scenarios."""
@@ -257,10 +253,16 @@ class TestTextUtils:
         assert normalize_reference("test!!!and???reference") == "test and reference"
 
         # Numbers and mixed content
-        assert normalize_reference("Chapter 2.3: Test-Case & Examples") == "chapter 2 3 test case examples"
+        assert (
+            normalize_reference("Chapter 2.3: Test-Case & Examples")
+            == "chapter 2 3 test case examples"
+        )
 
         # URLs and technical content
-        assert normalize_reference("https://example.com/path?query=123") == "https example com path query 123"
+        assert (
+            normalize_reference("https://example.com/path?query=123")
+            == "https example com path query 123"
+        )
 
         # Mixed punctuation and spaces
         assert normalize_reference("First  ---  Second,,, Third...") == "first second third"
@@ -303,9 +305,9 @@ class TestTextUtils:
 
     def test_calculate_readability_metrics(self):
         metrics = calculate_readability_metrics(100, 10, 150)
-        assert 'flesch_reading_ease' in metrics
-        assert 'flesch_kincaid_grade' in metrics
-        assert 'gunning_fog_index' in metrics
+        assert "flesch_reading_ease" in metrics
+        assert "flesch_kincaid_grade" in metrics
+        assert "gunning_fog_index" in metrics
 
     def test_get_valid_words(self):
         valid_words = get_valid_words()

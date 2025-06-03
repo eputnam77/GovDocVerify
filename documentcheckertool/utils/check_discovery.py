@@ -5,6 +5,7 @@ from typing import Dict, List
 
 logger = logging.getLogger(__name__)
 
+
 def discover_checks() -> Dict[str, List[str]]:
     """Auto-discover all check functions in the codebase.
 
@@ -12,14 +13,14 @@ def discover_checks() -> Dict[str, List[str]]:
         Dictionary mapping categories to lists of check function names
     """
     check_modules = [
-        'heading_checks',
-        'format_checks',
-        'structure_checks',
-        'terminology_checks',
-        'readability_checks',
-        'acronym_checks',
-        'accessibility_checks',
-        'reference_checks'
+        "heading_checks",
+        "format_checks",
+        "structure_checks",
+        "terminology_checks",
+        "readability_checks",
+        "acronym_checks",
+        "accessibility_checks",
+        "reference_checks",
     ]
 
     category_mappings = {}
@@ -29,9 +30,11 @@ def discover_checks() -> Dict[str, List[str]]:
     for module_name in check_modules:
         try:
             logger.debug(f"Attempting to import module: {module_name}")
-            module = importlib.import_module(f'documentcheckertool.checks.{module_name}')
-            default_category = module_name.replace('_checks', '')
-            logger.debug(f"Successfully imported module {module_name}, default category: {default_category}")
+            module = importlib.import_module(f"documentcheckertool.checks.{module_name}")
+            default_category = module_name.replace("_checks", "")
+            logger.debug(
+                f"Successfully imported module {module_name}, default category: {default_category}"
+            )
 
             # Find all check functions and classes in the module
             logger.debug(f"Searching for check functions and classes in {module_name}")
@@ -41,7 +44,7 @@ def discover_checks() -> Dict[str, List[str]]:
                 # Check for standalone functions
                 if inspect.isfunction(obj):
                     logger.debug(f"Found function: {name}")
-                    if name.startswith('check_') or name.startswith('_check_'):
+                    if name.startswith("check_") or name.startswith("_check_"):
                         logger.debug(f"Found check function: {name}")
                         # Use default category for standalone functions
                         category = default_category
@@ -61,26 +64,37 @@ def discover_checks() -> Dict[str, List[str]]:
                     logger.debug(f"Found class: {name}")
                     try:
                         from documentcheckertool.checks.base_checker import BaseChecker
+
                         if issubclass(obj, BaseChecker) and obj != BaseChecker:
                             logger.debug(f"Found checker class: {name}")
                             # Check if the class has a category attribute
                             class_instance = None
                             try:
                                 class_instance = obj()
-                                class_category = getattr(class_instance, 'category', default_category)
+                                class_category = getattr(
+                                    class_instance, "category", default_category
+                                )
                                 logger.debug(f"Class {name} has category: {class_category}")
                             except Exception as e:
                                 logger.debug(f"Could not instantiate {name} to get category: {e}")
                                 class_category = default_category
 
                             # Get all methods from the class
-                            for method_name, method in inspect.getmembers(obj, predicate=inspect.isfunction):
+                            for method_name, method in inspect.getmembers(
+                                obj, predicate=inspect.isfunction
+                            ):
                                 logger.debug(f"Examining method: {method_name}")
                                 # Only include public check methods and specific private methods that are registered
                                 # Public methods: check_text, check_document, run_checks
                                 # Specific private methods: _check_paragraph_length, _check_sentence_length (from structure)
-                                if (method_name in ['check_text', 'check_document', 'run_checks'] or
-                                    method_name in ['_check_paragraph_length', '_check_sentence_length']):
+                                if method_name in [
+                                    "check_text",
+                                    "check_document",
+                                    "run_checks",
+                                ] or method_name in [
+                                    "_check_paragraph_length",
+                                    "_check_sentence_length",
+                                ]:
                                     logger.debug(f"Found registered check method: {method_name}")
                                     # Use the class's category instead of default
                                     category = class_category
@@ -89,11 +103,17 @@ def discover_checks() -> Dict[str, List[str]]:
                                         logger.debug(f"Created new category: {category}")
                                     if method_name not in category_mappings[category]:
                                         category_mappings[category].append(method_name)
-                                        logger.debug(f"Added check {method_name} to category {category}")
+                                        logger.debug(
+                                            f"Added check {method_name} to category {category}"
+                                        )
                                     else:
-                                        logger.debug(f"Check {method_name} already registered in category {category}")
+                                        logger.debug(
+                                            f"Check {method_name} already registered in category {category}"
+                                        )
                                 else:
-                                    logger.debug(f"Skipping {method_name} - not a registered check method")
+                                    logger.debug(
+                                        f"Skipping {method_name} - not a registered check method"
+                                    )
                     except ImportError:
                         logger.warning(f"Could not import BaseChecker for class {name}")
                         continue
@@ -104,7 +124,9 @@ def discover_checks() -> Dict[str, List[str]]:
             logger.warning(f"Could not import module {module_name}: {str(e)}")
             continue
         except Exception as e:
-            logger.error(f"Unexpected error processing module {module_name}: {str(e)}", exc_info=True)
+            logger.error(
+                f"Unexpected error processing module {module_name}: {str(e)}", exc_info=True
+            )
             continue
 
     logger.debug(f"Check discovery complete. Found categories: {list(category_mappings.keys())}")
@@ -112,6 +134,7 @@ def discover_checks() -> Dict[str, List[str]]:
         logger.debug(f"Category {category} has checks: {checks}")
 
     return category_mappings
+
 
 def validate_check_registration() -> Dict[str, List[str]]:
     """Validate that all discovered checks are properly registered.
@@ -129,11 +152,7 @@ def validate_check_registration() -> Dict[str, List[str]]:
     registered_checks = CheckRegistry.get_category_mappings()
     logger.debug(f"Registered checks: {registered_checks}")
 
-    validation_results = {
-        'missing_categories': [],
-        'missing_checks': [],
-        'extra_checks': []
-    }
+    validation_results = {"missing_categories": [], "missing_checks": [], "extra_checks": []}
 
     # Create a flat list of all discovered checks across all categories
     all_discovered_checks = set()
@@ -153,7 +172,7 @@ def validate_check_registration() -> Dict[str, List[str]]:
         logger.debug(f"Checking category: {category}")
         if category not in registered_checks:
             logger.debug(f"Category {category} is missing from registry")
-            validation_results['missing_categories'].append(category)
+            validation_results["missing_categories"].append(category)
 
     # Check for missing or extra checks in each category
     for category in registered_checks:
@@ -170,10 +189,14 @@ def validate_check_registration() -> Dict[str, List[str]]:
                         if other_cat != category
                     )
                     if not found_in_other_category:
-                        logger.debug(f"Check {check} is missing from registry in category {category}")
-                        validation_results['missing_checks'].append(f"{category}.{check}")
+                        logger.debug(
+                            f"Check {check} is missing from registry in category {category}"
+                        )
+                        validation_results["missing_checks"].append(f"{category}.{check}")
                     else:
-                        logger.debug(f"Check {check} is registered in a different category (cross-category registration)")
+                        logger.debug(
+                            f"Check {check} is registered in a different category (cross-category registration)"
+                        )
 
             # Find extra checks (checks registered in this category but not discovered in this category)
             for check in registered_checks[category]:
@@ -187,21 +210,26 @@ def validate_check_registration() -> Dict[str, List[str]]:
                     )
                     if not found_in_other_category:
                         logger.debug(f"Check {check} is extra in registry for category {category}")
-                        validation_results['extra_checks'].append(f"{category}.{check}")
+                        validation_results["extra_checks"].append(f"{category}.{check}")
                     else:
-                        logger.debug(f"Check {check} is discovered in a different category (cross-category registration)")
+                        logger.debug(
+                            f"Check {check} is discovered in a different category (cross-category registration)"
+                        )
         else:
             # Category is not discovered at all, check if any of its checks exist in other categories
-            logger.debug(f"Category {category} not found in discovered checks; checking for cross-category registrations.")
+            logger.debug(
+                f"Category {category} not found in discovered checks; checking for cross-category registrations."
+            )
             for check in registered_checks[category]:
                 found_in_other_category = any(
-                    check in other_checks
-                    for other_cat, other_checks in discovered_checks.items()
+                    check in other_checks for other_cat, other_checks in discovered_checks.items()
                 )
                 if not found_in_other_category:
-                    validation_results['extra_checks'].append(f"{category}.{check}")
+                    validation_results["extra_checks"].append(f"{category}.{check}")
                 else:
-                    logger.debug(f"Check {check} from category {category} found in another discovered category (cross-category registration)")
+                    logger.debug(
+                        f"Check {check} from category {category} found in another discovered category (cross-category registration)"
+                    )
 
     logger.debug(f"Validation results: {validation_results}")
     return validation_results

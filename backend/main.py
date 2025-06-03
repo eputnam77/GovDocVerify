@@ -10,7 +10,7 @@ app = FastAPI(title="FAA-Document-Checker API")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],        # tighten this in prod
+    allow_origins=["*"],  # tighten this in prod
     allow_methods=["POST", "GET"],
     allow_headers=["*"],
 )

@@ -14,12 +14,15 @@ from .base_checker import BaseChecker
 
 logger = logging.getLogger(__name__)
 
+
 def profile_performance(func):
     @wraps(func)
     def wrapper(*args, **kwargs):
         # Add performance profiling logic here if needed
         return func(*args, **kwargs)
+
     return wrapper
+
 
 class HeadingChecks(BaseChecker):
     """Class for handling heading-related checks."""
@@ -30,14 +33,14 @@ class HeadingChecks(BaseChecker):
     # Maximum character/word limits for period checks to avoid false positives
     # from paragraphs incorrectly marked as headings
     MAX_HEADING_CHARS_FOR_PERIOD_CHECK = 100  # Characters
-    MAX_HEADING_WORDS_FOR_PERIOD_CHECK = 15   # Words
+    MAX_HEADING_WORDS_FOR_PERIOD_CHECK = 15  # Words
 
     def __init__(self, pattern_cache=None):
         super().__init__()
         self.pattern_cache = pattern_cache
         self.terminology_manager = TerminologyManager()
         logger.info("Initialized HeadingChecks with pattern cache")
-        self.heading_pattern = re.compile(r'^(\d+\.)+\s')
+        self.heading_pattern = re.compile(r"^(\d+\.)+\s")
         logger.debug(f"Using heading pattern: {self.heading_pattern.pattern}")
         self.category = "heading"
 
@@ -48,13 +51,20 @@ class HeadingChecks(BaseChecker):
         if not isinstance(doc_type, str):
             return str(doc_type)
         # Check if this is a known document type
-        known_types = {'ADVISORY_CIRCULAR', 'ORDER', 'NOTICE', 'AC', 'TECHNICAL_STANDARD_ORDER', 'TSO'}
-        normalized = re.sub(r'\s+', '_', doc_type.strip()).upper()
+        known_types = {
+            "ADVISORY_CIRCULAR",
+            "ORDER",
+            "NOTICE",
+            "AC",
+            "TECHNICAL_STANDARD_ORDER",
+            "TSO",
+        }
+        normalized = re.sub(r"\s+", "_", doc_type.strip()).upper()
         if normalized not in known_types:
             return doc_type  # Preserve original for unknown types
         return normalized
 
-    @CheckRegistry.register('heading')
+    @CheckRegistry.register("heading")
     def check_document(self, document: Document, doc_type: str) -> DocumentCheckResult:
         """Check document for heading issues."""
         doc_type_norm = self._normalize_doc_type(doc_type)
@@ -65,14 +75,14 @@ class HeadingChecks(BaseChecker):
     def check_text(self, text: str) -> DocumentCheckResult:
         """Check text for heading issues."""
         results = DocumentCheckResult()
-        lines = text.split('\n')
+        lines = text.split("\n")
         self.check_heading_title(lines, "GENERAL")
         self.check_heading_period(lines, "GENERAL")
         return results
 
     def _get_doc_type_config(self, doc_type: str) -> Dict[str, Any]:
         """Get configuration for document type."""
-        return self.terminology_manager.terminology_data.get('document_types', {}).get(doc_type, {})
+        return self.terminology_manager.terminology_data.get("document_types", {}).get(doc_type, {})
 
     def validate_input(self, doc: List[str]) -> bool:
         """Validate input document content."""
@@ -85,18 +95,18 @@ class HeadingChecks(BaseChecker):
         doc_type_config = self._get_doc_type_config(doc_type_norm)
         logger.debug(f"Document type config: {doc_type_config}")
 
-        if doc_type_config.get('skip_title_check', False):
+        if doc_type_config.get("skip_title_check", False):
             logger.info(f"Skipping title check for document type: {doc_type_norm}")
             return DocumentCheckResult(
                 success=True,
                 issues=[],
                 details={
-                    'message': f'Title check skipped for document type: {doc_type_norm}',
-                    'document_type': doc_type_norm
-                }
+                    "message": f"Title check skipped for document type: {doc_type_norm}",
+                    "document_type": doc_type_norm,
+                },
             )
 
-        required_headings = doc_type_config.get('required_headings', [])
+        required_headings = doc_type_config.get("required_headings", [])
         issues = []
         headings_found = set()
 
@@ -104,7 +114,7 @@ class HeadingChecks(BaseChecker):
         logger.debug(f"Required headings: {required_headings}")
 
         # Get heading words from terminology data
-        heading_words = self.terminology_manager.terminology_data.get('heading_words', [])
+        heading_words = self.terminology_manager.terminology_data.get("heading_words", [])
         logger.debug(f"Available heading words: {heading_words}")
 
         # Normalize required_headings to support both string and dict entries
@@ -121,58 +131,66 @@ class HeadingChecks(BaseChecker):
             if not self.heading_pattern.match(line):
                 logger.debug(f"Line {i} is not a numbered heading")
                 continue
-            heading_text = line.split('.', 1)[1].strip()
-            heading_text_no_period = heading_text.rstrip('.')
+            heading_text = line.split(".", 1)[1].strip()
+            heading_text_no_period = heading_text.rstrip(".")
 
             # Check heading length first
             if len(heading_text_no_period) > self.MAX_HEADING_LENGTH:
                 logger.warning(f"Heading exceeds maximum length in line {i}: {heading_text}")
-                issues.append({
-                    'type': 'length_violation',
-                    'line': line,
-                    'message': f'Heading exceeds maximum length of {self.MAX_HEADING_LENGTH} characters',
-                    'suggestion': f'Shorten heading to {self.MAX_HEADING_LENGTH} characters or less',
-                    'category': self.category
-                })
+                issues.append(
+                    {
+                        "type": "length_violation",
+                        "line": line,
+                        "message": f"Heading exceeds maximum length of {self.MAX_HEADING_LENGTH} characters",
+                        "suggestion": f"Shorten heading to {self.MAX_HEADING_LENGTH} characters or less",
+                        "category": self.category,
+                    }
+                )
                 # Don't add to headings_found and skip other validations
                 continue
 
             # Check if the heading text contains any of the valid heading words
             if not any(word in heading_text_no_period.upper() for word in heading_words):
                 logger.warning(f"Invalid heading word in line {i}: {heading_text}")
-                issues.append({
-                    'type': 'invalid_word',
-                    'line': line,
-                    'message': 'Heading formatting issue',
-                    'suggestion': f'Use a valid heading word from: {", ".join(sorted(heading_words))}',
-                    'category': self.category
-                })
+                issues.append(
+                    {
+                        "type": "invalid_word",
+                        "line": line,
+                        "message": "Heading formatting issue",
+                        "suggestion": f'Use a valid heading word from: {", ".join(sorted(heading_words))}',
+                        "category": self.category,
+                    }
+                )
                 # Don't add to headings_found if it's not a valid heading word
                 continue
 
             # Check if heading is in uppercase
             if heading_text != heading_text.upper():
                 logger.warning(f"Heading should be uppercase in line {i}")
-                issues.append({
-                    'type': 'case_violation',
-                    'line': line,
-                    'message': 'Heading should be uppercase',
-                    'suggestion': line.split('.', 1)[0] + '. ' + heading_text.upper(),
-                    'category': self.category
-                })
+                issues.append(
+                    {
+                        "type": "case_violation",
+                        "line": line,
+                        "message": "Heading should be uppercase",
+                        "suggestion": line.split(".", 1)[0] + ". " + heading_text.upper(),
+                        "category": self.category,
+                    }
+                )
             else:
                 normalized = normalize_heading(line)
                 if normalized != line:
                     logger.warning(f"Heading format mismatch in line {i}")
                     logger.debug(f"Original: {line}")
                     logger.debug(f"Normalized: {normalized}")
-                    issues.append({
-                        'type': 'format_violation',
-                        'line': line,
-                        'message': 'Heading formatting issue',
-                        'suggestion': normalized,
-                        'category': self.category
-                    })
+                    issues.append(
+                        {
+                            "type": "format_violation",
+                            "line": line,
+                            "message": "Heading formatting issue",
+                            "suggestion": normalized,
+                            "category": self.category,
+                        }
+                    )
 
             # Only add to headings_found if it passed all validations
             headings_found.add(heading_text_no_period.upper())
@@ -190,45 +208,62 @@ class HeadingChecks(BaseChecker):
                         f"Missing '{heading_name}' heading. This section is only needed if the document cancels an earlier version. "
                         "If not applicable, this message can be ignored."
                     )
-                    logger.info(f"Optional/conditional heading '{heading_name}' missing; issued INFO-level message.")
-                    issues.append({
-                        'type': 'missing_optional_heading',
-                        'missing': heading_name,
-                        'message': info_message,
-                        'severity': Severity.INFO,
-                        'category': self.category
-                    })
+                    logger.info(
+                        f"Optional/conditional heading '{heading_name}' missing; issued INFO-level message."
+                    )
+                    issues.append(
+                        {
+                            "type": "missing_optional_heading",
+                            "missing": heading_name,
+                            "message": info_message,
+                            "severity": Severity.INFO,
+                            "category": self.category,
+                        }
+                    )
                 else:
                     missing_headings.append(heading_name)
         if missing_headings:
-            issues.append({
-                'type': 'missing_headings',
-                'missing': list(missing_headings),
-                'message': f'Missing required headings: {", ".join(missing_headings)}',
-                'severity': Severity.ERROR,
-                'category': self.category
-            })
+            issues.append(
+                {
+                    "type": "missing_headings",
+                    "missing": list(missing_headings),
+                    "message": f'Missing required headings: {", ".join(missing_headings)}',
+                    "severity": Severity.ERROR,
+                    "category": self.category,
+                }
+            )
 
         details = {
-            'found_headings': list(headings_found),
-            'required_headings': [h["name"] for h in normalized_required_headings],
-            'document_type': doc_type_norm,
-            'missing_count': len(missing_headings) if required_headings else 0
+            "found_headings": list(headings_found),
+            "required_headings": [h["name"] for h in normalized_required_headings],
+            "document_type": doc_type_norm,
+            "missing_count": len(missing_headings) if required_headings else 0,
         }
 
         logger.info(f"Heading title check completed. Found {len(issues)} issues")
         logger.debug(f"Result details: {details}")
         # Determine overall severity
-        overall_severity = Severity.ERROR if any(issue.get('severity') == Severity.ERROR for issue in issues) else (
-            Severity.WARNING if any(issue.get('severity') == Severity.WARNING for issue in issues) else (
-                Severity.INFO if any(issue.get('severity') == Severity.INFO for issue in issues) else None
+        overall_severity = (
+            Severity.ERROR
+            if any(issue.get("severity") == Severity.ERROR for issue in issues)
+            else (
+                Severity.WARNING
+                if any(issue.get("severity") == Severity.WARNING for issue in issues)
+                else (
+                    Severity.INFO
+                    if any(issue.get("severity") == Severity.INFO for issue in issues)
+                    else None
+                )
             )
         )
         return DocumentCheckResult(
-            success=not any(issue.get('severity') == Severity.ERROR or issue.get('severity') == Severity.WARNING for issue in issues),
+            success=not any(
+                issue.get("severity") == Severity.ERROR or issue.get("severity") == Severity.WARNING
+                for issue in issues
+            ),
             severity=overall_severity,
             issues=issues,
-            details=details
+            details=details,
         )
 
     def check_heading_period(self, doc: List[str], doc_type: str) -> DocumentCheckResult:
@@ -244,12 +279,14 @@ class HeadingChecks(BaseChecker):
         logger.info(f"Starting heading period check for document type: {doc_type_norm}")
 
         # Get period requirements from terminology data
-        period_requirements = self.terminology_manager.terminology_data.get('heading_periods', {})
+        period_requirements = self.terminology_manager.terminology_data.get("heading_periods", {})
         requires_period = period_requirements.get(doc_type_norm, False)
-        logger.debug(f"Document type {doc_type_norm} {'requires' if requires_period else 'does not require'} periods")
+        logger.debug(
+            f"Document type {doc_type_norm} {'requires' if requires_period else 'does not require'} periods"
+        )
 
         # Get heading words from terminology data
-        heading_words = self.terminology_manager.terminology_data.get('heading_words', [])
+        heading_words = self.terminology_manager.terminology_data.get("heading_words", [])
 
         for i, line in enumerate(doc, 1):
             logger.debug(f"Checking line {i} for heading period: {line}")
@@ -259,35 +296,41 @@ class HeadingChecks(BaseChecker):
                 word_count = len(line_stripped.split())
                 char_count = len(line_stripped)
 
-                if (char_count > self.MAX_HEADING_CHARS_FOR_PERIOD_CHECK or
-                    word_count > self.MAX_HEADING_WORDS_FOR_PERIOD_CHECK):
-                    logger.debug(f"Skipping period check for line {i} - too long ({char_count} chars, {word_count} words)")
+                if (
+                    char_count > self.MAX_HEADING_CHARS_FOR_PERIOD_CHECK
+                    or word_count > self.MAX_HEADING_WORDS_FOR_PERIOD_CHECK
+                ):
+                    logger.debug(
+                        f"Skipping period check for line {i} - too long ({char_count} chars, {word_count} words)"
+                    )
                     continue
 
-                has_period = line_stripped.endswith('.')
+                has_period = line_stripped.endswith(".")
                 logger.debug(f"Line {i} has period: {has_period}")
                 if requires_period and not has_period:
                     logger.warning(f"Missing required period in line {i}")
-                    issues.append({
-                        'line': line,
-                        'message': 'Heading missing required period',
-                        'suggestion': f"{line.strip()}.",
-                        'category': self.category
-                    })
+                    issues.append(
+                        {
+                            "line": line,
+                            "message": "Heading missing required period",
+                            "suggestion": f"{line.strip()}.",
+                            "category": self.category,
+                        }
+                    )
                 elif not requires_period and has_period:
                     logger.warning(f"Unexpected period in line {i}")
-                    issues.append({
-                        'line': line,
-                        'message': 'Heading should not end with period',
-                        'suggestion': line.strip()[:-1],
-                        'category': self.category
-                    })
+                    issues.append(
+                        {
+                            "line": line,
+                            "message": "Heading should not end with period",
+                            "suggestion": line.strip()[:-1],
+                            "category": self.category,
+                        }
+                    )
 
         logger.info(f"Heading period check completed. Found {len(issues)} issues")
         return DocumentCheckResult(
-            success=len(issues) == 0,
-            issues=issues,
-            details={'document_type': doc_type_norm}
+            success=len(issues) == 0, issues=issues, details={"document_type": doc_type_norm}
         )
 
     def check_heading_structure(self, doc) -> List[Dict[str, Any]]:
@@ -303,12 +346,12 @@ class HeadingChecks(BaseChecker):
 
             logger.debug(f"Checking paragraph {i}: {text}")
             # Extract heading numbers (e.g., ["1", "2", "1"] from "1.2.1")
-            match = re.match(r'^(\d+\.)+\s*', text)
+            match = re.match(r"^(\d+\.)+\s*", text)
             if not match:
                 logger.debug(f"Paragraph {i} is not a numbered heading")
                 continue
 
-            numbers = [n.strip('.') for n in match.group(0).strip().split('.') if n.strip('.')]
+            numbers = [n.strip(".") for n in match.group(0).strip().split(".") if n.strip(".")]
             current_level = len(numbers)
             logger.debug(f"Found heading level {current_level} with numbers: {numbers}")
 
@@ -317,13 +360,17 @@ class HeadingChecks(BaseChecker):
 
                 # Check level skipping
                 if current_level > prev_level + 1:
-                    logger.warning(f"Invalid heading sequence in paragraph {i}: skipped level {prev_level + 1}")
-                    issues.append({
-                        'text': text,
-                        'message': f'Invalid heading sequence: skipped level {prev_level + 1}',
-                        'suggestion': 'Ensure heading levels are sequential',
-                        'category': self.category
-                    })
+                    logger.warning(
+                        f"Invalid heading sequence in paragraph {i}: skipped level {prev_level + 1}"
+                    )
+                    issues.append(
+                        {
+                            "text": text,
+                            "message": f"Invalid heading sequence: skipped level {prev_level + 1}",
+                            "suggestion": "Ensure heading levels are sequential",
+                            "category": self.category,
+                        }
+                    )
 
                 # Check sequence within same level
                 elif current_level == prev_level:
@@ -334,13 +381,17 @@ class HeadingChecks(BaseChecker):
                             prev_last = int(prev_numbers[-1])
                             curr_last = int(numbers[-1])
                             if curr_last != prev_last + 1:
-                                logger.warning(f"Invalid heading sequence in paragraph {i}: expected {prev_last + 1}")
-                                issues.append({
-                                    'text': text,
-                                    'message': f'Invalid heading sequence: expected {prev_last + 1}',
-                                    'suggestion': f'Use {".".join(numbers[:-1] + [str(prev_last + 1)])}',
-                                    'category': self.category
-                                })
+                                logger.warning(
+                                    f"Invalid heading sequence in paragraph {i}: expected {prev_last + 1}"
+                                )
+                                issues.append(
+                                    {
+                                        "text": text,
+                                        "message": f"Invalid heading sequence: expected {prev_last + 1}",
+                                        "suggestion": f'Use {".".join(numbers[:-1] + [str(prev_last + 1)])}',
+                                        "category": self.category,
+                                    }
+                                )
                         except ValueError:
                             logger.error(f"Invalid number format in paragraph {i}: {numbers[-1]}")
 
@@ -358,7 +409,7 @@ class HeadingChecks(BaseChecker):
         line_number = 1
 
         for paragraph in document.paragraphs:
-            if paragraph.style.name.startswith('Heading'):
+            if paragraph.style.name.startswith("Heading"):
                 headings_with_lines.append((paragraph, line_number))
             line_number += 1
 
@@ -390,7 +441,7 @@ class HeadingChecks(BaseChecker):
         """Check if headings follow proper hierarchy."""
         previous_level = 0
         for heading, line_number in headings_with_lines:
-            level = int(heading.style.name.replace('Heading ', ''))
+            level = int(heading.style.name.replace("Heading ", ""))
             error_message = self._check_heading_sequence(level, previous_level)
 
             if error_message:
@@ -398,7 +449,7 @@ class HeadingChecks(BaseChecker):
                     message=f"{error_message} (Current heading: {heading.text})",
                     severity=Severity.ERROR,
                     line_number=line_number,
-                    category=getattr(self, "category", "heading")
+                    category=getattr(self, "category", "heading"),
                 )
             previous_level = level
 
@@ -413,7 +464,7 @@ class HeadingChecks(BaseChecker):
         doc_type_norm = self._normalize_doc_type(doc_type)
 
         # Get period requirements from terminology data
-        period_requirements = self.terminology_manager.terminology_data.get('heading_periods', {})
+        period_requirements = self.terminology_manager.terminology_data.get("heading_periods", {})
         requires_period = period_requirements.get(doc_type_norm, False)
 
         for heading, line_number in headings_with_lines:
@@ -423,12 +474,16 @@ class HeadingChecks(BaseChecker):
             word_count = len(text.split())
             char_count = len(text)
 
-            if (char_count > self.MAX_HEADING_CHARS_FOR_PERIOD_CHECK or
-                word_count > self.MAX_HEADING_WORDS_FOR_PERIOD_CHECK):
-                logger.debug(f"Skipping period check for heading - too long ({char_count} chars, {word_count} words): {text[:50]}...")
+            if (
+                char_count > self.MAX_HEADING_CHARS_FOR_PERIOD_CHECK
+                or word_count > self.MAX_HEADING_WORDS_FOR_PERIOD_CHECK
+            ):
+                logger.debug(
+                    f"Skipping period check for heading - too long ({char_count} chars, {word_count} words): {text[:50]}..."
+                )
                 continue
 
-            has_period = text.endswith('.')
+            has_period = text.endswith(".")
 
             # Check period usage based on document type requirements
             if requires_period and not has_period:
@@ -436,12 +491,12 @@ class HeadingChecks(BaseChecker):
                     message=f"Heading missing required period: {text}",
                     severity=Severity.WARNING,
                     line_number=line_number,
-                    category=getattr(self, "category", "heading")
+                    category=getattr(self, "category", "heading"),
                 )
             elif not requires_period and has_period:
                 results.add_issue(
                     message=f"Heading should not end with period: {text}",
                     severity=Severity.WARNING,
                     line_number=line_number,
-                    category=getattr(self, "category", "heading")
+                    category=getattr(self, "category", "heading"),
                 )

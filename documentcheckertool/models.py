@@ -10,15 +10,20 @@ from documentcheckertool.models import DocumentType, DocumentTypeError
 
 class DocumentCheckError(Exception):
     """Base exception for document checking errors."""
+
     pass
+
 
 class ConfigurationError(DocumentCheckError):
     """Exception for configuration-related errors."""
+
     pass
+
 
 @dataclass
 class PatternConfig:
     """Configuration for pattern matching."""
+
     pattern: str
     description: str
     is_error: bool
@@ -26,8 +31,10 @@ class PatternConfig:
     keep_together: bool = False
     format_name: Optional[str] = None
 
+
 class DocumentType(str, Enum):
     """Supported document types."""
+
     AC = "Advisory Circular"
     ORDER = "Order"
     NOTICE = "Notice"
@@ -35,22 +42,26 @@ class DocumentType(str, Enum):
     FR = "Federal Register Notice"
 
     @classmethod
-    def from_string(cls, doc_type: str) -> 'DocumentType':
+    def from_string(cls, doc_type: str) -> "DocumentType":
         """Convert string to DocumentType enum."""
         try:
-            return cls[doc_type.upper().replace(' ', '_')]
+            return cls[doc_type.upper().replace(" ", "_")]
         except KeyError:
             raise DocumentTypeError(f"Invalid document type: {doc_type}")
 
+
 class Issue(BaseModel):
     """Represents an issue found during document checking."""
+
     message: str
     line_number: Optional[int] = None
     severity: str = "warning"
     suggestion: Optional[str] = None
 
+
 class Severity(IntEnum):
     """Severity levels for issues."""
+
     ERROR = 0
     WARNING = 1
     INFO = 2
@@ -64,14 +75,16 @@ class Severity(IntEnum):
         """Get the string representation of the severity."""
         return ["error", "warning", "info"][self]
 
+
 @dataclass
 class DocumentCheckResult:
     """Result of a document check."""
+
     success: bool = True
     issues: List[Dict[str, Any]] = None
     checker_name: Optional[str] = None
     score: float = 1.0
-    severity: Optional['Severity'] = None
+    severity: Optional["Severity"] = None
     details: Optional[Dict[str, Any]] = None
 
     def __post_init__(self):
@@ -80,13 +93,16 @@ class DocumentCheckResult:
             self.issues = []
         self.severity = None  # Will be set on first issue
 
-    def add_issue(self, message: str, severity: 'Severity', line_number: int = None, category: str = None, **kwargs):
+    def add_issue(
+        self,
+        message: str,
+        severity: "Severity",
+        line_number: int = None,
+        category: str = None,
+        **kwargs,
+    ):
         """Add an issue to the result."""
-        issue = {
-            "message": message,
-            "severity": severity,
-            "line_number": line_number
-        }
+        issue = {"message": message, "severity": severity, "line_number": line_number}
         if category is not None:
             issue["category"] = category
         issue.update(kwargs)
@@ -121,22 +137,26 @@ class DocumentCheckResult:
             html.append(f"<h3 style='color: {color};'>{severity.value_str} Severity Issues:</h3>")
             html.append("<ul>")
             for issue in issues:
-                line_info = f" (line {issue['line_number']})" if issue.get('line_number') else ""
+                line_info = f" (line {issue['line_number']})" if issue.get("line_number") else ""
                 html.append(f"<li>{issue['message']}{line_info}</li>")
             html.append("</ul>")
 
         html.append("</div>")
         return "\n".join(html)
 
+
 class DocumentType(BaseModel):
     """Represents a document type with its associated rules."""
+
     name: str
     description: str
     rules: List[str]
 
+
 @dataclass
 class VisibilitySettings:
     """Settings for controlling visibility of different check categories."""
+
     show_readability: bool = True
     show_paragraph_length: bool = True
     show_terminology: bool = True
@@ -149,32 +169,32 @@ class VisibilitySettings:
     def to_dict(self) -> Dict[str, bool]:
         """Convert settings to dictionary format."""
         return {
-            'readability': self.show_readability,
-            'paragraph_length': self.show_paragraph_length,
-            'terminology': self.show_terminology,
-            'headings': self.show_headings,
-            'structure': self.show_structure,
-            'format': self.show_format,
-            'accessibility': self.show_accessibility,
-            'document_status': self.show_document_status
+            "readability": self.show_readability,
+            "paragraph_length": self.show_paragraph_length,
+            "terminology": self.show_terminology,
+            "headings": self.show_headings,
+            "structure": self.show_structure,
+            "format": self.show_format,
+            "accessibility": self.show_accessibility,
+            "document_status": self.show_document_status,
         }
 
     @classmethod
-    def from_dict(cls, data: Dict[str, bool]) -> 'VisibilitySettings':
+    def from_dict(cls, data: Dict[str, bool]) -> "VisibilitySettings":
         """Create settings from dictionary format."""
         return cls(
-            show_readability=data.get('readability', True),
-            show_paragraph_length=data.get('paragraph_length', True),
-            show_terminology=data.get('terminology', True),
-            show_headings=data.get('headings', True),
-            show_structure=data.get('structure', True),
-            show_format=data.get('format', True),
-            show_accessibility=data.get('accessibility', True),
-            show_document_status=data.get('document_status', True)
+            show_readability=data.get("readability", True),
+            show_paragraph_length=data.get("paragraph_length", True),
+            show_terminology=data.get("terminology", True),
+            show_headings=data.get("headings", True),
+            show_structure=data.get("structure", True),
+            show_format=data.get("format", True),
+            show_accessibility=data.get("accessibility", True),
+            show_document_status=data.get("document_status", True),
         )
 
     @classmethod
-    def from_dict_json(cls, json_str: str) -> 'VisibilitySettings':
+    def from_dict_json(cls, json_str: str) -> "VisibilitySettings":
         """Create settings from a JSON string."""
         try:
             data = json.loads(json_str)

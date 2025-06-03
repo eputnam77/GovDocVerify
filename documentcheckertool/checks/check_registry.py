@@ -4,6 +4,7 @@ from typing import Any, Callable, Dict, List
 
 logger = logging.getLogger(__name__)
 
+
 class CheckRegistry:
     """Central registry for document check functions."""
 
@@ -40,6 +41,7 @@ class CheckRegistry:
                 logger.debug(f"Check {func.__name__} already registered in category {category}")
 
             return wrapper
+
         return decorator
 
     @classmethod

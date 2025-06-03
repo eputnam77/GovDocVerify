@@ -10,13 +10,16 @@ from ..models import DocumentCheckResult
 
 logger = logging.getLogger(__name__)
 
+
 @dataclass
 class AcronymDefinition:
     """Represents an acronym definition."""
+
     acronym: str
     definition: str
     is_standard: bool = False
     context: Optional[str] = None
+
 
 class TerminologyManager:
     """Manages terminology, acronyms, and their definitions from a single source of truth."""
@@ -34,21 +37,21 @@ class TerminologyManager:
         if self._initialized:
             return
 
-        self.terminology_file = Path(__file__).parent.parent / 'config' / 'terminology.json'
+        self.terminology_file = Path(__file__).parent.parent / "config" / "terminology.json"
         self.terminology_data = self._load_terminology()
         self.defined_acronyms: Dict[str, str] = {}
         self.used_acronyms: Set[str] = set()
         self._validate_config()
         logger.info("Initialized TerminologyManager")
-        self.definition_pattern = re.compile(r'\b([\w\s&]+?)\s*\((\b[A-Z]{2,}\b)\)')
-        self.usage_pattern = re.compile(r'(?<!\()\b[A-Za-z]{2,}\b(?!\s*[:.]\s*)')
-        ignore_patterns_raw = self.terminology_data.get('patterns', {}).get('ignore_patterns', [])
+        self.definition_pattern = re.compile(r"\b([\w\s&]+?)\s*\((\b[A-Z]{2,}\b)\)")
+        self.usage_pattern = re.compile(r"(?<!\()\b[A-Za-z]{2,}\b(?!\s*[:.]\s*)")
+        ignore_patterns_raw = self.terminology_data.get("patterns", {}).get("ignore_patterns", [])
         self.ignored_patterns = [re.compile(pattern) for pattern in ignore_patterns_raw]
         self._initialized = True
 
     def _validate_config(self):
         """Validate terminology configuration."""
-        required_sections = ['acronyms', 'patterns', 'heading_words']
+        required_sections = ["acronyms", "patterns", "heading_words"]
         for section in required_sections:
             if section not in self.terminology_data:
                 raise ValueError(f"Missing required section '{section}' in terminology.json")
@@ -61,7 +64,7 @@ class TerminologyManager:
             Dictionary containing all terminology data
         """
         try:
-            with open(self.terminology_file, 'r') as f:
+            with open(self.terminology_file, "r") as f:
                 return json.load(f)
         except FileNotFoundError:
             raise FileNotFoundError(f"Terminology file not found at {self.terminology_file}")
@@ -75,9 +78,9 @@ class TerminologyManager:
 
     def _load_valid_words(self) -> set:
         """Load valid words from a file (one word per line, both cases)."""
-        valid_words_file = Path(__file__).parent.parent.parent / 'valid_words.txt'
+        valid_words_file = Path(__file__).parent.parent.parent / "valid_words.txt"
         try:
-            with open(valid_words_file, 'r') as f:
+            with open(valid_words_file, "r") as f:
                 words = set()
                 for word in f:
                     word = word.strip()
@@ -121,13 +124,17 @@ class TerminologyManager:
 
             # Skip long acronyms immediately
             if len(acronym) >= 10:  # Changed from > to >= to ignore 10+ character acronyms
-                logger.debug(f"Skipping long acronym definition: {acronym} (length: {len(acronym)})")
+                logger.debug(
+                    f"Skipping long acronym definition: {acronym} (length: {len(acronym)})"
+                )
                 continue
 
             # Check if the full context matches any ignored patterns
             for pattern in self.ignored_patterns:
                 if pattern.search(full_text):
-                    logger.debug(f"Skipping ignored pattern definition: {full_text} (matches pattern: {pattern.pattern})")
+                    logger.debug(
+                        f"Skipping ignored pattern definition: {full_text} (matches pattern: {pattern.pattern})"
+                    )
                     continue
 
             logger.debug(f"Found definition: '{definition}' ({acronym})")
@@ -138,24 +145,32 @@ class TerminologyManager:
                 clean_def = definition.replace("The ", "")
                 clean_std_def = standard_def.replace("The ", "")
                 if clean_def.lower() != clean_std_def.lower():
-                    logger.warning(f"Non-standard definition for {acronym}: {definition} vs {standard_def}")
-                    issues.append({
-                        "type": "acronym_definition",
-                        "message": f"Acronym '{acronym}' defined with non-standard definition",
-                        "line": text[:match.start()].count('\n') + 1,
-                        "context": full_text
-                    })
+                    logger.warning(
+                        f"Non-standard definition for {acronym}: {definition} vs {standard_def}"
+                    )
+                    issues.append(
+                        {
+                            "type": "acronym_definition",
+                            "message": f"Acronym '{acronym}' defined with non-standard definition",
+                            "line": text[: match.start()].count("\n") + 1,
+                            "context": full_text,
+                        }
+                    )
                 defined_acronyms.add(acronym)
                 defined_acronyms_info[acronym] = definition
                 # Add to unused_candidates if it's explicitly defined in the text
                 unused_candidates.add(acronym)
-                logger.debug(f"Added '{acronym}' to defined_acronyms and unused_candidates (standard)")
+                logger.debug(
+                    f"Added '{acronym}' to defined_acronyms and unused_candidates (standard)"
+                )
             else:
                 # Non-standard acronym
                 defined_acronyms.add(acronym)
                 defined_acronyms_info[acronym] = definition
                 unused_candidates.add(acronym)
-                logger.debug(f"Added '{acronym}' to defined_acronyms and unused_candidates (non-standard)")
+                logger.debug(
+                    f"Added '{acronym}' to defined_acronyms and unused_candidates (non-standard)"
+                )
 
         logger.debug(f"After definition processing - defined_acronyms: {defined_acronyms}")
         logger.debug(f"After definition processing - unused_candidates: {unused_candidates}")
@@ -175,7 +190,9 @@ class TerminologyManager:
             # Check if the full context matches any ignored patterns
             for pattern in self.ignored_patterns:
                 if pattern.search(text):
-                    logger.debug(f"Skipping ignored pattern usage: {full_text} (matches pattern: {pattern.pattern})")
+                    logger.debug(
+                        f"Skipping ignored pattern usage: {full_text} (matches pattern: {pattern.pattern})"
+                    )
                     continue
 
             # Skip if it's a valid word (case-insensitive)
@@ -185,7 +202,9 @@ class TerminologyManager:
 
             # Check if the lowercase version matches a defined acronym
             defined_lower = {a.lower(): a for a in defined_acronyms}
-            logger.debug(f"Checking case-insensitive match for {acronym} against defined acronyms: {defined_lower}")
+            logger.debug(
+                f"Checking case-insensitive match for {acronym} against defined acronyms: {defined_lower}"
+            )
             if acronym.lower() in defined_lower:
                 original_case = defined_lower[acronym.lower()]
                 logger.debug(f"Found case-insensitive match: {acronym} -> {original_case}")
@@ -195,10 +214,14 @@ class TerminologyManager:
 
             # Check if the lowercase version matches a known acronym
             known_lower = {a.lower(): a for a in all_known_acronyms}
-            logger.debug(f"Checking case-insensitive match for {acronym} against known acronyms: {known_lower}")
+            logger.debug(
+                f"Checking case-insensitive match for {acronym} against known acronyms: {known_lower}"
+            )
             if acronym.lower() in known_lower:
                 original_case = known_lower[acronym.lower()]
-                logger.debug(f"Found case-insensitive match in known acronyms: {acronym} -> {original_case}")
+                logger.debug(
+                    f"Found case-insensitive match in known acronyms: {acronym} -> {original_case}"
+                )
                 used_acronyms.add(original_case)
                 logger.debug(f"Added {original_case} to used_acronyms")
                 continue
@@ -211,12 +234,14 @@ class TerminologyManager:
             # Check if acronym is defined or in all known acronyms
             if acronym not in defined_acronyms and acronym not in all_known_acronyms:
                 logger.warning(f"Undefined acronym found: {acronym}")
-                issues.append({
-                    "type": "acronym_usage",
-                    "message": f"Confirm '{acronym}' was defined at its first use",
-                    "line": text[:match.start()].count('\n') + 1,
-                    "context": match.group(0)
-                })
+                issues.append(
+                    {
+                        "type": "acronym_usage",
+                        "message": f"Confirm '{acronym}' was defined at its first use",
+                        "line": text[: match.start()].count("\n") + 1,
+                        "context": match.group(0),
+                    }
+                )
             used_acronyms.add(acronym)
             logger.debug(f"Added '{acronym}' to used_acronyms")
 
@@ -233,22 +258,23 @@ class TerminologyManager:
             logger.debug(f"Checking unused acronym: {acronym}, length: {len(acronym)}")
             # Skip long acronyms in unused check
             if len(acronym) >= 10:  # Changed from > to >= to ignore 10+ character acronyms
-                logger.debug(f"Skipping long acronym in unused check: {acronym} (length: {len(acronym)})")
+                logger.debug(
+                    f"Skipping long acronym in unused check: {acronym} (length: {len(acronym)})"
+                )
                 continue
             logger.warning(f"Found unused acronym: {acronym}")
-            issues.append({
-                "type": "acronym_usage",
-                "message": f"Acronym '{acronym}' is defined but never used",
-                "line": 1,  # We don't track line numbers for unused acronyms
-                "context": f"{defined_acronyms_info[acronym]} ({acronym})"
-            })
+            issues.append(
+                {
+                    "type": "acronym_usage",
+                    "message": f"Acronym '{acronym}' is defined but never used",
+                    "line": 1,  # We don't track line numbers for unused acronyms
+                    "context": f"{defined_acronyms_info[acronym]} ({acronym})",
+                }
+            )
 
         logger.debug(f"Final state - issues: {issues}")
         logger.debug("--- Acronym check end ---")
-        return DocumentCheckResult(
-            success=len(issues) == 0,
-            issues=issues
-        )
+        return DocumentCheckResult(success=len(issues) == 0, issues=issues)
 
     def get_standard_acronyms(self) -> Dict[str, str]:
         """Get all standard acronym definitions.
@@ -256,7 +282,7 @@ class TerminologyManager:
         Returns:
             Dictionary of standard acronym definitions
         """
-        return self.terminology_data['acronyms']['standard']
+        return self.terminology_data["acronyms"]["standard"]
 
     def get_custom_acronyms(self) -> Dict[str, str]:
         """Get all custom acronym definitions.
@@ -264,7 +290,7 @@ class TerminologyManager:
         Returns:
             Dictionary of custom acronym definitions
         """
-        return self.terminology_data['acronyms']['custom']
+        return self.terminology_data["acronyms"]["custom"]
 
     def add_custom_acronym(self, acronym: str, definition: str) -> None:
         """Add a custom acronym definition.
@@ -283,7 +309,7 @@ class TerminologyManager:
         if acronym in self.get_standard_acronyms():
             raise ValueError(f"'{acronym}' is a standard acronym and cannot be redefined")
 
-        self.terminology_data['acronyms']['custom'][acronym] = definition
+        self.terminology_data["acronyms"]["custom"][acronym] = definition
 
     def get_all_acronyms(self) -> Dict[str, str]:
         """Get all acronym definitions.
@@ -302,7 +328,7 @@ class TerminologyManager:
         Returns:
             Dictionary of patterns, optionally filtered by category
         """
-        patterns = self.terminology_data['patterns']
+        patterns = self.terminology_data["patterns"]
         if category:
             return {category: patterns.get(category, [])}
         return patterns
@@ -316,7 +342,7 @@ class TerminologyManager:
         Returns:
             List of required language patterns
         """
-        return self.terminology_data['required_language'].get(doc_type, [])
+        return self.terminology_data["required_language"].get(doc_type, [])
 
     def get_acronym_definition(self, acronym: str) -> Optional[str]:
         """Get the definition of an acronym.
@@ -327,9 +353,11 @@ class TerminologyManager:
         Returns:
             The definition if found, None otherwise
         """
-        return (self.get_standard_acronyms().get(acronym) or
-                self.get_custom_acronyms().get(acronym) or
-                None)
+        return (
+            self.get_standard_acronyms().get(acronym)
+            or self.get_custom_acronyms().get(acronym)
+            or None
+        )
 
     def is_standard_acronym(self, acronym: str) -> bool:
         """Check if an acronym is a standard one.
@@ -345,7 +373,7 @@ class TerminologyManager:
     def save_changes(self) -> None:
         """Save any changes made to the terminology data back to the JSON file."""
         try:
-            with open(self.terminology_file, 'w') as f:
+            with open(self.terminology_file, "w") as f:
                 json.dump(self.terminology_data, f, indent=4)
         except Exception as e:
             raise IOError(f"Failed to save terminology data: {str(e)}")
@@ -353,7 +381,7 @@ class TerminologyManager:
     def extract_acronyms(self, text: str) -> list:
         """Extract all acronyms from the given text."""
         # Acronyms are defined as two or more uppercase letters
-        return re.findall(r'\b[A-Z]{2,}\b', text)
+        return re.findall(r"\b[A-Z]{2,}\b", text)
 
     def find_acronym_definition(self, text: str, acronym: str) -> Optional[str]:
         """Find the definition of an acronym in the given text."""
@@ -362,8 +390,8 @@ class TerminologyManager:
             logger.debug(f"find_acronym_definition: empty text for acronym={acronym}")
             return None
         # Only match in this text instance, do not use cache or dictionary fallback
-        pattern_before = rf'\b({acronym})\s*\(\s*([^)]+?)\s*\)'
-        pattern_after  = rf'\b([A-Za-z][A-Za-z ,&-]+?)\s*\(\s*{acronym}\s*\)'
+        pattern_before = rf"\b({acronym})\s*\(\s*([^)]+?)\s*\)"
+        pattern_after = rf"\b([A-Za-z][A-Za-z ,&-]+?)\s*\(\s*{acronym}\s*\)"
         m = re.search(pattern_before, text)
         if m:
             return m.group(2).strip()

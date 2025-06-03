@@ -33,12 +33,12 @@ class BaseChecker:
         """Check a document and return results."""
         # If document is a file path string, read the file
         if isinstance(document, str):
-            with open(document, 'r', encoding='utf-8') as f:
+            with open(document, "r", encoding="utf-8") as f:
                 content = f.read()
             return self.check_text(content)
 
         # If document has text attribute, use it
-        if hasattr(document, 'text'):
+        if hasattr(document, "text"):
             return self.check_text(document.text)
 
         # If document is already text content
@@ -48,23 +48,23 @@ class BaseChecker:
         # Default fallback
         return self.check_text(str(document))
 
-    def create_issue(self, message: str, line_number: int = 0, severity: str = "warning", category: str = None) -> Dict[str, Any]:
+    def create_issue(
+        self, message: str, line_number: int = 0, severity: str = "warning", category: str = None
+    ) -> Dict[str, Any]:
         """Create a standardized issue dictionary."""
         return {
             "message": message,
             "line_number": line_number,
             "severity": severity,
             "checker": self.name,
-            "category": category or getattr(self, "category", None)
+            "category": category or getattr(self, "category", None),
         }
 
-    def create_result(self, issues: List[Dict[str, Any]], success: bool = True) -> DocumentCheckResult:
+    def create_result(
+        self, issues: List[Dict[str, Any]], success: bool = True
+    ) -> DocumentCheckResult:
         """Create a standardized check result."""
-        return DocumentCheckResult(
-            success=success,
-            issues=issues,
-            checker_name=self.name
-        )
+        return DocumentCheckResult(success=success, issues=issues, checker_name=self.name)
 
     @classmethod
     def get_registered_checks(cls) -> Dict[str, List[str]]:
