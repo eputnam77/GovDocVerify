@@ -400,7 +400,6 @@ class FormattingChecker(BaseChecker):
         r'(?P<number>\d+(?:[-]\d+)?[A-Z]?)'
     )
 
-    @CheckRegistry.register('format')
     def check_text(self, content: str) -> DocumentCheckResult:
         """Check text content for formatting issues, including date and phone number formats."""
         logger.debug("Starting text formatting check")
@@ -426,7 +425,6 @@ class FormattingChecker(BaseChecker):
         logger.debug(f"Found {len(issues)} total issues")
         return DocumentCheckResult(success=len(issues) == 0, severity=Severity.ERROR if issues else None, issues=issues)
 
-    @CheckRegistry.register('format')
     def check_punctuation(self, lines: List[str]) -> DocumentCheckResult:
         """Check for double periods and other punctuation issues."""
         logger.debug("Checking punctuation")
@@ -442,7 +440,6 @@ class FormattingChecker(BaseChecker):
                 })
         return DocumentCheckResult(success=len(issues) == 0, severity=Severity.WARNING if issues else None, issues=issues)
 
-    @CheckRegistry.register('format')
     def check_spacing(self, lines: List[str]) -> DocumentCheckResult:
         """
         Detect **all** spacing errors in one pass:
@@ -486,7 +483,6 @@ class FormattingChecker(BaseChecker):
             issues=issues,
         )
 
-    @CheckRegistry.register('format')
     def check_parentheses(self, lines: List[str]) -> DocumentCheckResult:
         """Check for unmatched parentheses."""
         logger.debug("Checking parentheses")
@@ -504,7 +500,6 @@ class FormattingChecker(BaseChecker):
                 })
         return DocumentCheckResult(success=len(issues) == 0, severity=Severity.WARNING if issues else None, issues=issues)
 
-    @CheckRegistry.register('format')
     def check_section_symbol_usage(self, lines: List[str]) -> DocumentCheckResult:
         """Check for proper section symbol usage."""
         logger.debug("Checking section symbols (including CFR-specific rule)")
@@ -585,7 +580,6 @@ class FormattingChecker(BaseChecker):
 
         return DocumentCheckResult(success=len(issues) == 0, severity=Severity.WARNING if issues else None, issues=issues)
 
-    @CheckRegistry.register('format')
     def check_list_formatting(self, lines: List[str]) -> DocumentCheckResult:
         """Check for consistent list formatting."""
         logger.debug("Checking list formatting")
@@ -611,7 +605,6 @@ class FormattingChecker(BaseChecker):
                 })
         return DocumentCheckResult(success=len(issues) == 0, severity=Severity.WARNING if issues else None, issues=issues)
 
-    @CheckRegistry.register('format')
     def check_quotation_marks(self, lines: List[str]) -> DocumentCheckResult:
         """Check for consistent quotation mark usage."""
         logger.debug("Checking quotation marks")
@@ -627,7 +620,6 @@ class FormattingChecker(BaseChecker):
                 })
         return DocumentCheckResult(success=len(issues) == 0, severity=Severity.WARNING if issues else None, issues=issues)
 
-    @CheckRegistry.register('format')
     def check_placeholders(self, lines: List[str]) -> DocumentCheckResult:
         """Check for placeholder text."""
         logger.debug("Checking placeholders")
@@ -651,7 +643,6 @@ class FormattingChecker(BaseChecker):
                     break  # Only add one issue per line
         return DocumentCheckResult(success=len(issues) == 0, severity=Severity.ERROR if issues else None, issues=issues)
 
-    @CheckRegistry.register('format')
     def _check_date_formats_text(self, lines: list) -> list:
         """
         Check for consistent date formats in plain text (line-by-line),
@@ -677,7 +668,6 @@ class FormattingChecker(BaseChecker):
                 })
         return issues
 
-    @CheckRegistry.register('format')
     def _check_phone_numbers_text(self, lines: list) -> list:
         """
         Check for inconsistent phone number formats in plain text (line-by-line).

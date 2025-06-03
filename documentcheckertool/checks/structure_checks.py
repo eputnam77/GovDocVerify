@@ -120,8 +120,6 @@ class StructureChecks(BaseChecker):
         logger.info(f"Running structure checks for document type: {doc_type}")
 
         paragraphs = document.paragraphs
-        self._check_paragraph_length(paragraphs, results)
-        self._check_sentence_length(paragraphs, results)
         self._check_section_balance(paragraphs, results)
         self._check_list_formatting(paragraphs, results)
         self._check_cross_references(document, results)
@@ -146,51 +144,7 @@ class StructureChecks(BaseChecker):
             preview_words = words[:max_words]
             return ' '.join(preview_words) + '...'
 
-    @CheckRegistry.register('readability')
-    def _check_paragraph_length(self, paragraphs, results):
-        """Check for overly long paragraphs."""
-        MAX_WORDS = 150
-        for i, para in enumerate(paragraphs):
-            if is_boilerplate(para.text):
-                continue
-            words = len(para.text.split())
-            if words > MAX_WORDS:
-                paragraph_preview = self._get_text_preview(para.text.strip())
-                results.add_issue(
-                    message=StructureMessages.PARAGRAPH_LENGTH_WARNING.format(
-                        preview=paragraph_preview,
-                        max_words=MAX_WORDS,
-                        word_count=words
-                    ),
-                    severity=Severity.WARNING,
-                    line_number=i+1,
-                    category="readability"
-                )
 
-    @CheckRegistry.register('readability')
-    def _check_sentence_length(self, paragraphs, results):
-        """Check for overly long sentences."""
-        MAX_WORDS = 30
-        for i, para in enumerate(paragraphs):
-            sentences = para.text.split('. ')
-            for sentence in sentences:
-                if is_boilerplate(sentence):
-                    continue
-                words = len(sentence.split())
-                if words > MAX_WORDS:
-                    sentence_preview = self._get_text_preview(sentence.strip())
-                    results.add_issue(
-                        message=StructureMessages.SENTENCE_LENGTH_INFO.format(
-                            preview=sentence_preview,
-                            max_words=MAX_WORDS,
-                            word_count=words
-                        ),
-                        severity=Severity.INFO,
-                        line_number=i+1,
-                        category="readability"
-                    )
-
-    @CheckRegistry.register('structure')
     def _check_section_balance(self, paragraphs, results):
         """Check for balanced section lengths."""
         current_section = []
@@ -293,7 +247,6 @@ class StructureChecks(BaseChecker):
                 else:
                     logger.debug(f"Section '{name}' is within acceptable length range")
 
-    @CheckRegistry.register('structure')
     def _check_list_formatting(self, paragraphs, results):
         """Check for consistent list formatting."""
         list_markers = ['•', '-', '*', '1.', 'a.', 'i.']
@@ -314,7 +267,6 @@ class StructureChecks(BaseChecker):
             else:
                 current_list_style = None
 
-    @CheckRegistry.register('structure')
     def _check_parentheses(self, paragraphs, results):
         """Check for unmatched parentheses."""
         for i, para in enumerate(paragraphs):
@@ -328,7 +280,6 @@ class StructureChecks(BaseChecker):
                     line_number=i+1
                 )
 
-    @CheckRegistry.register('structure')
     def _check_watermark(self, document: Document, results: DocumentCheckResult, doc_type: str) -> None:
         """Check if document has appropriate watermark for its stage."""
         watermark_text = self._extract_watermark(document)
@@ -377,7 +328,6 @@ class StructureChecks(BaseChecker):
         # from document sections and headers/footers
         return None
 
-    @CheckRegistry.register('structure')
     def _check_cross_references(self, document, results):
         """Check for cross-references."""
         for i, para in enumerate(document.paragraphs):
@@ -399,7 +349,6 @@ class StructureChecks(BaseChecker):
         return heading_structure
 
     @profile_performance
-    @CheckRegistry.register('structure')
     def check_cross_references(self, doc_path: str) -> DocumentCheckResult:
         """Check for missing cross-referenced elements in the document."""
         try:
@@ -484,7 +433,6 @@ class StructureChecks(BaseChecker):
             }
         )
 
-    @CheckRegistry.register('structure')
     def _check_figure_references(self, para_text: str, figures: set, issues: list) -> None:
         """Check figure references."""
         figure_refs = re.finditer(
@@ -502,7 +450,6 @@ class StructureChecks(BaseChecker):
                     'severity': Severity.ERROR
                 })
 
-    @CheckRegistry.register('structure')
     def _check_section_references(self, para_text: str, valid_sections: set, skip_regex: re.Pattern, issues: list) -> None:
         """Check section references."""
         if skip_regex.search(para_text):
@@ -532,7 +479,6 @@ class StructureChecks(BaseChecker):
                         'severity': Severity.ERROR
                     })
 
-    @CheckRegistry.register('structure')
     def _check_table_references(self, para_text: str, tables: set, issues: list) -> None:
         """Check table references."""
         table_refs = re.finditer(
@@ -550,7 +496,6 @@ class StructureChecks(BaseChecker):
                     'severity': Severity.ERROR
                 })
 
-    @CheckRegistry.register('structure')
     def check_document(self, document: Document, doc_type: str) -> DocumentCheckResult:
         """Check document for structure issues. Accepts a python-docx Document object."""
         logger.info("[StructureChecks] check_document called")
@@ -559,7 +504,6 @@ class StructureChecks(BaseChecker):
         logger.info("[StructureChecks] check_document completed")
         return results
 
-    @CheckRegistry.register('structure')
     def check_text(self, text: str) -> DocumentCheckResult:
         """Check text for structure issues. Accepts a plain string."""
         logger.info("[StructureChecks] check_text called")
@@ -567,8 +511,6 @@ class StructureChecks(BaseChecker):
         lines = text.split('\n')
         # For text, treat each non-empty line as a paragraph
         paragraphs = [type('Para', (), {'text': l, 'style': type('Style', (), {'name': ''})()})() for l in lines if l.strip()]
-        self._check_paragraph_length(paragraphs, results)
-        self._check_sentence_length(paragraphs, results)
         self._check_section_balance(paragraphs, results)
         self._check_list_formatting(paragraphs, results)
         self._check_parentheses(paragraphs, results)

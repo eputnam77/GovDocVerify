@@ -59,7 +59,6 @@ class HeadingChecks(BaseChecker):
         self.run_checks(document, doc_type_norm, results)
         return results
 
-    @CheckRegistry.register('heading')
     def check_text(self, text: str) -> DocumentCheckResult:
         """Check text for heading issues."""
         results = DocumentCheckResult()
@@ -77,7 +76,6 @@ class HeadingChecks(BaseChecker):
         return isinstance(doc, list) and all(isinstance(line, str) for line in doc)
 
     @profile_performance
-    @CheckRegistry.register('heading')
     def check_heading_title(self, doc: List[str], doc_type: str) -> DocumentCheckResult:
         """Check heading titles for validity."""
         doc_type_norm = self._normalize_doc_type(doc_type)
@@ -230,7 +228,6 @@ class HeadingChecks(BaseChecker):
             details=details
         )
 
-    @CheckRegistry.register('heading')
     def check_heading_period(self, doc: List[str], doc_type: str) -> DocumentCheckResult:
         """
         Check heading period usage.
@@ -290,7 +287,6 @@ class HeadingChecks(BaseChecker):
             details={'document_type': doc_type_norm}
         )
 
-    @CheckRegistry.register('heading')
     def check_heading_structure(self, doc) -> List[Dict[str, Any]]:
         """Check heading sequence structure."""
         issues = []
@@ -350,7 +346,6 @@ class HeadingChecks(BaseChecker):
         logger.info(f"Heading structure check completed. Found {len(issues)} issues")
         return issues
 
-    @CheckRegistry.register('heading')
     def run_checks(self, document: Document, doc_type: str, results: DocumentCheckResult) -> None:
         """Run all heading-related checks."""
         logger.info(f"Running heading checks for document type: {doc_type}")
@@ -362,7 +357,6 @@ class HeadingChecks(BaseChecker):
         self._check_heading_hierarchy(headings, results)
         self._check_heading_format(headings, results, doc_type)
 
-    @CheckRegistry.register('heading')
     def _check_heading_sequence(self, current_level: int, previous_level: int) -> Optional[str]:
         """
         Check if heading sequence is valid.
@@ -383,7 +377,6 @@ class HeadingChecks(BaseChecker):
         # - Going to any higher level (e.g., H3 to H1)
         return None
 
-    @CheckRegistry.register('heading')
     def _check_heading_hierarchy(self, headings, results):
         """Check if headings follow proper hierarchy."""
         previous_level = 0
@@ -400,7 +393,6 @@ class HeadingChecks(BaseChecker):
                 )
             previous_level = level
 
-    @CheckRegistry.register('heading')
     def _check_heading_format(self, headings, results, doc_type: str = "GENERAL"):
         """
         Check heading format (capitalization, punctuation, etc).

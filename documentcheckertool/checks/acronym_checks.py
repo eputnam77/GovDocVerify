@@ -34,7 +34,6 @@ class AcronymChecker(BaseChecker):
             text = str(document)
         return self.check_text(text)
 
-    @CheckRegistry.register('acronym')
     def check_text(self, content: str) -> DocumentCheckResult:
         """Check text for acronym issues.
 

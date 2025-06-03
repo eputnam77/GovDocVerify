@@ -36,7 +36,6 @@ class DocumentTitleFormatCheck(BaseChecker):
         self.category = "formatting"
         logger.info("Initialized DocumentTitleFormatCheck")
 
-    @CheckRegistry.register('formatting')
     def check_text(self, text, doc_type: str = "GENERAL") -> DocumentCheckResult:
         """
         Check document title formatting based on document type.
@@ -170,7 +169,6 @@ class DocumentTitleFormatCheck(BaseChecker):
             }
         )
 
-    @CheckRegistry.register('formatting')
     def run_checks(self, document, doc_type, results: DocumentCheckResult) -> None:
         """Run document title formatting checks."""
         if hasattr(document, 'paragraphs'):
@@ -219,7 +217,6 @@ class DocumentTitleFormatCheck(BaseChecker):
                 category=getattr(self, "category", "reference")
             )
 
-    @CheckRegistry.register('formatting')
     def check_document(self, document, doc_type) -> DocumentCheckResult:
         """
         Accepts a Document, list, or str. Uses run_checks to ensure proper formatting.
@@ -272,7 +269,6 @@ class TableFigureReferenceCheck(BaseChecker):
         logger.debug(f"Document validation successful: {len(doc)} lines")
         return True
 
-    @CheckRegistry.register('formatting')
     def check_text(self, text) -> DocumentCheckResult:
         """
         Accepts a string or list of strings, and calls the main check logic.
@@ -452,7 +448,6 @@ class TableFigureReferenceCheck(BaseChecker):
             }
         )
 
-    @CheckRegistry.register('formatting')
     def run_checks(self, document, doc_type, results: DocumentCheckResult) -> None:
         if hasattr(document, 'paragraphs'):
             lines = [p.text for p in document.paragraphs]
@@ -503,7 +498,6 @@ class TableFigureReferenceCheck(BaseChecker):
                 category=getattr(self, "category", "reference")
             )
 
-    @CheckRegistry.register('formatting')
     def check_document(self, document, doc_type) -> DocumentCheckResult:
         """
         Accepts a Document, list, or str. Uses run_checks to ensure proper formatting.

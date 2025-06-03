@@ -34,7 +34,6 @@ class ReadabilityChecks(BaseChecker):
         self.run_checks(document, doc_type, results)
         return results
 
-    @CheckRegistry.register('readability')
     def check_text(self, text: str) -> DocumentCheckResult:
         """Check text for readability issues."""
         results = DocumentCheckResult()
@@ -53,7 +52,6 @@ class ReadabilityChecks(BaseChecker):
 
         return results
 
-    @CheckRegistry.register('readability')
     def _check_readability_thresholds(self, text: str, results: DocumentCheckResult) -> None:
         """Check readability metrics against thresholds."""
         try:
@@ -218,7 +216,6 @@ class ReadabilityChecks(BaseChecker):
             'warnings': warnings
         }
 
-    @CheckRegistry.register('readability')
     def check_readability(self, doc: List[str]) -> DocumentCheckResult:
         """Check document readability metrics."""
         stats = {
@@ -256,7 +253,6 @@ class ReadabilityChecks(BaseChecker):
             details={'metrics': metrics}
         )
 
-    @CheckRegistry.register('readability')
     def _check_readability_thresholds_metrics(self, metrics: Dict[str, float]) -> List[Dict]:
         """Check readability metrics against thresholds."""
         logger.debug("Checking readability metrics against thresholds")
@@ -273,13 +269,11 @@ class ReadabilityChecks(BaseChecker):
 
         return issues
 
-    @CheckRegistry.register('readability')
     def check_sentence_length(self, doc: List[str]) -> DocumentCheckResult:
         """Check for overly long sentences."""
         results = DocumentCheckResult()
         # ... existing code ...
 
-    @CheckRegistry.register('readability')
     def check_paragraph_length(self, doc: List[str]) -> DocumentCheckResult:
         """Check for overly long paragraphs."""
         results = DocumentCheckResult()

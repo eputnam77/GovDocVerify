@@ -46,7 +46,6 @@ class TerminologyChecks(BaseChecker):
         self._check_forbidden_terms(text_content, results)
         self._check_term_replacements(text_content, results)
 
-    @CheckRegistry.register('terminology')
     def _check_consistency(self, paragraphs, results):
         """Check for consistent terminology usage."""
         for i, text in enumerate(paragraphs):
@@ -66,7 +65,6 @@ class TerminologyChecks(BaseChecker):
                             category=getattr(self, "category", "terminology")
                         )
 
-    @CheckRegistry.register('terminology')
     def _check_forbidden_terms(self, paragraphs, results):
         """Check for forbidden or discouraged terms."""
         for i, text in enumerate(paragraphs):
@@ -82,7 +80,6 @@ class TerminologyChecks(BaseChecker):
                         category=getattr(self, "category", "terminology")
                     )
 
-    @CheckRegistry.register('terminology')
     def _check_term_replacements(self, paragraphs, results):
         """
         Flag any outdated terms that have a direct replacement in
@@ -120,7 +117,6 @@ class TerminologyChecks(BaseChecker):
                         category=getattr(self, "category", "terminology")
                     )
 
-    @CheckRegistry.register('terminology')
     def check_text(self, text: str) -> DocumentCheckResult:
         """Check the text for terminology-related issues."""
         logger.debug(f"Running check_text in TerminologyChecks on text of length: {len(text)}")
@@ -158,11 +154,12 @@ class TerminologyChecks(BaseChecker):
                             'severity': Severity.WARNING,
                             'category': getattr(self, 'category', 'terminology')
                         })
-                    issues.append({
-                        'message': message,
-                        'severity': Severity.WARNING,
-                        'category': getattr(self, 'category', 'terminology')
-                    })
+                    else:
+                        issues.append({
+                            'message': message,
+                            'severity': Severity.WARNING,
+                            'category': getattr(self, 'category', 'terminology')
+                        })
 
         # Check for inconsistent terminology
         for i, line in enumerate(lines, 1):
@@ -400,7 +397,6 @@ class TerminologyChecks(BaseChecker):
         normalised = doc_type.strip().upper().replace(" ", "_")
         return normalised in self._PROPOSE_PHASES
 
-    @CheckRegistry.register('terminology')
     def _check_proposed_wording(
         self,
         paragraphs: list[str],

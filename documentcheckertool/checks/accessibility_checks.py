@@ -71,7 +71,6 @@ class AccessibilityChecks(BaseChecker):
         self.run_checks(lines, doc_type, results)
         return results
 
-    @CheckRegistry.register('accessibility')
     def check_text(self, text: str) -> DocumentCheckResult:
         """Check text for accessibility issues."""
         results = DocumentCheckResult()
@@ -87,7 +86,6 @@ class AccessibilityChecks(BaseChecker):
         """Validate input document content."""
         return isinstance(doc, list) and all(isinstance(line, str) for line in doc)
 
-    @CheckRegistry.register('accessibility')
     def check_readability(self, doc: List[str]) -> DocumentCheckResult:
         """Check document readability using multiple metrics and plain language standards."""
         results = DocumentCheckResult()
@@ -97,10 +95,8 @@ class AccessibilityChecks(BaseChecker):
             results.success = False
             return results
 
-        for line in doc:
-            words = line.split()
-            if len(words) > 25:  # Check sentence length
-                results.add_issue(f'Sentence too long. Word count exceeds recommended limit ({len(words)} words).', Severity.ERROR)
+        # Note: Sentence length checking is handled by ReadabilityChecks to avoid duplication
+        # This method now focuses on accessibility-specific readability concerns
 
         # Set success to False if any issues were found
         results.success = len(results.issues) == 0
@@ -205,7 +201,6 @@ class AccessibilityChecks(BaseChecker):
             })
 
     @profile_performance
-    @CheckRegistry.register('accessibility')
     def check_section_508_compliance(self, content: Union[str, List[str]]) -> DocumentCheckResult:
         """Check document for Section 508 compliance."""
         results = DocumentCheckResult()
@@ -240,7 +235,6 @@ class AccessibilityChecks(BaseChecker):
         logger.debug(f"Section 508 compliance check complete. Results: success={results.success}, issues={results.issues}")
         return results
 
-    @CheckRegistry.register('accessibility')
     def _check_heading_structure(self, content: Union[DocxDocument, List[str]], results: DocumentCheckResult) -> None:
         """Check for proper heading structure and hierarchy."""
         logger.debug("Starting heading structure check")
@@ -317,7 +311,6 @@ class AccessibilityChecks(BaseChecker):
                     logger.debug(f"Found inconsistent heading structure: H{level} after H{prev_level}")
                 prev_level = level
 
-    @CheckRegistry.register('accessibility')
     def _check_hyperlinks(self, content: Union[Document, List[str]], results: DocumentCheckResult) -> None:
         """Check hyperlinks for accessibility issues, including deprecated FAA links."""
         from docx.document import Document as DocxDocument
@@ -382,7 +375,6 @@ class AccessibilityChecks(BaseChecker):
         self._check_alt_text(document, results)
         self._check_color_contrast(document, results)
 
-    @CheckRegistry.register('accessibility')
     def _check_alt_text(self, content: Union[DocxDocument, List[str]], results: DocumentCheckResult) -> None:
         """Check for missing alt text in images."""
         logger.debug("Starting alt text check")
@@ -473,7 +465,6 @@ class AccessibilityChecks(BaseChecker):
                 category=self.category
             )
 
-    @CheckRegistry.register('accessibility')
     def _check_color_contrast(self, content: Union[Document, List[str]], results: DocumentCheckResult) -> None:
         """Check for potential color contrast issues."""
         from docx.document import Document as DocxDocument
@@ -554,14 +545,12 @@ class AccessibilityChecks(BaseChecker):
         darker = min(l1, l2)
         return (lighter + 0.05) / (darker + 0.05)
 
-    @CheckRegistry.register('accessibility')
     def check_heading_structure(self, content: Union[Document, List[str]]) -> DocumentCheckResult:
         """Check heading structure for accessibility issues."""
         results = DocumentCheckResult()
         self._check_heading_structure(content, results)
         return results
 
-    @CheckRegistry.register('accessibility')
     def check_image_accessibility(self, content: List[str]) -> DocumentCheckResult:
         """Check image accessibility including alt text."""
         results = DocumentCheckResult()
@@ -576,7 +565,6 @@ class AccessibilityChecks(BaseChecker):
 
         return results
 
-    @CheckRegistry.register('accessibility')
     def _check_heading_hierarchy(self, headings: List[Tuple[str, Union[int, str]]], results: DocumentCheckResult) -> None:
         """Check heading hierarchy for accessibility issues."""
         logger.debug("Checking heading hierarchy")
