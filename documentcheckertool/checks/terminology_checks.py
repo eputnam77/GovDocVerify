@@ -147,19 +147,11 @@ class TerminologyChecks(BaseChecker):
                 pattern = rf"\b{re.escape(term)}\b"
                 if re.search(pattern, line, re.IGNORECASE):
                     logger.debug(f"[Terminology] Matched forbidden term '{term}' in line {i}")
-                    # Special handling for 'additionally' to match test expectation
-                    if term == 'additionally':
-                        issues.append({
-                            'message': "Replace with 'In addition'",
-                            'severity': Severity.WARNING,
-                            'category': getattr(self, 'category', 'terminology')
-                        })
-                    else:
-                        issues.append({
-                            'message': message,
-                            'severity': Severity.WARNING,
-                            'category': getattr(self, 'category', 'terminology')
-                        })
+                    issues.append({
+                        'message': message,
+                        'severity': Severity.WARNING,
+                        'category': getattr(self, 'category', 'terminology')
+                    })
 
         # Check for inconsistent terminology
         for i, line in enumerate(lines, 1):
