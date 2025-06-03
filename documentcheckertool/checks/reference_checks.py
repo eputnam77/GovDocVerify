@@ -33,10 +33,10 @@ class DocumentTitleFormatCheck(BaseChecker):
 
     def __init__(self):
         super().__init__()
-        self.category = "reference"
+        self.category = "formatting"
         logger.info("Initialized DocumentTitleFormatCheck")
 
-    @CheckRegistry.register('reference')
+    @CheckRegistry.register('formatting')
     def check_text(self, text, doc_type: str = "GENERAL") -> DocumentCheckResult:
         """
         Check document title formatting based on document type.
@@ -155,6 +155,11 @@ class DocumentTitleFormatCheck(BaseChecker):
 
         logger.debug(f"Document title formatting check complete. Found {len(issues)} issues")
 
+        # Ensure all issues have the correct category
+        for issue in issues:
+            if 'category' not in issue:
+                issue['category'] = getattr(self, 'category', 'formatting')
+
         return DocumentCheckResult(
             success=len(issues) == 0,
             severity=Severity.ERROR if issues else Severity.INFO,
@@ -165,7 +170,7 @@ class DocumentTitleFormatCheck(BaseChecker):
             }
         )
 
-    @CheckRegistry.register('reference')
+    @CheckRegistry.register('formatting')
     def run_checks(self, document, doc_type, results: DocumentCheckResult) -> None:
         """Run document title formatting checks."""
         if hasattr(document, 'paragraphs'):
@@ -214,7 +219,7 @@ class DocumentTitleFormatCheck(BaseChecker):
                 category=getattr(self, "category", "reference")
             )
 
-    @CheckRegistry.register('reference')
+    @CheckRegistry.register('formatting')
     def check_document(self, document, doc_type) -> DocumentCheckResult:
         """
         Accepts a Document, list, or str. Uses run_checks to ensure proper formatting.
@@ -229,7 +234,7 @@ class TableFigureReferenceCheck(BaseChecker):
     def __init__(self):
         super().__init__()
         self.terminology_manager = TerminologyManager()
-        self.category = "reference"
+        self.category = "formatting"
         logger.info("Initialized TableFigureReferenceCheck")
 
     def check(self, doc: List[str], doc_type: str = "GENERAL") -> DocumentCheckResult:
@@ -267,7 +272,7 @@ class TableFigureReferenceCheck(BaseChecker):
         logger.debug(f"Document validation successful: {len(doc)} lines")
         return True
 
-    @CheckRegistry.register('reference')
+    @CheckRegistry.register('formatting')
     def check_text(self, text) -> DocumentCheckResult:
         """
         Accepts a string or list of strings, and calls the main check logic.
@@ -429,6 +434,11 @@ class TableFigureReferenceCheck(BaseChecker):
         logger.debug(f"Text check complete. Found {len(issues)} issues")
         logger.debug(f"Issues by type: {len([i for i in issues if 'Table' in i['issue']])} table issues, {len([i for i in issues if 'Figure' in i['issue']])} figure issues")
 
+        # Ensure all issues have the correct category
+        for issue in issues:
+            if 'category' not in issue:
+                issue['category'] = getattr(self, 'category', 'formatting')
+
         return DocumentCheckResult(
             success=len(issues) == 0,
             severity=Severity.ERROR if issues else Severity.INFO,
@@ -442,7 +452,7 @@ class TableFigureReferenceCheck(BaseChecker):
             }
         )
 
-    @CheckRegistry.register('reference')
+    @CheckRegistry.register('formatting')
     def run_checks(self, document, doc_type, results: DocumentCheckResult) -> None:
         if hasattr(document, 'paragraphs'):
             lines = [p.text for p in document.paragraphs]
@@ -493,7 +503,7 @@ class TableFigureReferenceCheck(BaseChecker):
                 category=getattr(self, "category", "reference")
             )
 
-    @CheckRegistry.register('reference')
+    @CheckRegistry.register('formatting')
     def check_document(self, document, doc_type) -> DocumentCheckResult:
         """
         Accepts a Document, list, or str. Uses run_checks to ensure proper formatting.

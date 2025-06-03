@@ -93,8 +93,8 @@ class FAADocumentChecker:
                 (self.terminology_checks, "terminology"),
                 (self.readability_checks, "readability"),
                 (self.acronym_checker, "acronym"),
-                (self.table_figure_checks, "reference"),
-                (self.document_title_checks, "reference")
+                (self.table_figure_checks, "formatting"),
+                (self.document_title_checks, "formatting")
             ]
 
             # Run all checks
