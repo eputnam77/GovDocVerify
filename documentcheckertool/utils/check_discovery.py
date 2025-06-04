@@ -84,7 +84,7 @@ def discover_checks() -> Dict[str, List[str]]:
                                 obj, predicate=inspect.isfunction
                             ):
                                 logger.debug(f"Examining method: {method_name}")
-                                # Only include public check methods and specific private methods that are registered
+                                # Only include registered public check methods and specific private methods
                                 # Public methods: check_text, check_document, run_checks
                                 # Specific private methods: _check_paragraph_length, _check_sentence_length (from structure)
                                 if method_name in [
@@ -194,9 +194,7 @@ def validate_check_registration() -> Dict[str, List[str]]:
                         )
                         validation_results["missing_checks"].append(f"{category}.{check}")
                     else:
-                        logger.debug(
-                            f"Check {check} is registered in a different category"
-                        )
+                        logger.debug(f"Check {check} is registered in a different category")
 
             # Checks registered in this category but not discovered in this category
             for check in registered_checks[category]:
@@ -212,13 +210,11 @@ def validate_check_registration() -> Dict[str, List[str]]:
                         logger.debug(f"Check {check} is extra in registry for category {category}")
                         validation_results["extra_checks"].append(f"{category}.{check}")
                     else:
-                        logger.debug(
-                            f"Check {check} is discovered in a different category"
-                        )
+                        logger.debug(f"Check {check} is discovered in a different category")
         else:
             # Category is not discovered at all. See if any of its checks exist in other categories
             logger.debug(
-                f"Category {category} not found in discovered checks; checking for cross-category registrations."
+                f"Category {category} not found in discovered checks"
             )
             for check in registered_checks[category]:
                 found_in_other_category = any(
@@ -228,7 +224,7 @@ def validate_check_registration() -> Dict[str, List[str]]:
                     validation_results["extra_checks"].append(f"{category}.{check}")
                 else:
                     logger.debug(
-                        f"Check {check} from category {category} found in another discovered category (cross-category registration)"
+                        f"Check {check} from category {category} found in another category"
                     )
 
     logger.debug(f"Validation results: {validation_results}")

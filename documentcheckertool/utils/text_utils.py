@@ -65,9 +65,7 @@ def split_sentences(text: str) -> List[str]:
             if abbr and i - abbr_len + 1 >= start:
                 candidate = text[i - abbr_len + 1 : i + 1]
                 if candidate.lower() == abbr.lower():
-                    logger.debug(
-                        f"split_sentences: MATCHED abbreviation '{abbr}' at idx={i}"
-                    )
+                    logger.debug(f"split_sentences: MATCHED abbreviation '{abbr}' at idx={i}")
                     return True, abbr
         return False, None
 

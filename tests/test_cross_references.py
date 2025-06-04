@@ -75,8 +75,7 @@ class TestCrossReferenceChecks:
         # Reference to 2.1 is not defined, so errors expected
         assert result["has_errors"]
         assert any(
-            "Reference to non-existent section 2.1" in e["message"]
-            for e in result["errors"]
+            "Reference to non-existent section 2.1" in e["message"] for e in result["errors"]
         )
 
     def test_missing_cross_references(self):

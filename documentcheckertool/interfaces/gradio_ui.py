@@ -563,9 +563,7 @@ def create_interface():
                                 )
                                 logger.info(f"Exporting {total_issues} issues to DOCX")
                                 if not filtered_results:
-                                    logger.warning(
-                                        "No filtered results found for DOCX export."
-                                    )
+                                    logger.warning("No filtered results found for DOCX export.")
 
                                 # Format results based on output format
                                 if format == "docx":
@@ -637,9 +635,7 @@ def create_interface():
                                         return filepath
 
                                     except ImportError:
-                                        logger.error(
-                                            "python-docx not installed. Please install."
-                                        )
+                                        logger.error("python-docx not installed. Please install.")
                                         return None
                                     except Exception as e:
                                         logger.error(f"Error generating DOCX: {str(e)}")
@@ -667,7 +663,7 @@ def create_interface():
 
                                             <div class="summary">
                                                 <h2>Summary</h2>
-                                                <p>Found {summary['total']} issues that need attention:</p>
+                                                <p>Found {summary['total']} issues:</p>
                                                 <ul>
                                         """
 
@@ -720,9 +716,7 @@ def create_interface():
                                         return filepath
 
                                     except ImportError:
-                                        logger.error(
-                                            "pdfkit not installed. Please install it."
-                                        )
+                                        logger.error("pdfkit not installed. Please install it.")
                                         return None
                                     except Exception as e:
                                         logger.error(f"Error generating PDF: {str(e)}")
@@ -774,8 +768,8 @@ def create_interface():
                             ### 📌 Important Notes
                             - This tool helps ensure compliance with federal documentation standards
                             - Results are based on current style guides and FAA requirements
-                            - The tool provides suggestions but final editorial decisions rest with the author
-                            - For questions or feedback on the FAA documentation standards, contact the AIR-646 Senior Technical Writers
+                            - Final editorial decisions rest with the author
+                            - For questions on the FAA documentation standards, contact your senior technical writer
                             - For questions or feedback on the tool, contact Eric Putnam
                             - Results are not stored or saved
                             """

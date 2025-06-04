@@ -449,9 +449,7 @@ class ResultFormatter:
                     )
                     output.append("</div>")
                 else:
-                    output.append(
-                        self._format_colored_text("✓ All checks passed!", Fore.GREEN)
-                    )
+                    output.append(self._format_colored_text("✓ All checks passed!", Fore.GREEN))
                     output.append("")
                 return "\n".join(output)
 
@@ -461,9 +459,7 @@ class ResultFormatter:
                 )
             else:
                 output.append(
-                    self._format_colored_text(
-                        f"Found {total_issues} issues:", Fore.YELLOW
-                    )
+                    self._format_colored_text(f"Found {total_issues} issues:", Fore.YELLOW)
                 )
                 output.append("")
 

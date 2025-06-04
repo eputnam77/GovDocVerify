@@ -134,7 +134,8 @@ class TerminologyManager:
                 if pattern.search(full_text):
                     logger.debug(
                         "Skipping ignored pattern definition: %s (matches pattern: %s)",
-                        full_text, pattern.pattern
+                        full_text,
+                        pattern.pattern,
                     )
                     continue
 
@@ -193,7 +194,8 @@ class TerminologyManager:
                 if pattern.search(text):
                     logger.debug(
                         "Skipping ignored pattern usage: %s (matches pattern: %s)",
-                        full_text, pattern.pattern
+                        full_text,
+                        pattern.pattern,
                     )
                     continue
 
