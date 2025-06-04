@@ -100,7 +100,9 @@ class DocumentTitleFormatCheck(BaseChecker):
                                 "line": line,
                                 "line_number": line_idx + 1,
                                 "title": title_text,
-                                "issue": "AC document titles should use italics, not quotation marks",
+                                "issue": (
+                                    "AC document titles should use italics, not quotation marks"
+                                ),
                                 "incorrect_format": title_text,
                                 "correct_format": f"*{clean_title}*",
                                 "severity": Severity.ERROR,
@@ -142,7 +144,10 @@ class DocumentTitleFormatCheck(BaseChecker):
                                 "line": line,
                                 "line_number": line_idx + 1,
                                 "title": title_text,
-                                "issue": f"{doc_type} document titles should use quotation marks, not italics",
+                                "issue": (
+                                    f"{doc_type} document titles should use quotation marks, "
+                                    "not italics"
+                                ),
                                 "incorrect_format": title_text,
                                 "correct_format": f'"{clean_title}"',
                                 "severity": Severity.ERROR,
@@ -161,7 +166,10 @@ class DocumentTitleFormatCheck(BaseChecker):
                                 "line": line,
                                 "line_number": line_idx + 1,
                                 "title": title_text,
-                                "issue": f"{doc_type} document titles should be formatted in quotation marks",
+                                "issue": (
+                                    f"{doc_type} document titles should be formatted in quotation "
+                                    "marks"
+                                ),
                                 "incorrect_format": title_text,
                                 "correct_format": f'"{title_text.strip()}"',
                                 "severity": Severity.ERROR,
@@ -210,19 +218,35 @@ class DocumentTitleFormatCheck(BaseChecker):
 
             # Map issue text to static messages
             if "AC document titles should use italics, not quotation marks" in issue_text:
-                message = f"{ReferenceMessages.AC_TITLE_USE_ITALICS}. Change '{incorrect_format}' to '{correct_format}'"
+                message = (
+                    f"{ReferenceMessages.AC_TITLE_USE_ITALICS}. "
+                    f"Change '{incorrect_format}' to '{correct_format}'"
+                )
             elif "AC document titles should be formatted in italics" in issue_text:
-                message = f"{ReferenceMessages.AC_TITLE_FORMAT_ITALICS}. Change '{incorrect_format}' to '{correct_format}'"
+                message = (
+                    f"{ReferenceMessages.AC_TITLE_FORMAT_ITALICS}. "
+                    f"Change '{incorrect_format}' to '{correct_format}'"
+                )
             elif "document titles should use quotation marks, not italics" in issue_text:
-                message = f"{ReferenceMessages.NON_AC_TITLE_USE_QUOTES}. Change '{incorrect_format}' to '{correct_format}'"
+                message = (
+                    f"{ReferenceMessages.NON_AC_TITLE_USE_QUOTES}. "
+                    f"Change '{incorrect_format}' to '{correct_format}'"
+                )
             elif "document titles should be formatted in quotation marks" in issue_text:
-                message = f"{ReferenceMessages.NON_AC_TITLE_FORMAT_QUOTES}. Change '{incorrect_format}' to '{correct_format}'"
+                message = (
+                    f"{ReferenceMessages.NON_AC_TITLE_FORMAT_QUOTES}. "
+                    f"Change '{incorrect_format}' to '{correct_format}'"
+                )
             else:
                 # Fallback for any unmapped messages
                 if incorrect_format and correct_format:
-                    message = f"{issue_text}. Change '{incorrect_format}' to '{correct_format}'"
+                    message = (
+                        f"{issue_text}. "
+                        f"Change '{incorrect_format}' to '{correct_format}'"
+                    )
                 else:
                     message = issue_text
+
 
             results.add_issue(
                 message=message,
@@ -384,7 +408,10 @@ class TableFigureReferenceCheck(BaseChecker):
                         issues.append(
                             {
                                 "reference": ref_text,
-                                "issue": f"{ref_type} reference in quotes/parentheses should be lowercase",
+                                "issue": (
+                                    f"{ref_type} reference in quotes/parentheses should be "
+                                    "lowercase"
+                                ),
                                 "line": line,
                                 "correct_form": ref_text.lower(),
                             }
@@ -427,7 +454,9 @@ class TableFigureReferenceCheck(BaseChecker):
                         issues.append(
                             {
                                 "reference": ref_text,
-                                "issue": f"{ref_type} reference at sentence start should be capitalized",
+                                "issue": (
+                                    f"{ref_type} reference at sentence start should be capitalized"
+                                ),
                                 "line": line,
                                 "correct_form": ref_text.capitalize(),
                             }
@@ -437,7 +466,10 @@ class TableFigureReferenceCheck(BaseChecker):
                         issues.append(
                             {
                                 "reference": ref_text,
-                                "issue": f"{ref_type} reference in quotes/parentheses should be lowercase",
+                                "issue": (
+                                    f"{ref_type} reference in quotes/parentheses should be "
+                                    "lowercase"
+                                ),
                                 "line": line,
                                 "correct_form": ref_text.lower(),
                             }
@@ -447,7 +479,9 @@ class TableFigureReferenceCheck(BaseChecker):
                         issues.append(
                             {
                                 "reference": ref_text,
-                                "issue": f"{ref_type} reference within sentence should be lowercase",
+                                "issue": (
+                                    f"{ref_type} reference within sentence should be lowercase"
+                                ),
                                 "line": line,
                                 "correct_form": ref_text.lower(),
                             }
@@ -455,7 +489,9 @@ class TableFigureReferenceCheck(BaseChecker):
 
         logger.debug(f"Text check complete. Found {len(issues)} issues")
         logger.debug(
-            f"Issues by type: {len([i for i in issues if 'Table' in i['issue']])} table issues, {len([i for i in issues if 'Figure' in i['issue']])} figure issues"
+            f"Issues by type: "
+            f"{len([i for i in issues if 'Table' in i['issue']])} table issues, "
+            f"{len([i for i in issues if 'Figure' in i['issue']])} figure issues"
         )
 
         # Ensure all issues have the correct category
@@ -501,21 +537,42 @@ class TableFigureReferenceCheck(BaseChecker):
 
             # Map issue text to static messages
             if "Table reference at sentence start should be capitalized" in issue_text:
-                message = f"{ReferenceMessages.TABLE_REF_SENTENCE_START}. Change '{reference}' to '{correct_form}'"
+                message = (
+                    f"{ReferenceMessages.TABLE_REF_SENTENCE_START}. "
+                    f"Change '{reference}' to '{correct_form}'"
+                )
             elif "Table reference within sentence should be lowercase" in issue_text:
-                message = f"{ReferenceMessages.TABLE_REF_WITHIN_SENTENCE}. Change '{reference}' to '{correct_form}'"
+                message = (
+                    f"{ReferenceMessages.TABLE_REF_WITHIN_SENTENCE}. "
+                    f"Change '{reference}' to '{correct_form}'"
+                )
             elif "Table reference in quotes/parentheses should be lowercase" in issue_text:
-                message = f"{ReferenceMessages.TABLE_REF_IN_QUOTES_PARENS}. Change '{reference}' to '{correct_form}'"
+                message = (
+                    f"{ReferenceMessages.TABLE_REF_IN_QUOTES_PARENS}. "
+                    f"Change '{reference}' to '{correct_form}'"
+                )
             elif "Figure reference at sentence start should be capitalized" in issue_text:
-                message = f"{ReferenceMessages.FIGURE_REF_SENTENCE_START}. Change '{reference}' to '{correct_form}'"
+                message = (
+                    f"{ReferenceMessages.FIGURE_REF_SENTENCE_START}. "
+                    f"Change '{reference}' to '{correct_form}'"
+                )
             elif "Figure reference within sentence should be lowercase" in issue_text:
-                message = f"{ReferenceMessages.FIGURE_REF_WITHIN_SENTENCE}. Change '{reference}' to '{correct_form}'"
+                message = (
+                    f"{ReferenceMessages.FIGURE_REF_WITHIN_SENTENCE}. "
+                    f"Change '{reference}' to '{correct_form}'"
+                )
             elif "Figure reference in quotes/parentheses should be lowercase" in issue_text:
-                message = f"{ReferenceMessages.FIGURE_REF_IN_QUOTES_PARENS}. Change '{reference}' to '{correct_form}'"
+                message = (
+                    f"{ReferenceMessages.FIGURE_REF_IN_QUOTES_PARENS}. "
+                    f"Change '{reference}' to '{correct_form}'"
+                )
             else:
                 # Fallback for any unmapped messages
                 if reference and correct_form:
-                    message = f"{issue_text}. Change '{reference}' to '{correct_form}'"
+                    message = (
+                        f"{issue_text}. "
+                        f"Change '{reference}' to '{correct_form}'"
+                    )
                 else:
                     message = issue_text
 
@@ -546,7 +603,8 @@ class TableFigureReferenceCheck(BaseChecker):
 
             if context:  # Only include context if it exists
                 formatted_issues.append(
-                    f"    • Confirm {ref_type} {ref_num} referenced in '{context}' exists in the document"
+                    f"    • Confirm {ref_type} {ref_num} referenced in '{context}' exists in the "
+                    "document"
                 )
             else:
                 formatted_issues.append(

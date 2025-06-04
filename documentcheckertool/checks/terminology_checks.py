@@ -118,7 +118,7 @@ class TerminologyChecks(BaseChecker):
                 if re.search(pattern, text, re.IGNORECASE):
                     logger.debug(f"[Terminology] Matched obsolete term '{obsolete}' in line {i+1}")
                     results.add_issue(
-                        message=f'Replace "{obsolete}" with "{approved}"',
+                        message=f'Change "{obsolete}" to "{approved}"',
                         severity=Severity.WARNING,
                         line_number=i + 1,
                         category=getattr(self, "category", "terminology"),
@@ -217,7 +217,7 @@ class TerminologyChecks(BaseChecker):
                         continue
                     issues.append(
                         {
-                            "message": f'Replace "{obsolete}" with "{approved}"',
+                            "message": f'Change "{obsolete}" to "{approved}"',
                             "severity": Severity.WARNING,
                             "category": getattr(self, "category", "terminology"),
                         }
@@ -297,7 +297,7 @@ class TerminologyChecks(BaseChecker):
                     warnings.append(
                         {
                             "line": i,
-                            "message": f"{term} should be {replacement}",
+                            "message": f"Change {term} to {replacement}",
                             "severity": Severity.WARNING,
                             "category": getattr(self, "category", "terminology"),
                         }
@@ -319,7 +319,7 @@ class TerminologyChecks(BaseChecker):
                         warnings.append(
                             {
                                 "line": i,
-                                "message": "Use simpler alternatives like 'under' or 'following'",
+                                "message": "Change '{term}' to an alternative like 'under' or 'following'",
                                 "severity": Severity.WARNING,
                                 "category": getattr(self, "category", "terminology"),
                             }
@@ -346,7 +346,7 @@ class TerminologyChecks(BaseChecker):
                     warnings.append(
                         {
                             "line": i,
-                            "message": f"{term} should be {replacement}",
+                            "message": f"Change {term} to {replacement}",
                             "severity": Severity.WARNING,
                             "category": getattr(self, "category", "terminology"),
                         }
@@ -360,7 +360,7 @@ class TerminologyChecks(BaseChecker):
                     warnings.append(
                         {
                             "line": i,
-                            "message": "Avoid unnecessary qualifiers",
+                            "message": "Remove the unnecessary qualifier: '{qualifier}'.",
                             "severity": Severity.WARNING,
                             "category": getattr(self, "category", "terminology"),
                         }
@@ -374,7 +374,10 @@ class TerminologyChecks(BaseChecker):
                     warnings.append(
                         {
                             "line": i,
-                            "message": "Ensure consistent singular/plural usage",
+                                    "message": (
+                                        f"Use '{term}' as a plural noun (e.g., 'criteria are'). "
+                                        "Note: 'data is' is now widely accepted."
+                                    ),
                             "severity": Severity.WARNING,
                             "category": getattr(self, "category", "terminology"),
                         }
@@ -408,7 +411,7 @@ class TerminologyChecks(BaseChecker):
                         warnings.append(
                             {
                                 "line": i,
-                                "message": f"{citation} is no longer valid; confirm or remove this citation.",
+                                "message": f"Remove '{citation}'. This authority citation was deleted by the FAA Reauthorization.",
                                 "severity": Severity.WARNING,
                                 "suggestion": corrected,
                                 "category": getattr(self, "category", "terminology"),

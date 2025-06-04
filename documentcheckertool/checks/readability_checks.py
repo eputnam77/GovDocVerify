@@ -105,7 +105,10 @@ class ReadabilityChecks(BaseChecker):
             if len(words) > 150:
                 paragraph_preview = self._get_text_preview(text.strip())
                 results.add_issue(
-                    message=f"Paragraph '{paragraph_preview}' is too long ({len(words)} words). Consider breaking it into smaller paragraphs.",
+                    message=(
+                        f"Paragraph '{paragraph_preview}' is too long at {len(words)} words. "
+                        "Break it into smaller paragraphs for better readability."
+                    ),
                     severity=Severity.WARNING,
                     category=getattr(self, "category", "readability"),
                 )
@@ -180,7 +183,10 @@ class ReadabilityChecks(BaseChecker):
                 warnings.append(
                     {
                         "line": i,
-                        "message": f"Sentence '{sentence_preview}' is {word_count} words long. Consider breaking it into shorter sentences.",
+                        "message": (
+                            f"Sentence '{sentence_preview}' is {word_count} words long. "
+                            "Consider breaking it into shorter sentences for better readability."
+                        ),
                         "severity": Severity.WARNING,
                     }
                 )
@@ -194,7 +200,10 @@ class ReadabilityChecks(BaseChecker):
                 warnings.append(
                     {
                         "line": i,
-                        "message": f"Paragraph '{paragraph_preview}' contains {sentence_count} sentences. Consider breaking it into shorter paragraphs.",
+                        "message": (
+                            f"Paragraph '{paragraph_preview}' contains {sentence_count} sentences. "
+                            "Consider breaking it into shorter paragraphs for better readability."
+                        ),
                         "severity": Severity.WARNING,
                     }
                 )
@@ -213,7 +222,11 @@ class ReadabilityChecks(BaseChecker):
                 warnings.append(
                     {
                         "line": i,
-                        "message": "Consider using active voice instead of passive voice. Note: Passive voice is flagged as a readability recommendation. It is not a style requirement, and may be acceptable depending on context.",
+                        "message": (
+                            "Consider using active voice instead of passive voice. "
+                            "This is a readability recommendation, not a strict style rule. "
+                            "Passive voice may be acceptable depending on the context."
+                        ),
                         "severity": Severity.WARNING,
                         "type": "advisory",
                     }
@@ -256,7 +269,8 @@ class ReadabilityChecks(BaseChecker):
 
         if metrics["flesch_reading_ease"] < READABILITY_CONFIG["min_flesch_ease"]:
             logger.warning(
-                f"Flesch Reading Ease score {metrics['flesch_reading_ease']} below threshold {READABILITY_CONFIG['min_flesch_ease']}"
+                f"Flesch Reading Ease score {metrics['flesch_reading_ease']} below threshold "
+                f"{READABILITY_CONFIG['min_flesch_ease']}"
             )
             issues.append(
                 {

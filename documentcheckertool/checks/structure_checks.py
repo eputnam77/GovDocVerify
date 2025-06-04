@@ -18,30 +18,42 @@ class StructureMessages:
     """Static message constants for structure checks."""
 
     # Paragraph length messages
-    PARAGRAPH_LENGTH_WARNING = "Paragraph '{preview}' is {word_count} words, which is above the {max_words}-word limit. Break it up for better clarity."
+    PARAGRAPH_LENGTH_WARNING = (
+        "Paragraph '{preview}' has {word_count} words, exceeding the {max_words}-word limit. "
+        "Consider breaking it up for clarity."
+    )
 
     # Sentence length messages
-    SENTENCE_LENGTH_INFO = "Sentence '{preview}' is {word_count} words, which is above the {max_words}-word limit. Break it up for better clarity."
+    SENTENCE_LENGTH_INFO = (
+        "Sentence '{preview}' has {word_count} words, exceeding the {max_words}-word limit. "
+        "Consider breaking it up for clarity."
+    )
 
     # Section balance messages
-    SECTION_BALANCE_INFO = "Section '{name}' is significantly longer than average ({length} paragraphs vs {avg:.1f} average)"
+    SECTION_BALANCE_INFO = (
+        "Section '{name}' has {length} paragraphs, which is much longer than the average of "
+        "{avg:.1f}. Consider splitting this section for balance."
+    )
 
     # List formatting messages
     LIST_FORMAT_INCONSISTENT = (
-        "Found inconsistent list formatting. Review the formatting of your lists."
+        "Found inconsistent list formatting. "
+        "Use a consistent bullet or numbering style in each list."
     )
 
     # Parentheses messages
     PARENTHESES_UNMATCHED = (
-        "Found unmatched parentheses. Add missing opening or closing parentheses."
+        "Found unmatched parentheses. Add any missing opening or closing parentheses."
     )
 
     # Cross-reference messages
-    CROSS_REFERENCE_INFO = "Found cross-reference. Verify target exists."
+    CROSS_REFERENCE_INFO = (
+        "Found cross-reference. Verify the referenced target exists and is correct."
+    )
 
     # Watermark messages
     WATERMARK_MISSING = (
-        "Watermark missing. Include the correct watermark unless not needed for this context."
+        "Watermark missing. Add the required watermark unless it is not needed for this document."
     )
     WATERMARK_UNKNOWN_STAGE = "Unknown document stage: {doc_type}"
     WATERMARK_INCORRECT = "Found incorrect watermark for {doc_type} stage. Use {expected}"
@@ -230,7 +242,9 @@ class StructureChecks(BaseChecker):
                     (bullet_count / len(current_section)) * 100 if current_section else 0
                 )
                 logger.debug(
-                    f"Final section '{current_section_name}' bullet analysis: {bullet_count}/{len(current_section)} paragraphs are bullets ({bullet_percentage:.1f}%)"
+                    f"Final section '{current_section_name}' bullet analysis: "
+                    f"{bullet_count}/{len(current_section)} paragraphs are bullets "
+                    f"({bullet_percentage:.1f}%)"
                 )
                 is_list_section = bullet_count > len(current_section) * 0.5
                 if is_list_section:
