@@ -146,9 +146,8 @@ class ResultFormatter:
             elif issue.get("category") == "image_alt_text":
                 formatted_issues.append(f"    • Missing alt text: {issue.get('context', '')}")
             elif issue.get("category") == "hyperlink_accessibility":
-                formatted_issues.append(
-                    f"    • {issue.get('user_message', issue.get('message', 'No description provided'))}"
-                )
+                message = issue.get('user_message', issue.get('message', 'No description provided'))
+                formatted_issues.append(f"    • {message}")
             elif issue.get("category") == "color_contrast":
                 formatted_issues.append(f"    • {issue.get('message', '')}")
 
@@ -169,6 +168,261 @@ class ResultFormatter:
             + (f"\n      Fix: {rec}" if rec else "")
         )
 
+    def _add_header(self, output: List[str]) -> None:
+        """Add header to the output based on style."""
+        if self._style == FormatStyle.HTML:
+            output.append('<div class="results-container">')
+            output.append(
+                '<h1 style="color: #0056b3; text-align: center;">Document Check Summary</h1>'
+            )
+            output.append('<hr style="border: 1px solid #0056b3;">')
+        else:
+            output.append("=" * 80)
+            output.append(self._format_colored_text("📋 DOCUMENT CHECK RESULTS SUMMARY", Fore.CYAN))
+            output.append("=" * 80)
+            output.append("")
+
+    def _collect_severity_buckets(self, results: Dict[str, Any]) -> Dict[str, List]:
+        """Collect and organize issues by severity."""
+        severity_buckets = {"error": [], "warning": [], "info": []}
+        for category_results in results.values():
+            if isinstance(category_results, dict):
+                for result in category_results.values():
+                    issues = (
+                        getattr(result, "issues", [])
+                        if hasattr(result, "issues")
+                        else result.get("issues", [])
+                    )
+                    for issue in issues:
+                        sev_obj = issue.get("severity")
+                        if isinstance(sev_obj, Severity):
+                            sev = sev_obj.value_str.lower()
+                        else:
+                            sev = (sev_obj or "info").lower()
+                        if sev in severity_buckets:
+                            severity_buckets[sev].append(issue)
+                        else:
+                            severity_buckets["info"].append(issue)
+        return severity_buckets
+
+    def _format_no_issues_message(self, output: List[str]) -> str:
+        """Format message when no issues are found."""
+        if self._style == FormatStyle.HTML:
+            output.append(
+                '<p style="color: #006400; text-align: center;">✓ All checks passed!</p>'
+            )
+            output.append("</div>")
+        else:
+            output.append(self._format_colored_text("✓ All checks passed!", Fore.GREEN))
+            output.append("")
+        return "\n".join(output)
+
+    def _format_severity_section(self, output: List[str], sev: str, issues: List,
+                                severity_titles: Dict, severity_colors_html: Dict,
+                                severity_colors_cli: Dict, severity_icons: Dict) -> None:
+        """Format a section for a specific severity level."""
+        if self._style == FormatStyle.HTML:
+            div_style = (
+                'margin-bottom: 40px; padding: 20px; '
+                'background-color: #f8f9fa; border-radius: 8px;'
+            )
+            output.append(f'<div class="category-section" style="{div_style}">')
+            h2_style = (
+                f'color: {severity_colors_html[sev]}; margin-bottom: 20px; '
+                f'border-bottom: 2px solid {severity_colors_html[sev]}; padding-bottom: 10px;'
+            )
+            output.append(f'<h2 style="{h2_style}">{severity_titles[sev]}</h2>')
+            output.append('<ul style="list-style-type: none; padding-left: 20px;">')
+            for issue in issues:
+                message = issue.get("message") or issue.get("error", str(issue))
+                line = issue.get("line_number")
+                line_info = f" (Line {line})" if line is not None else ""
+                span_style = f'color: {severity_colors_html[sev]}; font-weight: bold;'
+                li_content = (
+                    f"<li style='margin-bottom: 8px;'>"
+                    f"<span style='{span_style}'>[{sev.upper()}]</span> "
+                    f"{message}{line_info}</li>"
+                )
+                output.append(li_content)
+            output.append("</ul>")
+            output.append("</div>")
+        else:
+            # CLI formatting
+            output.append("-" * 60)
+            output.append(
+                self._format_colored_text(
+                    f"{severity_icons[sev]} {severity_titles[sev].upper()}",
+                    severity_colors_cli[sev],
+                )
+            )
+            output.append("-" * 60)
+            for issue in issues:
+                message = issue.get("message") or issue.get("error", str(issue))
+                line = issue.get("line_number")
+                line_info = f" (Line {line})" if line is not None else ""
+                output.append(f"  • {message}{line_info}")
+            output.append("")
+
+    def _format_by_severity(self, results: Dict[str, Any], output: List[str]) -> str:
+        """Format results grouped by severity."""
+        severity_buckets = self._collect_severity_buckets(results)
+        total_issues = sum(len(lst) for lst in severity_buckets.values())
+
+        if total_issues == 0:
+            return self._format_no_issues_message(output)
+
+        if self._style == FormatStyle.HTML:
+            html_style = 'color: #856404; text-align: center;'
+            output.append(f'<p style="{html_style}">Found {total_issues} issues:</p>')
+        else:
+            output.append(
+                self._format_colored_text(f"Found {total_issues} issues:", Fore.YELLOW)
+            )
+            output.append("")
+
+        severity_titles = {"error": "Errors", "warning": "Warnings", "info": "Info"}
+        severity_colors_html = {"error": "#721c24", "warning": "#856404", "info": "#0c5460"}
+        severity_colors_cli = {"error": Fore.RED, "warning": Fore.YELLOW, "info": Fore.CYAN}
+        severity_icons = {"error": "❌", "warning": "⚠️", "info": "ℹ️"}
+
+        for sev in ["error", "warning", "info"]:
+            issues = severity_buckets[sev]
+            if issues:
+                self._format_severity_section(
+                    output, sev, issues, severity_titles,
+                    severity_colors_html, severity_colors_cli, severity_icons
+                )
+
+        if self._style == FormatStyle.HTML:
+            output.append("</div>")
+        return "\n".join(output)
+
+    def _collect_categories_with_issues(self, results: Dict[str, Any]) -> tuple:
+        """Collect categories that have issues."""
+        total_issues = 0
+        categories_with_issues = []
+
+        for category, category_results in results.items():
+            if not category_results:
+                continue
+            cat_issues = 0
+            category_data = []
+            for result in category_results.values():
+                issues = (
+                    getattr(result, "issues", [])
+                    if hasattr(result, "issues")
+                    else result.get("issues", [])
+                )
+                cat_issues += len(issues)
+                if issues:
+                    category_data.append((result, issues))
+
+            if cat_issues > 0:
+                total_issues += cat_issues
+                categories_with_issues.append((category, category_data, cat_issues))
+
+        return total_issues, categories_with_issues
+
+    def _format_category_section(self, output: List[str], category: str,
+                               category_data: List, cat_issues: int) -> None:
+        """Format a section for a specific category."""
+        category_title = category.replace("_", " ").title()
+
+        if self._style == FormatStyle.HTML:
+            div_style = (
+                'margin-bottom: 40px; padding: 20px; '
+                'background-color: #f8f9fa; border-radius: 8px;'
+            )
+            output.append(f'<div class="category-section" style="{div_style}">')
+            h2_style = (
+                'color: #0056b3; margin-bottom: 20px; '
+                'border-bottom: 2px solid #0056b3; padding-bottom: 10px;'
+            )
+            output.append(f'<h2 style="{h2_style}">{category_title}</h2>')
+            output.append('<ul style="list-style-type: none; padding-left: 20px;">')
+
+            for result, issues in category_data:
+                for issue in issues:
+                    message = issue.get("message") or issue.get("error", str(issue))
+                    line = issue.get("line_number")
+                    line_info = f" (Line {line})" if line is not None else ""
+                    check_name = getattr(result, "check_name", "General")
+                    span_style = 'color: #721c24; font-weight: bold;'
+                    check_display = check_name.replace('_', ' ').title()
+                    li_content = (
+                        f"<li style='margin-bottom: 8px;'>"
+                        f"<span style='{span_style}'>[{check_display}]</span> "
+                        f"{message}{line_info}</li>"
+                    )
+                    output.append(li_content)
+            output.append("</ul>")
+            output.append("</div>")
+        else:
+            # CLI formatting
+            output.append("=" * 80)
+            output.append(
+                self._format_colored_text(
+                    f"📂 {category_title.upper()} ({cat_issues} issues)", Fore.CYAN
+                )
+            )
+            output.append("=" * 80)
+
+            for result, issues in category_data:
+                for issue in issues:
+                    message = issue.get("message") or issue.get("error", str(issue))
+                    line = issue.get("line_number")
+                    line_info = (
+                        self._format_colored_text(f" (Line {line})", Fore.BLUE)
+                        if line is not None
+                        else ""
+                    )
+                    check_name = getattr(result, "check_name", "General")
+                    check_label = self._format_colored_text(
+                        f"[{check_name.replace('_', ' ').title()}]", Fore.RED
+                    )
+                    output.append(f"  • {check_label} {message}{line_info}")
+            output.append("")
+
+    def _format_by_category(self, results: Dict[str, Any], output: List[str]) -> str:
+        """Format results grouped by category."""
+        total_issues, categories_with_issues = self._collect_categories_with_issues(results)
+
+        if total_issues == 0:
+            if self._style == FormatStyle.HTML:
+                output.append(
+                    '<p style="color: #006400; text-align: center;">✓ All checks passed!</p>'
+                )
+                output.append("</div>")
+            else:
+                output.append(
+                    self._format_colored_text("✓ All checks passed successfully!", Fore.GREEN)
+                )
+                output.append("=" * 80)
+            return "\n".join(output)
+
+        # Show summary
+        if self._style == FormatStyle.HTML:
+            html_style = 'color: #856404; text-align: center;'
+            output.append(f'<p style="{html_style}">Found {total_issues} issues.</p>')
+        else:
+            message = (
+                f"Found {total_issues} issues across "
+                f"{len(categories_with_issues)} categories:"
+            )
+            output.append(self._format_colored_text(message, Fore.YELLOW))
+            output.append("")
+
+        # Display each category
+        for category, category_data, cat_issues in categories_with_issues:
+            self._format_category_section(output, category, category_data, cat_issues)
+
+        if self._style == FormatStyle.HTML:
+            output.append("</div>")
+        else:
+            output.append("=" * 80)
+
+        return "\n".join(output)
+
     def format_results(
         self, results: Dict[str, Any], doc_type: str, group_by: str = "category"
     ) -> str:
@@ -184,237 +438,30 @@ class ResultFormatter:
             str: Formatted report with consistent styling
         """
         output = []
-
-        if self._style == FormatStyle.HTML:
-            # HTML Header
-            output.append('<div class="results-container">')
-            output.append(
-                '<h1 style="color: #0056b3; text-align: center;">Document Check Summary</h1>'
-            )
-            output.append('<hr style="border: 1px solid #0056b3;">')
-        else:
-            # CLI Header
-            output.append("=" * 80)
-            output.append(self._format_colored_text("📋 DOCUMENT CHECK RESULTS SUMMARY", Fore.CYAN))
-            output.append("=" * 80)
-            output.append("")
+        self._add_header(output)
 
         if group_by == "severity":
-            # Flatten all issues and regroup by severity
-            severity_buckets = {"error": [], "warning": [], "info": []}
-            for category_results in results.values():
-                if isinstance(category_results, dict):
-                    for result in category_results.values():
-                        issues = (
-                            getattr(result, "issues", [])
-                            if hasattr(result, "issues")
-                            else result.get("issues", [])
-                        )
-                        for issue in issues:
-                            sev_obj = issue.get("severity")
-                            if isinstance(sev_obj, Severity):
-                                sev = sev_obj.value_str.lower()
-                            else:
-                                sev = (sev_obj or "info").lower()
-                            if sev in severity_buckets:
-                                severity_buckets[sev].append(issue)
-                            else:
-                                severity_buckets["info"].append(issue)
-            total_issues = sum(len(lst) for lst in severity_buckets.values())
-            if total_issues == 0:
-                if self._style == FormatStyle.HTML:
-                    output.append(
-                        '<p style="color: #006400; text-align: center;">✓ All checks passed!</p>'
-                    )
-                    output.append("</div>")
-                else:
-                    output.append(self._format_colored_text("✓ All checks passed!", Fore.GREEN))
-                    output.append("")
-                return "\n".join(output)
-
+            return self._format_by_severity(results, output)
+        elif group_by == "category":
+            return self._format_by_category(results, output)
+        else:
+            # Fallback for unknown grouping
+            import logging
+            logging.error(
+                f"ResultFormatter.format_results: No implementation for group_by='{group_by}'."
+            )
             if self._style == FormatStyle.HTML:
-                output.append(
-                    f'<p style="color: #856404; text-align: center;">Found {total_issues} issues:</p>'
-                )
-            else:
-                output.append(
-                    self._format_colored_text(f"Found {total_issues} issues:", Fore.YELLOW)
-                )
-                output.append("")
-
-            severity_titles = {"error": "Errors", "warning": "Warnings", "info": "Info"}
-            severity_colors_html = {"error": "#721c24", "warning": "#856404", "info": "#0c5460"}
-            severity_colors_cli = {"error": Fore.RED, "warning": Fore.YELLOW, "info": Fore.CYAN}
-            severity_icons = {"error": "❌", "warning": "⚠️", "info": "ℹ️"}
-
-            for sev in ["error", "warning", "info"]:
-                issues = severity_buckets[sev]
-                if issues:
-                    if self._style == FormatStyle.HTML:
-                        output.append(
-                            '<div class="category-section" style="margin-bottom: 40px; padding: 20px; background-color: #f8f9fa; border-radius: 8px;">'
-                        )
-                        output.append(
-                            f'<h2 style="color: {severity_colors_html[sev]}; margin-bottom: 20px; border-bottom: 2px solid {severity_colors_html[sev]}; padding-bottom: 10px;">{severity_titles[sev]}</h2>'
-                        )
-                        output.append('<ul style="list-style-type: none; padding-left: 20px;">')
-                        for issue in issues:
-                            message = issue.get("message") or issue.get("error", str(issue))
-                            line = issue.get("line_number")
-                            line_info = f" (Line {line})" if line is not None else ""
-                            output.append(
-                                f"<li style='margin-bottom: 8px;'><span style='color: {severity_colors_html[sev]}; font-weight: bold;'>[{sev.upper()}]</span> {message}{line_info}</li>"
-                            )
-                        output.append("</ul>")
-                        output.append("</div>")
-                    else:
-                        # CLI formatting
-                        output.append("-" * 60)
-                        output.append(
-                            self._format_colored_text(
-                                f"{severity_icons[sev]} {severity_titles[sev].upper()}",
-                                severity_colors_cli[sev],
-                            )
-                        )
-                        output.append("-" * 60)
-                        for issue in issues:
-                            message = issue.get("message") or issue.get("error", str(issue))
-                            line = issue.get("line_number")
-                            line_info = f" (Line {line})" if line is not None else ""
-                            output.append(f"  • {message}{line_info}")
-                        output.append("")
-
-            if self._style == FormatStyle.HTML:
+                error_msg = '[Internal error: No category grouping implemented]'
+                output.append(f'<p style="color: #721c24;">{error_msg}</p>')
                 output.append("</div>")
-            return "\n".join(output)
-        if group_by == "category":
-            total_issues = 0
-            categories_with_issues = []
-
-            # First pass: collect categories with issues
-            for category, category_results in results.items():
-                if not category_results:
-                    continue
-                # Count total issues in this category
-                cat_issues = 0
-                category_data = []
-                for result in category_results.values():
-                    issues = (
-                        getattr(result, "issues", [])
-                        if hasattr(result, "issues")
-                        else result.get("issues", [])
-                    )
-                    cat_issues += len(issues)
-                    if issues:
-                        category_data.append((result, issues))
-
-                if cat_issues > 0:
-                    total_issues += cat_issues
-                    categories_with_issues.append((category, category_data, cat_issues))
-
-            # Display results
-            if total_issues == 0:
-                if self._style == FormatStyle.HTML:
-                    output.append(
-                        '<p style="color: #006400; text-align: center;">✓ All checks passedy!</p>'
-                    )
-                    output.append("</div>")
-                else:
-                    output.append(
-                        self._format_colored_text("✓ All checks passed successfully!", Fore.GREEN)
-                    )
-                    output.append("=" * 80)
-                return "\n".join(output)
-
-            # Show summary
-            if self._style == FormatStyle.HTML:
-                output.append(
-                    f'<p style="color: #856404; text-align: center;">Found {total_issues} issues.</p>'
-                )
             else:
                 output.append(
                     self._format_colored_text(
-                        f"Found {total_issues} issues across {len(categories_with_issues)} categories:",
-                        Fore.YELLOW,
+                        f"[Internal error: No implementation for group_by='{group_by}']", Fore.RED
                     )
                 )
-                output.append("")
-
-            # Display each category
-            for category, category_data, cat_issues in categories_with_issues:
-                category_title = category.replace("_", " ").title()
-
-                if self._style == FormatStyle.HTML:
-                    output.append(
-                        '<div class="category-section" style="margin-bottom: 40px; padding: 20px; background-color: #f8f9fa; border-radius: 8px;">'
-                    )
-                    output.append(
-                        f'<h2 style="color: #0056b3; margin-bottom: 20px; border-bottom: 2px solid #0056b3; padding-bottom: 10px;">{category_title}</h2>'
-                    )
-                    output.append('<ul style="list-style-type: none; padding-left: 20px;">')
-
-                    for result, issues in category_data:
-                        for issue in issues:
-                            message = issue.get("message") or issue.get("error", str(issue))
-                            line = issue.get("line_number")
-                            line_info = f" (Line {line})" if line is not None else ""
-                            check_name = getattr(result, "check_name", "General")
-                            output.append(
-                                f"<li style='margin-bottom: 8px;'><span style='color: #721c24; font-weight: bold;'>[{check_name.replace('_', ' ').title()}]</span> {message}{line_info}</li>"
-                            )
-                    output.append("</ul>")
-                    output.append("</div>")
-                else:
-                    # CLI formatting
-                    output.append("=" * 80)
-                    output.append(
-                        self._format_colored_text(
-                            f"📂 {category_title.upper()} ({cat_issues} issues)", Fore.CYAN
-                        )
-                    )
-                    output.append("=" * 80)
-
-                    for result, issues in category_data:
-                        for issue in issues:
-                            message = issue.get("message") or issue.get("error", str(issue))
-                            line = issue.get("line_number")
-                            line_info = (
-                                self._format_colored_text(f" (Line {line})", Fore.BLUE)
-                                if line is not None
-                                else ""
-                            )
-                            check_name = getattr(result, "check_name", "General")
-                            check_label = self._format_colored_text(
-                                f"[{check_name.replace('_', ' ').title()}]", Fore.RED
-                            )
-                            output.append(f"  • {check_label} {message}{line_info}")
-                    output.append("")
-
-            if self._style == FormatStyle.HTML:
-                output.append("</div>")
-            else:
                 output.append("=" * 80)
-
             return "\n".join(output)
-        # --- PATCH: fallback for missing category grouping ---
-        import logging
-
-        logging.error(
-            f"ResultFormatter.format_results: No implementation for group_by='{group_by}'."
-        )
-        if self._style == FormatStyle.HTML:
-            output.append(
-                '<p style="color: #721c24;">[Internal error: No category grouping implemented]</p>'
-            )
-            output.append("</div>")
-        else:
-            output.append(
-                self._format_colored_text(
-                    f"[Internal error: No implementation for group_by='{group_by}']", Fore.RED
-                )
-            )
-            output.append("=" * 80)
-        return "\n".join(output)
 
     def save_report(self, results: Dict[str, Any], filepath: str, doc_type: str) -> None:
         """Save the formatted results to a file with proper formatting."""
@@ -450,17 +497,21 @@ class ResultFormatter:
             formatted_issues.append(
                 f"    • Gunning Fog Index: {metrics['gunning_fog_index']} (Aim for 12 or lower)"
             )
-            formatted_issues.append(
-                f"    • Passive Voice: {metrics['passive_voice_percentage']}% (Aim for less than 10%)"
+            passive_voice_msg = (
+                f"    • Passive Voice: {metrics['passive_voice_percentage']}% "
+                "(Aim for less than 10%)"
             )
+            formatted_issues.append(passive_voice_msg)
 
         if result.issues:
             formatted_issues.append("\n  Identified Issues:")
             for issue in result.issues:
                 if issue["type"] == "jargon":
-                    formatted_issues.append(
-                        f"    • Replace '{issue['word']}' with '{issue['suggestion']}' in: \"{issue['sentence']}\""
+                    jargon_msg = (
+                        f"    • Replace '{issue['word']}' with '{issue['suggestion']}' "
+                        f"in: \"{issue['sentence']}\""
                     )
+                    formatted_issues.append(jargon_msg)
                 elif issue["type"] in ["readability_score", "passive_voice"]:
                     formatted_issues.append(f"    • {issue['message']}")
 
