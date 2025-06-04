@@ -42,33 +42,9 @@ class MockGradioUI:
             self.last_result = result
             self.visibility_settings = visibility_settings or self.visibility_settings
 
-            # Filter issues based on visibility settings (for legacy, but now return by_category)
-            results_dict = getattr(result, "per_check_results", None) or {
-                "all": {
-                    "all": {
-                        "success": result.success,
-                        "issues": result.issues,
-                        "details": getattr(result, "details", {}),
-                    }
-                }
-            }
-            # Filter issues by visibility settings for errors and warnings
-            visible_errors = []
-            visible_warnings = []
-            for cat, checks in results_dict.items():
-                for check in checks.values():
-                    for issue in check.get("issues", []):
-                        category = self._get_issue_category(issue)
-                        is_visible = getattr(self.visibility_settings, f"show_{category}", True)
-                        sev = issue.get("severity")
-                        if hasattr(sev, "name"):
-                            sev = sev.name
-                        if not is_visible:
-                            continue
-                        if sev == "ERROR":
-                            visible_errors.append(issue["message"])
-                        elif sev == "WARNING":
-                            visible_warnings.append(issue["message"])
+            results_dict = self._get_results_dict(result)
+            visible_errors, visible_warnings = self._filter_visible_issues(results_dict)
+
             return {
                 "has_errors": not result.success,
                 "rendered": "",  # Could use formatter if needed
@@ -81,6 +57,47 @@ class MockGradioUI:
             raise
         except ValueError:
             raise
+
+    def _get_results_dict(self, result) -> dict:
+        """Extract or create results dictionary from checker result."""
+        return getattr(result, "per_check_results", None) or {
+            "all": {
+                "all": {
+                    "success": result.success,
+                    "issues": result.issues,
+                    "details": getattr(result, "details", {}),
+                }
+            }
+        }
+
+    def _filter_visible_issues(self, results_dict: dict) -> tuple[list, list]:
+        """Filter issues based on visibility settings and return errors and warnings."""
+        visible_errors = []
+        visible_warnings = []
+
+        for cat, checks in results_dict.items():
+            for check in checks.values():
+                for issue in check.get("issues", []):
+                    if self._should_include_issue(issue):
+                        severity = self._get_issue_severity(issue)
+                        if severity == "ERROR":
+                            visible_errors.append(issue["message"])
+                        elif severity == "WARNING":
+                            visible_warnings.append(issue["message"])
+
+        return visible_errors, visible_warnings
+
+    def _should_include_issue(self, issue: dict) -> bool:
+        """Check if an issue should be included based on visibility settings."""
+        category = self._get_issue_category(issue)
+        return getattr(self.visibility_settings, f"show_{category}", True)
+
+    def _get_issue_severity(self, issue: dict) -> str:
+        """Extract severity string from issue."""
+        sev = issue.get("severity")
+        if hasattr(sev, "name"):
+            return sev.name
+        return sev
 
     def _get_issue_category(self, issue: dict) -> str:
         """Determine the category of an issue based on its attributes."""

@@ -213,9 +213,7 @@ def validate_check_registration() -> Dict[str, List[str]]:
                         logger.debug(f"Check {check} is discovered in a different category")
         else:
             # Category is not discovered at all. See if any of its checks exist in other categories
-            logger.debug(
-                f"Category {category} not found in discovered checks"
-            )
+            logger.debug(f"Category {category} not found in discovered checks")
             for check in registered_checks[category]:
                 found_in_other_category = any(
                     check in other_checks for other_cat, other_checks in discovered_checks.items()

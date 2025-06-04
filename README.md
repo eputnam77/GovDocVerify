@@ -77,6 +77,234 @@ The Document Checker Tool automatically reviews your document for a wide range o
 
 ---
 
+## Detailed Check Descriptions
+
+This section provides comprehensive descriptions of each check performed by the Document Checker Tool, including solutions and detailed examples.
+
+### Required Headings Check
+**Description:** Verifies that your document includes all mandatory section headings. Note: The "Cancellation." heading is only required if this document cancels or replaces an existing document. If your document is new or doesn't cancel anything, you can ignore the Cancellation heading warning.
+
+**Solution:** Add all required headings in the correct order using the correct capitalization format. For cancellation warnings, only add the heading if you are actually canceling a document.
+
+**Example Fix:**
+- **Before:** Missing required heading "PURPOSE."
+- **After:** Added heading "PURPOSE." at the beginning of the document
+
+### Heading Period Format
+**Description:** Examines heading punctuation to ensure compliance with FAA document formatting standards. Some FAA documents (like Advisory Circulars and Orders) require periods at the end of headings, while others (like Federal Register Notices) don't.
+
+**Solution:** Format heading periods according to document type requirements.
+
+**Example Fix:**
+- **Before:** Purpose
+- **After:** Purpose. (For ACs and Orders)
+
+### Table and Figure References
+**Description:** Analyzes how tables and figures are referenced within your document text. Capitalize references at the beginning of sentences (e.g., "Table 2-1 shows...") and use lowercase references within sentences (e.g., "...as shown in table 2-1").
+
+**Solution:** Capitalize references at start of sentences, use lowercase within sentences.
+
+**Example Fix:**
+- **Before:** The DTR values are specified in Table 3-1 and Figure 3-2.
+- **After:** The DTR values are specified in table 3-1 and figure 3-2.
+
+### Acronym Definition Issues
+**Description:** Ensures every acronym is properly introduced with its full term at first use. The check identifies undefined acronyms while recognizing common exceptions (like U.S.) that don't require definition.
+
+**Solution:** Define each acronym at its first use, e.g., "Federal Aviation Administration (FAA)".
+
+**Example Fix:**
+- **Before:** This order establishes general FAA organizational policies.
+- **After:** This order establishes general Federal Aviation Administration (FAA) organizational policies.
+
+### Unused Acronym Definitions
+**Description:** Ensures that all acronyms defined in the document are actually used later. If an acronym is defined but never referenced, the definition should be removed to avoid confusion or unnecessary clutter.
+
+**Solution:** Identify acronyms that are defined but not used later in the document and remove their definitions.
+
+**Example Fix:**
+- **Before:** Operators must comply with airworthiness directives (AD) to ensure aircraft safety and regulatory compliance.
+- **After:** Operators must comply with airworthiness directives to ensure aircraft safety and regulatory compliance.
+
+### Incorrect Terminology
+**Description:** Evaluates document text against the various style manuals and orders to identify non-compliant terminology, ambiguous references, and outdated phrases. This includes checking for prohibited relative references (like "above" or "below"), proper legal terminology (like "must" instead of "shall"), and consistent formatting of regulatory citations.
+
+**Solution:** Use explicit references to paragraphs, sections, tables, and figures.
+
+**Example Fix:**
+- **Before:** Operators shall comply with ADs to ensure aircraft safety and regulatory compliance
+- **After:** Operators must comply with ADs to ensure aircraft safety and regulatory compliance.
+
+### Section Symbol (§) Format Issues
+**Description:** Examines the usage of section symbols (§) throughout your document. This includes verifying proper symbol placement in regulatory references, ensuring sections aren't started with the symbol, checking consistency in multiple-section citations, and validating proper CFR citations. For ACs, see FAA Order 1320.46.
+
+**Solution:** Format section symbols correctly and never start sentences with them.
+
+**Example Fix:**
+- **Before:** § 23.3 establishes design criteria.
+- **After:** Section 23.3 establishes design criteria.
+
+### Multiple Period Issues
+**Description:** Examines sentences for accidental double periods that often occur during document editing and revision. While double periods are sometimes found in ellipses (...) or web addresses, they should never appear at the end of standard sentences in FAA documentation.
+
+**Solution:** Remove multiple periods that end sentences.
+
+**Example Fix:**
+- **Before:** The following ACs are related to the guidance in this document..
+- **After:** The following ACs are related to the guidance in this document.
+
+### Spacing Issues
+**Description:** Analyzes document spacing patterns to ensure compliance with FAA formatting standards. This includes checking for proper spacing around regulatory references (like "AC 25-1" not "AC25-1"), section symbols (§ 25.1), paragraph references, and multiple spaces between words.
+
+**Solution:** Fix spacing issues: remove any missing spaces, double spaces, or inadvertent tabs.
+
+**Example Fix:**
+- **Before:** AC25.25 states that  SFAR88 and §25.981 require...
+- **After:** AC 25.25 states that SFAR 88 and § 25.981 require...
+
+### Date Format Issues
+**Description:** Examines all date references in your document. The check automatically excludes technical reference numbers that may look like dates to ensure accurate validation of true date references. Note, though, there might be instances in the heading of the document where the date is formatted as "MM/DD/YYYY", which is acceptable. This applies mostly to date formats within the document body.
+
+**Solution:** Use the format "Month Day, Year" where appropriate.
+
+**Example Fix:**
+- **Before:** This policy statement cancels Policy Statement PS-AIR100-2006-MMPDS, dated 7/25/2006.
+- **After:** This policy statement cancels Policy Statement PS-AIR100-2006-MMPDS, dated July 25, 2006.
+
+### Placeholder Content
+**Description:** Identifies incomplete content and temporary placeholders that must be finalized before document publication. This includes common placeholder text (like "TBD" or "To be determined"), draft markers, and incomplete sections.
+
+**Solution:** Replace all placeholder content with actual content.
+
+**Example Fix:**
+- **Before:** Pilots must submit the [Insert text] form to the FAA for approval.
+- **After:** Pilots must submit the Report of Eye Evaluation form 8500-7 to the FAA for approval.
+
+### Parentheses Balance Check
+**Description:** Ensures that all parentheses in the document are properly paired with matching opening and closing characters.
+
+**Solution:** Add missing opening or closing parentheses where indicated.
+
+**Example Fix:**
+- **Before:** The system (as defined in AC 25-11B performs...
+- **After:** The system (as defined in AC 25-11B) performs...
+
+### Paragraph Length Issues
+**Description:** Flags paragraphs exceeding 6 sentences or 8 lines to enhance readability and clarity. While concise paragraphs are encouraged, with each focusing on a single idea or related points, exceeding these limits doesn't necessarily indicate a problem. Some content may appropriately extend beyond 8 lines, especially if it includes necessary details. Boilerplate language or template text exceeding these limits is not subject to modification or division.
+
+**Solution:** Where possible, split long paragraphs into smaller sections, ensuring each focuses on one primary idea. If restructuring is not feasible or the content is boilerplate text, no changes are needed.
+
+**Example Fix:**
+- **Before:** A very long paragraph covering multiple topics and spanning many lines...
+- **After:** Multiple shorter paragraphs or restructured paragraphs, each focused on a single topic or related points.
+
+### Sentence Length Issues
+**Description:** Analyzes sentence length to ensure readability. While the ideal length varies with content complexity, sentences over 35 words often become difficult to follow. Technical content, regulatory references, notes, warnings, and list items are excluded from this check.
+
+**Solution:** Break long sentences into smaller ones where possible, focusing on one main point per sentence. Consider using lists for complex items.
+
+**Example Fix:**
+- **Before:** The operator must ensure that all required maintenance procedures are performed in accordance with the manufacturer's specifications and that proper documentation is maintained throughout the entire process to demonstrate compliance with regulatory requirements.
+- **After:** The operator must ensure all required maintenance procedures are performed according to manufacturer specifications. Additionally, proper documentation must be maintained to demonstrate regulatory compliance.
+
+### Referenced Document Title Format Issues
+**Description:** Checks document title formatting based on document type. Advisory Circulars require italics without quotes, while all other document types require quotes without italics.
+
+**Solution:** Format document titles according to document type: use italics for Advisory Circulars, quotes for all other document types.
+
+**Example Fix:**
+- **Before:** See AC 25.1309-1B, System Design and Analysis, for information on X.
+- **After:** See AC 25.1309-1B, <i>System Design and Analysis</i>, for information on X.
+
+### Section 508 Compliance Issues
+**Description:** Checks document accessibility features required by Section 508 standards: Image alt text for screen readers, heading structure issues (missing heading 1, skipped heading levels, and out of sequence headings), and hyperlink accessibility (ensuring links have meaningful descriptive text).
+
+**Solution:** Address each accessibility issue: add image alt text for screen readers, fix heading structure, and ensure hyperlinks have descriptive text that indicates their destination.
+
+**Example Fix:**
+- **Before:**
+  - Image without alt text
+  - Heading sequence: H1 → H2 → H4 (skipped H3)
+  - Link text: "click here" or "www.example.com"
+- **After:**
+  - Image with descriptive alt text
+  - Proper heading sequence: H1 → H2 → H3 → H4
+  - Descriptive link text: "FAA Compliance Guidelines" or "Download the Safety Report"
+
+### Hyperlink Issues
+**Description:** Checks for potentially broken or inaccessible URLs in the document. This includes checking response codes and connection issues.
+
+**Solution:** Verify each flagged URL is correct and accessible.
+
+**Example Fix:**
+- **Before:** See https://broken-link.example.com for more details.
+- **After:** See https://www.faa.gov for more details.
+
+### Cross-Reference Issues
+**Description:** Checks for missing or invalid cross-references to paragraphs, tables, figures, and appendices within the document.
+
+**Solution:** Ensure that all referenced elements are present in the document and update or remove any incorrect references.
+
+**Example Fix:**
+- **Before:** See table 5-2 for more information. (there is no table 5-2)
+- **After:** Either update the table reference or add table 5-2 if missing
+
+### Readability Issues
+**Description:** Analyzes document readability using multiple metrics including Flesch Reading Ease, Flesch-Kincaid Grade Level, and Gunning Fog Index. Also checks for passive voice usage and technical jargon.
+
+**Solution:** Simplify language, reduce passive voice, and replace technical jargon with plain language alternatives.
+
+**Example Fix:**
+- **Before:** The implementation of the procedure was facilitated by technical personnel.
+- **After:** Technical staff helped start the procedure.
+
+### Accessibility Issues
+**Description:** Checks document accessibility including alt text, heading structure, and hyperlinks.
+
+**Solution:** Add missing accessibility features and fix structural issues.
+
+**Example Fix:**
+- **Before:** Image without alt text, skipped heading levels
+- **After:** Added alt text, fixed heading hierarchy
+
+### Document Watermark Issues
+**Description:** Verifies that the document has the appropriate watermark for its current stage (internal review, public comment, AGC review, or final issuance).
+
+**Solution:** Add or update the watermark to match the document's current stage.
+
+**Example Fix:**
+- **Before:** Missing watermark or incorrect watermark "draft"
+- **After:** Added correct watermark "draft for public comment"
+
+### Required Boilerplate Text Issues
+**Description:** Ensures that all required standard text sections are present based on document type (like required disclaimers in ACs and Policy Statements).
+
+**Solution:** Add all required boilerplate text sections from the document template.
+
+**Example Fix:**
+- **Before:** Missing required disclaimer text for Advisory Circular
+- **After:** Added "This AC is not mandatory and does not constitute a regulation."
+
+### Required Language Issues
+**Description:** Verifies that document contains all required standardized language based on document type (like specific statements required in Federal Register notices).
+
+**Solution:** Add all required standard statements for the document type.
+
+**Example Fix:**
+- **Before:** Missing Paperwork Reduction Act statement in Federal Register notice
+- **After:** Added complete Paperwork Reduction Act statement
+
+### Table/Figure Caption Format Issues
+**Description:** Checks that table and figure captions follow proper numbering format based on document type (chapter-based for ACs/Orders, sequential for other documents).
+
+**Solution:** Format captions according to document type requirements.
+
+**Example Fix:**
+- **Before:** Table 5.
+- **After:** Table 5-1. (For ACs and Orders)
+
+---
+
 ## Project Structure
 
 ```
