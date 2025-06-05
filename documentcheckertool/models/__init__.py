@@ -107,7 +107,9 @@ class DocumentCheckResult:
             if "category" not in issue or not issue["category"]:
                 issue["category"] = getattr(self, "checker_name", None) or "general"
                 logging.warning(
-                    f"[DEFENSIVE] Issue missing category. Assigned '{issue['category']}'. Issue: {issue}"
+                    "[DEFENSIVE] Issue missing category. "
+                    f"Assigned category: '{issue['category']}'. "
+                    f"Issue details: {issue}"
                 )
         self.severity = None  # Will be set on first issue
 

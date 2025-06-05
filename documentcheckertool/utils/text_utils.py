@@ -73,7 +73,8 @@ def split_sentences(text: str) -> List[str]:
         """Determine if we should split the sentence at the given index."""
         is_abbrev, abbr_matched = _is_abbreviation(idx)
         logger.debug(
-            f"split_sentences: idx={idx}, char='{text[idx]}', is_abbrev={is_abbrev}, abbr_matched={abbr_matched}"
+            f"split_sentences: idx={idx}, char='{text[idx]}', "
+            f"is_abbrev={is_abbrev}, abbr_matched={abbr_matched}"
         )
         # Decide whether we should split here
         if is_abbrev:
@@ -147,10 +148,12 @@ def count_words(text: str) -> int:
         if re.search(r"[a-zA-Z0-9]", w) and w.lower() not in STOPWORDS
     ]
     logger.debug(
-        f"count_words: input='{text}' emails={[m.group(0) for m in emails]} words_no_emails={words} total={email_count + len(words)}"
+        f"count_words: input='{text}', "
+        f"emails found={[m.group(0) for m in emails]}, "
+        f"words without emails={words}, "
+        f"total count={email_count + len(words)}"
     )
     return email_count + len(words)
-
 
 def normalize_reference(text: str) -> str:
     """Normalize a reference text for comparison."""

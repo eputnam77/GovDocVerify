@@ -83,10 +83,16 @@ def discover_checks() -> Dict[str, List[str]]:
                             for method_name, method in inspect.getmembers(
                                 obj, predicate=inspect.isfunction
                             ):
-                                logger.debug(f"Examining method: {method_name}")
-                                # Only include registered public check methods and specific private methods
-                                # Public methods: check_text, check_document, run_checks
-                                # Specific private methods: _check_paragraph_length, _check_sentence_length (from structure)
+                                logger.debug(
+                                    f"Examining method: {method_name}"
+                                )
+                                # Only include registered public check methods:
+                                #   - check_text
+                                #   - check_document
+                                #   - run_checks
+                                # Also include specific private methods from structure:
+                                #   - _check_paragraph_length
+                                #   - _check_sentence_length
                                 if method_name in [
                                     "check_text",
                                     "check_document",

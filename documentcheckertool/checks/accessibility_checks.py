@@ -185,7 +185,11 @@ class AccessibilityChecks(BaseChecker):
         issues.append(
             {
                 "type": "readability_info",
-                "message": "Note: Readability metrics are guidelines to help improve clarity. Not all documents will meet all targets, and that's okay. Use these suggestions to identify areas for potential improvement.",
+                "message": (
+                    "Note: Readability metrics are guidelines to help improve clarity. "
+                    "Not all documents will meet every target, and that's okay. "
+                    "Use these suggestions to find areas for possible improvement."
+                ),
                 "category": self.category,
             }
         )
@@ -196,7 +200,10 @@ class AccessibilityChecks(BaseChecker):
                     "type": "readability_score",
                     "metric": "Flesch Reading Ease",
                     "score": round(flesch_ease, 1),
-                    "message": "Consider simplifying language where possible to improve readability, but maintain necessary technical terminology.",
+                    "message": (
+                        "Consider simplifying language where possible to improve readability. "
+                        "Keep necessary technical terms."
+                    ),
                     "category": self.category,
                 }
             )
@@ -207,7 +214,10 @@ class AccessibilityChecks(BaseChecker):
                     "type": "readability_score",
                     "metric": "Flesch-Kincaid Grade Level",
                     "score": round(flesch_grade, 1),
-                    "message": "The reading level may be high for some audiences. Where appropriate, consider simpler alternatives while preserving technical accuracy.",
+                    "message": (
+                        "The reading level may be high for some audiences. "
+                        "Where possible, use simpler language but keep technical accuracy."
+                    ),
                     "category": self.category,
                 }
             )
@@ -218,20 +228,27 @@ class AccessibilityChecks(BaseChecker):
                     "type": "readability_score",
                     "metric": "Gunning Fog Index",
                     "score": round(fog_index, 1),
-                    "message": "Text complexity is high but may be necessary for your content. Review for opportunities to clarify without oversimplifying.",
+                    "message": (
+                        "Text complexity is high, but this may be needed for your content. "
+                        "Review for ways to clarify without oversimplifying."
+                    ),
                     "category": self.category,
                 }
             )
 
         if passive_percentage > 10:
-            issues.append(
-                {
-                    "type": "passive_voice",
-                    "percentage": round(passive_percentage, 1),
-                    "message": f"Document uses {round(passive_percentage, 1)}% passive voice. While some passive voice is acceptable and sometimes necessary, consider active voice where it improves clarity.",
-                    "category": self.category,
-                }
-            )
+                issues.append(
+                    {
+                        "type": "passive_voice",
+                        "percentage": round(passive_percentage, 1),
+                        "message": (
+                            f"Document uses {round(passive_percentage, 1)}% passive voice. "
+                            "Some passive voice is acceptable and sometimes necessary. "
+                            "Consider using active voice where it improves clarity."
+                        ),
+                        "category": self.category,
+                    }
+                )
 
     @profile_performance
     def check_section_508_compliance(self, content: Union[str, List[str]]) -> DocumentCheckResult:
@@ -322,7 +339,10 @@ class AccessibilityChecks(BaseChecker):
 
         else:
             results.add_issue(
-                message=f"Invalid content type for heading structure check: {type(content).__name__}",
+                message=(
+                    f"Cannot check heading structure: content type is '{type(content).__name__}'. "
+                    "A list of text lines is required."
+                ),
                 severity=Severity.ERROR,
             )
             return
@@ -340,11 +360,14 @@ class AccessibilityChecks(BaseChecker):
             for level, text in headings:
                 if level > prev_level + 1:
                     results.add_issue(
-                        message=f"Inconsistent heading structure: H{level} '{text}' follows H{prev_level}",
+                        message=(
+                            f"Heading level jumps from H{prev_level} to H{level} with '{text}'. "
+                            "Add intermediate heading levels for proper structure."
+                        ),
                         severity=Severity.ERROR,
                     )
                     logger.debug(
-                        f"Found inconsistent heading structure: H{level} after H{prev_level}"
+                        f"Heading level jumps from H{prev_level} to H{level} with '{text}'"
                     )
                 prev_level = level
 
@@ -354,9 +377,16 @@ class AccessibilityChecks(BaseChecker):
         """Check hyperlinks for accessibility issues, including deprecated FAA links."""
 
         if content is None:
-            logger.error("Invalid content type for hyperlink check: None")
+            logger.error(
+                "Cannot check hyperlinks: content is None. "
+                "A document or list of text lines is required."
+            )
             results.add_issue(
-                message="Invalid content type for hyperlink check: None", severity=Severity.ERROR
+                message=(
+                    "Cannot check hyperlinks: content is None. "
+                    "Provide a document or list of text lines."
+                ),
+                severity=Severity.ERROR,
             )
             return
 
@@ -404,19 +434,23 @@ class AccessibilityChecks(BaseChecker):
 
         for link_text in links:
             if link_text.lower() in non_descriptive:
-                logger.warning(f"Found non-descriptive link text: '{link_text}'")
+                logger.warning(
+                    f"Found non-descriptive link text: '{link_text}'"
+                )
                 results.add_issue(
-                    message=f"Found non-descriptive link text: '{link_text}'. Use more descriptive text for better accessibility.",
+                    message=(
+                        f"Change '{link_text}' to a more descriptive link for accessibility."
+                    ),
                     severity=Severity.WARNING,
                 )
 
-        # --- NEW: detect deprecated FAA links --------------------------------
+        # --- detect deprecated FAA links ---
         text_source = "\n".join(lines)
         for url, span in find_urls(text_source):
             replacement = deprecated_lookup(url)
             if replacement:
                 results.add_issue(
-                    message=f"Found deprecated FAA link: '{url}'. Replace with '{replacement}'.",
+                    message=f"Change deprecated link: '{url}' to '{replacement}'.",
                     severity=Severity.ERROR,
                     line_number=span[0],
                 )

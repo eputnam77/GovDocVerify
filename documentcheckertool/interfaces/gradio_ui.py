@@ -261,7 +261,9 @@ def create_interface():
                                                 show_document_status = gr.Checkbox(
                                                     label="Document Status Checks",
                                                     value=True,
-                                                    info="Show document status and watermark checks",
+                                                    info=(
+                                                        "Show document status and watermark checks."
+                                                    ),
                                                 )
 
                                     submit_btn = gr.Button(
@@ -369,7 +371,7 @@ def create_interface():
                                         f"[UI DEBUG] Issues by category: {issues_by_category}"
                                     )
 
-                                    # --- NEW: Filter results based on visibility settings with mapping ---
+                                    # --- Filter based on visibility settings with mapping ---
                                     visibility_settings = VisibilitySettings(
                                         show_readability=show_readability_value,
                                         show_paragraph_length=show_paragraph_length_value,
@@ -433,7 +435,8 @@ def create_interface():
                                             visibility_to_categories["show_document_status"]
                                         )
                                     logger.debug(
-                                        f"[UI DEBUG] Selected categories for display: {selected_categories}"
+                                        "[UI DEBUG] Selected categories for display: "
+                                        f"{selected_categories}"
                                     )
 
                                     filtered_results = {}
@@ -470,7 +473,8 @@ def create_interface():
                                     if "All checks passed successfully" in formatted_results:
                                         if total_issues > 0:
                                             logger.warning(
-                                                "[UI DEBUG] Issues present in results_dict, but UI will display 'All checks passed'! Possible formatter/structure bug."
+                                                "[UI DEBUG] Issues found in results_dict, but UI will display 'All checks passed'. "
+                                                "Possible bug in the formatter or results structure."
                                             )
                                         else:
                                             logger.debug(
@@ -650,12 +654,21 @@ def create_interface():
                                         <html>
                                         <head>
                                             <style>
-                                                body {{ font-family: Arial, sans-serif; margin: 40px; }}
-                                                h1 {{ color: #0056b3; text-align: center; }}
-                                                h2 {{ color: #0056b3; border-bottom: 2px solid #0056b3; padding-bottom: 10px; }}
-                                                .summary {{ background: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 30px; }}
-                                                .category {{ margin-bottom: 30px; }}
-                                                .issue {{ margin: 10px 0; padding-left: 20px; }}
+                                                body { font-family: Arial, sans-serif; margin: 40px; }
+                                                h1 { color: #0056b3; text-align: center; }
+                                                h2 {
+                                                    color: #0056b3;
+                                                    border-bottom: 2px solid #0056b3;
+                                                    padding-bottom: 10px;
+                                                }
+                                                .summary {
+                                                    background: #f8f9fa;
+                                                    padding: 20px;
+                                                    border-radius: 8px;
+                                                    margin-bottom: 30px;
+                                                }
+                                                .category { margin-bottom: 30px; }
+                                                .issue { margin: 10px 0; padding-left: 20px; }
                                             </style>
                                         </head>
                                         <body>
@@ -686,11 +699,14 @@ def create_interface():
                                                 """
 
                                                 for check_name, result in category_results.items():
-                                                    if result.get("issues"):
-                                                        html_content += f"""
-                                                        <h3>{check_name.replace('_', ' ').title()}</h3>
-                                                        <ul>
-                                                        """
+                                                        if result.get("issues"):
+                                                            display_name = check_name.replace("_", " ").title()
+                                                        html_content += (
+                                                            "<h3>"
+                                                            f"{display_name}"
+                                                            "</h3>\n"
+                                                            "<ul>\n"
+                                                        )
 
                                                         for issue in result["issues"]:
                                                             line_info = (
@@ -698,9 +714,11 @@ def create_interface():
                                                                 if issue.get("line_number")
                                                                 else ""
                                                             )
-                                                            html_content += f"""
-                                                            <li class="issue">{issue['message']}{line_info}</li>
-                                                            """
+                                                            html_content += (
+                                                                '<li class="issue">'
+                                                                f"{issue['message']}{line_info}"
+                                                                '</li>\n'
+                                                            )
 
                                                         html_content += "</ul>"
 
@@ -766,12 +784,12 @@ def create_interface():
                         gr.Markdown(
                             """
                             ### 📌 Important Notes
-                            - This tool helps ensure compliance with federal documentation standards
-                            - Results are based on current style guides and FAA requirements
-                            - Final editorial decisions rest with the author
-                            - For questions on the FAA documentation standards, contact your senior technical writer
-                            - For questions or feedback on the tool, contact Eric Putnam
-                            - Results are not stored or saved
+                            - This tool helps you comply with federal documentation standards.
+                            - Results are based on current style guides and FAA requirements.
+                            - Final editorial decisions are the responsibility of the author.
+                            - For FAA documentation questions, contact your senior technical writer.
+                            - For tool questions or feedback, contact Eric Putnam.
+                            - Results are not stored or saved.
                             """
                         )
 
