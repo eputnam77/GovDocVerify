@@ -100,10 +100,13 @@ class AcronymChecker(BaseChecker):
         logger.debug("Custom acronym added and changes saved")
 
     def reload_config(self):
-        """Reload the acronym lists from the config file or update the internal state based on in-memory changes."""
-        logger.debug("Reloading acronym configuration")
+        """
+        Reload the acronym lists from the config file or update internal state
+        based on in-memory changes.
+        """
+        logger.debug("Reloading acronym configuration.")
         self.terminology_manager.load_config()
-        logger.debug("Configuration reloaded successfully")
+        logger.debug("Acronym configuration reloaded successfully.")
 
     @staticmethod
     def format_unused_acronym_issues(result: DocumentCheckResult) -> List[str]:

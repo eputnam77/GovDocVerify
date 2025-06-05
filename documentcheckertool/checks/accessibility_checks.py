@@ -282,7 +282,9 @@ class AccessibilityChecks(BaseChecker):
         # Set success based on whether any issues were found
         results.success = len(results.issues) == 0
         logger.debug(
-            f"Section 508 compliance check complete. Results: success={results.success}, issues={results.issues}"
+            "Section 508 compliance check complete. "
+            f"Results: success={results.success}, "
+            f"issues={results.issues}"
         )
         return results
 
@@ -450,7 +452,7 @@ class AccessibilityChecks(BaseChecker):
             replacement = deprecated_lookup(url)
             if replacement:
                 results.add_issue(
-                    message=f"Change deprecated link: '{url}' to '{replacement}'.",
+                    message=f"Change URL from '{url}' to '{replacement}'.",
                     severity=Severity.ERROR,
                     line_number=span[0],
                 )
@@ -596,10 +598,16 @@ class AccessibilityChecks(BaseChecker):
             logger.debug("Processing content as list of strings")
             if not isinstance(content, list):
                 logger.error(
-                    f"Invalid content type for color contrast check: {type(content).__name__}"
+                    "Cannot run color contrast check: "
+                    f"received '{type(content).__name__}', but expected a "
+                    "document or list of text lines."
                 )
                 results.add_issue(
-                    message=f"Invalid content type for color contrast check: {type(content).__name__}",
+                    message=(
+                        "Cannot run color contrast check: "
+                        f"received '{type(content).__name__}'. "
+                        "A document or list of text lines is required."
+                    ),
                     severity=Severity.ERROR,
                     category=self.category,
                 )
@@ -627,7 +635,8 @@ class AccessibilityChecks(BaseChecker):
                     )
 
         logger.debug(
-            f"Color contrast check complete. Results: success={results.success}, issues={results.issues}"
+            "Color contrast check complete. "
+            f"Results: success={results.success}, issues={results.issues}"
         )
 
     def _calculate_contrast_ratio(self, color1: str, color2: str) -> float:

@@ -19,7 +19,10 @@ def process_document(
 ) -> str:
     print("[PROOF] process_document called")
     logger.debug(
-        f"[DIAG] process_document called with file_path={file_path}, doc_type={doc_type}, group_by={group_by}"
+        "[DIAG] process_document called with "
+        f"file_path={file_path}, "
+        f"doc_type={doc_type}, "
+        f"group_by={group_by}"
     )
     """Process a document and return formatted results."""
     try:
@@ -74,7 +77,8 @@ def process_document(
 
         # --- FILTER RESULTS BASED ON VISIBILITY SETTINGS ---
         # Only include categories where visibility_settings.<category> is True
-        # If --show-only is used, only include those categories, even if others are present in results_dict
+        # If --show-only is used, only include those categories,
+        # even if others are present in results_dict
         if hasattr(visibility_settings, "_show_only_set") and visibility_settings._show_only_set:
             # Strict filtering: only show categories in show_only_set
             filtered_results_dict = {
@@ -159,14 +163,24 @@ def main() -> int:
         type=str,
         nargs="+",
         metavar="CATEGORY",
-        help="Show only the specified categories (comma-separated or space-separated list). Mutually exclusive with --hide-* and --show-all. Categories: readability, paragraph_length, terminology, headings, structure, format, accessibility, document_status",
+        help=(
+            "Show only the specified categories. Accepts a comma- or space-separated list. "
+            "Cannot be used with --hide-* or --show-all. "
+            "Categories: readability, paragraph_length, terminology, headings, structure, "
+            "format, accessibility, document_status."
+        ),
     )
     visibility_group.add_argument(
         "--hide",
         type=str,
         nargs="+",
         metavar="CATEGORY",
-        help="Hide the specified categories (comma-separated or space-separated list). Mutually exclusive with --hide-* and --show-only/--show-all. Categories: readability, paragraph_length, terminology, headings, structure, format, accessibility, document_status",
+        help=(
+            "Hide the specified categories. Accepts a comma- or space-separated list. "
+            "Cannot be used with --hide-* or --show-only/--show-all. "
+            "Categories: readability, paragraph_length, terminology, headings, structure, "
+            "format, accessibility, document_status."
+        ),
     )
 
     args = parser.parse_args()
@@ -230,7 +244,10 @@ def main() -> int:
         invalid = [c for c in show_only_set if c not in categories]
         if invalid:
             parser.error(
-                f"Invalid category in --show-only: {', '.join(invalid)}. Valid: {', '.join(categories)}"
+                "Invalid category in --show-only: "
+                f"{', '.join(invalid)}. "
+                "Valid categories are: "
+                f"{', '.join(categories)}"
             )
         # Set only specified categories to True
         visibility_settings = VisibilitySettings(

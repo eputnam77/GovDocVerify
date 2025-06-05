@@ -36,12 +36,14 @@ class FormatMessages:
     MISSING_SPACE_WARNING = "Found spacing issues. Add a space between '{prefix}' and '{number}'."
 
     # Dash spacing messages
-    DASH_SPACE_REMOVE_AROUND = "Found spacing issues. Remove spaces around dashes unless context specifically requires them."
+    DASH_SPACE_REMOVE_AROUND = (
+        "Remove spaces before and after dashes, unless spacing is needed for clarity."
+    )
     DASH_SPACE_REMOVE_BEFORE = (
-        "Found spacing issues. Remove space before dash unless context specifically requires it."
+        "Remove space before the dash, unless spacing is needed for clarity."
     )
     DASH_SPACE_REMOVE_AFTER = (
-        "Found spacing issues. Remove space after dash unless context specifically requires it."
+        "Remove space after dash, unless spacing is needed for clarity."
     )
 
     # Punctuation messages
@@ -64,7 +66,10 @@ class FormatMessages:
     QUOTATION_MARKS_WARNING = "Found inconsistent quotation marks in line {line}"
 
     # Caption format messages
-    CAPTION_FORMAT_ERROR = "Incorrect caption format. Use '{caption_type} X-Y' (AC, Order) or '{caption_type} X' (other document types)."
+    CAPTION_FORMAT_ERROR = (
+        "Use '{caption_type} X-Y' for ACs and Orders, "
+        "or '{caption_type} X' for other document types."
+    )
 
 
 class FormatChecks(BaseChecker):
@@ -486,7 +491,8 @@ class FormattingChecker(BaseChecker):
             # 2) Missing space between prefix and number (AC25.1, CFR14 etc.)
             for m in self._MISSING_SPACE_REF_RE.finditer(line):
                 logger.debug(
-                    f"Missing space in regulatory reference at pos {m.start()} in line {i}: {line!r}"
+                    "Missing space in regulatory reference at position "
+                    f"{m.start()} in line {i}: {line!r}"
                 )
                 issues.append(
                     {
@@ -819,8 +825,9 @@ class FormattingChecker(BaseChecker):
                 if "incorrect" in issue and "correct" in issue:
                     if issue.get("is_sentence_start"):
                         formatted_issues.append(
-                            f"    • Do not begin sentences with the section symbol. "
-                            f"Replace '{issue['incorrect']}' with '{issue['correct']}' at the start of the sentence"
+                            "    • Do not begin a sentence with the section symbol. "
+                            f"Replace '{issue['incorrect']}' with '{issue['correct']}' "
+                            "at the start of the sentence."
                         )
                     else:
                         formatted_issues.append(

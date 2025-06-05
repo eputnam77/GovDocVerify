@@ -141,8 +141,13 @@ class HeadingChecks(BaseChecker):
                     {
                         "type": "length_violation",
                         "line": line,
-                        "message": f"Heading exceeds maximum length of {self.MAX_HEADING_LENGTH} characters",
-                        "suggestion": f"Shorten heading to {self.MAX_HEADING_LENGTH} characters or less",
+                        "message": (
+                            f"Heading exceeds maximum length of "
+                            f"{self.MAX_HEADING_LENGTH} characters."
+                        ),
+                        "suggestion": (
+                            f"Shorten heading to {self.MAX_HEADING_LENGTH} characters or less."
+                        ),
                         "category": self.category,
                     }
                 )
@@ -205,8 +210,9 @@ class HeadingChecks(BaseChecker):
                 if is_optional or condition:
                     # INFO-level, non-blocking
                     info_message = (
-                        f"Missing '{heading_name}' heading. This section is only needed if the document cancels an earlier version. "
-                        "If not applicable, this message can be ignored."
+                        f"Missing '{heading_name}' heading. "
+                        "This section is needed only if the document cancels an earlier version. "
+                        "If not applicable, you can ignore this message."
                     )
                     logger.info(
                         f"Optional/conditional heading '{heading_name}' missing; issued INFO-level message."

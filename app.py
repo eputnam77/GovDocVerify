@@ -30,7 +30,10 @@ def process_document(
 ) -> str:
     print("[PROOF] process_document called")
     logger.debug(
-        f"[DIAG] process_document called with file_path={file_path}, doc_type={doc_type}, group_by={group_by}"
+        "[DIAG] process_document called with "
+        f"file_path={file_path}, "
+        f"doc_type={doc_type}, "
+        f"group_by={group_by}"
     )
     """Process a document and return formatted results."""
     try:
@@ -105,7 +108,9 @@ def process_document(
                     break
             if not has_issues and results.issues:
                 logger.warning(
-                    f"[DIAG] Fallback triggered: per_check_results has no issues but results.issues is non-empty (len={len(results.issues)}). Using 'ALL' grouping."
+                    "[DIAG] Fallback triggered: per_check_results has no issues, "
+                    f"but results.issues is non-empty (len={len(results.issues)}). "
+                    "Using 'ALL' grouping."
                 )
                 logger.debug(f"[DIAG] per_check_results content: {results_dict}")
                 results_dict = {
