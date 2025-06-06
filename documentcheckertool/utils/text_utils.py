@@ -13,111 +13,141 @@ def split_sentences(text: str) -> List[str]:
     """
     if not text:
         return [""]
+
     logger = logging.getLogger(__name__)
+
+    # Initialize sentence splitting context
+    context = _initialize_sentence_context(text, logger)
+
+    # Process text character by character
+    sentences = _process_text_for_sentences(text, context, logger)
+
+    # Add any remaining text as final sentence
+    sentences = _finalize_sentences(text, context, sentences, logger)
+
+    logger.debug(f"split_sentences: FINAL sentences={sentences}")
+    return sentences or [""]
+
+
+def _initialize_sentence_context(text: str, logger) -> Dict:
+    """Initialize context for sentence splitting."""
     terminology_manager = TerminologyManager()
     abbreviations = set(terminology_manager.get_standard_acronyms().keys())
-    abbreviations.update(
-        {
-            "e.g.",
-            "i.e.",
-            "etc.",
-            "vs.",
-            "dr.",
-            "mr.",
-            "mrs.",
-            "ms.",
-            "prof.",
-            "rev.",
-            "hon.",
-            "st.",
-            "ave.",
-            "blvd.",
-            "rd.",
-            "u.s.",
-        }
-    )
+    abbreviations.update({
+        "e.g.", "i.e.", "etc.", "vs.", "dr.", "mr.", "mrs.", "ms.",
+        "prof.", "rev.", "hon.", "st.", "ave.", "blvd.", "rd.", "u.s.",
+    })
+
     upper_abbreviations = {abbr.upper() for abbr in abbreviations}
     abbreviations.update(upper_abbreviations)
     abbr_list = sorted(abbreviations, key=len, reverse=True)
-    logger.debug(f"split_sentences: abbreviation list = {abbr_list}")
-    sentences = []
-    start = 0
-    i = 0
+
     # Abbreviations that should **never** end a sentence (titles, street‑types, etc.)
     non_term_abbr = {
-        "dr.",
-        "mr.",
-        "mrs.",
-        "ms.",
-        "prof.",
-        "rev.",
-        "hon.",
-        "st.",
-        "ave.",
-        "blvd.",
-        "rd.",
+        "dr.", "mr.", "mrs.", "ms.", "prof.", "rev.", "hon.",
+        "st.", "ave.", "blvd.", "rd.",
     }
 
-    def _is_abbreviation(word):
-        """Check if a word is an abbreviation."""
-        for abbr in abbr_list:
-            abbr_len = len(abbr)
-            if abbr and i - abbr_len + 1 >= start:
-                candidate = text[i - abbr_len + 1 : i + 1]
-                if candidate.lower() == abbr.lower():
-                    logger.debug(f"split_sentences: MATCHED abbreviation '{abbr}' at idx={i}")
-                    return True, abbr
-        return False, None
+    logger.debug(f"split_sentences: abbreviation list = {abbr_list}")
 
-    def _should_split(idx):
-        """Determine if we should split the sentence at the given index."""
-        is_abbrev, abbr_matched = _is_abbreviation(idx)
-        logger.debug(
-            f"split_sentences: idx={idx}, char='{text[idx]}', "
-            f"is_abbrev={is_abbrev}, abbr_matched={abbr_matched}"
-        )
-        # Decide whether we should split here
-        if is_abbrev:
-            # Titles et al. never terminate sentences
-            if abbr_matched.lower() not in non_term_abbr:
-                return True
-        else:
-            return True
-        return False
+    return {
+        'abbr_list': abbr_list,
+        'non_term_abbr': non_term_abbr,
+        'start': 0,
+        'i': 0,
+        'text': text
+    }
 
-    while i < len(text):
-        if text[i] in ".!?":
-            # Skip the *first* dot in sequences such as "U.S." or "E.U."
-            if (
-                i >= 1
-                and i + 2 < len(text)
-                and text[i - 1].isupper()
-                and text[i + 1].isupper()
-                and text[i + 2] == "."
-            ):
-                i += 1
+
+def _process_text_for_sentences(text: str, context: Dict, logger) -> List[str]:
+    """Process text character by character to identify sentence boundaries."""
+    sentences = []
+
+    while context['i'] < len(text):
+        if text[context['i']] in ".!?":
+            if _should_skip_multi_period_sequence(text, context):
+                context['i'] += 1
                 continue
+
             # Look ahead for sentence boundary
-            j = i + 1
-            while j < len(text) and text[j] in ' \n\r\t"\'"“"':
-                j += 1
-            if j >= len(text) or text[j].isupper() or text[j].isdigit():
-                if _should_split(i):
-                    sentence = text[start:j].strip()
+            j = _find_sentence_boundary(text, context['i'])
+
+            if _is_sentence_end(text, context['i'], j):
+                if _should_split_sentence(text, context, logger):
+                    sentence = text[context['start']:j].strip()
                     if sentence:
                         sentences.append(sentence)
-                    start = j
-                    i = j - 1
-                # If we didn't split, simply advance past the period
-                i += 1
+                    context['start'] = j
+                    context['i'] = j - 1
+
+                context['i'] += 1
                 continue
-        i += 1
-    if start < len(text):
-        rest = text[start:].strip()
+        context['i'] += 1
+
+    return sentences
+
+
+def _should_skip_multi_period_sequence(text: str, context: Dict) -> bool:
+    """Check if we should skip the first dot in sequences like 'U.S.' or 'E.U.'"""
+    i = context['i']
+    return (i >= 1 and i + 2 < len(text) and
+            text[i - 1].isupper() and text[i + 1].isupper() and text[i + 2] == ".")
+
+
+def _find_sentence_boundary(text: str, start_pos: int) -> int:
+    """Find the potential sentence boundary after punctuation."""
+    j = start_pos + 1
+    while j < len(text) and text[j] in ' \n\r\t"\'"""':
+        j += 1
+    return j
+
+
+def _is_sentence_end(text: str, punct_pos: int, boundary_pos: int) -> bool:
+    """Check if this punctuation marks the end of a sentence."""
+    return (boundary_pos >= len(text) or
+            text[boundary_pos].isupper() or
+            text[boundary_pos].isdigit())
+
+
+def _should_split_sentence(text: str, context: Dict, logger) -> bool:
+    """Determine if we should split the sentence at the current position."""
+    is_abbrev, abbr_matched = _check_abbreviation_at_position(text, context, logger)
+
+    logger.debug(
+        f"split_sentences: idx={context['i']}, char='{text[context['i']]}', "
+        f"is_abbrev={is_abbrev}, abbr_matched={abbr_matched}"
+    )
+
+    if is_abbrev:
+        # Titles et al. never terminate sentences
+        return abbr_matched.lower() not in context['non_term_abbr']
+    else:
+        return True
+
+
+def _check_abbreviation_at_position(text: str, context: Dict, logger) -> tuple:
+    """Check if the current position contains an abbreviation."""
+    i = context['i']
+    start = context['start']
+    abbr_list = context['abbr_list']
+
+    for abbr in abbr_list:
+        abbr_len = len(abbr)
+        if abbr and i - abbr_len + 1 >= start:
+            candidate = text[i - abbr_len + 1 : i + 1]
+            if candidate.lower() == abbr.lower():
+                logger.debug(f"split_sentences: MATCHED abbreviation '{abbr}' at idx={i}")
+                return True, abbr
+    return False, None
+
+
+def _finalize_sentences(text: str, context: Dict, sentences: List[str], logger) -> List[str]:
+    """Add any remaining text as the final sentence."""
+    if context['start'] < len(text):
+        rest = text[context['start']:].strip()
         if rest:
             sentences.append(rest)
-    logger.debug(f"split_sentences: FINAL sentences={sentences}")
-    return sentences or [""]
+    return sentences
 
 
 def count_words(text: str) -> int:
