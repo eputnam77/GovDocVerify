@@ -766,7 +766,9 @@ class StructureChecks(BaseChecker):
 
         # Check each line for cross-references
         for line_num, line in enumerate(content, 1):
-            self._check_line_cross_references(line, line_num, defined_sections, section_lines, result)
+            self._check_line_cross_references(
+                line, line_num, defined_sections, section_lines, result
+            )
 
         logger.debug(f"Check completed. Has errors: {result['has_errors']}, "
                     f"Errors: {len(result['errors'])}, Warnings: {len(result['warnings'])}")
@@ -805,16 +807,22 @@ class StructureChecks(BaseChecker):
 
         return section_lines
 
-    def _check_line_cross_references(self, line: str, line_num: int, defined_sections: set, section_lines: Dict[str, int], result: Dict[str, Any]):
+    def _check_line_cross_references(
+        self, line: str, line_num: int, defined_sections: set,
+        section_lines: Dict[str, int], result: Dict[str, Any]
+    ):
         """Check a single line for cross-reference issues."""
         line = line.strip()
         if not line:
             return
 
-        # Skip legal references (CFR, USC, etc.) but only if they don't contain internal section references
+        # Skip legal references (CFR, USC, etc.) but only if they don't contain
+        # internal section references
         skip_patterns = [
-            r'(?:U\.S\.C\.|USC)\s+(?:§+\s*)?(?:Section|section)?\s*\d+(?!\s*,\s*(?:section|paragraph))',
-            r'Section\s+\d+(?:\([a-z]\))*\s+of\s+(?:the\s+)?(?:United States Code|U\.S\.C\.)(?!\s*,\s*(?:section|paragraph))',
+            r'(?:U\.S\.C\.|USC)\s+(?:§+\s*)?(?:Section|section)?\s*\d+'
+            r'(?!\s*,\s*(?:section|paragraph))',
+            r'Section\s+\d+(?:\([a-z]\))*\s+of\s+(?:the\s+)?'
+            r'(?:United States Code|U\.S\.C\.)(?!\s*,\s*(?:section|paragraph))',
             r'(?:Section|§)\s*\d+(?:\([a-z]\))*\s+of\s+the\s+Act(?!\s*,\s*(?:section|paragraph))',
             r'\d+\s*(?:CFR|C\.F\.R\.)(?!\s*part\s*\d+\s*,\s*(?:section|paragraph))',
             r'Public\s+Law\s+\d+[-–]\d+(?!\s*,\s*(?:section|paragraph))',
@@ -838,7 +846,9 @@ class StructureChecks(BaseChecker):
         self._check_malformed_references(line, line_num, result)
         self._check_reference_consistency(line, line_num, result)
 
-    def _check_section_references_in_line(self, line: str, line_num: int, defined_sections: set, result: Dict[str, Any]):
+    def _check_section_references_in_line(
+        self, line: str, line_num: int, defined_sections: set, result: Dict[str, Any]
+    ):
         """Check for references to sections and verify they exist."""
         # Pattern to match references like "paragraph 2.1", "section 25.1309", etc.
         ref_patterns = [
@@ -869,7 +879,9 @@ class StructureChecks(BaseChecker):
     def _check_reference_formatting(self, line: str, line_num: int, result: Dict[str, Any]):
         """Check for formatting issues in references."""
         # Check for punctuation issues - any line containing a reference should end with a period
-        if re.search(r'(?:see|refer to|as discussed in|as noted in|more requirements are specified in)\s+(?:paragraph|section|para)', line, re.IGNORECASE):
+        pattern = (r'(?:see|refer to|as discussed in|as noted in|'
+                  r'more requirements are specified in)\s+(?:paragraph|section|para)')
+        if re.search(pattern, line, re.IGNORECASE):
             if not line.strip().endswith('.'):
                 result["warnings"].append({
                     "message": "Incorrect punctuation",
@@ -888,10 +900,12 @@ class StructureChecks(BaseChecker):
         # Check for spacing issues
         self._check_spacing_issues(line, line_num, result)
 
-        # Check for capitalization issues - references should use lowercase "paragraph" and "section"
+        # Check for capitalization issues - references should use lowercase
+        # "paragraph" and "section"
         # But the test seems to expect that lowercase is wrong, so let's check for lowercase
         cap_patterns = [
-            (r'(?:see|refer to|as discussed in|as noted in)\s+(?:paragraph|section)', "Incorrect capitalization"),
+            (r'(?:see|refer to|as discussed in|as noted in)\s+(?:paragraph|section)',
+             "Incorrect capitalization"),
         ]
 
         for pattern, message in cap_patterns:
@@ -900,16 +914,19 @@ class StructureChecks(BaseChecker):
                     "message": message,
                     "line_number": line_num
                 })
-                logger.debug(f"Added capitalization warning for line {line_num}: should be capitalized")
+                logger.debug(f"Added capitalization warning for line {line_num}: "
+                           f"should be capitalized")
 
     def _check_spacing_issues(self, line: str, line_num: int, result: Dict[str, Any]):
         """Check for spacing issues in references."""
         spacing_patterns = [
             # Missing space patterns
-            (r'(?:see|refer to|under)\s+(?:section|paragraph|subsection)(?:[a-zA-Z0-9])', "Incorrect spacing"),
+            (r'(?:see|refer to|under)\s+(?:section|paragraph|subsection)'
+             r'(?:[a-zA-Z0-9])', "Incorrect spacing"),
             (r'(?:refer)\s+to(?:paragraph|section)', "Incorrect spacing"),  # "toparagraph"
             # Extra space patterns
-            (r'(?:see|refer to|under)\s+(?:section|paragraph|subsection)\s{2,}', "Incorrect spacing"),
+            (r'(?:see|refer to|under)\s+(?:section|paragraph|subsection)\s{2,}',
+             "Incorrect spacing"),
             (r'(?:refer)\s+to\s{2,}', "Incorrect spacing"),  # "to  paragraph"
             (r'(?:under)\s{2,}', "Incorrect spacing"),  # "under  subsection"
         ]
@@ -923,7 +940,10 @@ class StructureChecks(BaseChecker):
                 logger.debug(f"Added spacing warning for line {line_num}")
                 break  # Only add one spacing warning per line
 
-    def _check_circular_references(self, line: str, line_num: int, defined_sections: set, section_lines: Dict[str, int], result: Dict[str, Any]):
+    def _check_circular_references(
+        self, line: str, line_num: int, defined_sections: set,
+        section_lines: Dict[str, int], result: Dict[str, Any]
+    ):
         """Check for circular references (section referring to itself)."""
         # Find the section this line belongs to
         current_section = self._find_current_section(line_num, section_lines)
@@ -941,7 +961,8 @@ class StructureChecks(BaseChecker):
                     "message": "Circular reference detected",
                     "line_number": line_num
                 })
-                logger.debug(f"Found circular reference in line {line_num}: section {current_section} references itself")
+                logger.debug(f"Found circular reference in line {line_num}: "
+                           f"section {current_section} references itself")
 
     def _check_malformed_references(self, line: str, line_num: int, result: Dict[str, Any]):
         """Check for malformed references."""
@@ -949,7 +970,8 @@ class StructureChecks(BaseChecker):
             (r'section\d+', "Malformed reference"),  # Missing space
             (r'paragraph\d+', "Malformed reference"),  # Missing space
             (r'subsection\d+', "Malformed reference"),  # Missing space
-            (r'(?:section|paragraph)\s+\d+(?:\.\d+){4,}', "Invalid section number"),  # Too many levels
+            (r'(?:section|paragraph)\s+\d+(?:\.\d+){4,}',
+             "Invalid section number"),  # Too many levels
         ]
 
         for pattern, message in malformed_patterns:
@@ -966,7 +988,8 @@ class StructureChecks(BaseChecker):
         # Look for different reference patterns that might be inconsistent
         nested_patterns = [
             r'section\s+\d+(?:\.\d+)*\([a-z]\)\(\d+\)',  # section 25.1309(a)(1)
-            r'paragraph\s+\([a-z]\)\s+of\s+section\s+\d+(?:\.\d+)*',  # paragraph (a) of section 25.1309
+            r'paragraph\s+\([a-z]\)\s+of\s+section\s+\d+(?:\.\d+)*',
+            # paragraph (a) of section 25.1309
             r'subsection\s+\(\d+\)\s+of\s+paragraph\s+\([a-z]\)',  # subsection (1) of paragraph (a)
         ]
 
@@ -983,7 +1006,8 @@ class StructureChecks(BaseChecker):
         # Check for inconsistent terminology (para vs paragraph vs section vs subsection)
         inconsistent_patterns = [
             r'(?:see|refer to|as noted in)\s+para\s+',  # "para" instead of "paragraph"
-            r'(?:see|refer to|as noted in)\s+subsection\s+\d+(?:\.\d+)*\s+for',  # "subsection" instead of "section"
+            r'(?:see|refer to|as noted in)\s+subsection\s+\d+(?:\.\d+)*\s+for',
+            # "subsection" instead of "section"
         ]
 
         for pattern in inconsistent_patterns:

@@ -1,4 +1,3 @@
-# pytest -v tests/test_structure.py --log-cli-level=DEBUG
 import os
 import unittest
 
@@ -29,7 +28,7 @@ class TestStructureChecks(TestBase):
         self.create_test_docx(content, "invalid_paragraph_length.docx")
         result = self.checker.check_paragraph_length(content)
         self.assert_has_issues(result)
-        self.assert_issue_contains(result, "paragraph length")
+        self.assert_issue_contains(result, "exceeds the 150-word limit")
 
     def test_sentence_length_check_valid(self):
         """Test sentence length check with valid sentences."""
@@ -61,7 +60,7 @@ class TestStructureChecks(TestBase):
         self.create_test_docx(content, "invalid_sentence_length.docx")
         result = self.checker.check_sentence_length(content)
         self.assert_has_issues(result)
-        self.assert_issue_contains(result, "sentence length")
+        self.assert_issue_contains(result, "exceeds the 30-word limit")
 
     def test_readability_check_valid(self):
         """Test readability check with valid text."""
