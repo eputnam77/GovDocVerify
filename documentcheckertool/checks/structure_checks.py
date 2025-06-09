@@ -19,13 +19,13 @@ class StructureMessages:
 
     # Paragraph length messages
     PARAGRAPH_LENGTH_WARNING = (
-        "Paragraph '{preview}' has {word_count} words, exceeding the {max_words}-word limit. "
+        "Paragraph '{preview}' has {word_count} words, exceeds the {max_words}-word limit. "
         "Consider breaking it up for clarity."
     )
 
     # Sentence length messages
     SENTENCE_LENGTH_INFO = (
-        "Sentence '{preview}' has {word_count} words, exceeding the {max_words}-word limit. "
+        "Sentence '{preview}' has {word_count} words, exceeds the {max_words}-word limit. "
         "Consider breaking it up for clarity."
     )
 
@@ -56,7 +56,7 @@ class StructureMessages:
         "Watermark missing. Add the required watermark unless it is not needed for this document."
     )
     WATERMARK_UNKNOWN_STAGE = "Unknown document stage: {doc_type}"
-    WATERMARK_INCORRECT = "Found incorrect watermark for {doc_type} stage. Use {expected}"
+    WATERMARK_INCORRECT = "Use {expected} watermark for {doc_type} stage. "
 
 
 class ValidationFormatting:
@@ -136,8 +136,8 @@ class StructureChecks(BaseChecker):
         WatermarkRequirement("draft for AGC review for final issuance", "agc_final_review"),
     ]
 
-    def __init__(self):
-        super().__init__()
+    def __init__(self, terminology_manager=None):
+        super().__init__(terminology_manager)
         self.category = "structure"
 
     @CheckRegistry.register("structure")
@@ -151,6 +151,52 @@ class StructureChecks(BaseChecker):
         self._check_cross_references(document, results)
         self._check_parentheses(paragraphs, results)
         self._check_watermark(document, results, doc_type)
+
+    def _check_paragraph_length(
+        self, text: str, results: DocumentCheckResult, max_words: int = 150
+    ) -> None:
+        """Check if paragraph exceeds maximum word count."""
+        if not text or not text.strip():
+            return
+
+        words = text.split()
+        word_count = len(words)
+
+        if word_count > max_words:
+            preview = self._get_text_preview(text)
+            message = StructureMessages.PARAGRAPH_LENGTH_WARNING.format(
+                preview=preview, word_count=word_count, max_words=max_words
+            )
+            results.add_issue(
+                message=message,
+                severity=Severity.WARNING,
+                line_number=1,
+            )
+
+    def _check_sentence_length(
+        self, text: str, results: DocumentCheckResult, max_words: int = 30
+    ) -> None:
+        """Check if sentences exceed maximum word count."""
+        if not text or not text.strip():
+            return
+
+        # Split text into sentences (simple approach using periods)
+        sentences = [s.strip() for s in text.split('.') if s.strip()]
+
+        for sentence in sentences:
+            words = sentence.split()
+            word_count = len(words)
+
+            if word_count > max_words:
+                preview = self._get_text_preview(sentence)
+                message = StructureMessages.SENTENCE_LENGTH_INFO.format(
+                    preview=preview, word_count=word_count, max_words=max_words
+                )
+                results.add_issue(
+                    message=message,
+                    severity=Severity.INFO,
+                    line_number=1,
+                )
 
     def _get_text_preview(self, text: str, max_words: int = 6) -> str:
         """
@@ -172,10 +218,14 @@ class StructureChecks(BaseChecker):
 
     def _check_section_balance(self, paragraphs, results):
         """Check for balanced section lengths."""
-        current_section = []
-        section_lengths = []
-        section_names = []
-        current_section_name = None
+        list_pattern, bullet_pattern = self._compile_section_patterns()
+        sections_data = self._extract_sections(paragraphs, list_pattern, bullet_pattern)
+
+        if len(sections_data) > 1:
+            self._analyze_section_balance(sections_data, results)
+
+    def _compile_section_patterns(self):
+        """Compile regex patterns for identifying list sections."""
         list_section_patterns = [
             r"should include.*following",
             r"related materials",
@@ -191,41 +241,25 @@ class StructureChecks(BaseChecker):
         logger.debug("Starting section balance check")
         logger.debug(f"List section patterns: {list_section_patterns}")
 
+        return list_pattern, bullet_pattern
+
+    def _extract_sections(self, paragraphs, list_pattern, bullet_pattern):
+        """Extract sections from paragraphs and determine if they are list sections."""
+        current_section = []
+        sections_data = []
+        current_section_name = None
+
         for para in paragraphs:
             if para.style.name.startswith("Heading"):
                 if current_section:
-                    # Check if this was a list section
-                    is_list_section = False
-                    if current_section_name and list_pattern.search(current_section_name):
-                        logger.debug(
-                            "Section '%s' is a list section (matched by title pattern).",
-                            current_section_name,
-                        )
-                        is_list_section = True
-                    else:
-                        # Check if majority of paragraphs are bullet points
-                        bullet_count = sum(
-                            1 for p in current_section if bullet_pattern.match(p.text)
-                        )
-                        bullet_percentage = (
-                            (bullet_count / len(current_section)) * 100 if current_section else 0
-                        )
-                        logger.debug(
-                            "Section '%s' bullet analysis: %d/%d paragraphs are bullets (%.1f%%)",
-                            current_section_name,
-                            bullet_count,
-                            len(current_section),
-                            bullet_percentage,
-                        )
-                        is_list_section = bullet_count > len(current_section) * 0.5
-                        if is_list_section:
-                            logger.debug(
-                                "Section '%s' is a list section (identified by bullet content).",
-                                current_section_name,
-                            )
-
-                    section_lengths.append((len(current_section), is_list_section))
-                    section_names.append(current_section_name)
+                    is_list_section = self._is_list_section(
+                        current_section, current_section_name, list_pattern, bullet_pattern
+                    )
+                    sections_data.append({
+                        'name': current_section_name,
+                        'length': len(current_section),
+                        'is_list': is_list_section
+                    })
                     logger.debug(
                         "Added section '%s' (length=%d, is_list=%s)",
                         current_section_name,
@@ -239,36 +273,14 @@ class StructureChecks(BaseChecker):
 
         # Add last section
         if current_section:
-            is_list_section = False
-            if current_section_name and list_pattern.search(current_section_name):
-                logger.debug(
-                    "Final section '%s' is a list section (title matched pattern)",
-                    current_section_name,
-                )
-                is_list_section = True
-            else:
-                bullet_count = sum(
-                    1 for p in current_section if bullet_pattern.match(p.text)
-                )
-                bullet_percentage = (
-                    (bullet_count / len(current_section)) * 100
-                    if current_section else 0
-                )
-                logger.debug(
-                    "Final section '%s' bullet analysis: %d/%d are bullets (%.1f%%)",
-                    current_section_name,
-                    bullet_count,
-                    len(current_section),
-                    bullet_percentage,
-                )
-                is_list_section = bullet_count > len(current_section) * 0.5
-                if is_list_section:
-                    logger.debug(
-                        "Final section '%s' is a list section (by bullet content)",
-                        current_section_name,
-                    )
-            section_lengths.append((len(current_section), is_list_section))
-            section_names.append(current_section_name)
+            is_list_section = self._is_list_section(
+                current_section, current_section_name, list_pattern, bullet_pattern
+            )
+            sections_data.append({
+                'name': current_section_name,
+                'length': len(current_section),
+                'is_list': is_list_section
+            })
             logger.debug(
                 "Added final section '%s' with length %d (is_list=%s)",
                 current_section_name,
@@ -276,67 +288,117 @@ class StructureChecks(BaseChecker):
                 is_list_section,
             )
 
-        # Check for significant imbalance
-        if len(section_lengths) > 1:  # Only check if we have at least 2 sections
-            # Calculate separate averages for list and non-list sections
-            list_sections = [
-                (length, name)
-                for (length, is_list), name in zip(section_lengths, section_names)
-                if is_list
-            ]
-            non_list_sections = [
-                (length, name)
-                for (length, is_list), name in zip(section_lengths, section_names)
-                if not is_list
-            ]
+        return sections_data
 
-            list_avg = (
-                sum(length for length, _ in list_sections) / len(list_sections)
-                if list_sections
-                else 0
+    def _is_list_section(self, section, section_name, list_pattern, bullet_pattern):
+        """Determine if a section is a list section based on title and content."""
+        if section_name and list_pattern.search(section_name):
+            logger.debug(
+                "Section '%s' is a list section (matched by title pattern).",
+                section_name,
             )
-            non_list_avg = (
-                sum(length for length, _ in non_list_sections) / len(non_list_sections)
-                if non_list_sections
-                else 0
+            return True
+
+        # Check if majority of paragraphs are bullet points
+        bullet_count = sum(1 for p in section if bullet_pattern.match(p.text))
+        bullet_percentage = (bullet_count / len(section)) * 100 if section else 0
+
+        logger.debug(
+            "Section '%s' bullet analysis: %d/%d paragraphs are bullets (%.1f%%)",
+            section_name,
+            bullet_count,
+            len(section),
+            bullet_percentage,
+        )
+
+        is_list = bullet_count > len(section) * 0.5
+        if is_list:
+            logger.debug(
+                "Section '%s' is a list section (identified by bullet content).",
+                section_name,
+            )
+        return is_list
+
+    def _analyze_section_balance(self, sections_data, results):
+        """Analyze section balance and add issues for imbalanced sections."""
+        list_sections, non_list_sections = self._categorize_sections(sections_data)
+        list_avg, non_list_avg = self._calculate_averages(list_sections, non_list_sections)
+
+        self._log_section_analysis(list_sections, non_list_sections, list_avg, non_list_avg)
+
+        # Check each section against appropriate average
+        for section in sections_data:
+            self._check_individual_section_balance(
+                section, list_avg, non_list_avg, sections_data, results
             )
 
-            logger.debug(f"List section lengths: {list_sections}")
-            logger.debug(f"Non-list section lengths: {non_list_sections}")
-            logger.debug(f"List section average: {list_avg}")
-            logger.debug(f"Non-list section average: {non_list_avg}")
-            logger.debug(f"List section threshold: {list_avg * 3}")
-            logger.debug(f"Non-list section threshold: {non_list_avg * 2}")
+    def _categorize_sections(self, sections_data):
+        """Categorize sections into list and non-list sections."""
+        list_sections = [
+            (section['length'], section['name'])
+            for section in sections_data
+            if section['is_list']
+        ]
+        non_list_sections = [
+            (section['length'], section['name'])
+            for section in sections_data
+            if not section['is_list']
+        ]
+        return list_sections, non_list_sections
 
-            # Check each section against appropriate average
-            for (length, is_list), name in zip(section_lengths, section_names):
-                avg_length = list_avg if is_list else non_list_avg
-                threshold = (
-                    avg_length * 3 if is_list else avg_length * 2
-                )  # Higher threshold for list sections
+    def _calculate_averages(self, list_sections, non_list_sections):
+        """Calculate average lengths for list and non-list sections."""
+        list_avg = (
+            sum(length for length, _ in list_sections) / len(list_sections)
+            if list_sections else 0
+        )
+        non_list_avg = (
+            sum(length for length, _ in non_list_sections) / len(non_list_sections)
+            if non_list_sections else 0
+        )
+        return list_avg, non_list_avg
 
-                logger.debug(
-                    "Checking section '%s': length=%d, is_list=%s, avg=%.1f, threshold=%.1f",
-                    name,
-                    length,
-                    is_list,
-                    avg_length,
-                    threshold,
-                )
+    def _log_section_analysis(self, list_sections, non_list_sections, list_avg, non_list_avg):
+        """Log section analysis details for debugging."""
+        logger.debug(f"List section lengths: {list_sections}")
+        logger.debug(f"Non-list section lengths: {non_list_sections}")
+        logger.debug(f"List section average: {list_avg}")
+        logger.debug(f"Non-list section average: {non_list_avg}")
+        logger.debug(f"List section threshold: {list_avg * 3}")
+        logger.debug(f"Non-list section threshold: {non_list_avg * 2}")
 
-                if length > threshold:
-                    message = StructureMessages.SECTION_BALANCE_INFO.format(
-                        name=name, length=length, avg=avg_length
-                    )
-                    logger.debug(f"Adding issue: {message}")
-                    results.add_issue(
-                        message=message,
-                        severity=Severity.INFO,
-                        line_number=section_names.index(name) + 1,
-                    )
-                    logger.debug(f"Current issues: {results.issues}")
-                else:
-                    logger.debug(f"Section '{name}' is within acceptable length range")
+    def _check_individual_section_balance(
+        self, section, list_avg, non_list_avg, sections_data, results
+    ):
+        """Check if an individual section is balanced and add issue if not."""
+        length = section['length']
+        is_list = section['is_list']
+        name = section['name']
+
+        avg_length = list_avg if is_list else non_list_avg
+        threshold = avg_length * 3 if is_list else avg_length * 2
+
+        logger.debug(
+            "Checking section '%s': length=%d, is_list=%s, avg=%.1f, threshold=%.1f",
+            name, length, is_list, avg_length, threshold,
+        )
+
+        if length > threshold:
+            message = StructureMessages.SECTION_BALANCE_INFO.format(
+                name=name, length=length, avg=avg_length
+            )
+            logger.debug(f"Adding issue: {message}")
+            section_index = next(
+                i for i, s in enumerate(sections_data) if s['name'] == name
+            )
+            results.add_issue(
+                message=message,
+                severity=Severity.INFO,
+                line_number=section_index + 1,
+            )
+            logger.debug(f"Current issues: {results.issues}")
+        else:
+            logger.debug(f"Section '{name}' is within acceptable length range")
 
     def _check_list_formatting(self, paragraphs, results):
         """Check for consistent list formatting."""
@@ -450,12 +512,39 @@ class StructureChecks(BaseChecker):
             logger.error(f"Error reading the document: {e}")
             return DocumentCheckResult(success=False, issues=[{"error": str(e)}], details={})
 
+        try:
+            cross_ref_data = self._initialize_cross_reference_data(doc)
+            issues = self._process_cross_references(doc, cross_ref_data)
+
+            return self._build_cross_reference_result(issues, cross_ref_data)
+
+        except Exception as e:
+            logger.error(f"Error processing cross references: {str(e)}")
+            return DocumentCheckResult(
+                success=False,
+                issues=[
+                    {"type": "error", "message": f"Error processing cross references: {str(e)}"}
+                ],
+                details={},
+            )
+
+    def _initialize_cross_reference_data(self, doc):
+        """Initialize data structures for cross-reference checking."""
         heading_structure = self._extract_paragraph_numbering(doc)
         valid_sections = {number for number, _ in heading_structure}
-        tables = set()
-        figures = set()
-        issues = []
+        tables, figures = self._extract_tables_and_figures(doc)
+        skip_regex = self._compile_skip_patterns()
 
+        return {
+            'heading_structure': heading_structure,
+            'valid_sections': valid_sections,
+            'tables': tables,
+            'figures': figures,
+            'skip_regex': skip_regex
+        }
+
+    def _compile_skip_patterns(self):
+        """Compile regex patterns for skipping legal references."""
         skip_patterns = [
             r"(?:U\.S\.C\.|USC)\s+(?:§+\s*)?(?:Section|section)?\s*\d+",
             r"Section\s+\d+(?:\([a-z]\))*\s+of\s+(?:the\s+)?(?:United States Code|U\.S\.C\.)",
@@ -469,62 +558,80 @@ class StructureChecks(BaseChecker):
             r"Title\s+\d+,\s+Section\s+\d+(?:\([a-z]\))*",
             r"\d+\s+U\.S\.C\.\s+\d+(?:\([a-z]\))*",
         ]
-        skip_regex = re.compile("|".join(skip_patterns), re.IGNORECASE)
+        return re.compile("|".join(skip_patterns), re.IGNORECASE)
 
-        try:
-            # Extract tables and figures
-            for para in doc.paragraphs:
-                text = para.text.strip() if hasattr(para, "text") else ""
+    def _extract_tables_and_figures(self, doc):
+        """Extract table and figure identifiers from the document."""
+        tables = set()
+        figures = set()
 
-                if text.lower().startswith("table"):
-                    matches = [
-                        re.match(r"^table\s+(\d{1,2}(?:-\d+)?)\b", text, re.IGNORECASE),
-                        re.match(r"^table\s+(\d{1,2}(?:\.\d+)?)\b", text, re.IGNORECASE),
-                    ]
-                    for match in matches:
-                        if match:
-                            tables.add(match.group(1))
+        for para in doc.paragraphs:
+            text = para.text.strip() if hasattr(para, "text") else ""
 
-                if text.lower().startswith("figure"):
-                    matches = [
-                        re.match(r"^figure\s+(\d{1,2}(?:-\d+)?)\b", text, re.IGNORECASE),
-                        re.match(r"^figure\s+(\d{1,2}(?:\.\d+)?)\b", text, re.IGNORECASE),
-                    ]
-                    for match in matches:
-                        if match:
-                            figures.add(match.group(1))
+            if text.lower().startswith("table"):
+                table_id = self._extract_table_id(text)
+                if table_id:
+                    tables.add(table_id)
 
-            # Check references
-            for para in doc.paragraphs:
-                para_text = para.text.strip() if hasattr(para, "text") else ""
-                if not para_text or skip_regex.search(para_text):
-                    continue
+            if text.lower().startswith("figure"):
+                figure_id = self._extract_figure_id(text)
+                if figure_id:
+                    figures.add(figure_id)
 
-                # Table, Figure, and Section reference checks
-                self._check_table_references(para_text, tables, issues)
-                self._check_figure_references(para_text, figures, issues)
-                self._check_section_references(para_text, valid_sections, skip_regex, issues)
+        return tables, figures
 
-        except Exception as e:
-            logger.error(f"Error processing cross references: {str(e)}")
-            return DocumentCheckResult(
-                success=False,
-                issues=[
-                    {"type": "error", "message": f"Error processing cross references: {str(e)}"}
-                ],
-                details={},
+    def _extract_table_id(self, text):
+        """Extract table ID from table caption text."""
+        matches = [
+            re.match(r"^table\s+(\d{1,2}(?:-\d+)?)\b", text, re.IGNORECASE),
+            re.match(r"^table\s+(\d{1,2}(?:\.\d+)?)\b", text, re.IGNORECASE),
+        ]
+        for match in matches:
+            if match:
+                return match.group(1)
+        return None
+
+    def _extract_figure_id(self, text):
+        """Extract figure ID from figure caption text."""
+        matches = [
+            re.match(r"^figure\s+(\d{1,2}(?:-\d+)?)\b", text, re.IGNORECASE),
+            re.match(r"^figure\s+(\d{1,2}(?:\.\d+)?)\b", text, re.IGNORECASE),
+        ]
+        for match in matches:
+            if match:
+                return match.group(1)
+        return None
+
+    def _process_cross_references(self, doc, cross_ref_data):
+        """Process all cross-references in the document."""
+        issues = []
+
+        for para in doc.paragraphs:
+            para_text = para.text.strip() if hasattr(para, "text") else ""
+            if not para_text or cross_ref_data['skip_regex'].search(para_text):
+                continue
+
+            # Check all types of references
+            self._check_table_references(para_text, cross_ref_data['tables'], issues)
+            self._check_figure_references(para_text, cross_ref_data['figures'], issues)
+            self._check_section_references(
+                para_text, cross_ref_data['valid_sections'], cross_ref_data['skip_regex'], issues
             )
 
+        return issues
+
+    def _build_cross_reference_result(self, issues, cross_ref_data):
+        """Build the final DocumentCheckResult for cross-references."""
         return DocumentCheckResult(
             success=len(issues) == 0,
             issues=issues,
             details={
-                "total_tables": len(tables),
-                "total_figures": len(figures),
-                "found_tables": sorted(list(tables)),
-                "found_figures": sorted(list(figures)),
-                "heading_structure": heading_structure,
-                "valid_sections": sorted(list(valid_sections)),
+                "total_tables": len(cross_ref_data['tables']),
+                "total_figures": len(cross_ref_data['figures']),
+                "found_tables": sorted(list(cross_ref_data['tables'])),
+                "found_figures": sorted(list(cross_ref_data['figures'])),
+                "heading_structure": cross_ref_data['heading_structure'],
+                "valid_sections": sorted(list(cross_ref_data['valid_sections'])),
             },
         )
 
