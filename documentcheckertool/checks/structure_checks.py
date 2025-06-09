@@ -586,9 +586,9 @@ class StructureChecks(BaseChecker):
         lines = text.split("\n")
         # For text, treat each non-empty line as a paragraph
         paragraphs = [
-            type("Para", (), {"text": l, "style": type("Style", (), {"name": ""})()})()
-            for l in lines
-            if l.strip()
+            type("Para", (), {"text": line, "style": type("Style", (), {"name": ""})()})()
+            for line in lines
+            if line.strip()
         ]
         self._check_section_balance(paragraphs, results)
         self._check_list_formatting(paragraphs, results)

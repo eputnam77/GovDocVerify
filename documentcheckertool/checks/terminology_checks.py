@@ -55,7 +55,8 @@ class TerminologyChecks(BaseChecker):
                     pattern = rf"\b{re.escape(variant)}\b"
                     if re.search(pattern, text, re.IGNORECASE):
                         logger.debug(
-                            f"[Terminology] Matched variant '{variant}' (should use '{standard}') in line {i+1}"
+                            f"[Terminology] Matched variant '{variant}' (should use '{standard}') "
+                            f"in line {i+1}"
                         )
                         results.add_issue(
                             message=TerminologyMessages.INCONSISTENT_TERMINOLOGY.format(
@@ -171,11 +172,12 @@ class TerminologyChecks(BaseChecker):
                     pattern = rf"\b{re.escape(variant)}\b"
                     if re.search(pattern, line, re.IGNORECASE):
                         logger.debug(
-                            f"[Terminology] Matched variant '{variant}' (should use '{standard}') in line {i}"
+                            f"[Terminology] Matched variant '{variant}' (should use '{standard}') "
+                            f"in line {i}"
                         )
                         issues.append(
                             {
-                                "message": f'Inconsistent terminology: use "{standard}" instead of "{variant}"',
+                                "message": f'Change "{variant}" to "{standard}".',
                                 "severity": Severity.WARNING,
                                 "category": getattr(self, "category", "terminology"),
                             }

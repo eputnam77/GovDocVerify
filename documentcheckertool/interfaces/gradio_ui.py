@@ -576,10 +576,6 @@ def create_interface():
                                     try:
                                         from docx import Document
                                         from docx.enum.text import WD_ALIGN_PARAGRAPH
-                                        from docx.shared import (  # Removed unused RGBColor import
-                                            Inches,
-                                            Pt,
-                                        )
 
                                         doc = Document()
 
@@ -598,7 +594,8 @@ def create_interface():
                                         for category, count in summary["by_category"].items():
                                             if count > 0:
                                                 doc.add_paragraph(
-                                                    f'{category.replace("_", " ").title()}: {count} issues',
+                                                f'{category.replace("_", " ").title()}: '
+                                                f'{count} issues',
                                                     style="List Bullet",
                                                 )
 
