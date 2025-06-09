@@ -358,17 +358,7 @@ project-root/
 
 **From the project root directory:**
 
-#### a. Using Conda (Recommended for Windows)
-```bash
-# In project root
-conda create -n docchecker python=3.9
-conda activate docchecker
-pip install -r requirements-dev.txt  # For development/testing
-# Or, for production only:
-pip install -r requirements.txt
-```
-
-#### b. Using venv + pip
+#### a. Using venv + pip
 ```bash
 # In project root
 python -m venv docchecker
@@ -381,7 +371,7 @@ pip install -r requirements-dev.txt  # For development/testing
 pip install -r requirements.txt
 ```
 
-#### c. Using Poetry (Recommended for Devs)
+#### b. Using Poetry (Recommended for Devs)
 ```bash
 # In project root
 poetry install
