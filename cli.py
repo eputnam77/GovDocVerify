@@ -115,8 +115,8 @@ def process_document(
         return error_msg
 
 
-def main() -> int:
-    """Main entry point for the CLI application."""
+def _create_argument_parser() -> argparse.ArgumentParser:
+    """Create and configure the argument parser."""
     parser = argparse.ArgumentParser(description="FAA Document Checker CLI")
     parser.add_argument("--file", type=str, required=True, help="Path to document file")
     parser.add_argument("--type", type=str, required=True, help="Document type")
@@ -182,10 +182,11 @@ def main() -> int:
             "format, accessibility, document_status."
         ),
     )
+    return parser
 
-    args = parser.parse_args()
 
-    # Enforce mutual exclusivity
+def _validate_argument_exclusivity(args, parser: argparse.ArgumentParser) -> None:
+    """Validate that mutually exclusive arguments are not used together."""
     if args.show_only:
         hide_flags = [
             args.hide_readability,
@@ -201,6 +202,7 @@ def main() -> int:
         ]
         if any(hide_flags):
             parser.error("--show-only cannot be used with --hide-*, --hide, or --show-all")
+
     if args.hide:
         hide_flags = [
             args.hide_readability,
@@ -217,14 +219,10 @@ def main() -> int:
         if any(hide_flags):
             parser.error("--hide cannot be used with --hide-*, --show-only, or --show-all")
 
-    # Set up logging based on debug flag
-    setup_logging(debug=args.debug)
 
-    if args.debug:
-        logger.debug("Debug mode enabled")
-
-    # --- Visibility logic ---
-    categories = [
+def _get_valid_categories() -> list[str]:
+    """Get the list of valid category names."""
+    return [
         "readability",
         "paragraph_length",
         "terminology",
@@ -234,13 +232,23 @@ def main() -> int:
         "accessibility",
         "document_status",
     ]
+
+
+def _parse_category_list(category_args: list[str]) -> set[str]:
+    """Parse comma- or space-separated category arguments into a set."""
+    category_raw = []
+    for val in category_args:
+        category_raw.extend([v.strip() for v in val.split(",") if v.strip()])
+    return set(category_raw)
+
+
+def _create_visibility_settings(args, parser: argparse.ArgumentParser) -> VisibilitySettings:
+    """Create visibility settings based on parsed arguments."""
+    categories = _get_valid_categories()
+
     if args.show_only:
-        # Support comma-separated or space-separated
-        show_only_raw = []
-        for val in args.show_only:
-            show_only_raw.extend([v.strip() for v in val.split(",") if v.strip()])
-        show_only_set = set(show_only_raw)
-        # Validate
+        show_only_set = _parse_category_list(args.show_only)
+        # Validate categories
         invalid = [c for c in show_only_set if c not in categories]
         if invalid:
             parser.error(
@@ -255,13 +263,11 @@ def main() -> int:
         )
         # Attach show_only_set for strict filtering in process_document
         visibility_settings._show_only_set = show_only_set
-    elif args.hide:
-        # Support comma-separated or space-separated
-        hide_raw = []
-        for val in args.hide:
-            hide_raw.extend([v.strip() for v in val.split(",") if v.strip()])
-        hide_set = set(hide_raw)
-        # Validate
+        return visibility_settings
+
+    if args.hide:
+        hide_set = _parse_category_list(args.hide)
+        # Validate categories
         invalid = [c for c in hide_set if c not in categories]
         if invalid:
             parser.error(
@@ -273,19 +279,39 @@ def main() -> int:
         )
         # Attach hide_set for possible future use
         visibility_settings._hide_set = hide_set
-    else:
-        visibility_settings = VisibilitySettings(
-            show_readability=not args.hide_readability,
-            show_paragraph_length=not args.hide_paragraph_length,
-            show_terminology=not args.hide_terminology,
-            show_headings=not args.hide_headings,
-            show_structure=not args.hide_structure,
-            show_format=not args.hide_format,
-            show_accessibility=not args.hide_accessibility,
-            show_document_status=not args.hide_document_status,
-        )
-    # --- End visibility logic ---
+        return visibility_settings
 
+    # Default visibility settings based on individual hide flags
+    return VisibilitySettings(
+        show_readability=not args.hide_readability,
+        show_paragraph_length=not args.hide_paragraph_length,
+        show_terminology=not args.hide_terminology,
+        show_headings=not args.hide_headings,
+        show_structure=not args.hide_structure,
+        show_format=not args.hide_format,
+        show_accessibility=not args.hide_accessibility,
+        show_document_status=not args.hide_document_status,
+    )
+
+
+def main() -> int:
+    """Main entry point for the CLI application."""
+    parser = _create_argument_parser()
+    args = parser.parse_args()
+
+    # Validate argument exclusivity
+    _validate_argument_exclusivity(args, parser)
+
+    # Set up logging based on debug flag
+    setup_logging(debug=args.debug)
+
+    if args.debug:
+        logger.debug("Debug mode enabled")
+
+    # Create visibility settings
+    visibility_settings = _create_visibility_settings(args, parser)
+
+    # Process document and display results
     results = process_document(args.file, args.type, visibility_settings, group_by=args.group_by)
     print(results)
     return 0

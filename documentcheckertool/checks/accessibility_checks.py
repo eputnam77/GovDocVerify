@@ -13,8 +13,6 @@ from documentcheckertool.models import DocumentCheckResult, Severity
 from documentcheckertool.utils.link_utils import deprecated_lookup, find_urls
 from documentcheckertool.utils.terminology_utils import TerminologyManager
 
-from .base_checker import BaseChecker
-
 logger = logging.getLogger(__name__)
 
 

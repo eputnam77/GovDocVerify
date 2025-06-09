@@ -298,7 +298,8 @@ class HeadingChecks(BaseChecker):
         period_requirements = self.terminology_manager.terminology_data.get("heading_periods", {})
         requires_period = period_requirements.get(doc_type_norm, False)
         logger.debug(
-            f"Document type {doc_type_norm} {'requires' if requires_period else 'does not require'} periods"
+            f"Document type {doc_type_norm} "
+            "{'requires' if requires_period else 'does not require'} periods"
         )
 
         # Get heading words from terminology data
@@ -307,7 +308,7 @@ class HeadingChecks(BaseChecker):
         for i, line in enumerate(doc, 1):
             logger.debug(f"Checking line {i} for heading period: {line}")
             if any(word in line.upper() for word in heading_words):
-                # Skip period check for long text that's likely a paragraph incorrectly marked as heading
+                # Skip period check for long text that's a paragraph incorrectly marked as heading
                 line_stripped = line.strip()
                 word_count = len(line_stripped.split())
                 char_count = len(line_stripped)

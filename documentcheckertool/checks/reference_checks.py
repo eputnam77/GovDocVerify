@@ -64,121 +64,112 @@ class DocumentTitleFormatCheck(BaseChecker):
         issues = []
 
         # Pattern to match document references with titles
-        # Matches various document types: AC, Order, etc.
-        # Captures the title part between the document reference and "dated"
-        # Updated pattern to handle quoted titles with commas inside
-        doc_title_pattern = re.compile(
+        doc_title_pattern = self._get_document_title_pattern()
+
+        for line_idx, line in enumerate(lines):
+            logger.debug(f"Processing line {line_idx + 1}: {line[:100]}...")
+            matches = doc_title_pattern.finditer(line)
+
+            for match in matches:
+                title_text = match.group(1).strip().rstrip(",")
+                logger.debug(f"Found document title: '{title_text}'")
+
+                issue = self._check_title_format(title_text, doc_type, line, line_idx)
+                if issue:
+                    issues.append(issue)
+
+        logger.debug(f"Document title formatting check complete. Found {len(issues)} issues")
+
+        return self._create_check_result(issues, doc_type)
+
+    def _get_document_title_pattern(self) -> re.Pattern:
+        """Get the regex pattern for matching document titles."""
+        return re.compile(
             r'\b(?:AC|Order|AD|SFAR|Notice|Policy|Memo)\s+[\d.-]+[A-Z]?,\s*([^,]*(?:"[^"]*"[^,]*)*[^,]*?)(?:,\s*dated|\s+dated)',
             re.IGNORECASE,
         )
 
-        for line_idx, line in enumerate(lines):
-            logger.debug(f"Processing line {line_idx + 1}: {line[:100]}...")
+    def _check_title_format(self, title_text: str, doc_type: str, line: str, line_idx: int) -> dict:
+        """Check the format of a single title and return issue if found."""
+        if doc_type == "Advisory Circular":
+            return self._check_ac_title_format(title_text, line, line_idx)
+        else:
+            return self._check_non_ac_title_format(title_text, doc_type, line, line_idx)
 
-            # Find document references with titles
-            matches = doc_title_pattern.finditer(line)
+    def _check_ac_title_format(self, title_text: str, line: str, line_idx: int) -> dict:
+        """Check AC document title formatting (should be in italics)."""
+        if self._is_quoted(title_text):
+            clean_title = title_text.strip("\"'").rstrip(",").strip()
+            logger.debug(f"Found quoted title in AC: {title_text}")
+            return self._create_issue(
+                line, line_idx, title_text,
+                "AC document titles should use italics, not quotation marks",
+                f"*{clean_title}*"
+            )
+        elif not self._is_formatted(title_text):
+            logger.debug(f"Found unformatted title in AC: {title_text}")
+            return self._create_issue(
+                line, line_idx, title_text,
+                "AC document titles should be formatted in italics",
+                f"*{title_text.strip()}*"
+            )
+        elif self._is_italicized(title_text):
+            logger.debug(f"Correctly formatted AC title: {title_text}")
 
-            for match in matches:
-                title_text = match.group(1).strip()
-                # Clean up any trailing punctuation that might be captured
-                title_text = title_text.rstrip(",")
-                logger.debug(f"Found document title: '{title_text}'")
+        return None
 
-                # Check if this is an Advisory Circular document
-                if doc_type == "Advisory Circular":
-                    # For ACs, titles should be in italics (markdown style *text*)
-                    # Check for incorrect formats
+    def _check_non_ac_title_format(
+        self, title_text: str, doc_type: str, line: str, line_idx: int
+    ) -> dict:
+        """Check non-AC document title formatting (should be in quotes)."""
+        if self._is_italicized(title_text):
+            clean_title = title_text.strip("*").strip()
+            logger.debug(f"Found italicized title in non-AC: {title_text}")
+            return self._create_issue(
+                line, line_idx, title_text,
+                f"{doc_type} document titles should use quotation marks, not italics",
+                f'"{clean_title}"'
+            )
+        elif not self._is_formatted(title_text):
+            logger.debug(f"Found unformatted title in non-AC: {title_text}")
+            return self._create_issue(
+                line, line_idx, title_text,
+                f"{doc_type} document titles should be formatted in quotation marks",
+                f'"{title_text.strip()}"'
+            )
 
-                    # Check if title is in quotes (incorrect for ACs)
-                    if (title_text.startswith('"') and title_text.endswith('"')) or (
-                        title_text.startswith("'") and title_text.endswith("'")
-                    ):
-                        # Remove quotes and any trailing comma/punctuation
-                        clean_title = title_text.strip("\"'").rstrip(",").strip()
-                        issues.append(
-                            {
-                                "line": line,
-                                "line_number": line_idx + 1,
-                                "title": title_text,
-                                "issue": (
-                                    "AC document titles should use italics, not quotation marks"
-                                ),
-                                "incorrect_format": title_text,
-                                "correct_format": f"*{clean_title}*",
-                                "severity": Severity.ERROR,
-                            }
-                        )
-                        logger.debug(f"Found quoted title in AC: {title_text}")
+        return None
 
-                    # Check if title has no formatting (incorrect for ACs)
-                    elif (
-                        not (title_text.startswith("*") and title_text.endswith("*"))
-                        and not (title_text.startswith('"') and title_text.endswith('"'))
-                        and not (title_text.startswith("'") and title_text.endswith("'"))
-                    ):
-                        issues.append(
-                            {
-                                "line": line,
-                                "line_number": line_idx + 1,
-                                "title": title_text,
-                                "issue": "AC document titles should be formatted in italics",
-                                "incorrect_format": title_text,
-                                "correct_format": f"*{title_text.strip()}*",
-                                "severity": Severity.ERROR,
-                            }
-                        )
-                        logger.debug(f"Found unformatted title in AC: {title_text}")
+    def _is_quoted(self, title_text: str) -> bool:
+        """Check if title is wrapped in quotes."""
+        return ((title_text.startswith('"') and title_text.endswith('"')) or
+                (title_text.startswith("'") and title_text.endswith("'")))
 
-                    # Title is correctly formatted in italics - no issue
-                    elif title_text.startswith("*") and title_text.endswith("*"):
-                        logger.debug(f"Correctly formatted AC title: {title_text}")
+    def _is_italicized(self, title_text: str) -> bool:
+        """Check if title is wrapped in asterisks (italics)."""
+        return title_text.startswith("*") and title_text.endswith("*")
 
-                else:
-                    # For non-AC documents, titles should be in quotes
-                    # Check if title is in italics (incorrect for non-ACs)
-                    if title_text.startswith("*") and title_text.endswith("*"):
-                        # Remove asterisks
-                        clean_title = title_text.strip("*").strip()
-                        issues.append(
-                            {
-                                "line": line,
-                                "line_number": line_idx + 1,
-                                "title": title_text,
-                                "issue": (
-                                    f"{doc_type} document titles should use quotation marks, "
-                                    "not italics"
-                                ),
-                                "incorrect_format": title_text,
-                                "correct_format": f'"{clean_title}"',
-                                "severity": Severity.ERROR,
-                            }
-                        )
-                        logger.debug(f"Found italicized title in non-AC: {title_text}")
+    def _is_formatted(self, title_text: str) -> bool:
+        """Check if title has any formatting (quotes or italics)."""
+        return self._is_quoted(title_text) or self._is_italicized(title_text)
 
-                    # Check if title has no formatting (incorrect for non-ACs)
-                    elif (
-                        not (title_text.startswith('"') and title_text.endswith('"'))
-                        and not (title_text.startswith("'") and title_text.endswith("'"))
-                        and not (title_text.startswith("*") and title_text.endswith("*"))
-                    ):
-                        issues.append(
-                            {
-                                "line": line,
-                                "line_number": line_idx + 1,
-                                "title": title_text,
-                                "issue": (
-                                    f"{doc_type} document titles should be formatted in quotation "
-                                    "marks"
-                                ),
-                                "incorrect_format": title_text,
-                                "correct_format": f'"{title_text.strip()}"',
-                                "severity": Severity.ERROR,
-                            }
-                        )
-                        logger.debug(f"Found unformatted title in non-AC: {title_text}")
+    def _create_issue(
+        self, line: str, line_idx: int, title_text: str, issue_text: str, correct_format: str
+    ) -> dict:
+        """Create a formatting issue dictionary."""
+        return {
+            "line": line,
+            "line_number": line_idx + 1,
+            "title": title_text,
+            "issue": issue_text,
+            "incorrect_format": title_text,
+            "correct_format": correct_format,
+            "severity": Severity.ERROR,
+            "category": getattr(self, "category", "formatting"),
+        }
 
-        logger.debug(f"Document title formatting check complete. Found {len(issues)} issues")
-
+    def _create_check_result(self, issues: List[dict], doc_type: str) -> DocumentCheckResult:
+        """Create the final DocumentCheckResult."""
         # Ensure all issues have the correct category
         for issue in issues:
             if "category" not in issue:
@@ -193,15 +184,7 @@ class DocumentTitleFormatCheck(BaseChecker):
 
     def run_checks(self, document, doc_type, results: DocumentCheckResult) -> None:
         """Run document title formatting checks."""
-        if hasattr(document, "paragraphs"):
-            lines = [p.text for p in document.paragraphs]
-        elif hasattr(document, "text"):
-            lines = str(document.text).split("\n")
-        elif isinstance(document, list):
-            lines = document
-        else:
-            lines = str(document).split("\n")
-
+        lines = self._extract_lines_from_document(document)
         check_result = self._check_document_title_formatting(lines, doc_type)
 
         # Only mark as failed if there are actual errors
@@ -210,50 +193,56 @@ class DocumentTitleFormatCheck(BaseChecker):
 
         # Add formatted issues to results using static messages
         for issue in check_result.issues:
-            # Create user-friendly message
-            issue.get("title", "")
-            incorrect_format = issue.get("incorrect_format", "")
-            correct_format = issue.get("correct_format", "")
-            issue_text = issue.get("issue", "")
-
-            # Map issue text to static messages
-            if "AC document titles should use italics, not quotation marks" in issue_text:
-                message = (
-                    f"{ReferenceMessages.AC_TITLE_USE_ITALICS}. "
-                    f"Change '{incorrect_format}' to '{correct_format}'"
-                )
-            elif "AC document titles should be formatted in italics" in issue_text:
-                message = (
-                    f"{ReferenceMessages.AC_TITLE_FORMAT_ITALICS}. "
-                    f"Change '{incorrect_format}' to '{correct_format}'"
-                )
-            elif "document titles should use quotation marks, not italics" in issue_text:
-                message = (
-                    f"{ReferenceMessages.NON_AC_TITLE_USE_QUOTES}. "
-                    f"Change '{incorrect_format}' to '{correct_format}'"
-                )
-            elif "document titles should be formatted in quotation marks" in issue_text:
-                message = (
-                    f"{ReferenceMessages.NON_AC_TITLE_FORMAT_QUOTES}. "
-                    f"Change '{incorrect_format}' to '{correct_format}'"
-                )
-            else:
-                # Fallback for any unmapped messages
-                if incorrect_format and correct_format:
-                    message = (
-                        f"{issue_text}. "
-                        f"Change '{incorrect_format}' to '{correct_format}'"
-                    )
-                else:
-                    message = issue_text
-
-
+            message = self._create_issue_message(issue)
             results.add_issue(
                 message=message,
                 severity=issue.get("severity", Severity.WARNING),
                 line_number=issue.get("line_number", 0),
                 category=getattr(self, "category", "reference"),
             )
+
+    def _extract_lines_from_document(self, document) -> List[str]:
+        """Extract lines from various document formats."""
+        if hasattr(document, "paragraphs"):
+            return [p.text for p in document.paragraphs]
+        elif hasattr(document, "text"):
+            return str(document.text).split("\n")
+        elif isinstance(document, list):
+            return document
+        else:
+            return str(document).split("\n")
+
+    def _create_issue_message(self, issue: dict) -> str:
+        """Create a user-friendly message from issue data."""
+        incorrect_format = issue.get("incorrect_format", "")
+        correct_format = issue.get("correct_format", "")
+        issue_text = issue.get("issue", "")
+
+        # Map issue text to static messages
+        message_mapping = {
+            "AC document titles should use italics, not quotation marks": (
+                ReferenceMessages.AC_TITLE_USE_ITALICS
+            ),
+            "AC document titles should be formatted in italics": (
+                ReferenceMessages.AC_TITLE_FORMAT_ITALICS
+            ),
+            "document titles should use quotation marks, not italics": (
+                ReferenceMessages.NON_AC_TITLE_USE_QUOTES
+            ),
+            "document titles should be formatted in quotation marks": (
+                ReferenceMessages.NON_AC_TITLE_FORMAT_QUOTES
+            ),
+        }
+
+        for key, static_message in message_mapping.items():
+            if key in issue_text:
+                return f"{static_message}. Change '{incorrect_format}' to '{correct_format}'"
+
+        # Fallback for any unmapped messages
+        if incorrect_format and correct_format:
+            return f"{issue_text}. Change '{incorrect_format}' to '{correct_format}'"
+        else:
+            return issue_text
 
     def check_document(self, document, doc_type) -> DocumentCheckResult:
         """
@@ -319,7 +308,33 @@ class TableFigureReferenceCheck(BaseChecker):
         """Main logic for checking references, expects a list of strings."""
         logger.debug(f"Starting text check with {len(lines)} lines")
 
-        # Handle empty list case (success) vs empty string (error)
+        # Handle empty cases
+        empty_result = self._handle_empty_input(lines)
+        if empty_result:
+            return empty_result
+
+        issues = []
+        patterns = self._initialize_patterns()
+        in_code_block = False
+
+        for line_idx, line in enumerate(lines):
+            logger.debug(f"Processing line {line_idx + 1}: {line[:50]}...")
+
+            # Handle code blocks and skip special lines
+            if self._should_skip_line(line, patterns["caption"], in_code_block):
+                if line.strip() == "```":
+                    in_code_block = not in_code_block
+                continue
+
+            line_issues = self._process_line_references(
+                line, line_idx, patterns, in_code_block
+            )
+            issues.extend(line_issues)
+
+        return self._create_final_result(issues)
+
+    def _handle_empty_input(self, lines: List[str]) -> DocumentCheckResult:
+        """Handle empty input cases."""
         if lines == []:  # explicit empty list → success
             logger.debug("Empty list provided - nothing to check")
             return DocumentCheckResult(
@@ -334,159 +349,170 @@ class TableFigureReferenceCheck(BaseChecker):
                 issues=[{"error": "Empty content"}],
                 details={"total_issues": 1, "issues_by_type": {"table": 0, "figure": 0}},
             )
+        return None
 
-        issues = []
+    def _initialize_patterns(self) -> dict:
+        """Initialize regex patterns for reference checking."""
         logger.debug("Initializing text check patterns")
 
-        # Pattern to identify table/figure captions
-        caption_pattern = re.compile(r"^(Table|Figure)\s+\d+(?:[\.-]\d+)*\.\s+[A-Z]", re.IGNORECASE)
-        logger.debug(f"Caption pattern: {caption_pattern.pattern}")
+        patterns = {
+            "caption": re.compile(r"^(Table|Figure)\s+\d+(?:[\.-]\d+)*\.\s+[A-Z]", re.IGNORECASE),
+            "table_ref": re.compile(r"\b([Tt]able)s?\s+(\d+(?:[\.-]\d+)*)"),
+            "figure_ref": re.compile(r"\b([Ff]igure)s?\s+(\d+(?:[\.-]\d+)*)"),
+            "special_context": re.compile("|".join([
+                r"^[•\-\*]\s+",  # List items
+                r"^\|\s*",  # Table cells
+                r"^```",  # Code blocks
+                r"^<[^>]+>",  # HTML tags
+                r"^[\*\`\_]+",  # Markdown formatting
+            ]))
+        }
 
-        # Patterns for references within sentences and at start
-        # Allow decimal points, ranges, and plurals in numbers
-        table_ref_pattern = re.compile(r"\b([Tt]able)s?\s+(\d+(?:[\.-]\d+)*)")
-        figure_ref_pattern = re.compile(r"\b([Ff]igure)s?\s+(\d+(?:[\.-]\d+)*)")
-        logger.debug(f"Table reference pattern: {table_ref_pattern.pattern}")
-        logger.debug(f"Figure reference pattern: {figure_ref_pattern.pattern}")
+        logger.debug(f"Caption pattern: {patterns['caption'].pattern}")
+        logger.debug(f"Table reference pattern: {patterns['table_ref'].pattern}")
+        logger.debug(f"Figure reference pattern: {patterns['figure_ref'].pattern}")
 
-        # Special context patterns
-        special_context_patterns = [
-            r"^[•\-\*]\s+",  # List items
-            r"^\|\s*",  # Table cells
-            r"^```",  # Code blocks
-            r"^<[^>]+>",  # HTML tags
-            r"^[\*\`\_]+",  # Markdown formatting
-        ]
-        special_context_pattern = re.compile("|".join(special_context_patterns))
+        return patterns
 
-        # Track if we're inside a code block
-        in_code_block = False
+    def _should_skip_line(
+        self, line: str, caption_pattern: re.Pattern, in_code_block: bool
+    ) -> bool:
+        """Determine if a line should be skipped during processing."""
+        if line.strip() == "```":
+            return True
+        if caption_pattern.match(line.strip()):
+            logger.debug(f"Skipping caption line: {line.strip()}")
+            return True
+        if in_code_block:
+            logger.debug("Skipping line in code block")
+            return True
+        return False
 
-        for line_idx, line in enumerate(lines):
-            logger.debug(f"Processing line {line_idx + 1}: {line[:50]}...")
+    def _process_line_references(
+        self, line: str, line_idx: int, patterns: dict, in_code_block: bool
+    ) -> List[dict]:
+        """Process references in a single line."""
+        if in_code_block:
+            return []
 
-            # Handle code block markers
-            if line.strip() == "```":
-                in_code_block = not in_code_block
-                logger.debug(f"Code block state changed to: {in_code_block}")
-                continue
+        issues = []
+        is_special_context = bool(patterns["special_context"].match(line.strip()))
+        logger.debug(f"Line is in special context: {is_special_context}")
 
-            # Skip if this is a caption line
-            if caption_pattern.match(line.strip()):
-                logger.debug(f"Skipping caption line: {line.strip()}")
-                continue
+        # Clean the line for reference checking while preserving context
+        cleaned_line, has_quotes, has_parentheses = self._clean_line_for_checking(line)
 
-            # Skip if we're in a code block
-            if in_code_block:
-                logger.debug("Skipping line in code block")
-                continue
+        # Check for references
+        ref_patterns = [(patterns["table_ref"], "Table"), (patterns["figure_ref"], "Figure")]
+        for pattern, ref_type in ref_patterns:
+            matches = list(pattern.finditer(cleaned_line))
+            logger.debug(f"Found {len(matches)} {ref_type} references in line")
 
-            # Check for special contexts
-            is_special_context = bool(special_context_pattern.match(line.strip()))
-            logger.debug(f"Line is in special context: {is_special_context}")
+            for match in matches:
+                issue = self._check_reference_match(
+                    match, ref_type, line, cleaned_line,
+                    has_quotes, has_parentheses, is_special_context
+                )
+                if issue:
+                    issues.append(issue)
 
-            # Clean the line for reference checking while preserving context
-            cleaned_line = line.strip()
-            # Remove quotes and parentheses for reference checking but preserve their presence
-            has_quotes = '"' in cleaned_line or "'" in cleaned_line
-            has_parentheses = "(" in cleaned_line or ")" in cleaned_line
-            cleaned_line = re.sub(r'["\']|\(|\)', "", cleaned_line)
-            logger.debug(f"Cleaned line: {cleaned_line}")
+        return issues
 
-            # Check for references
-            for pattern, ref_type in [(table_ref_pattern, "Table"), (figure_ref_pattern, "Figure")]:
-                matches = list(pattern.finditer(cleaned_line))
-                logger.debug(f"Found {len(matches)} {ref_type} references in line")
+    def _clean_line_for_checking(self, line: str) -> tuple:
+        """Clean line for reference checking while preserving context info."""
+        cleaned_line = line.strip()
+        has_quotes = '"' in cleaned_line or "'" in cleaned_line
+        has_parentheses = "(" in cleaned_line or ")" in cleaned_line
+        cleaned_line = re.sub(r'["\']|\(|\)', "", cleaned_line)
+        logger.debug(f"Cleaned line: {cleaned_line}")
+        return cleaned_line, has_quotes, has_parentheses
 
-                for match in matches:
-                    ref_text = match.group()
-                    word = match.group(1)
+    def _check_reference_match(self, match, ref_type: str, original_line: str,
+                             cleaned_line: str, has_quotes: bool, has_parentheses: bool,
+                             is_special_context: bool) -> dict:
+        """Check a single reference match and return issue if found."""
+        ref_text = match.group()
+        word = match.group(1)
 
-                    # 1. Handle references wrapped in quotes or parentheses *first*
-                    if (has_quotes or has_parentheses) and word[0].isupper():
-                        logger.debug(f"Found uppercase {ref_type} reference in quotes/parentheses")
-                        issues.append(
-                            {
-                                "reference": ref_text,
-                                "issue": (
-                                    f"{ref_type} reference in quotes/parentheses should be "
-                                    "lowercase"
-                                ),
-                                "line": line,
-                                "correct_form": ref_text.lower(),
-                            }
-                        )
-                        continue
+        # Handle references wrapped in quotes or parentheses first
+        if (has_quotes or has_parentheses) and word[0].isupper():
+            logger.debug(f"Found uppercase {ref_type} reference in quotes/parentheses")
+            return {
+                "reference": ref_text,
+                "issue": f"{ref_type} reference in quotes/parentheses should be lowercase",
+                "line": original_line,
+                "correct_form": ref_text.lower(),
+            }
 
-                    # 2. Decide if the reference is "complex"
-                    rest = ref_text.split(word, 1)[1]  # part after "Table"/"Figure"
-                    is_complex = (
-                        "." in rest
-                        or "-" in rest
-                        or "\t" in rest
-                        or "\n" in rest
-                        or re.search(r"\s{2,}", rest) is not None
-                    )
-                    if is_complex:
-                        logger.debug(f"Skipping style check for complex reference: {ref_text}")
-                        continue
+        # Skip complex references
+        if self._is_complex_reference(ref_text, word):
+            logger.debug(f"Skipping style check for complex reference: {ref_text}")
+            return None
 
-                    # Get text before the reference and clean it
-                    text_before = cleaned_line[: match.start()].strip()
-                    text_before_clean = re.sub(r"^[\s\W]+", "", text_before)
-                    logger.debug(
-                        f"Text before reference: '{text_before}' (cleaned: '{text_before_clean}')"
-                    )
+        # Skip validation for special contexts
+        if is_special_context:
+            logger.debug(f"Skipping validation for special context: {ref_text}")
+            return None
 
-                    # Start of a (sub-)sentence if nothing before, or previous char is . : ;
-                    is_sentence_start = not text_before_clean or text_before_clean.endswith(
-                        (".", ":", ";")
-                    )
-                    logger.debug(f"Reference is at sentence start: {is_sentence_start}")
+        # Check sentence position and capitalization
+        is_sentence_start = self._is_sentence_start(cleaned_line, match)
 
-                    # Skip validation for special contexts
-                    if is_special_context:
-                        logger.debug(f"Skipping validation for special context: {ref_text}")
-                        continue
+        return self._validate_reference_capitalization(
+            ref_text, word, ref_type, original_line, is_sentence_start,
+            has_quotes, has_parentheses
+        )
 
-                    if is_sentence_start and word[0].islower():
-                        logger.debug(f"Found lowercase {ref_type} reference at sentence start")
-                        issues.append(
-                            {
-                                "reference": ref_text,
-                                "issue": (
-                                    f"{ref_type} reference at sentence start should be capitalized"
-                                ),
-                                "line": line,
-                                "correct_form": ref_text.capitalize(),
-                            }
-                        )
-                    elif (has_quotes or has_parentheses) and word[0].isupper():
-                        logger.debug(f"Found uppercase {ref_type} reference in quotes/parentheses")
-                        issues.append(
-                            {
-                                "reference": ref_text,
-                                "issue": (
-                                    f"{ref_type} reference in quotes/parentheses should be "
-                                    "lowercase"
-                                ),
-                                "line": line,
-                                "correct_form": ref_text.lower(),
-                            }
-                        )
-                    elif not is_sentence_start and word[0].isupper():
-                        logger.debug(f"Found uppercase {ref_type} reference within sentence")
-                        issues.append(
-                            {
-                                "reference": ref_text,
-                                "issue": (
-                                    f"{ref_type} reference within sentence should be lowercase"
-                                ),
-                                "line": line,
-                                "correct_form": ref_text.lower(),
-                            }
-                        )
+    def _is_complex_reference(self, ref_text: str, word: str) -> bool:
+        """Check if reference is complex and should skip style checking."""
+        rest = ref_text.split(word, 1)[1]  # part after "Table"/"Figure"
+        return (
+            "." in rest or "-" in rest or "\t" in rest or
+            "\n" in rest or re.search(r"\s{2,}", rest) is not None
+        )
 
+    def _is_sentence_start(self, cleaned_line: str, match) -> bool:
+        """Determine if reference is at the start of a sentence."""
+        text_before = cleaned_line[:match.start()].strip()
+        text_before_clean = re.sub(r"^[\s\W]+", "", text_before)
+        logger.debug(f"Text before reference: '{text_before}' (cleaned: '{text_before_clean}')")
+
+        is_start = not text_before_clean or text_before_clean.endswith((".", ":", ";"))
+        logger.debug(f"Reference is at sentence start: {is_start}")
+        return is_start
+
+    def _validate_reference_capitalization(self, ref_text: str, word: str, ref_type: str,
+                                         line: str, is_sentence_start: bool,
+                                         has_quotes: bool, has_parentheses: bool) -> dict:
+        """Validate reference capitalization and return issue if found."""
+        if is_sentence_start and word[0].islower():
+            logger.debug(f"Found lowercase {ref_type} reference at sentence start")
+            return {
+                "reference": ref_text,
+                "issue": f"{ref_type} reference at sentence start should be capitalized",
+                "line": line,
+                "correct_form": ref_text.capitalize(),
+            }
+        elif (has_quotes or has_parentheses) and word[0].isupper():
+            logger.debug(f"Found uppercase {ref_type} reference in quotes/parentheses")
+            return {
+                "reference": ref_text,
+                "issue": f"{ref_type} reference in quotes/parentheses should be lowercase",
+                "line": line,
+                "correct_form": ref_text.lower(),
+            }
+        elif not is_sentence_start and word[0].isupper():
+            logger.debug(f"Found uppercase {ref_type} reference within sentence")
+            return {
+                "reference": ref_text,
+                "issue": f"{ref_type} reference within sentence should be lowercase",
+                "line": line,
+                "correct_form": ref_text.lower(),
+            }
+
+        return None
+
+    def _create_final_result(self, issues: List[dict]) -> DocumentCheckResult:
+        """Create the final DocumentCheckResult."""
         logger.debug(f"Text check complete. Found {len(issues)} issues")
         logger.debug(
             f"Issues by type: "
@@ -513,75 +539,71 @@ class TableFigureReferenceCheck(BaseChecker):
         )
 
     def run_checks(self, document, doc_type, results: DocumentCheckResult) -> None:
-        if hasattr(document, "paragraphs"):
-            lines = [p.text for p in document.paragraphs]
-        elif hasattr(document, "text"):
-            lines = str(document.text).split("\n")
-        elif isinstance(document, list):
-            lines = document
-        else:
-            lines = str(document).split("\n")
-
+        lines = self._extract_lines_from_document(document)
         check_result = self._check_core(lines)
 
         # Only mark as failed if there are actual errors
         if not check_result.success:
             results.success = False
 
-        # Add formatted issues to results using static messages like format_checks
+        # Add formatted issues to results using static messages
         for issue in check_result.issues:
-            # Create user-friendly message from the issue data
-            reference = issue.get("reference", "")
-            issue_text = issue.get("issue", "")
-            correct_form = issue.get("correct_form", "")
-
-            # Map issue text to static messages
-            if "Table reference at sentence start should be capitalized" in issue_text:
-                message = (
-                    f"{ReferenceMessages.TABLE_REF_SENTENCE_START}. "
-                    f"Change '{reference}' to '{correct_form}'"
-                )
-            elif "Table reference within sentence should be lowercase" in issue_text:
-                message = (
-                    f"{ReferenceMessages.TABLE_REF_WITHIN_SENTENCE}. "
-                    f"Change '{reference}' to '{correct_form}'"
-                )
-            elif "Table reference in quotes/parentheses should be lowercase" in issue_text:
-                message = (
-                    f"{ReferenceMessages.TABLE_REF_IN_QUOTES_PARENS}. "
-                    f"Change '{reference}' to '{correct_form}'"
-                )
-            elif "Figure reference at sentence start should be capitalized" in issue_text:
-                message = (
-                    f"{ReferenceMessages.FIGURE_REF_SENTENCE_START}. "
-                    f"Change '{reference}' to '{correct_form}'"
-                )
-            elif "Figure reference within sentence should be lowercase" in issue_text:
-                message = (
-                    f"{ReferenceMessages.FIGURE_REF_WITHIN_SENTENCE}. "
-                    f"Change '{reference}' to '{correct_form}'"
-                )
-            elif "Figure reference in quotes/parentheses should be lowercase" in issue_text:
-                message = (
-                    f"{ReferenceMessages.FIGURE_REF_IN_QUOTES_PARENS}. "
-                    f"Change '{reference}' to '{correct_form}'"
-                )
-            else:
-                # Fallback for any unmapped messages
-                if reference and correct_form:
-                    message = (
-                        f"{issue_text}. "
-                        f"Change '{reference}' to '{correct_form}'"
-                    )
-                else:
-                    message = issue_text
-
+            message = self._create_reference_issue_message(issue)
             results.add_issue(
                 message=message,
                 severity=Severity.WARNING,
                 line_number=0,  # Line numbers aren't tracked in the current issue format
                 category=getattr(self, "category", "reference"),
             )
+
+    def _extract_lines_from_document(self, document) -> List[str]:
+        """Extract lines from various document formats."""
+        if hasattr(document, "paragraphs"):
+            return [p.text for p in document.paragraphs]
+        elif hasattr(document, "text"):
+            return str(document.text).split("\n")
+        elif isinstance(document, list):
+            return document
+        else:
+            return str(document).split("\n")
+
+    def _create_reference_issue_message(self, issue: dict) -> str:
+        """Create a user-friendly message from reference issue data."""
+        reference = issue.get("reference", "")
+        issue_text = issue.get("issue", "")
+        correct_form = issue.get("correct_form", "")
+
+        # Map issue text to static messages
+        message_mapping = {
+            "Table reference at sentence start should be capitalized": (
+                ReferenceMessages.TABLE_REF_SENTENCE_START
+            ),
+            "Table reference within sentence should be lowercase": (
+                ReferenceMessages.TABLE_REF_WITHIN_SENTENCE
+            ),
+            "Table reference in quotes/parentheses should be lowercase": (
+                ReferenceMessages.TABLE_REF_IN_QUOTES_PARENS
+            ),
+            "Figure reference at sentence start should be capitalized": (
+                ReferenceMessages.FIGURE_REF_SENTENCE_START
+            ),
+            "Figure reference within sentence should be lowercase": (
+                ReferenceMessages.FIGURE_REF_WITHIN_SENTENCE
+            ),
+            "Figure reference in quotes/parentheses should be lowercase": (
+                ReferenceMessages.FIGURE_REF_IN_QUOTES_PARENS
+            ),
+        }
+
+        for key, static_message in message_mapping.items():
+            if key in issue_text:
+                return f"{static_message}. Change '{reference}' to '{correct_form}'"
+
+        # Fallback for any unmapped messages
+        if reference and correct_form:
+            return f"{issue_text}. Change '{reference}' to '{correct_form}'"
+        else:
+            return issue_text
 
     def check_document(self, document, doc_type) -> DocumentCheckResult:
         """
