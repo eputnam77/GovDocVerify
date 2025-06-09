@@ -6,13 +6,106 @@ from typing import Dict, List
 logger = logging.getLogger(__name__)
 
 
-def discover_checks() -> Dict[str, List[str]]:
-    """Auto-discover all check functions in the codebase.
+def _process_function(obj, name, default_category, category_mappings):
+    """Process a function to determine if it's a check function."""
+    if name.startswith("check_") or name.startswith("_check_"):
+        category = default_category
+        if category not in category_mappings:
+            category_mappings[category] = []
+            logger.debug(f"Created new category: {category}")
+        if name not in category_mappings[category]:
+            category_mappings[category].append(name)
+            logger.debug(f"Added check {name} to category {category}")
+        else:
+            logger.debug(f"Check {name} already registered in category {category}")
+    else:
+        logger.debug(f"Skipping {name} - doesn't match check naming pattern")
 
-    Returns:
-        Dictionary mapping categories to lists of check function names
-    """
-    check_modules = [
+
+def _get_class_category(obj, name, default_category):
+    """Get the category for a checker class."""
+    try:
+        class_instance = obj()
+        class_category = getattr(class_instance, "category", default_category)
+        logger.debug(f"Class {name} has category: {class_category}")
+        return class_category
+    except Exception as e:
+        logger.debug(f"Could not instantiate {name} to get category: {e}")
+        return default_category
+
+
+def _is_valid_check_method(method_name):
+    """Check if a method name is a valid check method."""
+    standard_methods = ["check_text", "check_document", "run_checks"]
+    special_methods = ["_check_paragraph_length", "_check_sentence_length"]
+    return method_name in standard_methods or method_name in special_methods
+
+
+def _process_class_methods(obj, class_category, category_mappings):
+    """Process methods of a checker class."""
+    for method_name, method in inspect.getmembers(obj, predicate=inspect.isfunction):
+        logger.debug(f"Examining method: {method_name}")
+        if _is_valid_check_method(method_name):
+            if class_category not in category_mappings:
+                category_mappings[class_category] = []
+                logger.debug(f"Created new category: {class_category}")
+            if method_name not in category_mappings[class_category]:
+                category_mappings[class_category].append(method_name)
+                logger.debug(f"Added check {method_name} to category {class_category}")
+            else:
+                logger.debug(f"Check {method_name} already registered in {class_category}")
+        else:
+            logger.debug(f"Skipping {method_name} - not a registered check method")
+
+
+def _process_class(obj, name, default_category, category_mappings):
+    """Process a class to determine if it's a checker class."""
+    try:
+        from documentcheckertool.checks.base_checker import BaseChecker
+
+        if issubclass(obj, BaseChecker) and obj != BaseChecker:
+            logger.debug(f"Found checker class: {name}")
+            class_category = _get_class_category(obj, name, default_category)
+            _process_class_methods(obj, class_category, category_mappings)
+    except ImportError:
+        logger.warning(f"Could not import BaseChecker for class {name}")
+
+
+def _process_module_members(module, default_category, category_mappings):
+    """Process all members of a module."""
+    for name, obj in inspect.getmembers(module):
+        logger.debug(f"Examining member: {name}, type: {type(obj)}")
+        if inspect.isfunction(obj):
+            _process_function(obj, name, default_category, category_mappings)
+        elif inspect.isclass(obj):
+            _process_class(obj, name, default_category, category_mappings)
+        else:
+            logger.debug(f"Skipping {name} - not a function or class")
+
+
+def _process_module(module_name, category_mappings):
+    """Process a single module to discover checks."""
+    try:
+        logger.debug(f"Attempting to import module: {module_name}")
+        module = importlib.import_module(f"documentcheckertool.checks.{module_name}")
+        default_category = module_name.replace("_checks", "")
+        logger.debug(
+            f"Successfully imported module {module_name}, default category: {default_category}"
+        )
+        logger.debug(f"Searching for check functions and classes in {module_name}")
+        _process_module_members(module, default_category, category_mappings)
+    except ImportError as e:
+        logger.warning(f"Could not import module {module_name}: {str(e)}")
+    except Exception as e:
+        logger.error(
+            f"Unexpected error processing module {module_name}: {str(e)}",
+            exc_info=True
+        )
+
+
+def _get_check_modules():
+    """Get the list of check modules to process."""
+    return [
         "heading_checks",
         "format_checks",
         "structure_checks",
@@ -22,89 +115,21 @@ def discover_checks() -> Dict[str, List[str]]:
         "accessibility_checks",
         "reference_checks",
     ]
+
+
+def discover_checks() -> Dict[str, List[str]]:
+    """Auto-discover all check functions in the codebase.
+
+    Returns:
+        Dictionary mapping categories to lists of check function names
+    """
+    check_modules = _get_check_modules()
     category_mappings = {}
     logger.debug("Starting check discovery process")
     logger.debug(f"Looking for checks in modules: {check_modules}")
 
-    def _process_function(obj, name, default_category):
-        if name.startswith("check_") or name.startswith("_check_"):
-            category = default_category
-            if category not in category_mappings:
-                category_mappings[category] = []
-                logger.debug(f"Created new category: {category}")
-            if name not in category_mappings[category]:
-                category_mappings[category].append(name)
-                logger.debug(f"Added check {name} to category {category}")
-            else:
-                logger.debug(f"Check {name} already registered in category {category}")
-        else:
-            logger.debug(f"Skipping {name} - doesn't match check naming pattern")
-
-    def _process_class(obj, name, default_category):
-        try:
-            from documentcheckertool.checks.base_checker import BaseChecker
-
-            if issubclass(obj, BaseChecker) and obj != BaseChecker:
-                logger.debug(f"Found checker class: {name}")
-                class_instance = None
-                try:
-                    class_instance = obj()
-                    class_category = getattr(class_instance, "category", default_category)
-                    logger.debug(f"Class {name} has category: {class_category}")
-                except Exception as e:
-                    logger.debug(f"Could not instantiate {name} to get category: {e}")
-                    class_category = default_category
-                for method_name, method in inspect.getmembers(obj, predicate=inspect.isfunction):
-                    logger.debug(f"Examining method: {method_name}")
-                    if method_name in [
-                        "check_text",
-                        "check_document",
-                        "run_checks",
-                    ] or method_name in [
-                        "_check_paragraph_length",
-                        "_check_sentence_length",
-                    ]:
-                        category = class_category
-                        if category not in category_mappings:
-                            category_mappings[category] = []
-                            logger.debug(f"Created new category: {category}")
-                        if method_name not in category_mappings[category]:
-                            category_mappings[category].append(method_name)
-                            logger.debug(f"Added check {method_name} to category {category}")
-                        else:
-                            logger.debug(f"Check {method_name} already registered in {category}")
-                    else:
-                        logger.debug(f"Skipping {method_name} - not a registered check method")
-        except ImportError:
-            logger.warning(f"Could not import BaseChecker for class {name}")
-
-    def _process_module(module_name):
-        try:
-            logger.debug(f"Attempting to import module: {module_name}")
-            module = importlib.import_module(f"documentcheckertool.checks.{module_name}")
-            default_category = module_name.replace("_checks", "")
-            logger.debug(
-                f"Successfully imported module {module_name}, default category: {default_category}"
-            )
-            logger.debug(f"Searching for check functions and classes in {module_name}")
-            for name, obj in inspect.getmembers(module):
-                logger.debug(f"Examining member: {name}, type: {type(obj)}")
-                if inspect.isfunction(obj):
-                    _process_function(obj, name, default_category)
-                elif inspect.isclass(obj):
-                    _process_class(obj, name, default_category)
-                else:
-                    logger.debug(f"Skipping {name} - not a function or class")
-        except ImportError as e:
-            logger.warning(f"Could not import module {module_name}: {str(e)}")
-        except Exception as e:
-            logger.error(
-                f"Unexpected error processing module {module_name}: {str(e)}",
-                exc_info=True
-            )
-
     for module_name in check_modules:
-        _process_module(module_name)
+        _process_module(module_name, category_mappings)
 
     logger.debug(f"Check discovery complete. Found categories: {list(category_mappings.keys())}")
     for category, checks in category_mappings.items():

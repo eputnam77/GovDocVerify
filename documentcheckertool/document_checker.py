@@ -83,101 +83,21 @@ class FAADocumentChecker:
     ) -> DocumentCheckResult:
         """Run all document checks."""
         try:
-            # Create a new DocumentCheckResult to store combined results
             combined_results = DocumentCheckResult()
             per_check_results = {}
 
             # Load the document
-            if isinstance(document_path, str) and (
-                document_path.lower().endswith(".docx") or document_path.lower().endswith(".doc")
-            ):
-                doc = Document(document_path)
-                doc.text = "\n".join([paragraph.text for paragraph in doc.paragraphs])
-                logger.debug(
-                    f"Loaded document from file: {document_path}, extracted text length: {len(doc.text)}"
-                )
-            else:
-                doc = Document()
-                if isinstance(document_path, list):
-                    doc.text = "\n".join(document_path)
-                    logger.debug(
-                        f"Created document from list of strings, length: {len(document_path)}"
-                    )
-                else:
-                    doc.text = document_path
-                    logger.debug(f"Created document from raw string, length: {len(document_path)}")
+            doc = self._load_document(document_path)
 
             # Define all check modules with their names for logging
-            check_modules = [
-                (self.heading_checks, "heading"),
-                (self.accessibility_checks, "accessibility"),
-                (self.format_checks, "format"),
-                (self.structure_checks, "structure"),
-                (self.terminology_checks, "terminology"),
-                (self.readability_checks, "readability"),
-                (self.acronym_checker, "acronym"),
-                (self.table_figure_checks, "formatting"),
-                (self.document_title_checks, "formatting"),
-            ]
+            check_modules = self._get_check_modules()
 
             # Run all checks
-            for check_module, category in check_modules:
-                try:
-                    logger.info(f"Running {category} checks...")
-                    # Always pass the Document object to check_document
-                    result = check_module.check_document(doc, doc_type)
-                    per_check_results.setdefault(category, {})
-                    for check_func in CheckRegistry.get_checks_for_category(category):
-                        if hasattr(result, "checker_name") and result.checker_name == check_func:
-                            per_check_results[category][check_func] = result
-                        elif hasattr(result, check_func):
-                            per_check_results[category][check_func] = getattr(result, check_func)
+            self._run_checks(check_modules, doc, doc_type, combined_results, per_check_results)
 
-                    # Collect issues from the result (these should be properly formatted from add_issue calls)
-                    if hasattr(result, "issues") and result.issues:
-                        combined_results.issues.extend(result.issues)
+            # Ensure per_check_results is populated with all issues
+            self._populate_check_results(combined_results, per_check_results)
 
-                    if not result.success:
-                        combined_results.success = False
-                except Exception as e:
-                    logger.error(f"Error in {category} checks: {str(e)}")
-                    per_check_results.setdefault(category, {})
-                    for check_func in CheckRegistry.get_checks_for_category(category):
-                        dcr = DocumentCheckResult(
-                            success=False,
-                            issues=[{"error": f"Error in {category} checks: {str(e)}"}],
-                        )
-                        per_check_results[category][check_func] = dcr
-                    combined_results.issues.append(
-                        {"error": f"Error in {category} checks: {str(e)}", "category": category}
-                    )
-
-            # Always ensure per_check_results is populated with all issues
-            # If per_check_results is empty or contains only empty sub-dicts, but there are issues, group them by category
-            def _has_any_issues(per_check_results):
-                for cat in per_check_results.values():
-                    for check in cat.values():
-                        if hasattr(check, "issues") and check.issues:
-                            return True
-                        if isinstance(check, dict) and check.get("issues"):
-                            return True
-                return False
-
-            if (
-                not per_check_results or not _has_any_issues(per_check_results)
-            ) and combined_results.issues:
-                # Group issues by category if possible
-                grouped = {}
-                for issue in combined_results.issues:
-                    category = issue.get("category")
-                    if not category:
-                        # Try to infer from checker_name if present
-                        category = issue.get("checker") or "general"
-                    if category not in grouped:
-                        grouped[category] = {"success": False, "issues": [], "details": {}}
-                    grouped[category]["issues"].append(issue)
-                # Convert to per_check_results structure
-                per_check_results = {cat: {"general": res} for cat, res in grouped.items()}
             combined_results.per_check_results = per_check_results
             combined_results.success = len(combined_results.issues) == 0
             logger.info(f"Completed all checks. Found {len(combined_results.issues)} issues.")
@@ -188,3 +108,108 @@ class FAADocumentChecker:
             return DocumentCheckResult(
                 success=False, issues=[{"error": f"Error running document checks: {str(e)}"}]
             )
+
+    def _load_document(self, document_path: str):
+        """Load document from path or create from string/list."""
+        if isinstance(document_path, str) and (
+            document_path.lower().endswith(".docx") or document_path.lower().endswith(".doc")
+        ):
+            doc = Document(document_path)
+            doc.text = "\n".join([paragraph.text for paragraph in doc.paragraphs])
+            logger.debug(
+                f"Loaded document from file: {document_path}, "
+                f"extracted text length: {len(doc.text)}"
+            )
+        else:
+            doc = Document()
+            if isinstance(document_path, list):
+                doc.text = "\n".join(document_path)
+                logger.debug(
+                    f"Created document from list of strings, length: {len(document_path)}"
+                )
+            else:
+                doc.text = document_path
+                logger.debug(f"Created document from raw string, length: {len(document_path)}")
+        return doc
+
+    def _get_check_modules(self):
+        """Get all check modules with their category names."""
+        return [
+            (self.heading_checks, "heading"),
+            (self.accessibility_checks, "accessibility"),
+            (self.format_checks, "format"),
+            (self.structure_checks, "structure"),
+            (self.terminology_checks, "terminology"),
+            (self.readability_checks, "readability"),
+            (self.acronym_checker, "acronym"),
+            (self.table_figure_checks, "formatting"),
+            (self.document_title_checks, "formatting"),
+        ]
+
+    def _run_checks(self, check_modules, doc, doc_type, combined_results, per_check_results):
+        """Run all check modules and collect results."""
+        for check_module, category in check_modules:
+            try:
+                logger.info(f"Running {category} checks...")
+                result = check_module.check_document(doc, doc_type)
+                self._process_check_result(result, category, per_check_results)
+
+                # Collect issues from the result
+                if hasattr(result, "issues") and result.issues:
+                    combined_results.issues.extend(result.issues)
+
+                if not result.success:
+                    combined_results.success = False
+            except Exception as e:
+                self._handle_check_error(e, category, per_check_results, combined_results)
+
+    def _process_check_result(self, result, category, per_check_results):
+        """Process individual check result."""
+        per_check_results.setdefault(category, {})
+        for check_func in CheckRegistry.get_checks_for_category(category):
+            if hasattr(result, "checker_name") and result.checker_name == check_func:
+                per_check_results[category][check_func] = result
+            elif hasattr(result, check_func):
+                per_check_results[category][check_func] = getattr(result, check_func)
+
+    def _handle_check_error(self, error, category, per_check_results, combined_results):
+        """Handle errors that occur during check execution."""
+        logger.error(f"Error in {category} checks: {str(error)}")
+        per_check_results.setdefault(category, {})
+        for check_func in CheckRegistry.get_checks_for_category(category):
+            dcr = DocumentCheckResult(
+                success=False,
+                issues=[{"error": f"Error in {category} checks: {str(error)}"}],
+            )
+            per_check_results[category][check_func] = dcr
+        combined_results.issues.append(
+            {"error": f"Error in {category} checks: {str(error)}", "category": category}
+        )
+
+    def _populate_check_results(self, combined_results, per_check_results):
+        """Ensure per_check_results is populated with all issues."""
+        if (
+            not per_check_results or not self._has_any_issues(per_check_results)
+        ) and combined_results.issues:
+            # Group issues by category if possible
+            grouped = {}
+            for issue in combined_results.issues:
+                category = issue.get("category")
+                if not category:
+                    # Try to infer from checker_name if present
+                    category = issue.get("checker") or "general"
+                if category not in grouped:
+                    grouped[category] = {"success": False, "issues": [], "details": {}}
+                grouped[category]["issues"].append(issue)
+            # Convert to per_check_results structure
+            per_check_results.update({cat: {"general": res} for cat, res in grouped.items()})
+
+    def _has_any_issues(self, per_check_results):
+        """Check if any results contain issues."""
+        for cat in per_check_results.values():
+            for check in cat.values():
+                if hasattr(check, "issues") and check.issues:
+                    return True
+                if isinstance(check, dict) and check.get("issues"):
+                    return True
+        return False

@@ -135,14 +135,26 @@ class TerminologyChecks(BaseChecker):
         lines = text.split("\n")
         logger.debug(f"Split text into {len(lines)} lines")
 
-        # Split infinitive detection (info-level, may be acceptable)
-        # Enhanced: match 'to' followed by 1-3 words, then a word (likely a verb)
+        # Run individual check methods
+        issues.extend(self._check_split_infinitives(lines))
+        issues.extend(self._check_forbidden_terms_in_lines(lines))
+        issues.extend(self._check_terminology_variants_in_lines(lines))
+        issues.extend(self._check_obsolete_terms_in_lines(lines))
+
+        # Add issues to the result
+        result.issues.extend(issues)
+        if issues:
+            result.success = False
+        logger.debug(f"Terminology checks completed. Found {len(issues)} issues.")
+        return result
+
+    def _check_split_infinitives(self, lines):
+        """Check for split infinitives in text lines."""
+        issues = []
         split_infinitive_pattern = re.compile(r"\bto\s+(?:\w+\s+){1,3}\w+\b", re.IGNORECASE)
         for i, line in enumerate(lines, 1):
             logger.debug(f"[Terminology] Checking line {i}: {line!r}")
             for match in split_infinitive_pattern.finditer(line):
-                # Optionally, filter out common false positives (e.g., 'to in addition to')
-                # For now, flag all matches
                 issues.append(
                     {
                         "message": "Split infinitive detected (may be acceptable in some contexts)",
@@ -150,8 +162,11 @@ class TerminologyChecks(BaseChecker):
                         "category": getattr(self, "category", "terminology"),
                     }
                 )
+        return issues
 
-        # Check for forbidden terms (whole-word, case-insensitive)
+    def _check_forbidden_terms_in_lines(self, lines):
+        """Check for forbidden terms in text lines."""
+        issues = []
         for i, line in enumerate(lines, 1):
             for term, message in FORBIDDEN_TERMS.items():
                 pattern = rf"\b{re.escape(term)}\b"
@@ -164,8 +179,11 @@ class TerminologyChecks(BaseChecker):
                             "category": getattr(self, "category", "terminology"),
                         }
                     )
+        return issues
 
-        # Check for inconsistent terminology
+    def _check_terminology_variants_in_lines(self, lines):
+        """Check for terminology variants in text lines."""
+        issues = []
         for i, line in enumerate(lines, 1):
             for standard, variants in TERMINOLOGY_VARIANTS.items():
                 for variant in variants:
@@ -182,36 +200,14 @@ class TerminologyChecks(BaseChecker):
                                 "category": getattr(self, "category", "terminology"),
                             }
                         )
+        return issues
 
-        # Check for obsolete term replacements
+    def _check_obsolete_terms_in_lines(self, lines):
+        """Check for obsolete terms that need replacement."""
+        issues = []
         for i, line in enumerate(lines, 1):
             for obsolete, approved in TERM_REPLACEMENTS.items():
-                # Handle special cases that need different regex patterns
-                if obsolete in [
-                    "CFR Part",
-                    "U.S.C",
-                    "USC",
-                    "in accordance with",
-                    "in compliance with",
-                ]:
-                    # For phrases and specific formatting, use exact matching
-                    if obsolete == "CFR Part":
-                        pattern = r"\bCFR\s+Part\b"
-                    elif obsolete == "U.S.C":
-                        # Match U.S.C without a final period - more precise pattern
-                        pattern = r"\bU\.S\.C(?!\.)(?=\s|$)"
-                    elif obsolete == "USC":
-                        # Match USC without periods
-                        pattern = r"\bUSC\b"
-                    elif obsolete in ["in accordance with", "in compliance with"]:
-                        # Match the full phrase
-                        pattern = rf"\b{re.escape(obsolete)}\b"
-                    else:
-                        pattern = rf"\b{re.escape(obsolete)}\b"
-                else:
-                    # Standard word boundary matching for other terms
-                    pattern = rf"\b{re.escape(obsolete)}\b"
-
+                pattern = self._get_pattern_for_obsolete_term(obsolete)
                 if re.search(pattern, line, re.IGNORECASE):
                     logger.debug(f"[Terminology] Matched obsolete term '{obsolete}' in line {i}")
                     # Skip 'additionally' since it's handled in forbidden terms
@@ -224,13 +220,31 @@ class TerminologyChecks(BaseChecker):
                             "category": getattr(self, "category", "terminology"),
                         }
                     )
+        return issues
 
-        # Add issues to the result
-        result.issues.extend(issues)
-        if issues:
-            result.success = False
-        logger.debug(f"Terminology checks completed. Found {len(issues)} issues.")
-        return result
+    def _get_pattern_for_obsolete_term(self, obsolete):
+        """Get the appropriate regex pattern for an obsolete term."""
+        special_cases = [
+            "CFR Part",
+            "U.S.C",
+            "USC",
+            "in accordance with",
+            "in compliance with",
+        ]
+
+        if obsolete in special_cases:
+            if obsolete == "CFR Part":
+                return r"\bCFR\s+Part\b"
+            elif obsolete == "U.S.C":
+                return r"\bU\.S\.C(?!\.)(?=\s|$)"
+            elif obsolete == "USC":
+                return r"\bUSC\b"
+            elif obsolete in ["in accordance with", "in compliance with"]:
+                return rf"\b{re.escape(obsolete)}\b"
+            else:
+                return rf"\b{re.escape(obsolete)}\b"
+        else:
+            return rf"\b{re.escape(obsolete)}\b"
 
     def check(self, content: str) -> Dict[str, Any]:
         """
@@ -249,7 +263,20 @@ class TerminologyChecks(BaseChecker):
         paragraphs = content.split("\n")
         logger.debug(f"Processing {len(paragraphs)} paragraphs")
 
-        # Check USC/CFR formatting
+        # Run individual check methods
+        warnings.extend(self._check_usc_cfr_formatting(paragraphs))
+        warnings.extend(self._check_gendered_terms(paragraphs))
+        warnings.extend(self._check_plain_language(paragraphs))
+        warnings.extend(self._check_aviation_terminology(paragraphs))
+        warnings.extend(self._check_qualifiers(paragraphs))
+        warnings.extend(self._check_plural_usage(paragraphs))
+        warnings.extend(self._check_obsolete_citations(paragraphs))
+
+        return {"has_errors": len(errors) > 0, "errors": errors, "warnings": warnings}
+
+    def _check_usc_cfr_formatting(self, paragraphs):
+        """Check USC/CFR formatting in paragraphs."""
+        warnings = []
         for i, paragraph in enumerate(paragraphs, 1):
             # Check USC formatting
             if "USC" in paragraph:
@@ -290,8 +317,11 @@ class TerminologyChecks(BaseChecker):
                         "category": getattr(self, "category", "terminology"),
                     }
                 )
+        return warnings
 
-        # Check gendered terms
+    def _check_gendered_terms(self, paragraphs):
+        """Check for gendered terms in paragraphs."""
+        warnings = []
         gendered_terms = {"chairman": "chair", "flagman": "flagperson", "manpower": "labor force"}
         for i, paragraph in enumerate(paragraphs, 1):
             for term, replacement in gendered_terms.items():
@@ -304,8 +334,11 @@ class TerminologyChecks(BaseChecker):
                             "category": getattr(self, "category", "terminology"),
                         }
                     )
+        return warnings
 
-        # Check plain language
+    def _check_plain_language(self, paragraphs):
+        """Check for legalese terms that should be simplified."""
+        warnings = []
         legalese_terms = [
             "pursuant to",
             "in accordance with",
@@ -321,7 +354,9 @@ class TerminologyChecks(BaseChecker):
                         warnings.append(
                             {
                                 "line": i,
-                                "message": "Change '{term}' to an alternative like 'under' or 'following'",
+                                "message": (
+                                    "Change '{term}' to an alternative like 'under' or 'following'"
+                                ),
                                 "severity": Severity.WARNING,
                                 "category": getattr(self, "category", "terminology"),
                             }
@@ -335,8 +370,11 @@ class TerminologyChecks(BaseChecker):
                                 "category": getattr(self, "category", "terminology"),
                             }
                         )
+        return warnings
 
-        # Check aviation terminology
+    def _check_aviation_terminology(self, paragraphs):
+        """Check aviation terminology usage."""
+        warnings = []
         aviation_terms = {
             "flight crew": "flightcrew",
             "cockpit": "flight deck",
@@ -353,8 +391,11 @@ class TerminologyChecks(BaseChecker):
                             "category": getattr(self, "category", "terminology"),
                         }
                     )
+        return warnings
 
-        # Check qualifiers
+    def _check_qualifiers(self, paragraphs):
+        """Check for unnecessary qualifiers."""
+        warnings = []
         qualifiers = ["very", "extremely", "quite"]
         for i, paragraph in enumerate(paragraphs, 1):
             for qualifier in qualifiers:
@@ -367,8 +408,11 @@ class TerminologyChecks(BaseChecker):
                             "category": getattr(self, "category", "terminology"),
                         }
                     )
+        return warnings
 
-        # Check plural usage
+    def _check_plural_usage(self, paragraphs):
+        """Check plural noun usage."""
+        warnings = []
         plural_terms = ["data", "criteria", "phenomena"]
         for i, paragraph in enumerate(paragraphs, 1):
             for term in plural_terms:
@@ -376,16 +420,19 @@ class TerminologyChecks(BaseChecker):
                     warnings.append(
                         {
                             "line": i,
-                                    "message": (
-                                        f"Use '{term}' as a plural noun (e.g., 'criteria are'). "
-                                        "Note: 'data is' is now widely accepted."
-                                    ),
+                            "message": (
+                                f"Use '{term}' as a plural noun (e.g., 'criteria are'). "
+                                "Note: 'data is' is now widely accepted."
+                            ),
                             "severity": Severity.WARNING,
                             "category": getattr(self, "category", "terminology"),
                         }
                     )
+        return warnings
 
-        # Enhanced check for obsolete authority citations
+    def _check_obsolete_citations(self, paragraphs):
+        """Check for obsolete authority citations."""
+        warnings = []
         AUTHORITY_LINE_REGEX = re.compile(r"Authority\s*:(.*)", re.IGNORECASE)
         OBSOLETE_CITATIONS = [
             (
@@ -413,14 +460,16 @@ class TerminologyChecks(BaseChecker):
                         warnings.append(
                             {
                                 "line": i,
-                                "message": f"Remove '{citation}'. This authority citation was deleted by the FAA Reauthorization.",
+                                "message": (
+                                    f"Remove '{citation}'. This authority citation was deleted "
+                                    f"by the FAA Reauthorization."
+                                ),
                                 "severity": Severity.WARNING,
                                 "suggestion": corrected,
                                 "category": getattr(self, "category", "terminology"),
                             }
                         )
-
-        return {"has_errors": len(errors) > 0, "errors": errors, "warnings": warnings}
+        return warnings
 
     # ----------------------------------------------------------
     # Proposed-language guardrail
