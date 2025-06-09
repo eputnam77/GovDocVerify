@@ -210,9 +210,6 @@ class TerminologyChecks(BaseChecker):
                 pattern = self._get_pattern_for_obsolete_term(obsolete)
                 if re.search(pattern, line, re.IGNORECASE):
                     logger.debug(f"[Terminology] Matched obsolete term '{obsolete}' in line {i}")
-                    # Skip 'additionally' since it's handled in forbidden terms
-                    if obsolete == "additionally":
-                        continue
                     issues.append(
                         {
                             "message": f'Change "{obsolete}" to "{approved}"',

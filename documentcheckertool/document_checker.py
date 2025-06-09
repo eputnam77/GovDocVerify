@@ -211,3 +211,67 @@ class FAADocumentChecker:
                 if isinstance(check, dict) and check.get("issues"):
                     return True
         return False
+
+    def check_paragraph_length(self, content, max_words: int = 150) -> DocumentCheckResult:
+        """Check paragraph length for given content."""
+        logger.debug(f"Checking paragraph length for {len(content)} items")
+        results = DocumentCheckResult()
+
+        if isinstance(content, list):
+            # Join list content into paragraphs
+            for paragraph_text in content:
+                if paragraph_text.strip():
+                    self.structure_checks._check_paragraph_length(paragraph_text, results, max_words)
+        else:
+            # Handle single string content
+            self.structure_checks._check_paragraph_length(content, results, max_words)
+
+        results.success = len(results.issues) == 0
+        return results
+
+    def check_sentence_length(self, content, max_words: int = 30) -> DocumentCheckResult:
+        """Check sentence length for given content."""
+        logger.debug(f"Checking sentence length for {len(content)} items")
+        results = DocumentCheckResult()
+
+        if isinstance(content, list):
+            # Join list content and check sentences
+            full_text = " ".join(content)
+            self.structure_checks._check_sentence_length(full_text, results, max_words)
+        else:
+            # Handle single string content
+            self.structure_checks._check_sentence_length(content, results, max_words)
+
+        results.success = len(results.issues) == 0
+        return results
+
+    def check_readability(self, content) -> DocumentCheckResult:
+        """Check readability for given content."""
+        logger.debug(f"Checking readability for {len(content)} items")
+
+        if isinstance(content, list):
+            # Convert list to text format expected by readability checker
+            full_text = "\n".join(content)
+        else:
+            full_text = content
+
+        # Use the readability checker's check_text method
+        return self.readability_checks.check_text(full_text)
+
+    def check_section_508_compliance(self, doc_path: str) -> DocumentCheckResult:
+        """Check Section 508 compliance for a document."""
+        logger.debug(f"Checking Section 508 compliance for: {doc_path}")
+
+        try:
+            # Load the document
+            doc = self._load_document(doc_path)
+
+            # Use accessibility checker for 508 compliance
+            return self.accessibility_checks.check_document(doc, "508_compliance")
+
+        except Exception as e:
+            logger.error(f"Error checking Section 508 compliance: {str(e)}")
+            return DocumentCheckResult(
+                success=False,
+                issues=[{"error": f"Error checking Section 508 compliance: {str(e)}"}]
+            )

@@ -20,6 +20,7 @@ class TestBase(unittest.TestCase):
         """Set up test environment."""
         self.test_dir = Path(__file__).parent / "test_files"
         self.test_dir.mkdir(exist_ok=True)
+        self.test_data_dir = Path(__file__).parent / "test_data"
         self.terminology_manager = TerminologyManager()
         self.checker = FAADocumentChecker()
 

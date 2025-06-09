@@ -80,8 +80,7 @@ class TestTerminologyChecks(TestBase):
         logger.debug(f"Additionally usage check result: {result}")
         logger.debug(f"Issues found: {result.issues}")
         self.assert_has_issues(result)
-        self.assert_issue_contains(result, "Avoid using 'Additionally'")
-        self.assert_issue_contains(result, "Replace with 'In addition'")
+        self.assert_issue_contains(result, 'Change "additionally" to "in addition')
 
     def test_split_infinitives(self):
         """Test checking for split infinitives."""

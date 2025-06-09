@@ -1,5 +1,4 @@
 # pytest -v tests/test_structure.py --log-cli-level=DEBUG
-
 import os
 import unittest
 

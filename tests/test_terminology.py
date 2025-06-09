@@ -40,12 +40,12 @@ class TestTerminologyChecks:
         )
         result = self.terminology_checks.check(content)
         assert not result["has_errors"]
-        assert any("chairman should be chair" in issue["message"] for issue in result["warnings"])
+        assert any("Change chairman to chair" in issue["message"] for issue in result["warnings"])
         assert any(
-            "flagman should be flagperson" in issue["message"] for issue in result["warnings"]
+            "Change flagman to flagperson" in issue["message"] for issue in result["warnings"]
         )
         assert any(
-            "manpower should be labor force" in issue["message"] for issue in result["warnings"]
+            "Change manpower to labor force" in issue["message"] for issue in result["warnings"]
         )
 
     def test_plain_language(self):
@@ -59,7 +59,7 @@ class TestTerminologyChecks:
         result = self.terminology_checks.check(content)
         assert not result["has_errors"]
         assert any(
-            "Use simpler alternatives like 'under' or 'following'" in issue["message"]
+            "Change" in issue["message"] and "to an alternative like 'under' or 'following'" in issue["message"]
             for issue in result["warnings"]
         )
 
@@ -74,13 +74,13 @@ class TestTerminologyChecks:
         result = self.terminology_checks.check(content)
         assert not result["has_errors"]
         assert any(
-            "flight crew should be flightcrew" in issue["message"] for issue in result["warnings"]
+            "Change flight crew to flightcrew" in issue["message"] for issue in result["warnings"]
         )
         assert any(
-            "cockpit should be flight deck" in issue["message"] for issue in result["warnings"]
+            "Change cockpit to flight deck" in issue["message"] for issue in result["warnings"]
         )
         assert any(
-            "notice to air missions should be notice to airmen" in issue["message"]
+            "Change notice to air missions to notice to airmen" in issue["message"]
             for issue in result["warnings"]
         )
 
@@ -109,7 +109,7 @@ class TestTerminologyChecks:
         result = self.terminology_checks.check(content)
         assert not result["has_errors"]
         assert any(
-            "Avoid unnecessary qualifiers" in issue["message"] for issue in result["warnings"]
+            "Remove the unnecessary qualifier" in issue["message"] for issue in result["warnings"]
         )
 
     def test_plural_usage(self):
@@ -119,7 +119,7 @@ class TestTerminologyChecks:
         result = self.terminology_checks.check(content)
         assert not result["has_errors"]
         assert any(
-            "Ensure consistent singular/plural usage" in issue["message"]
+            "Use" in issue["message"] and "as a plural noun" in issue["message"]
             for issue in result["warnings"]
         )
 
@@ -151,8 +151,7 @@ class TestTerminologyChecks:
         flagged = [
             issue
             for issue in result["warnings"]
-            if "49 U.S.C. 106(g) is no longer valid; confirm or remove this citation."
-            in issue["message"]
+            if "Remove '49 U.S.C. 106(g)'" in issue["message"] and "This authority citation was deleted" in issue["message"]
         ]
         assert len(flagged) >= 1
         # Check that a suggestion is present and 106(g) is removed from the suggestion
