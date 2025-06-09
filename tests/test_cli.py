@@ -4,6 +4,7 @@ from unittest.mock import patch
 
 import pytest
 
+from documentcheckertool.cli import main, process_document
 from documentcheckertool.utils.terminology_utils import TerminologyManager
 
 
@@ -12,13 +13,23 @@ class TestCLI:
     def setup(self):
         self.terminology_manager = TerminologyManager()
 
-    @patch("documentcheckertool.cli.DocumentChecker")
+    @patch("documentcheckertool.cli.FAADocumentChecker")
     def test_process_document(self, mock_checker):
-        mock_checker.return_value.check.return_value = {
-            "has_errors": False,
-            "rendered": "",
-            "by_category": {},
-        }
+        # Mock the checker's run_all_document_checks method
+        mock_result = type('MockResult', (), {
+            'success': True,
+            'issues': [],
+            'per_check_results': {
+                'test_category': {
+                    'test_check': {
+                        'success': True,
+                        'issues': [],
+                        'details': {}
+                    }
+                }
+            }
+        })()
+        mock_checker.return_value.run_all_document_checks.return_value = mock_result
 
         result = process_document("test.docx", "ADVISORY_CIRCULAR")
         assert not result["has_errors"]
@@ -70,12 +81,3 @@ class TestCLI:
         with patch("sys.argv", ["script.py", "test.docx", "ADVISORY_CIRCULAR"]):
             result = main()
             assert result == 1
-
-
-# Mock or stub for testing purposes
-def process_document(file_path, doc_type):
-    return {"has_errors": False, "rendered": "", "by_category": {}}
-
-
-def main():
-    return 0

@@ -23,7 +23,7 @@ class TestContentChecks:
         content = "Pursuant to the regulations, the following requirements are established."
         result = self.terminology_checks.check(content)
         # Should warn about non-plain language ("Pursuant")
-        assert any("simpler alternatives" in w["message"] for w in result["warnings"])
+        assert any("alternative like 'under' or 'following'" in w["message"] for w in result["warnings"])
 
     def test_active_voice(self):
         content = "The requirements are established by this document."
@@ -36,7 +36,7 @@ class TestContentChecks:
         result = self.readability_checks.check(content)
         # Check that the advisory message is present
         assert any(
-            "Passive voice is flagged as a readability recommendation" in issue["message"]
+            "This is a readability recommendation, not a strict style rule" in issue["message"]
             for issue in result["warnings"]
         )
         # Check that the advisory tag is present
