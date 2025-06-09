@@ -155,14 +155,22 @@ class HeadingChecks(BaseChecker):
                 continue
 
             # Check if the heading text contains any of the valid heading words
+            # Check if the heading text contains any of the valid heading words
             if not any(word in heading_text_no_period.upper() for word in heading_words):
-                logger.warning(f"Invalid heading word in line {i}: {heading_text}")
+                logger.warning(
+                    "Line %d: Heading '%s' does not use a valid heading word.", i, heading_text
+                )
                 issues.append(
                     {
                         "type": "invalid_word",
                         "line": line,
-                        "message": "Heading formatting issue",
-                        "suggestion": f'Use a valid heading word from: {", ".join(sorted(heading_words))}',
+                        "message": (
+                            "This heading does not use an approved heading word."
+                        ),
+                        "suggestion": (
+                            "Start the heading with one of these words: "
+                            f"{', '.join(sorted(heading_words))}"
+                        ),
                         "category": self.category,
                     }
                 )
@@ -215,7 +223,9 @@ class HeadingChecks(BaseChecker):
                         "If not applicable, you can ignore this message."
                     )
                     logger.info(
-                        f"Optional/conditional heading '{heading_name}' missing; issued INFO-level message."
+                        "Heading '%s' is missing. This section is needed only if the document "
+                        "cancels an earlier version. If not, you can ignore this info.",
+                        heading_name
                     )
                     issues.append(
                         {
@@ -435,13 +445,14 @@ class HeadingChecks(BaseChecker):
         """
         # When going to a deeper level, only allow one level at a time
         if current_level > previous_level:
-            if current_level != previous_level + 1:
-                return f"Skipped heading level(s) {previous_level + 1} - Found H{current_level} after H{previous_level}. Add H{previous_level + 1} before this section."
-
-        # All other cases are valid:
-        # - Going to H1 (restart numbering)
-        # - Going to any higher level (e.g., H3 to H1)
-        return None
+            if current_level > previous_level:
+                if current_level != previous_level + 1:
+                    return (
+                        f"Heading H{current_level} follows H{previous_level}. "
+                        f"Missing heading H{previous_level + 1}. "
+                        "Add the missing heading to keep correct order."
+                    )
+            return None
 
     def _check_heading_hierarchy(self, headings_with_lines, results):
         """Check if headings follow proper hierarchy."""
@@ -476,7 +487,8 @@ class HeadingChecks(BaseChecker):
         for heading, line_number in headings_with_lines:
             text = heading.text.strip()
 
-            # Skip period check for long text that's likely a paragraph incorrectly marked as heading
+            # Skip period check for long text that's likely a paragraph
+            # incorrectly marked as heading
             word_count = len(text.split())
             char_count = len(text)
 
@@ -485,7 +497,10 @@ class HeadingChecks(BaseChecker):
                 or word_count > self.MAX_HEADING_WORDS_FOR_PERIOD_CHECK
             ):
                 logger.debug(
-                    f"Skipping period check for heading - too long ({char_count} chars, {word_count} words): {text[:50]}..."
+                    "Skipping period check for heading: too long (%d chars, %d words): %.50s...",
+                    char_count,
+                    word_count,
+                    text,
                 )
                 continue
 

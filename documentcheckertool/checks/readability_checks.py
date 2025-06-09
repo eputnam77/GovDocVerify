@@ -77,15 +77,23 @@ class ReadabilityChecks(BaseChecker):
 
             # Check thresholds
             if flesch_ease < 60:
+                message = (
+                    f"Text is hard to read (Flesch Reading Ease: {flesch_ease:.1f}). "
+                    "Use simpler words and shorter sentences to improve readability."
+                )
                 results.add_issue(
-                    message=f"Text may be difficult to read (Flesch Reading Ease: {flesch_ease:.1f}). Consider simplifying language.",
+                    message=message,
                     severity=Severity.WARNING,
                     category=getattr(self, "category", "readability"),
                 )
 
             if flesch_grade > 12:
+                message = (
+                    f"Text is complex (Flesch-Kincaid Grade Level: {flesch_grade:.1f}). "
+                    "Consider using simpler words and shorter sentences for a wider audience."
+                )
                 results.add_issue(
-                    message=f"Text may be too complex for general audience (Flesch-Kincaid Grade Level: {flesch_grade:.1f}).",
+                    message=message,
                     severity=Severity.WARNING,
                     category=getattr(self, "category", "readability"),
                 )
@@ -95,8 +103,12 @@ class ReadabilityChecks(BaseChecker):
                 word_count = len(sentence.split())
                 if word_count > 25:
                     sentence_preview = self._get_text_preview(sentence.strip())
+                    message = (
+                        f"Sentence '{sentence_preview}' is too long ({word_count} words). "
+                        "Split it into shorter sentences for clarity."
+                    )
                     results.add_issue(
-                        message=f"Sentence '{sentence_preview}' is too long ({word_count} words). Consider breaking it into smaller sentences.",
+                        message=message,
                         severity=Severity.WARNING,
                         category=getattr(self, "category", "readability"),
                     )
@@ -180,13 +192,14 @@ class ReadabilityChecks(BaseChecker):
             word_count = count_words(sentence)
             if word_count > self.readability_config.get("max_sentence_length", 20):
                 sentence_preview = self._get_text_preview(sentence.strip())
+                message = (
+                    f"Sentence '{sentence_preview}' is too long ({word_count} words). "
+                    "Split it into shorter sentences for clarity."
+                )
                 warnings.append(
                     {
                         "line": i,
-                        "message": (
-                            f"Sentence '{sentence_preview}' is {word_count} words long. "
-                            "Consider breaking it into shorter sentences for better readability."
-                        ),
+                        "message": message,
                         "severity": Severity.WARNING,
                     }
                 )

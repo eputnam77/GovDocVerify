@@ -64,7 +64,7 @@ class ValidationFormatting:
 
     WATERMARK_VALIDATION = {
         "missing": "Document is missing required watermark",
-        "incorrect": 'Incorrect watermark for {stage} stage. Found: "{found}", Expected: "{expected}"',
+        "incorrect": 'Change "{found}" watermark to "{expected}"',
         "success": "Watermark validation passed: {watermark}",
     }
 
@@ -198,7 +198,8 @@ class StructureChecks(BaseChecker):
                     is_list_section = False
                     if current_section_name and list_pattern.search(current_section_name):
                         logger.debug(
-                            f"Section '{current_section_name}' identified as list section by title pattern"
+                            "Section '%s' is a list section (matched by title pattern).",
+                            current_section_name,
                         )
                         is_list_section = True
                     else:
@@ -210,18 +211,26 @@ class StructureChecks(BaseChecker):
                             (bullet_count / len(current_section)) * 100 if current_section else 0
                         )
                         logger.debug(
-                            f"Section '{current_section_name}' bullet analysis: {bullet_count}/{len(current_section)} paragraphs are bullets ({bullet_percentage:.1f}%)"
+                            "Section '%s' bullet analysis: %d/%d paragraphs are bullets (%.1f%%)",
+                            current_section_name,
+                            bullet_count,
+                            len(current_section),
+                            bullet_percentage,
                         )
                         is_list_section = bullet_count > len(current_section) * 0.5
                         if is_list_section:
                             logger.debug(
-                                f"Section '{current_section_name}' identified as list section by bullet content"
+                                "Section '%s' is a list section (identified by bullet content).",
+                                current_section_name,
                             )
 
                     section_lengths.append((len(current_section), is_list_section))
                     section_names.append(current_section_name)
                     logger.debug(
-                        f"Added section '{current_section_name}' with length {len(current_section)} (is_list={is_list_section})"
+                        "Added section '%s' (length=%d, is_list=%s)",
+                        current_section_name,
+                        len(current_section),
+                        is_list_section,
                     )
                 current_section = []
                 current_section_name = para.text
@@ -233,28 +242,38 @@ class StructureChecks(BaseChecker):
             is_list_section = False
             if current_section_name and list_pattern.search(current_section_name):
                 logger.debug(
-                    f"Final section '{current_section_name}' identified as list section by title pattern"
+                    "Final section '%s' is a list section (title matched pattern)",
+                    current_section_name,
                 )
                 is_list_section = True
             else:
-                bullet_count = sum(1 for p in current_section if bullet_pattern.match(p.text))
+                bullet_count = sum(
+                    1 for p in current_section if bullet_pattern.match(p.text)
+                )
                 bullet_percentage = (
-                    (bullet_count / len(current_section)) * 100 if current_section else 0
+                    (bullet_count / len(current_section)) * 100
+                    if current_section else 0
                 )
                 logger.debug(
-                    f"Final section '{current_section_name}' bullet analysis: "
-                    f"{bullet_count}/{len(current_section)} paragraphs are bullets "
-                    f"({bullet_percentage:.1f}%)"
+                    "Final section '%s' bullet analysis: %d/%d are bullets (%.1f%%)",
+                    current_section_name,
+                    bullet_count,
+                    len(current_section),
+                    bullet_percentage,
                 )
                 is_list_section = bullet_count > len(current_section) * 0.5
                 if is_list_section:
                     logger.debug(
-                        f"Final section '{current_section_name}' identified as list section by bullet content"
+                        "Final section '%s' is a list section (by bullet content)",
+                        current_section_name,
                     )
             section_lengths.append((len(current_section), is_list_section))
             section_names.append(current_section_name)
             logger.debug(
-                f"Added final section '{current_section_name}' with length {len(current_section)} (is_list={is_list_section})"
+                "Added final section '%s' with length %d (is_list=%s)",
+                current_section_name,
+                len(current_section),
+                is_list_section,
             )
 
         # Check for significant imbalance
@@ -297,7 +316,12 @@ class StructureChecks(BaseChecker):
                 )  # Higher threshold for list sections
 
                 logger.debug(
-                    f"Checking section '{name}': length={length}, is_list={is_list}, avg={avg_length:.1f}, threshold={threshold:.1f}"
+                    "Checking section '%s': length=%d, is_list=%s, avg=%.1f, threshold=%.1f",
+                    name,
+                    length,
+                    is_list,
+                    avg_length,
+                    threshold,
                 )
 
                 if length > threshold:
@@ -530,25 +554,28 @@ class StructureChecks(BaseChecker):
             return
 
         section_refs = re.finditer(
-            r"(?:paragraph|section|appendix)\s+([A-Z]?\.?\d+(?:\.\d+)*)", para_text, re.IGNORECASE
+            r"(?:paragraph|section|appendix)\s+([A-Z]?\.?\d+(?:\.\d+)*)",
+            para_text,
+            re.IGNORECASE,
         )
 
         for match in section_refs:
             ref = match.group(1).strip(".")
             if ref not in valid_sections:
-                found = False
-                for valid_section in valid_sections:
-                    if valid_section.strip(".") == ref.strip("."):
-                        found = True
-                        break
-
+                found = any(valid_section.strip(".") == ref for valid_section in valid_sections)
                 if not found:
+                    context_snippet = (
+                        para_text[:60] + "..." if len(para_text) > 60 else para_text
+                    )
                     issues.append(
                         {
                             "type": "Paragraph",
                             "reference": ref,
                             "context": para_text,
-                            "message": f"Confirm paragraph {ref} referenced in '{para_text}' exists in the document",
+                            "message": (
+                                f"Reference to '{ref}' not found. "
+                                f"Please check this section exists: '{context_snippet}'"
+                            ),
                             "severity": Severity.ERROR,
                         }
                     )
