@@ -258,7 +258,7 @@ def _create_main_form(template_types):
                     value="category",
                     label="Group Results By",
                     info="Choose how to group the results: by functional "
-                         "category or by severity.",
+                    "category or by severity.",
                 )
 
                 # Visibility controls
@@ -275,27 +275,23 @@ def _create_main_form(template_types):
                 results = gr.HTML(elem_classes="results-container")
                 status_box = gr.Markdown("", elem_id="status-box")
                 with gr.Row():
-                    download_docx = gr.Button(
-                        "📄 Download Report (DOCX)", visible=False
-                    )
-                    download_pdf = gr.Button(
-                        "📑 Download Report (PDF)", visible=False
-                    )
+                    download_docx = gr.Button("📄 Download Report (DOCX)", visible=False)
+                    download_pdf = gr.Button("📑 Download Report (PDF)", visible=False)
                 report_file = gr.File(label="Download Report", visible=False)
 
     # Return all components needed for event handling
     return {
-        'file_input': file_input,
-        'doc_type': doc_type,
-        'template_type': template_type,
-        'group_by': group_by,
-        'submit_btn': submit_btn,
-        'results': results,
-        'status_box': status_box,
-        'download_docx': download_docx,
-        'download_pdf': download_pdf,
-        'report_file': report_file,
-        **visibility_components
+        "file_input": file_input,
+        "doc_type": doc_type,
+        "template_type": template_type,
+        "group_by": group_by,
+        "submit_btn": submit_btn,
+        "results": results,
+        "status_box": status_box,
+        "download_docx": download_docx,
+        "download_pdf": download_pdf,
+        "report_file": report_file,
+        **visibility_components,
     }
 
 
@@ -348,14 +344,14 @@ def _create_visibility_controls():
                 )
 
     return {
-        'show_readability': show_readability,
-        'show_paragraph_length': show_paragraph_length,
-        'show_terminology': show_terminology,
-        'show_headings': show_headings,
-        'show_structure': show_structure,
-        'show_format': show_format,
-        'show_accessibility': show_accessibility,
-        'show_document_status': show_document_status,
+        "show_readability": show_readability,
+        "show_paragraph_length": show_paragraph_length,
+        "show_terminology": show_terminology,
+        "show_headings": show_headings,
+        "show_structure": show_structure,
+        "show_format": show_format,
+        "show_accessibility": show_accessibility,
+        "show_document_status": show_document_status,
     }
 
 
@@ -376,58 +372,60 @@ def _create_footer():
 
 def _setup_event_handlers(components):
     """Set up all event handlers for the interface."""
+
     # Template visibility handler
     def update_template_visibility(doc_type_value):
         return gr.update(visible=doc_type_value == "Advisory Circular")
 
-    components['doc_type'].change(
+    components["doc_type"].change(
         fn=update_template_visibility,
-        inputs=[components['doc_type']],
-        outputs=[components['template_type']],
+        inputs=[components["doc_type"]],
+        outputs=[components["template_type"]],
     )
 
     # Main processing handler
-    components['submit_btn'].click(
+    components["submit_btn"].click(
         fn=_create_process_function(),
         inputs=[
-            components['file_input'],
-            components['doc_type'],
-            components['template_type'],
-            components['group_by'],
-            components['show_readability'],
-            components['show_paragraph_length'],
-            components['show_terminology'],
-            components['show_headings'],
-            components['show_structure'],
-            components['show_format'],
-            components['show_accessibility'],
-            components['show_document_status'],
+            components["file_input"],
+            components["doc_type"],
+            components["template_type"],
+            components["group_by"],
+            components["show_readability"],
+            components["show_paragraph_length"],
+            components["show_terminology"],
+            components["show_headings"],
+            components["show_structure"],
+            components["show_format"],
+            components["show_accessibility"],
+            components["show_document_status"],
         ],
         outputs=[
-            components['results'],
-            components['download_docx'],
-            components['download_pdf'],
-            components['report_file'],
-            components['status_box']
+            components["results"],
+            components["download_docx"],
+            components["download_pdf"],
+            components["report_file"],
+            components["status_box"],
         ],
     )
 
     # Download handlers
-    components['download_docx'].click(
+    components["download_docx"].click(
         fn=lambda: generate_report_file(None, None, "docx"),
         inputs=[],
-        outputs=[components['report_file']],
+        outputs=[components["report_file"]],
     )
 
-    components['download_pdf'].click(
+    components["download_pdf"].click(
         fn=lambda: generate_report_file(None, None, "pdf"),
         inputs=[],
-        outputs=[components['report_file']],
+        outputs=[components["report_file"]],
     )
 
 
 def _create_process_function():
     """Create the main document processing function."""
+
     def process_and_format(
         file_obj,
         doc_type_value,
@@ -479,12 +477,19 @@ def _create_process_function():
 
                 # Process and format results
                 return _process_results(
-                    results_dict, result_obj, doc_type_value, group_by_value,
-                    show_readability_value, show_paragraph_length_value,
-                    show_terminology_value, show_headings_value,
-                    show_structure_value, show_format_value,
-                    show_accessibility_value, show_document_status_value,
-                    status
+                    results_dict,
+                    result_obj,
+                    doc_type_value,
+                    group_by_value,
+                    show_readability_value,
+                    show_paragraph_length_value,
+                    show_terminology_value,
+                    show_headings_value,
+                    show_structure_value,
+                    show_format_value,
+                    show_accessibility_value,
+                    show_document_status_value,
+                    status,
                 )
 
             finally:
@@ -508,12 +513,19 @@ def _create_process_function():
 
 
 def _process_results(
-    results_dict, result_obj, doc_type_value, group_by_value,
-    show_readability_value, show_paragraph_length_value,
-    show_terminology_value, show_headings_value,
-    show_structure_value, show_format_value,
-    show_accessibility_value, show_document_status_value,
-    status
+    results_dict,
+    result_obj,
+    doc_type_value,
+    group_by_value,
+    show_readability_value,
+    show_paragraph_length_value,
+    show_terminology_value,
+    show_headings_value,
+    show_structure_value,
+    show_format_value,
+    show_accessibility_value,
+    show_document_status_value,
+    status,
 ):
     """Process and format the check results."""
     # Count issues in results_dict
@@ -521,10 +533,14 @@ def _process_results(
 
     # Build visibility settings
     visibility_settings = _build_visibility_settings(
-        show_readability_value, show_paragraph_length_value,
-        show_terminology_value, show_headings_value,
-        show_structure_value, show_format_value,
-        show_accessibility_value, show_document_status_value
+        show_readability_value,
+        show_paragraph_length_value,
+        show_terminology_value,
+        show_headings_value,
+        show_structure_value,
+        show_format_value,
+        show_accessibility_value,
+        show_document_status_value,
     )
 
     # Get selected categories and filter results
@@ -554,8 +570,12 @@ def _process_results(
 
     # Log debug information
     _log_debug_info(
-        total_issues, issues_by_category, visibility_settings,
-        selected_categories, filtered_results, formatted_results
+        total_issues,
+        issues_by_category,
+        visibility_settings,
+        selected_categories,
+        filtered_results,
+        formatted_results,
     )
 
     logger.debug(f"Formatted HTML results: {formatted_results[:500]}")
@@ -584,10 +604,10 @@ def format_error_message(error: str) -> str:
     """Format error messages for display in the UI."""
     return (
         f'<div style="color: #721c24; background-color: #f8d7da; '
-        f'padding: 20px; '
+        f"padding: 20px; "
         'border-radius: 8px; margin: 20px 0;">'
         f'<h3 style="color: #721c24; margin-top: 0;">'
-        'Error Processing Document</h3>'
+        "Error Processing Document</h3>"
         f'<p style="margin-bottom: 0;">{error}</p>'
         "</div>"
     )
@@ -624,10 +644,14 @@ def _count_issues_in_results(results_dict):
 
 
 def _build_visibility_settings(
-    show_readability_value, show_paragraph_length_value,
-    show_terminology_value, show_headings_value,
-    show_structure_value, show_format_value,
-    show_accessibility_value, show_document_status_value
+    show_readability_value,
+    show_paragraph_length_value,
+    show_terminology_value,
+    show_headings_value,
+    show_structure_value,
+    show_format_value,
+    show_accessibility_value,
+    show_document_status_value,
 ):
     """Build visibility settings from UI values."""
     return VisibilitySettings(
@@ -671,9 +695,14 @@ def _filter_results_by_visibility(results_dict, selected_categories):
     return filtered_results
 
 
-def _log_debug_info(total_issues, issues_by_category,
-                    visibility_settings, selected_categories,
-                    filtered_results, formatted_results):
+def _log_debug_info(
+    total_issues,
+    issues_by_category,
+    visibility_settings,
+    selected_categories,
+    filtered_results,
+    formatted_results,
+):
     """Log debug information for UI display."""
     logger.debug(f"[UI DEBUG] Total issues in results_dict: {total_issues}")
     logger.debug(f"[UI DEBUG] Issues by category: {issues_by_category}")
@@ -706,7 +735,7 @@ def _extract_report_data():
         "results_dict": _last_results["results"],
         "visibility_settings": VisibilitySettings.from_dict(_last_results["visibility"]),
         "summary": _last_results["summary"],
-        "formatted_results": _last_results.get("formatted_results")
+        "formatted_results": _last_results.get("formatted_results"),
     }
 
 
@@ -749,9 +778,7 @@ def _generate_docx_report(filepath, summary, filtered_results, total_issues):
         # Add summary section
         doc.add_heading("Summary", level=1)
         summary_para = doc.add_paragraph()
-        summary_para.add_run(
-            f'Found {summary["total"]} issues that need attention:'
-        ).bold = True
+        summary_para.add_run(f'Found {summary["total"]} issues that need attention:').bold = True
 
         # Add category summaries
         for category, count in summary["by_category"].items():
@@ -848,9 +875,7 @@ h2 {{
 
     for category, count in summary["by_category"].items():
         if count > 0:
-            html_content += (
-                f"<li>{category.replace('_', ' ').title()}: {count} issues</li>"
-            )
+            html_content += f"<li>{category.replace('_', ' ').title()}: {count} issues</li>"
 
     html_content += """
             </ul>
@@ -871,13 +896,9 @@ h2 {{
 
                     for issue in result["issues"]:
                         line_info = (
-                            f" (Line {issue['line_number']})"
-                            if issue.get("line_number")
-                            else ""
+                            f" (Line {issue['line_number']})" if issue.get("line_number") else ""
                         )
-                        html_content += (
-                            f'<li class="issue">{issue["message"]}{line_info}</li>\n'
-                        )
+                        html_content += f'<li class="issue">{issue["message"]}{line_info}</li>\n'
 
                     html_content += "</ul>"
 

@@ -146,7 +146,7 @@ class ResultFormatter:
             elif issue.get("category") == "image_alt_text":
                 formatted_issues.append(f"    • Missing alt text: {issue.get('context', '')}")
             elif issue.get("category") == "hyperlink_accessibility":
-                message = issue.get('user_message', issue.get('message', 'No description provided'))
+                message = issue.get("user_message", issue.get("message", "No description provided"))
                 formatted_issues.append(f"    • {message}")
             elif issue.get("category") == "color_contrast":
                 formatted_issues.append(f"    • {issue.get('message', '')}")
@@ -208,28 +208,33 @@ class ResultFormatter:
     def _format_no_issues_message(self, output: List[str]) -> str:
         """Format message when no issues are found."""
         if self._style == FormatStyle.HTML:
-            output.append(
-                '<p style="color: #006400; text-align: center;">✓ All checks passed!</p>'
-            )
+            output.append('<p style="color: #006400; text-align: center;">✓ All checks passed!</p>')
             output.append("</div>")
         else:
             output.append(self._format_colored_text("✓ All checks passed!", Fore.GREEN))
             output.append("")
         return "\n".join(output)
 
-    def _format_severity_section(self, output: List[str], sev: str, issues: List,
-                                severity_titles: Dict, severity_colors_html: Dict,
-                                severity_colors_cli: Dict, severity_icons: Dict) -> None:
+    def _format_severity_section(
+        self,
+        output: List[str],
+        sev: str,
+        issues: List,
+        severity_titles: Dict,
+        severity_colors_html: Dict,
+        severity_colors_cli: Dict,
+        severity_icons: Dict,
+    ) -> None:
         """Format a section for a specific severity level."""
         if self._style == FormatStyle.HTML:
             div_style = (
-                'margin-bottom: 40px; padding: 20px; '
-                'background-color: #f8f9fa; border-radius: 8px;'
+                "margin-bottom: 40px; padding: 20px; "
+                "background-color: #f8f9fa; border-radius: 8px;"
             )
             output.append(f'<div class="category-section" style="{div_style}">')
             h2_style = (
-                f'color: {severity_colors_html[sev]}; margin-bottom: 20px; '
-                f'border-bottom: 2px solid {severity_colors_html[sev]}; padding-bottom: 10px;'
+                f"color: {severity_colors_html[sev]}; margin-bottom: 20px; "
+                f"border-bottom: 2px solid {severity_colors_html[sev]}; padding-bottom: 10px;"
             )
             output.append(f'<h2 style="{h2_style}">{severity_titles[sev]}</h2>')
             output.append('<ul style="list-style-type: none; padding-left: 20px;">')
@@ -237,7 +242,7 @@ class ResultFormatter:
                 message = issue.get("message") or issue.get("error", str(issue))
                 line = issue.get("line_number")
                 line_info = f" (Line {line})" if line is not None else ""
-                span_style = f'color: {severity_colors_html[sev]}; font-weight: bold;'
+                span_style = f"color: {severity_colors_html[sev]}; font-weight: bold;"
                 li_content = (
                     f"<li style='margin-bottom: 8px;'>"
                     f"<span style='{span_style}'>[{sev.upper()}]</span> "
@@ -272,12 +277,10 @@ class ResultFormatter:
             return self._format_no_issues_message(output)
 
         if self._style == FormatStyle.HTML:
-            html_style = 'color: #856404; text-align: center;'
+            html_style = "color: #856404; text-align: center;"
             output.append(f'<p style="{html_style}">Found {total_issues} issues:</p>')
         else:
-            output.append(
-                self._format_colored_text(f"Found {total_issues} issues:", Fore.YELLOW)
-            )
+            output.append(self._format_colored_text(f"Found {total_issues} issues:", Fore.YELLOW))
             output.append("")
 
         severity_titles = {"error": "Errors", "warning": "Warnings", "info": "Info"}
@@ -289,8 +292,13 @@ class ResultFormatter:
             issues = severity_buckets[sev]
             if issues:
                 self._format_severity_section(
-                    output, sev, issues, severity_titles,
-                    severity_colors_html, severity_colors_cli, severity_icons
+                    output,
+                    sev,
+                    issues,
+                    severity_titles,
+                    severity_colors_html,
+                    severity_colors_cli,
+                    severity_icons,
                 )
 
         if self._style == FormatStyle.HTML:
@@ -323,20 +331,21 @@ class ResultFormatter:
 
         return total_issues, categories_with_issues
 
-    def _format_category_section(self, output: List[str], category: str,
-                               category_data: List, cat_issues: int) -> None:
+    def _format_category_section(
+        self, output: List[str], category: str, category_data: List, cat_issues: int
+    ) -> None:
         """Format a section for a specific category."""
         category_title = category.replace("_", " ").title()
 
         if self._style == FormatStyle.HTML:
             div_style = (
-                'margin-bottom: 40px; padding: 20px; '
-                'background-color: #f8f9fa; border-radius: 8px;'
+                "margin-bottom: 40px; padding: 20px; "
+                "background-color: #f8f9fa; border-radius: 8px;"
             )
             output.append(f'<div class="category-section" style="{div_style}">')
             h2_style = (
-                'color: #0056b3; margin-bottom: 20px; '
-                'border-bottom: 2px solid #0056b3; padding-bottom: 10px;'
+                "color: #0056b3; margin-bottom: 20px; "
+                "border-bottom: 2px solid #0056b3; padding-bottom: 10px;"
             )
             output.append(f'<h2 style="{h2_style}">{category_title}</h2>')
             output.append('<ul style="list-style-type: none; padding-left: 20px;">')
@@ -347,8 +356,8 @@ class ResultFormatter:
                     line = issue.get("line_number")
                     line_info = f" (Line {line})" if line is not None else ""
                     check_name = getattr(result, "check_name", "General")
-                    span_style = 'color: #721c24; font-weight: bold;'
-                    check_display = check_name.replace('_', ' ').title()
+                    span_style = "color: #721c24; font-weight: bold;"
+                    check_display = check_name.replace("_", " ").title()
                     li_content = (
                         f"<li style='margin-bottom: 8px;'>"
                         f"<span style='{span_style}'>[{check_display}]</span> "
@@ -402,12 +411,11 @@ class ResultFormatter:
 
         # Show summary
         if self._style == FormatStyle.HTML:
-            html_style = 'color: #856404; text-align: center;'
+            html_style = "color: #856404; text-align: center;"
             output.append(f'<p style="{html_style}">Found {total_issues} issues.</p>')
         else:
             message = (
-                f"Found {total_issues} issues across "
-                f"{len(categories_with_issues)} categories:"
+                f"Found {total_issues} issues across " f"{len(categories_with_issues)} categories:"
             )
             output.append(self._format_colored_text(message, Fore.YELLOW))
             output.append("")
@@ -447,11 +455,12 @@ class ResultFormatter:
         else:
             # Fallback for unknown grouping
             import logging
+
             logging.error(
                 f"ResultFormatter.format_results: No implementation for group_by='{group_by}'."
             )
             if self._style == FormatStyle.HTML:
-                error_msg = '[Internal error: No category grouping implemented]'
+                error_msg = "[Internal error: No category grouping implemented]"
                 output.append(f'<p style="color: #721c24;">{error_msg}</p>')
                 output.append("</div>")
             else:

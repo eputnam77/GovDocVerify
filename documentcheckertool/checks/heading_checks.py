@@ -178,18 +178,20 @@ class HeadingChecks(BaseChecker):
         """Check if heading length is within limits. Returns True if valid."""
         if len(heading_text) > self.MAX_HEADING_LENGTH:
             logger.warning(f"Heading exceeds maximum length in line {line_num}: {heading_text}")
-            issues.append({
-                "type": "length_violation",
-                "line": line,
-                "message": (
-                    f"Heading exceeds maximum length of "
-                    f"{self.MAX_HEADING_LENGTH} characters."
-                ),
-                "suggestion": (
-                    f"Shorten heading to {self.MAX_HEADING_LENGTH} characters or less."
-                ),
-                "category": self.category,
-            })
+            issues.append(
+                {
+                    "type": "length_violation",
+                    "line": line,
+                    "message": (
+                        f"Heading exceeds maximum length of "
+                        f"{self.MAX_HEADING_LENGTH} characters."
+                    ),
+                    "suggestion": (
+                        f"Shorten heading to {self.MAX_HEADING_LENGTH} characters or less."
+                    ),
+                    "category": self.category,
+                }
+            )
             return False
         return True
 
@@ -198,19 +200,19 @@ class HeadingChecks(BaseChecker):
     ) -> bool:
         """Check if heading uses valid heading words. Returns True if valid."""
         if not any(word in heading_text.upper() for word in heading_words):
-            logger.warning(
-                "Line: Heading '%s' does not use a valid heading word.", heading_text
+            logger.warning("Line: Heading '%s' does not use a valid heading word.", heading_text)
+            issues.append(
+                {
+                    "type": "invalid_word",
+                    "line": line,
+                    "message": "This heading does not use an approved heading word.",
+                    "suggestion": (
+                        "Start the heading with one of these words: "
+                        f"{', '.join(sorted(heading_words))}"
+                    ),
+                    "category": self.category,
+                }
             )
-            issues.append({
-                "type": "invalid_word",
-                "line": line,
-                "message": "This heading does not use an approved heading word.",
-                "suggestion": (
-                    "Start the heading with one of these words: "
-                    f"{', '.join(sorted(heading_words))}"
-                ),
-                "category": self.category,
-            })
             return False
         return True
 
@@ -220,26 +222,30 @@ class HeadingChecks(BaseChecker):
         """Check heading case and format."""
         if heading_text != heading_text.upper():
             logger.warning(f"Heading should be uppercase in line {line_num}")
-            issues.append({
-                "type": "case_violation",
-                "line": line,
-                "message": "Heading should be uppercase",
-                "suggestion": line.split(".", 1)[0] + ". " + heading_text.upper(),
-                "category": self.category,
-            })
+            issues.append(
+                {
+                    "type": "case_violation",
+                    "line": line,
+                    "message": "Heading should be uppercase",
+                    "suggestion": line.split(".", 1)[0] + ". " + heading_text.upper(),
+                    "category": self.category,
+                }
+            )
         else:
             normalized = normalize_heading(line)
             if normalized != line:
                 logger.warning(f"Heading format mismatch in line {line_num}")
                 logger.debug(f"Original: {line}")
                 logger.debug(f"Normalized: {normalized}")
-                issues.append({
-                    "type": "format_violation",
-                    "line": line,
-                    "message": "Heading formatting issue",
-                    "suggestion": normalized,
-                    "category": self.category,
-                })
+                issues.append(
+                    {
+                        "type": "format_violation",
+                        "line": line,
+                        "message": "Heading formatting issue",
+                        "suggestion": normalized,
+                        "category": self.category,
+                    }
+                )
 
     def _check_missing_headings(
         self, normalized_required_headings: List[Dict], headings_found: set, issues: List[Dict]
@@ -257,13 +263,15 @@ class HeadingChecks(BaseChecker):
                     missing_headings.append(heading_name)
 
         if missing_headings:
-            issues.append({
-                "type": "missing_headings",
-                "missing": list(missing_headings),
-                "message": f'Missing required headings: {", ".join(missing_headings)}',
-                "severity": Severity.ERROR,
-                "category": self.category,
-            })
+            issues.append(
+                {
+                    "type": "missing_headings",
+                    "missing": list(missing_headings),
+                    "message": f'Missing required headings: {", ".join(missing_headings)}',
+                    "severity": Severity.ERROR,
+                    "category": self.category,
+                }
+            )
 
     def _add_optional_heading_issue(self, heading_name: str, issues: List[Dict]) -> None:
         """Add issue for missing optional heading."""
@@ -275,26 +283,35 @@ class HeadingChecks(BaseChecker):
         logger.info(
             "Heading '%s' is missing. This section is needed only if the document "
             "cancels an earlier version. If not, you can ignore this info.",
-            heading_name
+            heading_name,
         )
-        issues.append({
-            "type": "missing_optional_heading",
-            "missing": heading_name,
-            "message": info_message,
-            "severity": Severity.INFO,
-            "category": self.category,
-        })
+        issues.append(
+            {
+                "type": "missing_optional_heading",
+                "missing": heading_name,
+                "message": info_message,
+                "severity": Severity.INFO,
+                "category": self.category,
+            }
+        )
 
     def _create_heading_result(
-        self, issues: List[Dict], headings_found: set, normalized_required_headings: List[Dict],
-        doc_type_norm: str, required_headings: List
+        self,
+        issues: List[Dict],
+        headings_found: set,
+        normalized_required_headings: List[Dict],
+        doc_type_norm: str,
+        required_headings: List,
     ) -> DocumentCheckResult:
         """Create the final DocumentCheckResult."""
         missing_headings = [
-            h["name"] for h in normalized_required_headings
-            if (h["name"].upper() not in headings_found
+            h["name"]
+            for h in normalized_required_headings
+            if (
+                h["name"].upper() not in headings_found
                 and not h.get("optional", False)
-                and not h.get("condition"))
+                and not h.get("condition")
+            )
         ]
 
         details = {
@@ -418,9 +435,7 @@ class HeadingChecks(BaseChecker):
             logger.debug(f"Found heading level {current_level} with numbers: {numbers}")
 
             if prev_numbers is not None:
-                self._check_heading_sequence_issues(
-                    numbers, prev_numbers, text, i, issues
-                )
+                self._check_heading_sequence_issues(numbers, prev_numbers, text, i, issues)
 
             prev_numbers = numbers
 
@@ -439,8 +454,12 @@ class HeadingChecks(BaseChecker):
         return numbers
 
     def _check_heading_sequence_issues(
-        self, numbers: List[str], prev_numbers: List[str], text: str,
-        paragraph_num: int, issues: List[Dict[str, Any]]
+        self,
+        numbers: List[str],
+        prev_numbers: List[str],
+        text: str,
+        paragraph_num: int,
+        issues: List[Dict[str, Any]],
     ) -> None:
         """Check for heading sequence issues and add to issues list."""
         current_level = len(numbers)
@@ -451,9 +470,7 @@ class HeadingChecks(BaseChecker):
             self._add_level_skipping_issue(text, paragraph_num, prev_level, issues)
         # Check sequence within same level
         elif current_level == prev_level:
-            self._check_same_level_sequence(
-                numbers, prev_numbers, text, paragraph_num, issues
-            )
+            self._check_same_level_sequence(numbers, prev_numbers, text, paragraph_num, issues)
 
     def _add_level_skipping_issue(
         self, text: str, paragraph_num: int, prev_level: int, issues: List[Dict[str, Any]]
@@ -463,16 +480,22 @@ class HeadingChecks(BaseChecker):
             f"Invalid heading sequence in paragraph {paragraph_num}: "
             f"skipped level {prev_level + 1}"
         )
-        issues.append({
-            "text": text,
-            "message": f"Invalid heading sequence: skipped level {prev_level + 1}",
-            "suggestion": "Ensure heading levels are sequential",
-            "category": self.category,
-        })
+        issues.append(
+            {
+                "text": text,
+                "message": f"Invalid heading sequence: skipped level {prev_level + 1}",
+                "suggestion": "Ensure heading levels are sequential",
+                "category": self.category,
+            }
+        )
 
     def _check_same_level_sequence(
-        self, numbers: List[str], prev_numbers: List[str], text: str,
-        paragraph_num: int, issues: List[Dict[str, Any]]
+        self,
+        numbers: List[str],
+        prev_numbers: List[str],
+        text: str,
+        paragraph_num: int,
+        issues: List[Dict[str, Any]],
     ) -> None:
         """Check sequence within the same heading level."""
         # Compare all but the last number
@@ -482,27 +505,30 @@ class HeadingChecks(BaseChecker):
                 prev_last = int(prev_numbers[-1])
                 curr_last = int(numbers[-1])
                 if curr_last != prev_last + 1:
-                    self._add_sequence_issue(
-                        text, paragraph_num, prev_last, numbers, issues
-                    )
+                    self._add_sequence_issue(text, paragraph_num, prev_last, numbers, issues)
             except ValueError:
                 logger.error(f"Invalid number format in paragraph {paragraph_num}: {numbers[-1]}")
 
     def _add_sequence_issue(
-        self, text: str, paragraph_num: int, prev_last: int,
-        numbers: List[str], issues: List[Dict[str, Any]]
+        self,
+        text: str,
+        paragraph_num: int,
+        prev_last: int,
+        numbers: List[str],
+        issues: List[Dict[str, Any]],
     ) -> None:
         """Add issue for incorrect sequence numbering."""
         logger.warning(
-            f"Invalid heading sequence in paragraph {paragraph_num}: "
-            f"expected {prev_last + 1}"
+            f"Invalid heading sequence in paragraph {paragraph_num}: " f"expected {prev_last + 1}"
         )
-        issues.append({
-            "text": text,
-            "message": f"Invalid heading sequence: expected {prev_last + 1}",
-            "suggestion": f'Use {".".join(numbers[:-1] + [str(prev_last + 1)])}',
-            "category": self.category,
-        })
+        issues.append(
+            {
+                "text": text,
+                "message": f"Invalid heading sequence: expected {prev_last + 1}",
+                "suggestion": f'Use {".".join(numbers[:-1] + [str(prev_last + 1)])}',
+                "category": self.category,
+            }
+        )
 
     def run_checks(self, document: Document, doc_type: str, results: DocumentCheckResult) -> None:
         """Run all heading-related checks."""

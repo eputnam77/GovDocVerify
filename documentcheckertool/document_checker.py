@@ -124,9 +124,7 @@ class FAADocumentChecker:
             doc = Document()
             if isinstance(document_path, list):
                 doc.text = "\n".join(document_path)
-                logger.debug(
-                    f"Created document from list of strings, length: {len(document_path)}"
-                )
+                logger.debug(f"Created document from list of strings, length: {len(document_path)}")
             else:
                 doc.text = document_path
                 logger.debug(f"Created document from raw string, length: {len(document_path)}")

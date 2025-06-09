@@ -181,7 +181,7 @@ class StructureChecks(BaseChecker):
             return
 
         # Split text into sentences (simple approach using periods)
-        sentences = [s.strip() for s in text.split('.') if s.strip()]
+        sentences = [s.strip() for s in text.split(".") if s.strip()]
 
         for sentence in sentences:
             words = sentence.split()
@@ -255,11 +255,13 @@ class StructureChecks(BaseChecker):
                     is_list_section = self._is_list_section(
                         current_section, current_section_name, list_pattern, bullet_pattern
                     )
-                    sections_data.append({
-                        'name': current_section_name,
-                        'length': len(current_section),
-                        'is_list': is_list_section
-                    })
+                    sections_data.append(
+                        {
+                            "name": current_section_name,
+                            "length": len(current_section),
+                            "is_list": is_list_section,
+                        }
+                    )
                     logger.debug(
                         "Added section '%s' (length=%d, is_list=%s)",
                         current_section_name,
@@ -276,11 +278,13 @@ class StructureChecks(BaseChecker):
             is_list_section = self._is_list_section(
                 current_section, current_section_name, list_pattern, bullet_pattern
             )
-            sections_data.append({
-                'name': current_section_name,
-                'length': len(current_section),
-                'is_list': is_list_section
-            })
+            sections_data.append(
+                {
+                    "name": current_section_name,
+                    "length": len(current_section),
+                    "is_list": is_list_section,
+                }
+            )
             logger.debug(
                 "Added final section '%s' with length %d (is_list=%s)",
                 current_section_name,
@@ -335,26 +339,24 @@ class StructureChecks(BaseChecker):
     def _categorize_sections(self, sections_data):
         """Categorize sections into list and non-list sections."""
         list_sections = [
-            (section['length'], section['name'])
-            for section in sections_data
-            if section['is_list']
+            (section["length"], section["name"]) for section in sections_data if section["is_list"]
         ]
         non_list_sections = [
-            (section['length'], section['name'])
+            (section["length"], section["name"])
             for section in sections_data
-            if not section['is_list']
+            if not section["is_list"]
         ]
         return list_sections, non_list_sections
 
     def _calculate_averages(self, list_sections, non_list_sections):
         """Calculate average lengths for list and non-list sections."""
         list_avg = (
-            sum(length for length, _ in list_sections) / len(list_sections)
-            if list_sections else 0
+            sum(length for length, _ in list_sections) / len(list_sections) if list_sections else 0
         )
         non_list_avg = (
             sum(length for length, _ in non_list_sections) / len(non_list_sections)
-            if non_list_sections else 0
+            if non_list_sections
+            else 0
         )
         return list_avg, non_list_avg
 
@@ -371,16 +373,20 @@ class StructureChecks(BaseChecker):
         self, section, list_avg, non_list_avg, sections_data, results
     ):
         """Check if an individual section is balanced and add issue if not."""
-        length = section['length']
-        is_list = section['is_list']
-        name = section['name']
+        length = section["length"]
+        is_list = section["is_list"]
+        name = section["name"]
 
         avg_length = list_avg if is_list else non_list_avg
         threshold = avg_length * 3 if is_list else avg_length * 2
 
         logger.debug(
             "Checking section '%s': length=%d, is_list=%s, avg=%.1f, threshold=%.1f",
-            name, length, is_list, avg_length, threshold,
+            name,
+            length,
+            is_list,
+            avg_length,
+            threshold,
         )
 
         if length > threshold:
@@ -388,9 +394,7 @@ class StructureChecks(BaseChecker):
                 name=name, length=length, avg=avg_length
             )
             logger.debug(f"Adding issue: {message}")
-            section_index = next(
-                i for i, s in enumerate(sections_data) if s['name'] == name
-            )
+            section_index = next(i for i, s in enumerate(sections_data) if s["name"] == name)
             results.add_issue(
                 message=message,
                 severity=Severity.INFO,
@@ -536,11 +540,11 @@ class StructureChecks(BaseChecker):
         skip_regex = self._compile_skip_patterns()
 
         return {
-            'heading_structure': heading_structure,
-            'valid_sections': valid_sections,
-            'tables': tables,
-            'figures': figures,
-            'skip_regex': skip_regex
+            "heading_structure": heading_structure,
+            "valid_sections": valid_sections,
+            "tables": tables,
+            "figures": figures,
+            "skip_regex": skip_regex,
         }
 
     def _compile_skip_patterns(self):
@@ -608,14 +612,14 @@ class StructureChecks(BaseChecker):
 
         for para in doc.paragraphs:
             para_text = para.text.strip() if hasattr(para, "text") else ""
-            if not para_text or cross_ref_data['skip_regex'].search(para_text):
+            if not para_text or cross_ref_data["skip_regex"].search(para_text):
                 continue
 
             # Check all types of references
-            self._check_table_references(para_text, cross_ref_data['tables'], issues)
-            self._check_figure_references(para_text, cross_ref_data['figures'], issues)
+            self._check_table_references(para_text, cross_ref_data["tables"], issues)
+            self._check_figure_references(para_text, cross_ref_data["figures"], issues)
             self._check_section_references(
-                para_text, cross_ref_data['valid_sections'], cross_ref_data['skip_regex'], issues
+                para_text, cross_ref_data["valid_sections"], cross_ref_data["skip_regex"], issues
             )
 
         return issues
@@ -626,12 +630,12 @@ class StructureChecks(BaseChecker):
             success=len(issues) == 0,
             issues=issues,
             details={
-                "total_tables": len(cross_ref_data['tables']),
-                "total_figures": len(cross_ref_data['figures']),
-                "found_tables": sorted(list(cross_ref_data['tables'])),
-                "found_figures": sorted(list(cross_ref_data['figures'])),
-                "heading_structure": cross_ref_data['heading_structure'],
-                "valid_sections": sorted(list(cross_ref_data['valid_sections'])),
+                "total_tables": len(cross_ref_data["tables"]),
+                "total_figures": len(cross_ref_data["figures"]),
+                "found_tables": sorted(list(cross_ref_data["tables"])),
+                "found_figures": sorted(list(cross_ref_data["figures"])),
+                "heading_structure": cross_ref_data["heading_structure"],
+                "valid_sections": sorted(list(cross_ref_data["valid_sections"])),
             },
         )
 
@@ -671,9 +675,7 @@ class StructureChecks(BaseChecker):
             if ref not in valid_sections:
                 found = any(valid_section.strip(".") == ref for valid_section in valid_sections)
                 if not found:
-                    context_snippet = (
-                        para_text[:60] + "..." if len(para_text) > 60 else para_text
-                    )
+                    context_snippet = para_text[:60] + "..." if len(para_text) > 60 else para_text
                     issues.append(
                         {
                             "type": "Paragraph",

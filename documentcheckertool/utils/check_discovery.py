@@ -97,10 +97,7 @@ def _process_module(module_name, category_mappings):
     except ImportError as e:
         logger.warning(f"Could not import module {module_name}: {str(e)}")
     except Exception as e:
-        logger.error(
-            f"Unexpected error processing module {module_name}: {str(e)}",
-            exc_info=True
-        )
+        logger.error(f"Unexpected error processing module {module_name}: {str(e)}", exc_info=True)
 
 
 def _get_check_modules():
@@ -168,7 +165,7 @@ def validate_check_registration() -> Dict[str, List[str]]:
 def _check_missing_categories(
     discovered_checks: Dict[str, List[str]],
     registered_checks: Dict[str, List[str]],
-    validation_results: Dict[str, List[str]]
+    validation_results: Dict[str, List[str]],
 ) -> None:
     """Check for categories that are discovered but not registered."""
     for category in discovered_checks:
@@ -181,24 +178,18 @@ def _check_missing_categories(
 def _validate_checks_in_categories(
     discovered_checks: Dict[str, List[str]],
     registered_checks: Dict[str, List[str]],
-    validation_results: Dict[str, List[str]]
+    validation_results: Dict[str, List[str]],
 ) -> None:
     """Validate checks within each registered category."""
     for category in registered_checks:
         logger.debug(f"Validating category: {category}")
         if category in discovered_checks:
             _validate_existing_category(
-                category,
-                discovered_checks,
-                registered_checks,
-                validation_results
+                category, discovered_checks, registered_checks, validation_results
             )
         else:
             _validate_missing_category(
-                category,
-                discovered_checks,
-                registered_checks,
-                validation_results
+                category, discovered_checks, registered_checks, validation_results
             )
 
 
@@ -206,23 +197,17 @@ def _validate_existing_category(
     category: str,
     discovered_checks: Dict[str, List[str]],
     registered_checks: Dict[str, List[str]],
-    validation_results: Dict[str, List[str]]
+    validation_results: Dict[str, List[str]],
 ) -> None:
     """Validate checks in a category that exists in both discovered and registered."""
     # Check for missing checks
     _check_missing_checks_in_category(
-        category,
-        discovered_checks,
-        registered_checks,
-        validation_results
+        category, discovered_checks, registered_checks, validation_results
     )
 
     # Check for extra checks
     _check_extra_checks_in_category(
-        category,
-        discovered_checks,
-        registered_checks,
-        validation_results
+        category, discovered_checks, registered_checks, validation_results
     )
 
 
@@ -230,7 +215,7 @@ def _check_missing_checks_in_category(
     category: str,
     discovered_checks: Dict[str, List[str]],
     registered_checks: Dict[str, List[str]],
-    validation_results: Dict[str, List[str]]
+    validation_results: Dict[str, List[str]],
 ) -> None:
     """Check for checks discovered in category but not registered in category."""
     for check in discovered_checks[category]:
@@ -241,9 +226,7 @@ def _check_missing_checks_in_category(
                 check, category, registered_checks
             )
             if not found_in_other_category:
-                logger.debug(
-                    f"Check {check} is missing from registry in category {category}"
-                )
+                logger.debug(f"Check {check} is missing from registry in category {category}")
                 validation_results["missing_checks"].append(f"{category}.{check}")
             else:
                 logger.debug(f"Check {check} is registered in a different category")
@@ -253,7 +236,7 @@ def _check_extra_checks_in_category(
     category: str,
     discovered_checks: Dict[str, List[str]],
     registered_checks: Dict[str, List[str]],
-    validation_results: Dict[str, List[str]]
+    validation_results: Dict[str, List[str]],
 ) -> None:
     """Check for checks registered in category but not discovered in category."""
     for check in registered_checks[category]:
@@ -264,9 +247,7 @@ def _check_extra_checks_in_category(
                 check, category, discovered_checks
             )
             if not found_in_other_category:
-                logger.debug(
-                    f"Check {check} is extra in registry for category {category}"
-                )
+                logger.debug(f"Check {check} is extra in registry for category {category}")
                 validation_results["extra_checks"].append(f"{category}.{check}")
             else:
                 logger.debug(f"Check {check} is discovered in a different category")
@@ -276,7 +257,7 @@ def _validate_missing_category(
     category: str,
     discovered_checks: Dict[str, List[str]],
     registered_checks: Dict[str, List[str]],
-    validation_results: Dict[str, List[str]]
+    validation_results: Dict[str, List[str]],
 ) -> None:
     """Validate a category that is registered but not discovered."""
     logger.debug(f"Category {category} not found in discovered checks")
@@ -291,9 +272,7 @@ def _validate_missing_category(
 
 
 def _is_check_in_other_categories(
-    check: str,
-    current_category: str,
-    check_mappings: Dict[str, List[str]]
+    check: str, current_category: str, check_mappings: Dict[str, List[str]]
 ) -> bool:
     """Check if a check exists in categories other than the current one."""
     return any(

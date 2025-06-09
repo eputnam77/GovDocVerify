@@ -64,11 +64,7 @@ def _check_results_have_issues(results_dict: dict) -> bool:
     """Check if results dictionary contains any issues."""
     for cat, checks in results_dict.items():
         for check, res in checks.items():
-            issues = (
-                getattr(res, "issues", [])
-                if hasattr(res, "issues")
-                else res.get("issues", [])
-            )
+            issues = getattr(res, "issues", []) if hasattr(res, "issues") else res.get("issues", [])
             if issues:
                 return True
     return False

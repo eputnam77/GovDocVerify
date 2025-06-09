@@ -95,9 +95,10 @@ class AccessibilityChecks(BaseChecker):
 
         # Check sentence length for accessibility
         import re
+
         for line in doc:
             # Split by periods, but also handle other sentence endings
-            sentences = re.split(r'[.!?]+', line)
+            sentences = re.split(r"[.!?]+", line)
             for sentence in sentences:
                 sentence = sentence.strip()
                 if sentence:
@@ -105,15 +106,14 @@ class AccessibilityChecks(BaseChecker):
                     if word_count >= 25:
                         results.add_issue(
                             f"Sentence too long ({word_count} words): {sentence[:50]}...",
-                            Severity.WARNING
+                            Severity.WARNING,
                         )
 
             # Check total word count for the line/paragraph
             total_words = len(line.split())
             if total_words > 40:  # Lower threshold to catch the test case
                 results.add_issue(
-                    f"Word count exceeds recommended limit ({total_words} words)",
-                    Severity.WARNING
+                    f"Word count exceeds recommended limit ({total_words} words)", Severity.WARNING
                 )
 
         # Set success to False if any issues were found
@@ -255,18 +255,18 @@ class AccessibilityChecks(BaseChecker):
             )
 
         if passive_percentage > 10:
-                issues.append(
-                    {
-                        "type": "passive_voice",
-                        "percentage": round(passive_percentage, 1),
-                        "message": (
-                            f"Document uses {round(passive_percentage, 1)}% passive voice. "
-                            "Some passive voice is acceptable and sometimes necessary. "
-                            "Consider using active voice where it improves clarity."
-                        ),
-                        "category": self.category,
-                    }
-                )
+            issues.append(
+                {
+                    "type": "passive_voice",
+                    "percentage": round(passive_percentage, 1),
+                    "message": (
+                        f"Document uses {round(passive_percentage, 1)}% passive voice. "
+                        "Some passive voice is acceptable and sometimes necessary. "
+                        "Consider using active voice where it improves clarity."
+                    ),
+                    "category": self.category,
+                }
+            )
 
     @profile_performance
     def check_section_508_compliance(self, content: Union[str, List[str]]) -> DocumentCheckResult:
@@ -513,9 +513,7 @@ class AccessibilityChecks(BaseChecker):
 
         for link_text in links:
             if link_text.lower() in non_descriptive:
-                logger.warning(
-                    f"Found non-descriptive link text: '{link_text}'"
-                )
+                logger.warning(f"Found non-descriptive link text: '{link_text}'")
                 results.add_issue(
                     message=f"Non-descriptive link text: '{link_text}'",
                     severity=Severity.WARNING,
@@ -572,13 +570,13 @@ class AccessibilityChecks(BaseChecker):
                 image_info = self._extract_image_info(shape)
 
                 # Filter decorative images by name
-                if self._is_decorative_image(image_info['name']):
+                if self._is_decorative_image(image_info["name"]):
                     logger.debug(f"Skipping decorative image: {image_info['name']}")
                     continue
 
                 # Check for missing alt text
-                if not image_info['descr'] and not image_info['title']:
-                    display_name = self._get_display_name(image_info['name'])
+                if not image_info["descr"] and not image_info["title"]:
+                    display_name = self._get_display_name(image_info["name"])
                     results.add_issue(
                         message=f"Image '{display_name}' is missing alt text",
                         severity=Severity.ERROR,
@@ -627,9 +625,7 @@ class AccessibilityChecks(BaseChecker):
         """Check if image is decorative based on name."""
         if not name:
             return False
-        return any(
-            term in str(name).lower() for term in ["watermark", "table", "graphic"]
-        )
+        return any(term in str(name).lower() for term in ["watermark", "table", "graphic"])
 
     def _get_display_name(self, name: Optional[str]) -> str:
         """Get display name for image, truncating if too long."""
@@ -661,9 +657,7 @@ class AccessibilityChecks(BaseChecker):
     def _is_missing_alt_text(self, alt_text: Optional[str]) -> bool:
         """Check if alt text is missing or invalid."""
         return (
-            alt_text is None
-            or alt_text.strip() == ""
-            or alt_text.strip().lower() == "missing alt"
+            alt_text is None or alt_text.strip() == "" or alt_text.strip().lower() == "missing alt"
         )
 
     def _check_color_contrast(

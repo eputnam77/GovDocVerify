@@ -126,13 +126,13 @@ class TerminologyManager:
     def _initialize_check_state(self) -> Dict:
         """Initialize the state for acronym checking."""
         return {
-            'issues': [],
-            'defined_acronyms': set(),
-            'used_acronyms': set(),
-            'defined_acronyms_info': {},
-            'all_known_acronyms': self.get_all_acronyms(),
-            'valid_words': set(w.lower() for w in self._load_valid_words()),
-            'unused_candidates': set()
+            "issues": [],
+            "defined_acronyms": set(),
+            "used_acronyms": set(),
+            "defined_acronyms_info": {},
+            "all_known_acronyms": self.get_all_acronyms(),
+            "valid_words": set(w.lower() for w in self._load_valid_words()),
+            "unused_candidates": set(),
         }
 
     def _process_definitions(self, text: str, check_state: Dict) -> None:
@@ -200,11 +200,10 @@ class TerminologyManager:
         return False
 
     def _handle_acronym_definition(
-        self, acronym: str, definition: str, full_text: str,
-        match, text: str, check_state: Dict
+        self, acronym: str, definition: str, full_text: str, match, text: str, check_state: Dict
     ) -> None:
         """Handle processing of an acronym definition."""
-        all_known_acronyms = check_state['all_known_acronyms']
+        all_known_acronyms = check_state["all_known_acronyms"]
 
         if acronym in all_known_acronyms:
             self._validate_standard_definition(
@@ -212,35 +211,36 @@ class TerminologyManager:
             )
 
         # Add to tracking sets
-        check_state['defined_acronyms'].add(acronym)
-        check_state['defined_acronyms_info'][acronym] = definition
-        check_state['unused_candidates'].add(acronym)
+        check_state["defined_acronyms"].add(acronym)
+        check_state["defined_acronyms_info"][acronym] = definition
+        check_state["unused_candidates"].add(acronym)
 
         status = "standard" if acronym in all_known_acronyms else "non-standard"
         logger.debug(f"Added '{acronym}' to defined_acronyms and unused_candidates ({status})")
 
     def _validate_standard_definition(
-        self, acronym: str, definition: str, full_text: str,
-        match, text: str, check_state: Dict
+        self, acronym: str, definition: str, full_text: str, match, text: str, check_state: Dict
     ) -> None:
         """Validate a standard acronym definition."""
-        standard_def = check_state['all_known_acronyms'][acronym]
+        standard_def = check_state["all_known_acronyms"][acronym]
         clean_def = definition.replace("The ", "")
         clean_std_def = standard_def.replace("The ", "")
 
         if clean_def.lower() != clean_std_def.lower():
             logger.warning(f"Non-standard definition for {acronym}: {definition} vs {standard_def}")
-            check_state['issues'].append({
-                "type": "acronym_definition",
-                "message": f"Acronym '{acronym}' defined with non-standard definition",
-                "line": text[:match.start()].count("\n") + 1,
-                "context": full_text,
-            })
+            check_state["issues"].append(
+                {
+                    "type": "acronym_definition",
+                    "message": f"Acronym '{acronym}' defined with non-standard definition",
+                    "line": text[: match.start()].count("\n") + 1,
+                    "context": full_text,
+                }
+            )
 
     def _handle_acronym_usage(self, acronym: str, match, text: str, check_state: Dict) -> bool:
         """Handle processing of an acronym usage. Returns True if processing should continue."""
         # Skip if it's a valid word (case-insensitive)
-        if acronym.lower() in check_state['valid_words']:
+        if acronym.lower() in check_state["valid_words"]:
             logger.debug(f"Skipping valid word usage: {acronym}")
             return True
 
@@ -259,13 +259,13 @@ class TerminologyManager:
 
         # Check if acronym is defined or in all known acronyms
         self._validate_acronym_usage(acronym, match, text, check_state)
-        check_state['used_acronyms'].add(acronym)
+        check_state["used_acronyms"].add(acronym)
         logger.debug(f"Added '{acronym}' to used_acronyms")
         return False
 
     def _try_match_defined_acronym(self, acronym: str, check_state: Dict) -> bool:
         """Try to match acronym with defined acronyms (case-insensitive)."""
-        defined_lower = {a.lower(): a for a in check_state['defined_acronyms']}
+        defined_lower = {a.lower(): a for a in check_state["defined_acronyms"]}
         logger.debug(
             f"Case-insensitive match for {acronym} against defined acronyms: {defined_lower}"
         )
@@ -273,14 +273,14 @@ class TerminologyManager:
         if acronym.lower() in defined_lower:
             original_case = defined_lower[acronym.lower()]
             logger.debug(f"Found case-insensitive match: {acronym} -> {original_case}")
-            check_state['used_acronyms'].add(original_case)
+            check_state["used_acronyms"].add(original_case)
             logger.debug(f"Added {original_case} to used_acronyms")
             return True
         return False
 
     def _try_match_known_acronym(self, acronym: str, check_state: Dict) -> bool:
         """Try to match acronym with known acronyms (case-insensitive)."""
-        known_lower = {a.lower(): a for a in check_state['all_known_acronyms']}
+        known_lower = {a.lower(): a for a in check_state["all_known_acronyms"]}
         logger.debug(f"Case-insensitive match for {acronym} against known acronyms: {known_lower}")
 
         if acronym.lower() in known_lower:
@@ -288,33 +288,37 @@ class TerminologyManager:
             logger.debug(
                 f"Found case-insensitive match in known acronyms: {acronym} -> {original_case}"
             )
-            check_state['used_acronyms'].add(original_case)
+            check_state["used_acronyms"].add(original_case)
             logger.debug(f"Added {original_case} to used_acronyms")
             return True
         return False
 
     def _validate_acronym_usage(self, acronym: str, match, text: str, check_state: Dict) -> None:
         """Validate that an acronym usage is properly defined."""
-        if (acronym not in check_state['defined_acronyms'] and
-            acronym not in check_state['all_known_acronyms']):
+        if (
+            acronym not in check_state["defined_acronyms"]
+            and acronym not in check_state["all_known_acronyms"]
+        ):
             logger.warning(f"Undefined acronym found: {acronym}")
-            check_state['issues'].append({
-                "type": "acronym_usage",
-                "message": f"Confirm '{acronym}' was defined at its first use",
-                "line": text[:match.start()].count("\n") + 1,
-                "context": match.group(0),
-            })
+            check_state["issues"].append(
+                {
+                    "type": "acronym_usage",
+                    "message": f"Confirm '{acronym}' was defined at its first use",
+                    "line": text[: match.start()].count("\n") + 1,
+                    "context": match.group(0),
+                }
+            )
 
     def _check_unused_acronyms(self, check_state: Dict) -> List:
         """Check for unused acronyms and return all issues."""
         # Remove all used acronyms from unused_candidates
-        check_state['unused_candidates'] -= check_state['used_acronyms']
+        check_state["unused_candidates"] -= check_state["used_acronyms"]
         logger.debug(
             f"After removing used acronyms - unused_candidates: {check_state['unused_candidates']}"
         )
 
         # Check for unused acronyms (both standard and non-standard that were explicitly defined)
-        for acronym in check_state['unused_candidates']:
+        for acronym in check_state["unused_candidates"]:
             logger.debug(f"Checking unused acronym: {acronym}, length: {len(acronym)}")
             # Skip long acronyms in unused check
             if len(acronym) >= 10:
@@ -324,14 +328,16 @@ class TerminologyManager:
                 continue
 
             logger.warning(f"Found unused acronym: {acronym}")
-            check_state['issues'].append({
-                "type": "acronym_usage",
-                "message": f"Acronym '{acronym}' is defined but never used",
-                "line": 1,  # We don't track line numbers for unused acronyms
-                "context": f"{check_state['defined_acronyms_info'][acronym]} ({acronym})",
-            })
+            check_state["issues"].append(
+                {
+                    "type": "acronym_usage",
+                    "message": f"Acronym '{acronym}' is defined but never used",
+                    "line": 1,  # We don't track line numbers for unused acronyms
+                    "context": f"{check_state['defined_acronyms_info'][acronym]} ({acronym})",
+                }
+            )
 
-        return check_state['issues']
+        return check_state["issues"]
 
     def get_standard_acronyms(self) -> Dict[str, str]:
         """Get all standard acronym definitions.

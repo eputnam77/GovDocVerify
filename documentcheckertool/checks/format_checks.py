@@ -39,12 +39,8 @@ class FormatMessages:
     DASH_SPACE_REMOVE_AROUND = (
         "Remove spaces before and after dashes, unless spacing is needed for clarity."
     )
-    DASH_SPACE_REMOVE_BEFORE = (
-        "Remove space before the dash, unless spacing is needed for clarity."
-    )
-    DASH_SPACE_REMOVE_AFTER = (
-        "Remove space after dash, unless spacing is needed for clarity."
-    )
+    DASH_SPACE_REMOVE_BEFORE = "Remove space before the dash, unless spacing is needed for clarity."
+    DASH_SPACE_REMOVE_AFTER = "Remove space after dash, unless spacing is needed for clarity."
 
     # Punctuation messages
     DOUBLE_PERIOD_WARNING = "Found double periods in line {line}. Remove the unnecessary periods."
@@ -296,7 +292,7 @@ class FormatChecks(BaseChecker):
         number_format: str,
         doc_type: str,
         line_num: int,
-        results: DocumentCheckResult
+        results: DocumentCheckResult,
     ):
         """Add a caption format issue."""
         results.add_issue(
@@ -349,11 +345,13 @@ class FormatChecks(BaseChecker):
             if standard is None:
                 standard = current_type
             elif standard != current_type:
-                warnings.append({
-                    "line_number": i,
-                    "message": "Inconsistent font usage",
-                    "severity": "warning",
-                })
+                warnings.append(
+                    {
+                        "line_number": i,
+                        "message": "Inconsistent font usage",
+                        "severity": "warning",
+                    }
+                )
 
         return warnings
 
@@ -371,11 +369,9 @@ class FormatChecks(BaseChecker):
             if self._is_table_row(line):
                 continue
             if "  " in line:  # Double space
-                warnings.append({
-                    "line_number": i,
-                    "message": "Inconsistent spacing",
-                    "severity": "warning"
-                })
+                warnings.append(
+                    {"line_number": i, "message": "Inconsistent spacing", "severity": "warning"}
+                )
 
         return warnings
 
@@ -396,11 +392,9 @@ class FormatChecks(BaseChecker):
             if leading_ws > 0:
                 margin_patterns.add(leading_ws)
                 if len(margin_patterns) > 1:
-                    warnings.append({
-                        "line_number": i,
-                        "message": "Inconsistent margins",
-                        "severity": "warning"
-                    })
+                    warnings.append(
+                        {"line_number": i, "message": "Inconsistent margins", "severity": "warning"}
+                    )
 
         return warnings
 
@@ -413,11 +407,13 @@ class FormatChecks(BaseChecker):
 
         for i, line in enumerate(content, 1):
             if re.search(reference_pattern, line):
-                warnings.append({
-                    "line_number": i,
-                    "message": "Inconsistent reference format",
-                    "severity": "warning",
-                })
+                warnings.append(
+                    {
+                        "line_number": i,
+                        "message": "Inconsistent reference format",
+                        "severity": "warning",
+                    }
+                )
 
         return warnings
 
@@ -571,14 +567,16 @@ class FormattingChecker(BaseChecker):
                 incorrect = match.group(0)
                 correct = f"14 CFR {sect}"
                 logger.debug(f"CFR-§ usage found on line {i}: {incorrect!r}")
-                issues.append({
-                    "incorrect": incorrect,
-                    "correct": correct,
-                    "description": FormatMessages.SECTION_SYMBOL_CFR_ERROR,
-                    "severity": Severity.ERROR,
-                    "line_number": i,
-                    "checker": "FormattingChecker",
-                })
+                issues.append(
+                    {
+                        "incorrect": incorrect,
+                        "correct": correct,
+                        "description": FormatMessages.SECTION_SYMBOL_CFR_ERROR,
+                        "severity": Severity.ERROR,
+                        "line_number": i,
+                        "checker": "FormattingChecker",
+                    }
+                )
 
         return issues
 
@@ -603,27 +601,31 @@ class FormattingChecker(BaseChecker):
         """Check multiple section symbols (e.g., §§ 123-456)."""
         if not pattern.search(line):
             logger.debug(f"Found incorrect section symbol usage in line {line_num}")
-            return [{
-                "message": FormatMessages.SECTION_SYMBOL_WARNING.format(line=line_num),
-                "severity": Severity.WARNING,
-                "line_number": line_num,
-                "checker": "FormattingChecker",
-            }]
+            return [
+                {
+                    "message": FormatMessages.SECTION_SYMBOL_WARNING.format(line=line_num),
+                    "severity": Severity.WARNING,
+                    "line_number": line_num,
+                    "checker": "FormattingChecker",
+                }
+            ]
         return []
 
     def _check_single_section_symbols(self, line: str, line_num: int) -> List[Dict]:
         """Check single section symbols for proper formatting."""
         for match in re.finditer(r"§", line):
-            after_symbol = line[match.end():]
+            after_symbol = line[match.end() :]
 
             if self._has_invalid_section_format(after_symbol):
                 logger.debug(f"Found incorrect section symbol usage in line {line_num}")
-                return [{
-                    "message": FormatMessages.SECTION_SYMBOL_WARNING.format(line=line_num),
-                    "severity": Severity.WARNING,
-                    "line_number": line_num,
-                    "checker": "FormattingChecker",
-                }]
+                return [
+                    {
+                        "message": FormatMessages.SECTION_SYMBOL_WARNING.format(line=line_num),
+                        "severity": Severity.WARNING,
+                        "line_number": line_num,
+                        "checker": "FormattingChecker",
+                    }
+                ]
         return []
 
     def _has_invalid_section_format(self, after_symbol: str) -> bool:
@@ -808,12 +810,14 @@ class FormattingChecker(BaseChecker):
             if line_no in seen:
                 continue
 
-            issues.append({
-                "message": FormatMessages.PHONE_FORMAT_WARNING,
-                "severity": Severity.WARNING,
-                "line_number": line_no,
-                "checker": "FormattingChecker",
-            })
+            issues.append(
+                {
+                    "message": FormatMessages.PHONE_FORMAT_WARNING,
+                    "severity": Severity.WARNING,
+                    "line_number": line_no,
+                    "checker": "FormattingChecker",
+                }
+            )
             seen.add(line_no)
             logger.debug(f"[Text] Flagged line {line_no} for inconsistent phone number format")
 

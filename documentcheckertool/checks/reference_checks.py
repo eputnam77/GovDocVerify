@@ -102,16 +102,20 @@ class DocumentTitleFormatCheck(BaseChecker):
             clean_title = title_text.strip("\"'").rstrip(",").strip()
             logger.debug(f"Found quoted title in AC: {title_text}")
             return self._create_issue(
-                line, line_idx, title_text,
+                line,
+                line_idx,
+                title_text,
                 "AC document titles should use italics, not quotation marks",
-                f"*{clean_title}*"
+                f"*{clean_title}*",
             )
         elif not self._is_formatted(title_text):
             logger.debug(f"Found unformatted title in AC: {title_text}")
             return self._create_issue(
-                line, line_idx, title_text,
+                line,
+                line_idx,
+                title_text,
                 "AC document titles should be formatted in italics",
-                f"*{title_text.strip()}*"
+                f"*{title_text.strip()}*",
             )
         elif self._is_italicized(title_text):
             logger.debug(f"Correctly formatted AC title: {title_text}")
@@ -126,24 +130,29 @@ class DocumentTitleFormatCheck(BaseChecker):
             clean_title = title_text.strip("*").strip()
             logger.debug(f"Found italicized title in non-AC: {title_text}")
             return self._create_issue(
-                line, line_idx, title_text,
+                line,
+                line_idx,
+                title_text,
                 f"{doc_type} document titles should use quotation marks, not italics",
-                f'"{clean_title}"'
+                f'"{clean_title}"',
             )
         elif not self._is_formatted(title_text):
             logger.debug(f"Found unformatted title in non-AC: {title_text}")
             return self._create_issue(
-                line, line_idx, title_text,
+                line,
+                line_idx,
+                title_text,
                 f"{doc_type} document titles should be formatted in quotation marks",
-                f'"{title_text.strip()}"'
+                f'"{title_text.strip()}"',
             )
 
         return None
 
     def _is_quoted(self, title_text: str) -> bool:
         """Check if title is wrapped in quotes."""
-        return ((title_text.startswith('"') and title_text.endswith('"')) or
-                (title_text.startswith("'") and title_text.endswith("'")))
+        return (title_text.startswith('"') and title_text.endswith('"')) or (
+            title_text.startswith("'") and title_text.endswith("'")
+        )
 
     def _is_italicized(self, title_text: str) -> bool:
         """Check if title is wrapped in asterisks (italics)."""
@@ -326,9 +335,7 @@ class TableFigureReferenceCheck(BaseChecker):
                     in_code_block = not in_code_block
                 continue
 
-            line_issues = self._process_line_references(
-                line, line_idx, patterns, in_code_block
-            )
+            line_issues = self._process_line_references(line, line_idx, patterns, in_code_block)
             issues.extend(line_issues)
 
         return self._create_final_result(issues)
@@ -359,13 +366,17 @@ class TableFigureReferenceCheck(BaseChecker):
             "caption": re.compile(r"^(Table|Figure)\s+\d+(?:[\.-]\d+)*\.\s+[A-Z]", re.IGNORECASE),
             "table_ref": re.compile(r"\b([Tt]able)s?\s+(\d+(?:[\.-]\d+)*)"),
             "figure_ref": re.compile(r"\b([Ff]igure)s?\s+(\d+(?:[\.-]\d+)*)"),
-            "special_context": re.compile("|".join([
-                r"^[•\-\*]\s+",  # List items
-                r"^\|\s*",  # Table cells
-                r"^```",  # Code blocks
-                r"^<[^>]+>",  # HTML tags
-                r"^[\*\`\_]+",  # Markdown formatting
-            ]))
+            "special_context": re.compile(
+                "|".join(
+                    [
+                        r"^[•\-\*]\s+",  # List items
+                        r"^\|\s*",  # Table cells
+                        r"^```",  # Code blocks
+                        r"^<[^>]+>",  # HTML tags
+                        r"^[\*\`\_]+",  # Markdown formatting
+                    ]
+                )
+            ),
         }
 
         logger.debug(f"Caption pattern: {patterns['caption'].pattern}")
@@ -410,8 +421,13 @@ class TableFigureReferenceCheck(BaseChecker):
 
             for match in matches:
                 issue = self._check_reference_match(
-                    match, ref_type, line, cleaned_line,
-                    has_quotes, has_parentheses, is_special_context
+                    match,
+                    ref_type,
+                    line,
+                    cleaned_line,
+                    has_quotes,
+                    has_parentheses,
+                    is_special_context,
                 )
                 if issue:
                     issues.append(issue)
@@ -427,9 +443,16 @@ class TableFigureReferenceCheck(BaseChecker):
         logger.debug(f"Cleaned line: {cleaned_line}")
         return cleaned_line, has_quotes, has_parentheses
 
-    def _check_reference_match(self, match, ref_type: str, original_line: str,
-                             cleaned_line: str, has_quotes: bool, has_parentheses: bool,
-                             is_special_context: bool) -> dict:
+    def _check_reference_match(
+        self,
+        match,
+        ref_type: str,
+        original_line: str,
+        cleaned_line: str,
+        has_quotes: bool,
+        has_parentheses: bool,
+        is_special_context: bool,
+    ) -> dict:
         """Check a single reference match and return issue if found."""
         ref_text = match.group()
         word = match.group(1)
@@ -458,21 +481,23 @@ class TableFigureReferenceCheck(BaseChecker):
         is_sentence_start = self._is_sentence_start(cleaned_line, match)
 
         return self._validate_reference_capitalization(
-            ref_text, word, ref_type, original_line, is_sentence_start,
-            has_quotes, has_parentheses
+            ref_text, word, ref_type, original_line, is_sentence_start, has_quotes, has_parentheses
         )
 
     def _is_complex_reference(self, ref_text: str, word: str) -> bool:
         """Check if reference is complex and should skip style checking."""
         rest = ref_text.split(word, 1)[1]  # part after "Table"/"Figure"
         return (
-            "." in rest or "-" in rest or "\t" in rest or
-            "\n" in rest or re.search(r"\s{2,}", rest) is not None
+            "." in rest
+            or "-" in rest
+            or "\t" in rest
+            or "\n" in rest
+            or re.search(r"\s{2,}", rest) is not None
         )
 
     def _is_sentence_start(self, cleaned_line: str, match) -> bool:
         """Determine if reference is at the start of a sentence."""
-        text_before = cleaned_line[:match.start()].strip()
+        text_before = cleaned_line[: match.start()].strip()
         text_before_clean = re.sub(r"^[\s\W]+", "", text_before)
         logger.debug(f"Text before reference: '{text_before}' (cleaned: '{text_before_clean}')")
 
@@ -480,9 +505,16 @@ class TableFigureReferenceCheck(BaseChecker):
         logger.debug(f"Reference is at sentence start: {is_start}")
         return is_start
 
-    def _validate_reference_capitalization(self, ref_text: str, word: str, ref_type: str,
-                                         line: str, is_sentence_start: bool,
-                                         has_quotes: bool, has_parentheses: bool) -> dict:
+    def _validate_reference_capitalization(
+        self,
+        ref_text: str,
+        word: str,
+        ref_type: str,
+        line: str,
+        is_sentence_start: bool,
+        has_quotes: bool,
+        has_parentheses: bool,
+    ) -> dict:
         """Validate reference capitalization and return issue if found."""
         if is_sentence_start and word[0].islower():
             logger.debug(f"Found lowercase {ref_type} reference at sentence start")
