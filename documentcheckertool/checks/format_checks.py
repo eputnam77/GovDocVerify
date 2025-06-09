@@ -128,50 +128,58 @@ class FormatChecks(BaseChecker):
         """
         logger.debug(f"Checking phone numbers with {len(paragraphs)} paragraphs")
 
-        def _categorise(num: str) -> str:
-            """Categorize a phone number into its style."""
-            # Normalize whitespace and separators for consistent categorization
-            normalized = re.sub(r"\s+", " ", num)  # Replace multiple spaces with single space
-            normalized = re.sub(r"[-.]+", "-", normalized)  # Normalize separators to single dash
+        found_numbers = self._collect_phone_numbers_from_paragraphs(paragraphs)
+        if not found_numbers:
+            return
 
-            if re.fullmatch(r"\(\d{3}\)\s*\d{3}-\d{4}", normalized):
-                return "paren"
-            if re.fullmatch(r"\d{3}-\d{3}-\d{4}", normalized):
-                return "dash"
-            if re.fullmatch(r"\d{3}\.\d{3}\.\d{4}", normalized):
-                return "dot"
-            if re.fullmatch(r"\d{10}", normalized):
-                return "plain"
-            return "other"
+        styles_present = {style for _, style in found_numbers}
+        logger.debug(f"Detected phone-number styles: {styles_present}")
 
-        # Collect all phone numbers and their styles
-        found: list[tuple[int, str]] = []  # (line_number, style)
+        if len(styles_present) > 1:
+            self._flag_inconsistent_phone_formats_in_paragraphs(found_numbers, results)
+
+    def _collect_phone_numbers_from_paragraphs(self, paragraphs: list) -> list:
+        """Collect all phone numbers and their styles from paragraphs."""
+        found = []  # (line_number, style)
+
         for idx, line in enumerate(paragraphs, start=1):
             for pattern in PHONE_PATTERNS:
                 if match := re.search(pattern, line):
-                    style = _categorise(match.group(0))
+                    style = self._categorise_phone_number_in_paragraph(match.group(0))
                     logger.debug(
                         f"Found phone number in line {idx}: {match.group(0)} (style={style})"
                     )
                     found.append((idx, style))
                     break  # Only add each number once
 
-        if not found:
-            return
+        return found
 
-        # Check for style consistency
-        styles_present = {style for _, style in found}
-        logger.debug(f"Detected phone-number styles: {styles_present}")
+    def _categorise_phone_number_in_paragraph(self, num: str) -> str:
+        """Categorize a phone number into its style."""
+        # Normalize whitespace and separators for consistent categorization
+        normalized = re.sub(r"\s+", " ", num)  # Replace multiple spaces with single space
+        normalized = re.sub(r"[-.]+", "-", normalized)  # Normalize separators to single dash
 
-        # If only one style is present, no issues to report
-        if len(styles_present) == 1:
-            return
+        if re.fullmatch(r"\(\d{3}\)\s*\d{3}-\d{4}", normalized):
+            return "paren"
+        if re.fullmatch(r"\d{3}-\d{3}-\d{4}", normalized):
+            return "dash"
+        if re.fullmatch(r"\d{3}\.\d{3}\.\d{4}", normalized):
+            return "dot"
+        if re.fullmatch(r"\d{10}", normalized):
+            return "plain"
+        return "other"
 
-        # Flag all lines with phone numbers when styles are inconsistent
-        seen: set[int] = set()
-        for line_no, _ in found:
+    def _flag_inconsistent_phone_formats_in_paragraphs(
+        self, found_numbers: list, results: DocumentCheckResult
+    ):
+        """Flag all lines with phone numbers when styles are inconsistent."""
+        seen = set()
+
+        for line_no, _ in found_numbers:
             if line_no in seen:
                 continue
+
             results.add_issue(
                 FormatMessages.PHONE_FORMAT_WARNING,
                 Severity.WARNING,
@@ -244,86 +252,68 @@ class FormatChecks(BaseChecker):
 
         for i, text in enumerate(paragraphs):
             text = text.strip()
+            line_num = i + 1
 
-            # Check for table captions
-            if text.lower().startswith("table"):
-                number_match = re.search(r"^table\s+(\d+(?:-\d+)?)\b", text, re.IGNORECASE)
-                if number_match:
-                    number_format = number_match.group(1)
-                    if doc_type in ["Advisory Circular", "Order"]:
-                        if "-" not in number_format:
-                            results.add_issue(
-                                FormatMessages.CAPTION_FORMAT_ERROR.format(
-                                    caption_type="Table",
-                                    incorrect_caption=f"Table {number_format}",
-                                    doc_type=doc_type,
-                                ),
-                                Severity.ERROR,
-                                i + 1,
-                                category=getattr(self, "category", "format"),
-                                context={
-                                    "incorrect_caption": f"Table {number_format}",
-                                    "doc_type": doc_type,
-                                    "caption_type": "Table",
-                                },
-                            )
-                    else:
-                        if "-" in number_format:
-                            results.add_issue(
-                                FormatMessages.CAPTION_FORMAT_ERROR.format(
-                                    caption_type="Table",
-                                    incorrect_caption=f"Table {number_format}",
-                                    doc_type=doc_type,
-                                ),
-                                Severity.ERROR,
-                                i + 1,
-                                category=getattr(self, "category", "format"),
-                                context={
-                                    "incorrect_caption": f"Table {number_format}",
-                                    "doc_type": doc_type,
-                                    "caption_type": "Table",
-                                },
-                            )
+            self._check_table_caption_format(text, doc_type, line_num, results)
+            self._check_figure_caption_format(text, doc_type, line_num, results)
 
-            # Check for figure captions
-            if text.lower().startswith("figure"):
-                number_match = re.search(r"^figure\s+(\d+(?:-\d+)?)\b", text, re.IGNORECASE)
-                if number_match:
-                    number_format = number_match.group(1)
-                    if doc_type in ["Advisory Circular", "Order"]:
-                        if "-" not in number_format:
-                            results.add_issue(
-                                FormatMessages.CAPTION_FORMAT_ERROR.format(
-                                    caption_type="Figure",
-                                    incorrect_caption=f"Figure {number_format}",
-                                    doc_type=doc_type,
-                                ),
-                                Severity.ERROR,
-                                i + 1,
-                                category=getattr(self, "category", "format"),
-                                context={
-                                    "incorrect_caption": f"Figure {number_format}",
-                                    "doc_type": doc_type,
-                                    "caption_type": "Figure",
-                                },
-                            )
-                    else:
-                        if "-" in number_format:
-                            results.add_issue(
-                                FormatMessages.CAPTION_FORMAT_ERROR.format(
-                                    caption_type="Figure",
-                                    incorrect_caption=f"Figure {number_format}",
-                                    doc_type=doc_type,
-                                ),
-                                Severity.ERROR,
-                                i + 1,
-                                category=getattr(self, "category", "format"),
-                                context={
-                                    "incorrect_caption": f"Figure {number_format}",
-                                    "doc_type": doc_type,
-                                    "caption_type": "Figure",
-                                },
-                            )
+    def _check_table_caption_format(
+        self, text: str, doc_type: str, line_num: int, results: DocumentCheckResult
+    ):
+        """Check table caption formatting."""
+        if not text.lower().startswith("table"):
+            return
+
+        number_match = re.search(r"^table\s+(\d+(?:-\d+)?)\b", text, re.IGNORECASE)
+        if number_match:
+            number_format = number_match.group(1)
+            if self._should_add_caption_issue(number_format, doc_type):
+                self._add_caption_issue("Table", number_format, doc_type, line_num, results)
+
+    def _check_figure_caption_format(
+        self, text: str, doc_type: str, line_num: int, results: DocumentCheckResult
+    ):
+        """Check figure caption formatting."""
+        if not text.lower().startswith("figure"):
+            return
+
+        number_match = re.search(r"^figure\s+(\d+(?:-\d+)?)\b", text, re.IGNORECASE)
+        if number_match:
+            number_format = number_match.group(1)
+            if self._should_add_caption_issue(number_format, doc_type):
+                self._add_caption_issue("Figure", number_format, doc_type, line_num, results)
+
+    def _should_add_caption_issue(self, number_format: str, doc_type: str) -> bool:
+        """Determine if a caption format issue should be added."""
+        if doc_type in ["Advisory Circular", "Order"]:
+            return "-" not in number_format
+        else:
+            return "-" in number_format
+
+    def _add_caption_issue(
+        self,
+        caption_type: str,
+        number_format: str,
+        doc_type: str,
+        line_num: int,
+        results: DocumentCheckResult
+    ):
+        """Add a caption format issue."""
+        results.add_issue(
+            FormatMessages.CAPTION_FORMAT_ERROR.format(
+                caption_type=caption_type,
+                incorrect_caption=f"{caption_type} {number_format}",
+                doc_type=doc_type,
+            ),
+            Severity.ERROR,
+            line_num,
+            category=getattr(self, "category", "format"),
+            context={
+                "incorrect_caption": f"{caption_type} {number_format}",
+                "doc_type": doc_type,
+                "caption_type": caption_type,
+            },
+        )
 
     def check(self, content: List[str]) -> Dict[str, Any]:
         """
@@ -340,72 +330,96 @@ class FormatChecks(BaseChecker):
         errors = []
         has_errors = False
 
-        # Check font consistency
-        standard = None
-        for i, line in enumerate(content, 1):
-            if "BOLD" in line or "italic" in line.lower():
-                if standard is None:
-                    standard = "special"
-                elif standard != "special":
-                    warnings.append(
-                        {
-                            "line_number": i,
-                            "message": "Inconsistent font usage",
-                            "severity": "warning",
-                        }
-                    )
-            else:
-                if standard is None:
-                    standard = "normal"
-                elif standard != "normal":
-                    warnings.append(
-                        {
-                            "line_number": i,
-                            "message": "Inconsistent font usage",
-                            "severity": "warning",
-                        }
-                    )
+        # Run individual check methods
+        warnings.extend(self._check_font_consistency(content))
+        warnings.extend(self._check_spacing_consistency(content))
+        warnings.extend(self._check_margin_consistency(content))
+        warnings.extend(self._check_reference_formatting(content))
 
-        # Check spacing consistency (excluding table rows)
+        return {"warnings": warnings, "errors": errors, "has_errors": has_errors}
+
+    def _check_font_consistency(self, content: List[str]) -> List[Dict]:
+        """Check for consistent font usage."""
+        warnings = []
+        standard = None
+
         for i, line in enumerate(content, 1):
-            # Skip spacing check for table rows
-            if "|" in line or line.startswith("---"):
+            current_type = self._get_font_type(line)
+
+            if standard is None:
+                standard = current_type
+            elif standard != current_type:
+                warnings.append({
+                    "line_number": i,
+                    "message": "Inconsistent font usage",
+                    "severity": "warning",
+                })
+
+        return warnings
+
+    def _get_font_type(self, line: str) -> str:
+        """Determine font type of a line."""
+        if "BOLD" in line or "italic" in line.lower():
+            return "special"
+        return "normal"
+
+    def _check_spacing_consistency(self, content: List[str]) -> List[Dict]:
+        """Check spacing consistency (excluding table rows)."""
+        warnings = []
+
+        for i, line in enumerate(content, 1):
+            if self._is_table_row(line):
                 continue
             if "  " in line:  # Double space
-                warnings.append(
-                    {"line_number": i, "message": "Inconsistent spacing", "severity": "warning"}
-                )
+                warnings.append({
+                    "line_number": i,
+                    "message": "Inconsistent spacing",
+                    "severity": "warning"
+                })
 
-        # Check margin consistency
+        return warnings
+
+    def _is_table_row(self, line: str) -> bool:
+        """Check if line is a table row."""
+        return "|" in line or line.startswith("---")
+
+    def _check_margin_consistency(self, content: List[str]) -> List[Dict]:
+        """Check margin consistency."""
+        warnings = []
         margin_patterns = set()
+
         for i, line in enumerate(content, 1):
-            # Skip empty lines
             if not line.strip():
                 continue
-            # Get the leading whitespace pattern
+
             leading_ws = len(line) - len(line.lstrip())
             if leading_ws > 0:
                 margin_patterns.add(leading_ws)
-                # If we have more than one margin pattern, flag it
                 if len(margin_patterns) > 1:
-                    warnings.append(
-                        {"line_number": i, "message": "Inconsistent margins", "severity": "warning"}
-                    )
-
-        # Check reference formatting
-        for i, line in enumerate(content, 1):
-            if re.search(
-                r"(?i)(see|refer to|under)\s+(section|paragraph|subsection)\s+\d+(\.\d+)*", line
-            ):
-                warnings.append(
-                    {
+                    warnings.append({
                         "line_number": i,
-                        "message": "Inconsistent reference format",
-                        "severity": "warning",
-                    }
-                )
+                        "message": "Inconsistent margins",
+                        "severity": "warning"
+                    })
 
-        return {"warnings": warnings, "errors": errors, "has_errors": has_errors}
+        return warnings
+
+    def _check_reference_formatting(self, content: List[str]) -> List[Dict]:
+        """Check reference formatting."""
+        warnings = []
+        reference_pattern = (
+            r"(?i)(see|refer to|under)\s+(section|paragraph|subsection)\s+\d+(\.\d+)*"
+        )
+
+        for i, line in enumerate(content, 1):
+            if re.search(reference_pattern, line):
+                warnings.append({
+                    "line_number": i,
+                    "message": "Inconsistent reference format",
+                    "severity": "warning",
+                })
+
+        return warnings
 
 
 class FormattingChecker(BaseChecker):
@@ -538,94 +552,95 @@ class FormattingChecker(BaseChecker):
         logger.debug("Checking section symbols (including CFR-specific rule)")
         issues = []
 
-        # --- 1️⃣  Explicit CFR rule --------------------------------------------------
+        # Check CFR-specific rule and general section symbol usage
+        issues.extend(self._check_cfr_section_symbols(lines))
+        issues.extend(self._check_general_section_symbols(lines))
+
+        return DocumentCheckResult(
+            success=len(issues) == 0, severity=Severity.WARNING if issues else None, issues=issues
+        )
+
+    def _check_cfr_section_symbols(self, lines: List[str]) -> List[Dict]:
+        """Check for CFR-specific section symbol issues."""
+        issues = []
         cfr_pattern = re.compile(r"\b14\s+CFR\s+§\s*(\d+\.\d+)\b")
+
         for i, line in enumerate(lines, 1):
             if match := cfr_pattern.search(line):
                 sect = match.group(1)
                 incorrect = match.group(0)
                 correct = f"14 CFR {sect}"
                 logger.debug(f"CFR-§ usage found on line {i}: {incorrect!r}")
-                issues.append(
-                    {
-                        "incorrect": incorrect,
-                        "correct": correct,
-                        "description": FormatMessages.SECTION_SYMBOL_CFR_ERROR,
-                        "severity": Severity.ERROR,
-                        "line_number": i,
-                        "checker": "FormattingChecker",
-                    }
-                )
-        # ---------------------------------------------------------------------------
+                issues.append({
+                    "incorrect": incorrect,
+                    "correct": correct,
+                    "description": FormatMessages.SECTION_SYMBOL_CFR_ERROR,
+                    "severity": Severity.ERROR,
+                    "line_number": i,
+                    "checker": "FormattingChecker",
+                })
 
-        # Pattern for valid section symbol usage
-        # Must have exactly one space after § and be followed by numbers or valid subsection markers
-        re.compile(r"§\s+\d+(?:\.\d+)*(?:\([a-z0-9]+\))*")
+        return issues
 
-        # Pattern for multiple section symbols (e.g., §§ 123-456)
+    def _check_general_section_symbols(self, lines: List[str]) -> List[Dict]:
+        """Check for general section symbol usage issues."""
+        issues = []
         multiple_symbols_pattern = re.compile(
             r"§§\s+\d+(?:\.\d+)*(?:\([a-z0-9]+\))*-\d+(?:\.\d+)*(?:\([a-z0-9]+\))*"
         )
 
         for i, line in enumerate(lines, 1):
-            # Check for multiple section symbols (e.g., §§ 123-456)
             if "§§" in line:
-                if not multiple_symbols_pattern.search(line):
-                    logger.debug(f"Found incorrect section symbol usage in line {i}")
-                    issues.append(
-                        {
-                            "message": FormatMessages.SECTION_SYMBOL_WARNING.format(line=i),
-                            "severity": Severity.WARNING,
-                            "line_number": i,
-                            "checker": "FormattingChecker",
-                        }
-                    )
-            # Check for single section symbol
+                issues.extend(
+                    self._check_multiple_section_symbols(line, i, multiple_symbols_pattern)
+                )
             elif "§" in line:
-                # Find all section symbols in the line
-                for match in re.finditer(r"§", line):
-                    # Get the text after the section symbol
-                    after_symbol = line[match.end() :]
-                    # Check for invalid spacing (no space or multiple spaces)
-                    if re.match(r"\s{2,}|\S|\t|\n|\r|\f|\v", after_symbol):
-                        logger.debug(f"Found incorrect section symbol usage in line {i}")
-                        issues.append(
-                            {
-                                "message": FormatMessages.SECTION_SYMBOL_WARNING.format(line=i),
-                                "severity": Severity.WARNING,
-                                "line_number": i,
-                                "checker": "FormattingChecker",
-                            }
-                        )
-                        break
-                    # Check for valid section number format
-                    elif not re.match(r"\s+\d+(?:\.\d+)*(?:\([a-z0-9]+\))*", after_symbol):
-                        logger.debug(f"Found incorrect section symbol usage in line {i}")
-                        issues.append(
-                            {
-                                "message": FormatMessages.SECTION_SYMBOL_WARNING.format(line=i),
-                                "severity": Severity.WARNING,
-                                "line_number": i,
-                                "checker": "FormattingChecker",
-                            }
-                        )
-                        break
-                    # Check for alphanumeric section numbers
-                    elif re.search(r"\s+\d+[a-zA-Z]", after_symbol):
-                        logger.debug(f"Found incorrect section symbol usage in line {i}")
-                        issues.append(
-                            {
-                                "message": FormatMessages.SECTION_SYMBOL_WARNING.format(line=i),
-                                "severity": Severity.WARNING,
-                                "line_number": i,
-                                "checker": "FormattingChecker",
-                            }
-                        )
-                        break
+                issues.extend(self._check_single_section_symbols(line, i))
 
-        return DocumentCheckResult(
-            success=len(issues) == 0, severity=Severity.WARNING if issues else None, issues=issues
-        )
+        return issues
+
+    def _check_multiple_section_symbols(self, line: str, line_num: int, pattern) -> List[Dict]:
+        """Check multiple section symbols (e.g., §§ 123-456)."""
+        if not pattern.search(line):
+            logger.debug(f"Found incorrect section symbol usage in line {line_num}")
+            return [{
+                "message": FormatMessages.SECTION_SYMBOL_WARNING.format(line=line_num),
+                "severity": Severity.WARNING,
+                "line_number": line_num,
+                "checker": "FormattingChecker",
+            }]
+        return []
+
+    def _check_single_section_symbols(self, line: str, line_num: int) -> List[Dict]:
+        """Check single section symbols for proper formatting."""
+        for match in re.finditer(r"§", line):
+            after_symbol = line[match.end():]
+
+            if self._has_invalid_section_format(after_symbol):
+                logger.debug(f"Found incorrect section symbol usage in line {line_num}")
+                return [{
+                    "message": FormatMessages.SECTION_SYMBOL_WARNING.format(line=line_num),
+                    "severity": Severity.WARNING,
+                    "line_number": line_num,
+                    "checker": "FormattingChecker",
+                }]
+        return []
+
+    def _has_invalid_section_format(self, after_symbol: str) -> bool:
+        """Check if the text after section symbol has invalid format."""
+        # Check for invalid spacing (no space or multiple spaces)
+        if re.match(r"\s{2,}|\S|\t|\n|\r|\f|\v", after_symbol):
+            return True
+
+        # Check for valid section number format
+        if not re.match(r"\s+\d+(?:\.\d+)*(?:\([a-z0-9]+\))*", after_symbol):
+            return True
+
+        # Check for alphanumeric section numbers
+        if re.search(r"\s+\d+[a-zA-Z]", after_symbol):
+            return True
+
+        return False
 
     def check_list_formatting(self, lines: List[str]) -> DocumentCheckResult:
         """Check for consistent list formatting."""
@@ -739,53 +754,69 @@ class FormattingChecker(BaseChecker):
         """
         logger.debug(f"[Text] Checking phone numbers with {len(lines)} lines")
 
-        def _categorise(num: str) -> str:
-            # Normalize whitespace and separators for consistent categorization
-            normalized = re.sub(r"\s+", " ", num)
-            normalized = re.sub(r"[-.]+", "-", normalized)
-            if re.fullmatch(r"\(\d{3}\)\s*\d{3}-\d{4}", normalized):
-                return "paren"
-            if re.fullmatch(r"\d{3}-\d{3}-\d{4}", normalized):
-                return "dash"
-            if re.fullmatch(r"\d{3}\.\d{3}\.\d{4}", normalized):
-                return "dot"
-            if re.fullmatch(r"\d{10}", normalized):
-                return "plain"
-            return "other"
+        found_numbers = self._collect_phone_numbers_from_lines(lines)
+        if not found_numbers:
+            return []
 
+        styles_present = {style for _, style in found_numbers}
+        logger.debug(f"[Text] Detected phone-number styles: {styles_present}")
+
+        if len(styles_present) == 1:
+            return []
+
+        return self._create_phone_format_issues_for_lines(found_numbers)
+
+    def _collect_phone_numbers_from_lines(self, lines: list) -> list:
+        """Collect phone numbers from individual lines."""
         found = []  # (line_number, style)
+
         for idx, line in enumerate(lines, start=1):
             for pattern in PHONE_PATTERNS:
                 match = re.search(pattern, line)
                 if match:
-                    style = _categorise(match.group(0))
+                    style = self._categorise_phone_number_text(match.group(0))
                     logger.debug(
                         f"[Text] Found phone number in line {idx}: {match.group(0)} (style={style})"
                     )
                     found.append((idx, style))
                     break  # Only add each number once
-        if not found:
-            return []
-        styles_present = {style for _, style in found}
-        logger.debug(f"[Text] Detected phone-number styles: {styles_present}")
-        if len(styles_present) == 1:
-            return []
-        # Flag all lines with phone numbers when styles are inconsistent
+
+        return found
+
+    def _categorise_phone_number_text(self, num: str) -> str:
+        """Categorize a phone number into its style for text checking."""
+        # Normalize whitespace and separators for consistent categorization
+        normalized = re.sub(r"\s+", " ", num)
+        normalized = re.sub(r"[-.]+", "-", normalized)
+
+        if re.fullmatch(r"\(\d{3}\)\s*\d{3}-\d{4}", normalized):
+            return "paren"
+        if re.fullmatch(r"\d{3}-\d{3}-\d{4}", normalized):
+            return "dash"
+        if re.fullmatch(r"\d{3}\.\d{3}\.\d{4}", normalized):
+            return "dot"
+        if re.fullmatch(r"\d{10}", normalized):
+            return "plain"
+        return "other"
+
+    def _create_phone_format_issues_for_lines(self, found_numbers: list) -> list:
+        """Create issues for inconsistent phone formats in lines."""
         seen = set()
         issues = []
-        for line_no, _ in found:
+
+        for line_no, _ in found_numbers:
             if line_no in seen:
                 continue
-            issues.append(
-                {
-                    "message": FormatMessages.PHONE_FORMAT_WARNING,
-                    "severity": Severity.WARNING,
-                    "line_number": line_no,
-                    "checker": "FormattingChecker",
-                }
-            )
+
+            issues.append({
+                "message": FormatMessages.PHONE_FORMAT_WARNING,
+                "severity": Severity.WARNING,
+                "line_number": line_no,
+                "checker": "FormattingChecker",
+            })
             seen.add(line_no)
             logger.debug(f"[Text] Flagged line {line_no} for inconsistent phone number format")
+
         return issues
 
     @staticmethod
