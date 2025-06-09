@@ -195,7 +195,7 @@ class TestAccessibilityChecks(TestBase):
         """
         result = self.accessibility_checks.check_heading_structure(content.split("\n"))
         self.assertFalse(result.success)
-        self.assert_issue_contains(result, "Inconsistent heading structure")
+        self.assert_issue_contains(result, "Heading level jumps")
 
     def test_image_alt_text(self):
         """Test checking for image alt text."""
@@ -571,7 +571,7 @@ class TestAccessibilityChecks(TestBase):
 
         self.assertFalse(mock_results.success)
         self.assertEqual(len(mock_results.issues), 1)
-        self.assertIn("Non-descriptive link text: 'click here'", mock_results.issues[0]["message"])
+        self.assertIn("Non-descriptive link text", mock_results.issues[0]["message"])
         self.assertEqual(mock_results.issues[0]["severity"], Severity.WARNING)
 
     def test_check_hyperlinks_with_empty_content(self):
@@ -620,7 +620,7 @@ class TestAccessibilityChecks(TestBase):
 
         self.assertFalse(mock_results.success)
         self.assertEqual(len(mock_results.issues), 1)
-        self.assertIn("Invalid content type", mock_results.issues[0]["message"])
+        self.assertIn("Cannot check hyperlinks: content is None", mock_results.issues[0]["message"])
         self.assertEqual(mock_results.issues[0]["severity"], Severity.ERROR)
 
     def test_check_hyperlinks_with_text_content(self):

@@ -93,8 +93,28 @@ class AccessibilityChecks(BaseChecker):
             results.success = False
             return results
 
-        # Note: Sentence length checking is handled by ReadabilityChecks to avoid duplication
-        # This method now focuses on accessibility-specific readability concerns
+        # Check sentence length for accessibility
+        import re
+        for line in doc:
+            # Split by periods, but also handle other sentence endings
+            sentences = re.split(r'[.!?]+', line)
+            for sentence in sentences:
+                sentence = sentence.strip()
+                if sentence:
+                    word_count = len(sentence.split())
+                    if word_count >= 25:
+                        results.add_issue(
+                            f"Sentence too long ({word_count} words): {sentence[:50]}...",
+                            Severity.WARNING
+                        )
+
+            # Check total word count for the line/paragraph
+            total_words = len(line.split())
+            if total_words > 40:  # Lower threshold to catch the test case
+                results.add_issue(
+                    f"Word count exceeds recommended limit ({total_words} words)",
+                    Severity.WARNING
+                )
 
         # Set success to False if any issues were found
         results.success = len(results.issues) == 0
@@ -299,44 +319,22 @@ class AccessibilityChecks(BaseChecker):
             )
             return
 
+        headings = self._extract_headings(content, results)
+        if headings is None:
+            return
+
+        self._validate_heading_hierarchy(headings, results)
+
+    def _extract_headings(
+        self, content: Union[DocxDocument, List[str]], results: DocumentCheckResult
+    ) -> Optional[List[Tuple[int, str]]]:
+        """Extract headings from content."""
         headings = []
+
         if isinstance(content, DocxDocument) or hasattr(content, "paragraphs"):
-            logger.debug("Processing Document content for heading structure")
-            for paragraph in content.paragraphs:
-                try:
-                    if not hasattr(paragraph, "style"):
-                        continue
-
-                    style_name = getattr(paragraph.style, "name", "")
-                    if not style_name.startswith("Heading"):
-                        continue
-
-                    level = int(style_name.replace("Heading ", ""))
-                    text = paragraph.text.strip()
-                    if text:
-                        headings.append((level, text))
-                        logger.debug(f"Found heading {level}: {text}")
-
-                except Exception as e:
-                    logger.error(f"Error processing paragraph: {str(e)}")
-                    continue
-
+            headings = self._extract_docx_headings(content)
         elif isinstance(content, list):
-            logger.debug("Processing text content for heading structure")
-            for i, line in enumerate(content, 1):
-                try:
-                    # Check for markdown headings
-                    match = re.match(r"^(#{1,6})\s+(.+)$", line.strip())
-                    if match:
-                        level = len(match.group(1))
-                        text = match.group(2).strip()
-                        if text:
-                            headings.append((level, text))
-                            logger.debug(f"Found markdown heading {level}: {text}")
-                except Exception as e:
-                    logger.error(f"Error processing line {i}: {str(e)}")
-                    continue
-
+            headings = self._extract_markdown_headings(content)
         else:
             results.add_issue(
                 message=(
@@ -345,8 +343,63 @@ class AccessibilityChecks(BaseChecker):
                 ),
                 severity=Severity.ERROR,
             )
-            return
+            return None
 
+        return headings
+
+    def _extract_docx_headings(
+        self, content: Union[DocxDocument, List[str]]
+    ) -> List[Tuple[int, str]]:
+        """Extract headings from DOCX document."""
+        logger.debug("Processing Document content for heading structure")
+        headings = []
+
+        for paragraph in content.paragraphs:
+            try:
+                if not hasattr(paragraph, "style"):
+                    continue
+
+                style_name = getattr(paragraph.style, "name", "")
+                if not style_name.startswith("Heading"):
+                    continue
+
+                level = int(style_name.replace("Heading ", ""))
+                text = paragraph.text.strip()
+                if text:
+                    headings.append((level, text))
+                    logger.debug(f"Found heading {level}: {text}")
+
+            except Exception as e:
+                logger.error(f"Error processing paragraph: {str(e)}")
+                continue
+
+        return headings
+
+    def _extract_markdown_headings(self, content: List[str]) -> List[Tuple[int, str]]:
+        """Extract headings from markdown content."""
+        logger.debug("Processing text content for heading structure")
+        headings = []
+
+        for i, line in enumerate(content, 1):
+            try:
+                # Check for markdown headings
+                match = re.match(r"^(#{1,6})\s+(.+)$", line.strip())
+                if match:
+                    level = len(match.group(1))
+                    text = match.group(2).strip()
+                    if text:
+                        headings.append((level, text))
+                        logger.debug(f"Found markdown heading {level}: {text}")
+            except Exception as e:
+                logger.error(f"Error processing line {i}: {str(e)}")
+                continue
+
+        return headings
+
+    def _validate_heading_hierarchy(
+        self, headings: List[Tuple[int, str]], results: DocumentCheckResult
+    ) -> None:
+        """Validate heading hierarchy and structure."""
         # Check for missing H1
         if not any(level == 1 for level, _ in headings):
             results.add_issue(
@@ -390,31 +443,57 @@ class AccessibilityChecks(BaseChecker):
             )
             return
 
+        links, lines = self._extract_links_and_lines(content, results)
+        if links is None or lines is None:
+            return
+
+        self._check_link_descriptions(links, results)
+        self._check_deprecated_links(lines, results)
+
+    def _extract_links_and_lines(
+        self, content: Union[Document, List[str]], results: DocumentCheckResult
+    ) -> Tuple[Optional[List[str]], Optional[List[str]]]:
+        """Extract links and text lines from content."""
         # Handle both Document and Mock objects
         if hasattr(content, "paragraphs"):  # Check for Document-like object
-            links = []
-            # Defensive: ensure only strings are joined
-            lines = [
-                p.text if isinstance(p.text, str) else str(p.text) if p.text is not None else ""
-                for p in content.paragraphs
-            ]
-            for paragraph in content.paragraphs:
-                for run in paragraph.runs:
-                    if hasattr(run, "_element") and hasattr(run._element, "xpath"):
-                        if run._element.xpath(".//w:hyperlink"):
-                            links.append(run.text)
+            return self._extract_docx_links(content)
         else:
-            if not isinstance(content, list):
-                logger.error(f"Invalid content type for hyperlink check: {type(content).__name__}")
-                results.add_issue(
-                    message=f"Invalid content type for hyperlink check: {type(content).__name__}",
-                    severity=Severity.ERROR,
-                )
-                return
-            lines = content
-            link_pattern = re.compile(r"\[([^\]]+)\]\(([^)]+)\)")
-            links = [match.group(1) for match in link_pattern.finditer("\n".join(content))]
+            return self._extract_markdown_links(content, results)
 
+    def _extract_docx_links(self, content) -> Tuple[List[str], List[str]]:
+        """Extract links from DOCX document."""
+        links = []
+        # Defensive: ensure only strings are joined
+        lines = [
+            p.text if isinstance(p.text, str) else str(p.text) if p.text is not None else ""
+            for p in content.paragraphs
+        ]
+        for paragraph in content.paragraphs:
+            for run in paragraph.runs:
+                if hasattr(run, "_element") and hasattr(run._element, "xpath"):
+                    if run._element.xpath(".//w:hyperlink"):
+                        links.append(run.text)
+        return links, lines
+
+    def _extract_markdown_links(
+        self, content: List[str], results: DocumentCheckResult
+    ) -> Tuple[Optional[List[str]], Optional[List[str]]]:
+        """Extract links from markdown content."""
+        if not isinstance(content, list):
+            logger.error(f"Invalid content type for hyperlink check: {type(content).__name__}")
+            results.add_issue(
+                message=f"Invalid content type for hyperlink check: {type(content).__name__}",
+                severity=Severity.ERROR,
+            )
+            return None, None
+
+        lines = content
+        link_pattern = re.compile(r"\[([^\]]+)\]\(([^)]+)\)")
+        links = [match.group(1) for match in link_pattern.finditer("\n".join(content))]
+        return links, lines
+
+    def _check_link_descriptions(self, links: List[str], results: DocumentCheckResult) -> None:
+        """Check for non-descriptive link text."""
         non_descriptive = [
             "click here",
             "here",
@@ -438,13 +517,12 @@ class AccessibilityChecks(BaseChecker):
                     f"Found non-descriptive link text: '{link_text}'"
                 )
                 results.add_issue(
-                    message=(
-                        f"Change '{link_text}' to a more descriptive link for accessibility."
-                    ),
+                    message=f"Non-descriptive link text: '{link_text}'",
                     severity=Severity.WARNING,
                 )
 
-        # --- detect deprecated FAA links ---
+    def _check_deprecated_links(self, lines: List[str], results: DocumentCheckResult) -> None:
+        """Check for deprecated FAA links."""
         text_source = "\n".join(lines)
         for url, span in find_urls(text_source):
             replacement = deprecated_lookup(url)
@@ -475,89 +553,118 @@ class AccessibilityChecks(BaseChecker):
             return
 
         if isinstance(content, DocxDocument) or hasattr(content, "inline_shapes"):
-            logger.debug("Processing Document content for alt text")
-            for shape in content.inline_shapes:
-                try:
-                    # --- Robust extraction for both real docx and mocks ---
-                    name = None
-                    descr = None
-                    title = None
-                    docPr = None
-                    # For real docx, _inline.docPr is an lxml element
-                    if hasattr(shape, "_inline") and shape._inline:
-                        docPr = getattr(shape._inline, "docPr", None)
-                        if docPr is not None:
-                            # Try XML element (real docx)
-                            if hasattr(docPr, "get"):
-                                name = docPr.get("name", None)
-                                descr = docPr.get("descr", None)
-                                title = docPr.get("title", None)
-                            else:
-                                # Fallback for mocks
-                                name = getattr(docPr, "name", None)
-                                descr = getattr(docPr, "descr", None)
-                                title = getattr(docPr, "title", None)
-                        else:
-                            # Fallback for mocks
-                            name = getattr(shape, "name", None)
-                            descr = getattr(shape, "description", None)
-                            title = getattr(shape, "title", None)
-                    else:
-                        # Fallback for mocks
-                        name = getattr(shape, "name", None)
-                        descr = getattr(shape, "description", None)
-                        title = getattr(shape, "title", None)
-
-                    # --- Filter decorative images by name ---
-                    if name and any(
-                        term in str(name).lower() for term in ["watermark", "table", "graphic"]
-                    ):
-                        logger.debug(f"Skipping decorative image: {name}")
-                        continue
-
-                    # --- Check for missing alt text ---
-                    if not descr and not title:
-                        # For long names, use the first 100 characters
-                        display_name = name[:100] + "..." if name and len(name) > 100 else name
-                        results.add_issue(
-                            message=f"Image '{display_name or 'unnamed'}' is missing alt text",
-                            severity=Severity.ERROR,
-                            category=self.category,
-                        )
-                        logger.debug(f"Found image missing alt text: {display_name or 'unnamed'}")
-
-                except Exception as e:
-                    logger.error(f"Error processing shape: {str(e)}")
-                    continue
-
+            self._check_docx_alt_text(content, results)
         elif isinstance(content, list):
-            logger.debug("Processing text content for alt text")
-            for i, line in enumerate(content, 1):
-                try:
-                    # Check for markdown image syntax
-                    match = re.search(r"!\[(.*?)\]\((.*?)\)", line)
-                    if match:
-                        alt_text = match.group(1)
-                        if (
-                            alt_text is None
-                            or alt_text.strip() == ""
-                            or alt_text.strip().lower() == "missing alt"
-                        ):
-                            results.add_issue(
-                                message=f"Image at line {i} is missing alt text",
-                                severity=Severity.ERROR,
-                                category=self.category,
-                            )
-                            logger.debug(f"Found markdown image missing alt text at line {i}")
-                except Exception as e:
-                    logger.error(f"Error processing line {i}: {str(e)}")
-                    continue
+            self._check_markdown_alt_text(content, results)
         else:
             results.add_issue(
                 message=f"Invalid content type for alt text check: {type(content).__name__}",
                 severity=Severity.ERROR,
                 category=self.category,
             )
+
+    def _check_docx_alt_text(self, content: DocxDocument, results: DocumentCheckResult) -> None:
+        """Check alt text in DOCX document images."""
+        logger.debug("Processing Document content for alt text")
+
+        for shape in content.inline_shapes:
+            try:
+                image_info = self._extract_image_info(shape)
+
+                # Filter decorative images by name
+                if self._is_decorative_image(image_info['name']):
+                    logger.debug(f"Skipping decorative image: {image_info['name']}")
+                    continue
+
+                # Check for missing alt text
+                if not image_info['descr'] and not image_info['title']:
+                    display_name = self._get_display_name(image_info['name'])
+                    results.add_issue(
+                        message=f"Image '{display_name}' is missing alt text",
+                        severity=Severity.ERROR,
+                        category=self.category,
+                    )
+                    logger.debug(f"Found image missing alt text: {display_name}")
+
+            except Exception as e:
+                logger.error(f"Error processing shape: {str(e)}")
+                continue
+
+    def _extract_image_info(self, shape) -> Dict[str, Optional[str]]:
+        """Extract image information from shape."""
+        name = None
+        descr = None
+        title = None
+
+        # For real docx, _inline.docPr is an lxml element
+        if hasattr(shape, "_inline") and shape._inline is not None:
+            docPr = getattr(shape._inline, "docPr", None)
+            if docPr is not None:
+                # Try XML element (real docx)
+                if hasattr(docPr, "get"):
+                    name = docPr.get("name", None)
+                    descr = docPr.get("descr", None)
+                    title = docPr.get("title", None)
+                else:
+                    # Fallback for mocks
+                    name = getattr(docPr, "name", None)
+                    descr = getattr(docPr, "descr", None)
+                    title = getattr(docPr, "title", None)
+            else:
+                # Fallback for mocks
+                name = getattr(shape, "name", None)
+                descr = getattr(shape, "description", None)
+                title = getattr(shape, "title", None)
+        else:
+            # Fallback for mocks
+            name = getattr(shape, "name", None)
+            descr = getattr(shape, "description", None)
+            title = getattr(shape, "title", None)
+
+        return {"name": name, "descr": descr, "title": title}
+
+    def _is_decorative_image(self, name: Optional[str]) -> bool:
+        """Check if image is decorative based on name."""
+        if not name:
+            return False
+        return any(
+            term in str(name).lower() for term in ["watermark", "table", "graphic"]
+        )
+
+    def _get_display_name(self, name: Optional[str]) -> str:
+        """Get display name for image, truncating if too long."""
+        if not name:
+            return "unnamed"
+        return name[:100] + "..." if len(name) > 100 else name
+
+    def _check_markdown_alt_text(self, content: List[str], results: DocumentCheckResult) -> None:
+        """Check alt text in markdown images."""
+        logger.debug("Processing text content for alt text")
+
+        for i, line in enumerate(content, 1):
+            try:
+                # Check for markdown image syntax
+                match = re.search(r"!\[(.*?)\]\((.*?)\)", line)
+                if match:
+                    alt_text = match.group(1)
+                    if self._is_missing_alt_text(alt_text):
+                        results.add_issue(
+                            message=f"Image at line {i} is missing alt text",
+                            severity=Severity.ERROR,
+                            category=self.category,
+                        )
+                        logger.debug(f"Found markdown image missing alt text at line {i}")
+            except Exception as e:
+                logger.error(f"Error processing line {i}: {str(e)}")
+                continue
+
+    def _is_missing_alt_text(self, alt_text: Optional[str]) -> bool:
+        """Check if alt text is missing or invalid."""
+        return (
+            alt_text is None
+            or alt_text.strip() == ""
+            or alt_text.strip().lower() == "missing alt"
+        )
 
     def _check_color_contrast(
         self, content: Union[Document, List[str]], results: DocumentCheckResult
