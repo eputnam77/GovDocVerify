@@ -1,11 +1,9 @@
 import json
 from dataclasses import dataclass
-from enum import Enum, IntEnum
+from enum import IntEnum
 from typing import Any, Dict, List, Optional
 
 from pydantic import BaseModel
-
-from documentcheckertool.models import DocumentType, DocumentTypeError
 
 
 class DocumentCheckError(Exception):
@@ -30,24 +28,6 @@ class PatternConfig:
     replacement: Optional[str] = None
     keep_together: bool = False
     format_name: Optional[str] = None
-
-
-class DocumentType(str, Enum):
-    """Supported document types."""
-
-    AC = "Advisory Circular"
-    ORDER = "Order"
-    NOTICE = "Notice"
-    NPRM = "Notice of Proposed Rulemaking"
-    FR = "Federal Register Notice"
-
-    @classmethod
-    def from_string(cls, doc_type: str) -> "DocumentType":
-        """Convert string to DocumentType enum."""
-        try:
-            return cls[doc_type.upper().replace(" ", "_")]
-        except KeyError:
-            raise DocumentTypeError(f"Invalid document type: {doc_type}")
 
 
 class Issue(BaseModel):
@@ -143,14 +123,6 @@ class DocumentCheckResult:
 
         html.append("</div>")
         return "\n".join(html)
-
-
-class DocumentType(BaseModel):
-    """Represents a document type with its associated rules."""
-
-    name: str
-    description: str
-    rules: List[str]
 
 
 @dataclass

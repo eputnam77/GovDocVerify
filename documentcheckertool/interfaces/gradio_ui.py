@@ -286,12 +286,14 @@ def create_interface():
 
                         def format_error_message(error: str) -> str:
                             """Format error messages for display in the UI."""
-                            return f"""
-                            <div style="color: #721c24; background-color: #f8d7da; padding: 20px; border-radius: 8px; margin: 20px 0;">
-                                <h3 style="color: #721c24; margin-top: 0;">Error Processing Document</h3>
-                                <p style="margin-bottom: 0;">{error}</p>
-                            </div>
-                            """
+                            return (
+                                f'<div style="color: #721c24; background-color: #f8d7da; padding: 20px; '
+                                'border-radius: 8px; margin: 20px 0;">'
+                                f'<h3 style="color: #721c24; margin-top: 0;">'
+                                'Error Processing Document</h3>'
+                                f'<p style="margin-bottom: 0;">{error}</p>'
+                                "</div>"
+                            )
 
                         def process_and_format(
                             file_obj,
@@ -574,7 +576,10 @@ def create_interface():
                                     try:
                                         from docx import Document
                                         from docx.enum.text import WD_ALIGN_PARAGRAPH
-                                        from docx.shared import Inches, Pt, RGBColor
+                                        from docx.shared import (  # Removed unused RGBColor import
+                                            Inches,
+                                            Pt,
+                                        )
 
                                         doc = Document()
 
@@ -654,21 +659,23 @@ def create_interface():
                                         <html>
                                         <head>
                                             <style>
-                                                body { font-family: Arial, sans-serif; margin: 40px; }
-                                                h1 { color: #0056b3; text-align: center; }
-                                                h2 {
-                                                    color: #0056b3;
-                                                    border-bottom: 2px solid #0056b3;
-                                                    padding-bottom: 10px;
-                                                }
-                                                .summary {
-                                                    background: #f8f9fa;
-                                                    padding: 20px;
-                                                    border-radius: 8px;
-                                                    margin-bottom: 30px;
-                                                }
-                                                .category { margin-bottom: 30px; }
-                                                .issue { margin: 10px 0; padding-left: 20px; }
+{'''
+body { font-family: Arial, sans-serif; margin: 40px; }
+h1 { color: #0056b3; text-align: center; }
+h2 {
+    color: #0056b3;
+    border-bottom: 2px solid #0056b3;
+    padding-bottom: 10px;
+}
+.summary {
+    background: #f8f9fa;
+    padding: 20px;
+    border-radius: 8px;
+    margin-bottom: 30px;
+}
+.category { margin-bottom: 30px; }
+.issue { margin: 10px 0; padding-left: 20px; }
+'''}
                                             </style>
                                         </head>
                                         <body>
@@ -682,9 +689,9 @@ def create_interface():
 
                                         for category, count in summary["by_category"].items():
                                             if count > 0:
-                                                html_content += f"""
-                                                    <li>{category.replace('_', ' ').title()}: {count} issues</li>
-                                                """
+                                                html_content += (
+                                f"<li>{category.replace('_', ' ').title()}: {count} issues</li>"
+                            )
 
                                         html_content += """
                                                 </ul>
@@ -700,7 +707,9 @@ def create_interface():
 
                                                 for check_name, result in category_results.items():
                                                         if result.get("issues"):
-                                                            display_name = check_name.replace("_", " ").title()
+                                                            display_name = (
+                                                                check_name.replace("_", " ").title()
+                                                            )
                                                         html_content += (
                                                             "<h3>"
                                                             f"{display_name}"

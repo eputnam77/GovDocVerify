@@ -22,12 +22,63 @@ def discover_checks() -> Dict[str, List[str]]:
         "accessibility_checks",
         "reference_checks",
     ]
-
     category_mappings = {}
     logger.debug("Starting check discovery process")
     logger.debug(f"Looking for checks in modules: {check_modules}")
 
-    for module_name in check_modules:
+    def _process_function(obj, name, default_category):
+        if name.startswith("check_") or name.startswith("_check_"):
+            category = default_category
+            if category not in category_mappings:
+                category_mappings[category] = []
+                logger.debug(f"Created new category: {category}")
+            if name not in category_mappings[category]:
+                category_mappings[category].append(name)
+                logger.debug(f"Added check {name} to category {category}")
+            else:
+                logger.debug(f"Check {name} already registered in category {category}")
+        else:
+            logger.debug(f"Skipping {name} - doesn't match check naming pattern")
+
+    def _process_class(obj, name, default_category):
+        try:
+            from documentcheckertool.checks.base_checker import BaseChecker
+
+            if issubclass(obj, BaseChecker) and obj != BaseChecker:
+                logger.debug(f"Found checker class: {name}")
+                class_instance = None
+                try:
+                    class_instance = obj()
+                    class_category = getattr(class_instance, "category", default_category)
+                    logger.debug(f"Class {name} has category: {class_category}")
+                except Exception as e:
+                    logger.debug(f"Could not instantiate {name} to get category: {e}")
+                    class_category = default_category
+                for method_name, method in inspect.getmembers(obj, predicate=inspect.isfunction):
+                    logger.debug(f"Examining method: {method_name}")
+                    if method_name in [
+                        "check_text",
+                        "check_document",
+                        "run_checks",
+                    ] or method_name in [
+                        "_check_paragraph_length",
+                        "_check_sentence_length",
+                    ]:
+                        category = class_category
+                        if category not in category_mappings:
+                            category_mappings[category] = []
+                            logger.debug(f"Created new category: {category}")
+                        if method_name not in category_mappings[category]:
+                            category_mappings[category].append(method_name)
+                            logger.debug(f"Added check {method_name} to category {category}")
+                        else:
+                            logger.debug(f"Check {method_name} already registered in {category}")
+                    else:
+                        logger.debug(f"Skipping {method_name} - not a registered check method")
+        except ImportError:
+            logger.warning(f"Could not import BaseChecker for class {name}")
+
+    def _process_module(module_name):
         try:
             logger.debug(f"Attempting to import module: {module_name}")
             module = importlib.import_module(f"documentcheckertool.checks.{module_name}")
@@ -35,110 +86,29 @@ def discover_checks() -> Dict[str, List[str]]:
             logger.debug(
                 f"Successfully imported module {module_name}, default category: {default_category}"
             )
-
-            # Find all check functions and classes in the module
             logger.debug(f"Searching for check functions and classes in {module_name}")
             for name, obj in inspect.getmembers(module):
                 logger.debug(f"Examining member: {name}, type: {type(obj)}")
-
-                # Check for standalone functions
                 if inspect.isfunction(obj):
-                    logger.debug(f"Found function: {name}")
-                    if name.startswith("check_") or name.startswith("_check_"):
-                        logger.debug(f"Found check function: {name}")
-                        # Use default category for standalone functions
-                        category = default_category
-                        if category not in category_mappings:
-                            category_mappings[category] = []
-                            logger.debug(f"Created new category: {category}")
-                        if name not in category_mappings[category]:
-                            category_mappings[category].append(name)
-                            logger.debug(f"Added check {name} to category {category}")
-                        else:
-                            logger.debug(f"Check {name} already registered in category {category}")
-                    else:
-                        logger.debug(f"Skipping {name} - doesn't match check naming pattern")
-
-                # Check for classes that inherit from BaseChecker
+                    _process_function(obj, name, default_category)
                 elif inspect.isclass(obj):
-                    logger.debug(f"Found class: {name}")
-                    try:
-                        from documentcheckertool.checks.base_checker import BaseChecker
-
-                        if issubclass(obj, BaseChecker) and obj != BaseChecker:
-                            logger.debug(f"Found checker class: {name}")
-                            # Check if the class has a category attribute
-                            class_instance = None
-                            try:
-                                class_instance = obj()
-                                class_category = getattr(
-                                    class_instance, "category", default_category
-                                )
-                                logger.debug(f"Class {name} has category: {class_category}")
-                            except Exception as e:
-                                logger.debug(f"Could not instantiate {name} to get category: {e}")
-                                class_category = default_category
-
-                            # Get all methods from the class
-                            for method_name, method in inspect.getmembers(
-                                obj, predicate=inspect.isfunction
-                            ):
-                                logger.debug(
-                                    f"Examining method: {method_name}"
-                                )
-                                # Only include registered public check methods:
-                                #   - check_text
-                                #   - check_document
-                                #   - run_checks
-                                # Also include specific private methods from structure:
-                                #   - _check_paragraph_length
-                                #   - _check_sentence_length
-                                if method_name in [
-                                    "check_text",
-                                    "check_document",
-                                    "run_checks",
-                                ] or method_name in [
-                                    "_check_paragraph_length",
-                                    "_check_sentence_length",
-                                ]:
-                                    logger.debug(f"Found registered check method: {method_name}")
-                                    # Use the class's category instead of default
-                                    category = class_category
-                                    if category not in category_mappings:
-                                        category_mappings[category] = []
-                                        logger.debug(f"Created new category: {category}")
-                                    if method_name not in category_mappings[category]:
-                                        category_mappings[category].append(method_name)
-                                        logger.debug(
-                                            f"Added check {method_name} to category {category}"
-                                        )
-                                    else:
-                                        logger.debug(
-                                            f"Check {method_name} already registered in {category}"
-                                        )
-                                else:
-                                    logger.debug(
-                                        f"Skipping {method_name} - not a registered check method"
-                                    )
-                    except ImportError:
-                        logger.warning(f"Could not import BaseChecker for class {name}")
-                        continue
+                    _process_class(obj, name, default_category)
                 else:
                     logger.debug(f"Skipping {name} - not a function or class")
-
         except ImportError as e:
             logger.warning(f"Could not import module {module_name}: {str(e)}")
-            continue
         except Exception as e:
             logger.error(
-                f"Unexpected error processing module {module_name}: {str(e)}", exc_info=True
+                f"Unexpected error processing module {module_name}: {str(e)}",
+                exc_info=True
             )
-            continue
+
+    for module_name in check_modules:
+        _process_module(module_name)
 
     logger.debug(f"Check discovery complete. Found categories: {list(category_mappings.keys())}")
     for category, checks in category_mappings.items():
         logger.debug(f"Category {category} has checks: {checks}")
-
     return category_mappings
 
 
@@ -192,9 +162,19 @@ def _validate_checks_in_categories(
     for category in registered_checks:
         logger.debug(f"Validating category: {category}")
         if category in discovered_checks:
-            _validate_existing_category(category, discovered_checks, registered_checks, validation_results)
+            _validate_existing_category(
+                category,
+                discovered_checks,
+                registered_checks,
+                validation_results
+            )
         else:
-            _validate_missing_category(category, discovered_checks, registered_checks, validation_results)
+            _validate_missing_category(
+                category,
+                discovered_checks,
+                registered_checks,
+                validation_results
+            )
 
 
 def _validate_existing_category(
@@ -205,10 +185,20 @@ def _validate_existing_category(
 ) -> None:
     """Validate checks in a category that exists in both discovered and registered."""
     # Check for missing checks
-    _check_missing_checks_in_category(category, discovered_checks, registered_checks, validation_results)
+    _check_missing_checks_in_category(
+        category,
+        discovered_checks,
+        registered_checks,
+        validation_results
+    )
 
     # Check for extra checks
-    _check_extra_checks_in_category(category, discovered_checks, registered_checks, validation_results)
+    _check_extra_checks_in_category(
+        category,
+        discovered_checks,
+        registered_checks,
+        validation_results
+    )
 
 
 def _check_missing_checks_in_category(
