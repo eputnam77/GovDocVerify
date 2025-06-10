@@ -1,0 +1,59 @@
+name: CI
+
+on:
+  push:
+    branches: [ main, gtihub-action ]
+  pull_request:
+    branches: [ main, gtihub-action ]
+
+jobs:
+  test:
+    name: Test on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install -r requirements-dev.txt
+
+      - name: Install project (editable)
+        run: pip install -e .
+
+      - name: Lint with ruff
+        run: ruff check .
+
+      - name: Check formatting with black
+        run: black --check .
+
+      - name: Check imports with isort
+        run: isort --check-only .
+
+      - name: Run tests with coverage
+        run: |
+          pytest --cov=documentcheckertool --cov-report=xml
+
+      - name: Check coverage >= 90%
+        run: |
+          python -c "
+          import xml.etree.ElementTree as ET
+          import sys
+          tree = ET.parse('coverage.xml')
+          root = tree.getroot()
+          coverage = float(root.attrib['line-rate']) * 100
+          print(f'Coverage: {coverage:.2f}%')
+          if coverage < 90.0:
+              print('::error::Test coverage {:.2f}% is below 90%'.format(coverage))
+              sys.exit(1)
+          "

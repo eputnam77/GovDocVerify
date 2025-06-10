@@ -1,12 +1,14 @@
 import logging
-from typing import Dict, List, Optional
-from docx import Document
-from ..utils.terminology_utils import TerminologyManager
-from ..models import DocumentCheckResult
-from documentcheckertool.checks.check_registry import CheckRegistry
+from typing import List, Optional
+
 from documentcheckertool.checks.base_checker import BaseChecker
+from documentcheckertool.checks.check_registry import CheckRegistry
+
+from ..models import DocumentCheckResult
+from ..utils.terminology_utils import TerminologyManager
 
 logger = logging.getLogger(__name__)
+
 
 class AcronymChecker(BaseChecker):
     """Class for checking acronym usage and definitions."""
@@ -23,13 +25,13 @@ class AcronymChecker(BaseChecker):
         self.terminology_manager = terminology_manager or TerminologyManager()
         logger.info("Initialized AcronymChecker")
 
-    @CheckRegistry.register('acronym')
+    @CheckRegistry.register("acronym")
     def check_document(self, document, doc_type) -> DocumentCheckResult:
         # Accept Document, list, or str
-        if hasattr(document, 'paragraphs'):
-            text = '\n'.join([p.text for p in document.paragraphs])
+        if hasattr(document, "paragraphs"):
+            text = "\n".join([p.text for p in document.paragraphs])
         elif isinstance(document, list):
-            text = '\n'.join(document)
+            text = "\n".join(document)
         else:
             text = str(document)
         return self.check_text(text)
@@ -51,8 +53,7 @@ class AcronymChecker(BaseChecker):
         except Exception as e:
             logger.error(f"Error during acronym check: {str(e)}", exc_info=True)
             return DocumentCheckResult(
-                success=False,
-                issues=[{'error': f"Error during acronym check: {str(e)}"}]
+                success=False, issues=[{"error": f"Error during acronym check: {str(e)}"}]
             )
 
     def get_acronym_definition(self, acronym: str) -> Optional[str]:
@@ -99,10 +100,13 @@ class AcronymChecker(BaseChecker):
         logger.debug("Custom acronym added and changes saved")
 
     def reload_config(self):
-        """Reload the acronym lists from the config file or update the internal state based on in-memory changes."""
-        logger.debug("Reloading acronym configuration")
+        """
+        Reload the acronym lists from the config file or update internal state
+        based on in-memory changes.
+        """
+        logger.debug("Reloading acronym configuration.")
         self.terminology_manager.load_config()
-        logger.debug("Configuration reloaded successfully")
+        logger.debug("Acronym configuration reloaded successfully.")
 
     @staticmethod
     def format_unused_acronym_issues(result: DocumentCheckResult) -> List[str]:
@@ -118,8 +122,10 @@ class AcronymChecker(BaseChecker):
 
         if result.issues:
             for issue in result.issues:
-                if isinstance(issue, dict) and 'acronym' in issue:
-                    formatted_issues.append(f"    • Acronym '{issue['acronym']}' was defined but never used.")
+                if isinstance(issue, dict) and "acronym" in issue:
+                    formatted_issues.append(
+                        f"    • Acronym '{issue['acronym']}' was defined but never used."
+                    )
                 elif isinstance(issue, str):
                     # Handle case where issue might be just the acronym
                     formatted_issues.append(f"    • Acronym '{issue}' was defined but never used.")

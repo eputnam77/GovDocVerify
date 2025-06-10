@@ -5,6 +5,7 @@ This script provides a simple way to run the application from the command line.
 """
 
 import sys
+
 from documentcheckertool.app import main
 
 if __name__ == "__main__":

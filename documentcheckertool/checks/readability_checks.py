@@ -1,33 +1,36 @@
-from typing import Dict, Any, List
-from docx import Document
-from .base_checker import BaseChecker
-from documentcheckertool.models import DocumentCheckResult, Severity
-from documentcheckertool.config.validation_patterns import PASSIVE_VOICE_PATTERNS
-from documentcheckertool.config.document_config import READABILITY_CONFIG
-from documentcheckertool.utils.text_utils import (
-    count_words,
-    count_syllables,
-    split_sentences,
-    calculate_readability_metrics
-)
-from documentcheckertool.utils.terminology_utils import TerminologyManager
-import re
 import logging
+import re
+from typing import Any, Dict, List
+
+from docx import Document
+
 from documentcheckertool.checks.check_registry import CheckRegistry
+from documentcheckertool.config.document_config import READABILITY_CONFIG
+from documentcheckertool.models import DocumentCheckResult, Severity
 from documentcheckertool.utils.boilerplate_utils import is_boilerplate
+from documentcheckertool.utils.terminology_utils import TerminologyManager
+from documentcheckertool.utils.text_utils import (
+    calculate_readability_metrics,
+    count_syllables,
+    count_words,
+    split_sentences,
+)
+
+from .base_checker import BaseChecker
 
 logger = logging.getLogger(__name__)
+
 
 class ReadabilityChecks(BaseChecker):
     """Class for handling readability-related checks."""
 
     def __init__(self, terminology_manager: TerminologyManager):
         super().__init__(terminology_manager)
-        self.readability_config = terminology_manager.terminology_data.get('readability', {})
+        self.readability_config = terminology_manager.terminology_data.get("readability", {})
         self.category = "readability"
         logger.info("Initialized ReadabilityChecks with terminology manager")
 
-    @CheckRegistry.register('readability')
+    @CheckRegistry.register("readability")
     def check_document(self, document: Document, doc_type: str) -> DocumentCheckResult:
         """Check document for readability issues."""
         results = DocumentCheckResult()
@@ -37,7 +40,7 @@ class ReadabilityChecks(BaseChecker):
     def check_text(self, text: str) -> DocumentCheckResult:
         """Check text for readability issues."""
         results = DocumentCheckResult()
-        lines = text.split('\n')
+        lines = text.split("\n")
 
         # Process paragraphs
         current_paragraph = []
@@ -45,10 +48,10 @@ class ReadabilityChecks(BaseChecker):
             if line.strip():
                 current_paragraph.append(line)
             elif current_paragraph:
-                self._check_readability_thresholds(''.join(current_paragraph), results)
+                self._check_readability_thresholds("".join(current_paragraph), results)
                 current_paragraph = []
         if current_paragraph:
-            self._check_readability_thresholds(''.join(current_paragraph), results)
+            self._check_readability_thresholds("".join(current_paragraph), results)
 
         return results
 
@@ -59,7 +62,7 @@ class ReadabilityChecks(BaseChecker):
                 return  # skip mandated boiler-plate completely
             # Calculate basic metrics
             words = text.split()
-            sentences = text.split('.')
+            sentences = text.split(".")
             sentences = [s.strip() for s in sentences if s.strip()]
 
             if not sentences:
@@ -74,17 +77,25 @@ class ReadabilityChecks(BaseChecker):
 
             # Check thresholds
             if flesch_ease < 60:
+                message = (
+                    f"Text is hard to read (Flesch Reading Ease: {flesch_ease:.1f}). "
+                    "Use simpler words and shorter sentences to improve readability."
+                )
                 results.add_issue(
-                    message=f"Text may be difficult to read (Flesch Reading Ease: {flesch_ease:.1f}). Consider simplifying language.",
+                    message=message,
                     severity=Severity.WARNING,
-                    category=getattr(self, "category", "readability")
+                    category=getattr(self, "category", "readability"),
                 )
 
             if flesch_grade > 12:
+                message = (
+                    f"Text is complex (Flesch-Kincaid Grade Level: {flesch_grade:.1f}). "
+                    "Consider using simpler words and shorter sentences for a wider audience."
+                )
                 results.add_issue(
-                    message=f"Text may be too complex for general audience (Flesch-Kincaid Grade Level: {flesch_grade:.1f}).",
+                    message=message,
                     severity=Severity.WARNING,
-                    category=getattr(self, "category", "readability")
+                    category=getattr(self, "category", "readability"),
                 )
 
             # Check sentence length
@@ -92,19 +103,26 @@ class ReadabilityChecks(BaseChecker):
                 word_count = len(sentence.split())
                 if word_count > 25:
                     sentence_preview = self._get_text_preview(sentence.strip())
+                    message = (
+                        f"Sentence '{sentence_preview}' is too long ({word_count} words). "
+                        "Split it into shorter sentences for clarity."
+                    )
                     results.add_issue(
-                        message=f"Sentence '{sentence_preview}' is too long ({word_count} words). Consider breaking it into smaller sentences.",
+                        message=message,
                         severity=Severity.WARNING,
-                        category=getattr(self, "category", "readability")
+                        category=getattr(self, "category", "readability"),
                     )
 
             # Check paragraph length
             if len(words) > 150:
                 paragraph_preview = self._get_text_preview(text.strip())
                 results.add_issue(
-                    message=f"Paragraph '{paragraph_preview}' is too long ({len(words)} words). Consider breaking it into smaller paragraphs.",
+                    message=(
+                        f"Paragraph '{paragraph_preview}' is too long at {len(words)} words. "
+                        "Break it into smaller paragraphs for better readability."
+                    ),
                     severity=Severity.WARNING,
-                    category=getattr(self, "category", "readability")
+                    category=getattr(self, "category", "readability"),
                 )
 
         except Exception as e:
@@ -112,14 +130,14 @@ class ReadabilityChecks(BaseChecker):
             results.add_issue(
                 message=f"Error calculating readability metrics: {str(e)}",
                 severity=Severity.ERROR,
-                category=getattr(self, "category", "readability")
+                category=getattr(self, "category", "readability"),
             )
 
     def _count_syllables(self, word: str) -> int:
         """Count syllables in a word using basic rules."""
         word = word.lower()
         count = 0
-        vowels = 'aeiouy'
+        vowels = "aeiouy"
         on_vowel = False
 
         for char in word:
@@ -128,9 +146,9 @@ class ReadabilityChecks(BaseChecker):
                 count += 1
             on_vowel = is_vowel
 
-        if word.endswith('e'):
+        if word.endswith("e"):
             count -= 1
-        if word.endswith('le') and len(word) > 2 and word[-3] not in vowels:
+        if word.endswith("le") and len(word) > 2 and word[-3] not in vowels:
             count += 1
         if count == 0:
             count = 1
@@ -153,7 +171,7 @@ class ReadabilityChecks(BaseChecker):
             return text
         else:
             preview_words = words[:max_words]
-            return ' '.join(preview_words) + '...'
+            return " ".join(preview_words) + "..."
 
     def check(self, content: str) -> Dict[str, Any]:
         """
@@ -172,85 +190,89 @@ class ReadabilityChecks(BaseChecker):
         sentences = split_sentences(content)
         for i, sentence in enumerate(sentences, 1):
             word_count = count_words(sentence)
-            if word_count > self.readability_config.get('max_sentence_length', 20):
+            if word_count > self.readability_config.get("max_sentence_length", 20):
                 sentence_preview = self._get_text_preview(sentence.strip())
-                warnings.append({
-                    'line': i,
-                    'message': f"Sentence '{sentence_preview}' is {word_count} words long. Consider breaking it into shorter sentences.",
-                    'severity': Severity.WARNING
-                })
+                message = (
+                    f"Sentence '{sentence_preview}' is too long ({word_count} words). "
+                    "Split it into shorter sentences for clarity."
+                )
+                warnings.append(
+                    {
+                        "line": i,
+                        "message": message,
+                        "severity": Severity.WARNING,
+                    }
+                )
 
         # Check paragraph length
-        paragraphs = content.split('\n\n')
+        paragraphs = content.split("\n\n")
         for i, paragraph in enumerate(paragraphs, 1):
             sentence_count = len(split_sentences(paragraph))
-            if sentence_count > self.readability_config.get('max_paragraph_sentences', 5):
+            if sentence_count > self.readability_config.get("max_paragraph_sentences", 5):
                 paragraph_preview = self._get_text_preview(paragraph.strip())
-                warnings.append({
-                    'line': i,
-                    'message': f"Paragraph '{paragraph_preview}' contains {sentence_count} sentences. Consider breaking it into shorter paragraphs.",
-                    'severity': Severity.WARNING
-                })
+                warnings.append(
+                    {
+                        "line": i,
+                        "message": (
+                            f"Paragraph '{paragraph_preview}' contains {sentence_count} sentences. "
+                            "Consider breaking it into shorter paragraphs for better readability."
+                        ),
+                        "severity": Severity.WARNING,
+                    }
+                )
 
         # Check for passive voice
         passive_patterns = [
-            r'\b(?:am|is|are|was|were|be|been|being)\s+\w+ed\b',
-            r'\b(?:am|is|are|was|were|be|been|being)\s+\w+en\b',
-            r'\b(?:has|have|had)\s+been\s+\w+ed\b',
-            r'\b(?:has|have|had)\s+been\s+\w+en\b'
+            r"\b(?:am|is|are|was|were|be|been|being)\s+\w+ed\b",
+            r"\b(?:am|is|are|was|were|be|been|being)\s+\w+en\b",
+            r"\b(?:has|have|had)\s+been\s+\w+ed\b",
+            r"\b(?:has|have|had)\s+been\s+\w+en\b",
         ]
-        passive_regex = re.compile('|'.join(passive_patterns), re.IGNORECASE)
+        passive_regex = re.compile("|".join(passive_patterns), re.IGNORECASE)
 
         for i, sentence in enumerate(sentences, 1):
             if passive_regex.search(sentence):
-                warnings.append({
-                    'line': i,
-                    'message': 'Consider using active voice instead of passive voice. Note: Passive voice is flagged as a readability recommendation. It is not a style requirement, and may be acceptable depending on context.',
-                    'severity': Severity.WARNING,
-                    'type': 'advisory'
-                })
+                warnings.append(
+                    {
+                        "line": i,
+                        "message": (
+                            "Consider using active voice instead of passive voice. "
+                            "This is a readability recommendation, not a strict style rule. "
+                            "Passive voice may be acceptable depending on the context."
+                        ),
+                        "severity": Severity.WARNING,
+                        "type": "advisory",
+                    }
+                )
 
-        return {
-            'has_errors': len(errors) > 0,
-            'errors': errors,
-            'warnings': warnings
-        }
+        return {"has_errors": len(errors) > 0, "errors": errors, "warnings": warnings}
 
     def check_readability(self, doc: List[str]) -> DocumentCheckResult:
         """Check document readability metrics."""
-        stats = {
-            'total_words': 0,
-            'total_syllables': 0,
-            'total_sentences': 0,
-            'complex_words': 0
-        }
+        stats = {"total_words": 0, "total_syllables": 0, "total_sentences": 0, "complex_words": 0}
 
         for paragraph in doc:
             sentences = split_sentences(paragraph)
-            stats['total_sentences'] += len(sentences)
+            stats["total_sentences"] += len(sentences)
 
             for sentence in sentences:
                 words = sentence.split()
-                stats['total_words'] += len(words)
+                stats["total_words"] += len(words)
 
                 for word in words:
                     syllables = count_syllables(word)
-                    stats['total_syllables'] += syllables
+                    stats["total_syllables"] += syllables
                     if syllables >= 3:
-                        stats['complex_words'] += 1
+                        stats["complex_words"] += 1
 
         metrics = calculate_readability_metrics(
-            stats['total_words'],
-            stats['total_sentences'],
-            stats['total_syllables']
+            stats["total_words"], stats["total_sentences"], stats["total_syllables"]
         )
 
         issues = self._check_readability_thresholds(metrics)
 
         return DocumentCheckResult(
-            success=len(issues) == 0,
-            issues=issues,
-            details={'metrics': metrics}
+            success=len(issues) == 0, issues=issues, details={"metrics": metrics}
         )
 
     def _check_readability_thresholds_metrics(self, metrics: Dict[str, float]) -> List[Dict]:
@@ -258,31 +280,36 @@ class ReadabilityChecks(BaseChecker):
         logger.debug("Checking readability metrics against thresholds")
         issues = []
 
-        if metrics['flesch_reading_ease'] < READABILITY_CONFIG['min_flesch_ease']:
-            logger.warning(f"Flesch Reading Ease score {metrics['flesch_reading_ease']} below threshold {READABILITY_CONFIG['min_flesch_ease']}")
-            issues.append({
-                'type': 'readability_score',
-                'metric': 'Flesch Reading Ease',
-                'score': metrics['flesch_reading_ease'],
-                'message': 'Document may be too difficult for general audience'
-            })
+        if metrics["flesch_reading_ease"] < READABILITY_CONFIG["min_flesch_ease"]:
+            logger.warning(
+                f"Flesch Reading Ease score {metrics['flesch_reading_ease']} below threshold "
+                f"{READABILITY_CONFIG['min_flesch_ease']}"
+            )
+            issues.append(
+                {
+                    "type": "readability_score",
+                    "metric": "Flesch Reading Ease",
+                    "score": metrics["flesch_reading_ease"],
+                    "message": "Document may be too difficult for general audience",
+                }
+            )
 
         return issues
 
     def check_sentence_length(self, doc: List[str]) -> DocumentCheckResult:
         """Check for overly long sentences."""
-        results = DocumentCheckResult()
+        DocumentCheckResult()
         # ... existing code ...
 
     def check_paragraph_length(self, doc: List[str]) -> DocumentCheckResult:
         """Check for overly long paragraphs."""
-        results = DocumentCheckResult()
+        DocumentCheckResult()
         # ... existing code ...
 
     def run_checks(self, document: Document, doc_type: str, results: DocumentCheckResult) -> None:
         """Run all readability-related checks."""
         logger.info(f"Running readability checks for document type: {doc_type}")
-        text = '\n'.join([p.text for p in document.paragraphs])
+        text = "\n".join([p.text for p in document.paragraphs])
         check_result = self.check_text(text)
         results.issues.extend(check_result.issues)
         results.success = check_result.success

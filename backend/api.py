@@ -1,16 +1,21 @@
-import tempfile, os, logging
-from fastapi import UploadFile, File, Form, HTTPException
+import logging
+import os
+import tempfile
+
+from fastapi import File, Form, HTTPException, UploadFile
 from fastapi.responses import JSONResponse
+
 from app import process_document
 from documentcheckertool.models import VisibilitySettings
 
 log = logging.getLogger(__name__)
 
+
 async def process_doc_endpoint(
     doc_file: UploadFile = File(...),
-    doc_type: str        = Form(...),
+    doc_type: str = Form(...),
     visibility_json: str = Form("{}"),
-    group_by: str        = Form("category"),
+    group_by: str = Form("category"),
 ):
     tmp_path = None
     try:
@@ -23,11 +28,13 @@ async def process_doc_endpoint(
 
         # If process_document returns a dict (new structure), unpack it
         if isinstance(html_result, dict):
-            return JSONResponse({
-                "has_errors": html_result.get("has_errors", False),
-                "rendered": html_result.get("rendered", ""),
-                "by_category": html_result.get("by_category", {})
-            })
+            return JSONResponse(
+                {
+                    "has_errors": html_result.get("has_errors", False),
+                    "rendered": html_result.get("rendered", ""),
+                    "by_category": html_result.get("by_category", {}),
+                }
+            )
         # Fallback for legacy string output
         return JSONResponse({"html": html_result})
 

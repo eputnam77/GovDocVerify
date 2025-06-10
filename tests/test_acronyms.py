@@ -1,15 +1,18 @@
 # python -m pytest tests/test_acronyms.py -v
 # pytest -v tests/test_acronyms.py --log-cli-level=DEBUG
 
-import unittest
-import pytest
 import logging
+import unittest
+
+import pytest
+
 from documentcheckertool.checks.acronym_checks import AcronymChecker
 from documentcheckertool.models import DocumentCheckResult
 from documentcheckertool.utils.terminology_utils import TerminologyManager
 
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
+
 
 class TestAcronyms(unittest.TestCase):
     """Test cases for acronym checking functionality."""
@@ -58,7 +61,8 @@ class TestAcronyms(unittest.TestCase):
     def test_multiple_acronym_definitions(self):
         """Test that multiple acronym definitions are caught."""
         content = """
-        The National Aeronautics and Space Administration (NASA) is responsible for space exploration.
+        The National Aeronautics and Space Administration (NASA) is responsible for space
+        exploration.
         The National Aeronautics and Space Agency (NASA) regulates space activities.
         """
         result = self.acronym_checker.check_text(content)
@@ -79,8 +83,12 @@ class TestAcronyms(unittest.TestCase):
         issues = [issue for issue in result.issues if issue["type"] == "acronym_usage"]
         # Both EPA and DOT should be reported as unused
         self.assertEqual(len(issues), 2, "Should detect both EPA and DOT as unused")
-        self.assertTrue(any("EPA" in issue["message"] for issue in issues), "Should detect EPA as unused")
-        self.assertTrue(any("DOT" in issue["message"] for issue in issues), "Should detect DOT as unused")
+        self.assertTrue(
+            any("EPA" in issue["message"] for issue in issues), "Should detect EPA as unused"
+        )
+        self.assertTrue(
+            any("DOT" in issue["message"] for issue in issues), "Should detect DOT as unused"
+        )
         logger.debug("Multiple unused acronyms test passed")
 
     def test_used_acronym_not_reported(self):
@@ -121,7 +129,7 @@ class TestAcronyms(unittest.TestCase):
         self.assertTrue(result.success)
         # Optionally, check that no issues mention 'faa'
         for issue in result.issues:
-            self.assertNotIn("faa", issue.get('message', ''))
+            self.assertNotIn("faa", issue.get("message", ""))
         logger.debug("Case sensitivity test passed")
 
     def test_acronym_dictionary_validation(self):
@@ -171,7 +179,7 @@ class TestAcronyms(unittest.TestCase):
             "See 12-ABC for details.",
             "Check XYZ-123 for information.",
             "Refer to § 25.1309 for requirements.",
-            "See Part 25 for details."
+            "See Part 25 for details.",
         ]
         for text in test_cases:
             result = self.acronym_checker.check_text(text)
@@ -297,7 +305,9 @@ class TestAcronyms(unittest.TestCase):
         """
         result = self.acronym_checker.check_text(text)
         # VLACRONYM should be ignored due to length > 10
-        self.assertTrue(result.success, "All acronyms should be either predefined, valid words, or ignored")
+        self.assertTrue(
+            result.success, "All acronyms should be either predefined, valid words, or ignored"
+        )
         self.assertEqual(len(result.issues), 0, "No issues should be found")
         logger.debug("Complex document test passed")
 
@@ -421,9 +431,10 @@ class TestAcronyms(unittest.TestCase):
     def assert_issue_contains(self, result: DocumentCheckResult, message: str):
         """Helper method to check if result contains an issue with the given message."""
         self.assertTrue(
-            any(message in issue.get('message', '') for issue in result.issues),
-            f"No issue found containing message: {message}"
+            any(message in issue.get("message", "") for issue in result.issues),
+            f"No issue found containing message: {message}",
         )
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     unittest.main()

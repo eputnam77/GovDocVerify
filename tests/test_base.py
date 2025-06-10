@@ -1,16 +1,17 @@
 # python -m unittest discover tests to run all tests
 
 import os
-import pytest
-import unittest
 import tempfile
+import unittest
 from pathlib import Path
 from typing import Dict, List, Optional
+
 from docx import Document
 
 from documentcheckertool.document_checker import FAADocumentChecker
-from documentcheckertool.models import DocumentCheckResult, DocumentType
+from documentcheckertool.models import DocumentCheckResult
 from documentcheckertool.utils.terminology_utils import TerminologyManager
+
 
 class TestBase(unittest.TestCase):
     """Base class for all document checker tests."""
@@ -19,6 +20,7 @@ class TestBase(unittest.TestCase):
         """Set up test environment."""
         self.test_dir = Path(__file__).parent / "test_files"
         self.test_dir.mkdir(exist_ok=True)
+        self.test_data_dir = Path(__file__).parent / "test_data"
         self.terminology_manager = TerminologyManager()
         self.checker = FAADocumentChecker()
 
@@ -42,7 +44,7 @@ class TestBase(unittest.TestCase):
         self,
         result: DocumentCheckResult,
         expected_issues: Optional[List[Dict]] = None,
-        expected_score: Optional[float] = None
+        expected_score: Optional[float] = None,
     ):
         """Assert that the check result matches expectations."""
         if expected_issues is not None:
@@ -78,5 +80,7 @@ class TestBase(unittest.TestCase):
     def assert_issue_contains(self, result: DocumentCheckResult, text: str):
         """Assert that a check result contains an issue with the given text."""
         self.assertFalse(result.success, "Expected issues but found none")
-        self.assertTrue(any(text in issue.get('message', '') for issue in result.issues),
-                       f"Expected to find issue containing '{text}' but found: {result.issues}")
+        self.assertTrue(
+            any(text in issue.get("message", "") for issue in result.issues),
+            f"Expected to find issue containing '{text}' but found: {result.issues}",
+        )

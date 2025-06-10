@@ -1,19 +1,20 @@
 # pytest -v tests/test_models.py --log-cli-level=DEBUG
 
-import unittest
 import logging
 import re
-import time
 import statistics
 import sys
+import time
+import unittest
+
 from documentcheckertool.models import DocumentType, DocumentTypeError
 
 # Configure logging with more detailed format
 logging.basicConfig(
-    level=logging.DEBUG,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    level=logging.DEBUG, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
 logger = logging.getLogger(__name__)
+
 
 class TestDocumentType(unittest.TestCase):
     def setUp(self):
@@ -30,7 +31,7 @@ class TestDocumentType(unittest.TestCase):
             "Rule",
             "Special Condition",
             "Technical Standard Order",
-            "Other"
+            "Other",
         ]
         logger.debug(f"Initialized with {len(self.all_doc_types)} document types")
         logger.debug(f"Memory usage at setup: {sys.getsizeof(self.all_doc_types)} bytes")
@@ -49,7 +50,7 @@ class TestDocumentType(unittest.TestCase):
             ("Rule", DocumentType.RULE),
             ("Special Condition", DocumentType.SPECIAL_CONDITION),
             ("Technical Standard Order", DocumentType.TECHNICAL_STANDARD_ORDER),
-            ("Other", DocumentType.OTHER)
+            ("Other", DocumentType.OTHER),
         ]
 
         for input_str, expected in test_cases:
@@ -75,7 +76,7 @@ class TestDocumentType(unittest.TestCase):
             None,  # None value
             123,  # Non-string value
             ["Advisory Circular"],  # List
-            {"type": "Advisory Circular"}  # Dict
+            {"type": "Advisory Circular"},  # Dict
         ]
 
         for invalid_type in invalid_types:
@@ -83,7 +84,10 @@ class TestDocumentType(unittest.TestCase):
                 logger.debug(f"Testing invalid type: '{invalid_type}'")
                 with self.assertRaises(DocumentTypeError) as context:
                     DocumentType.from_string(invalid_type)
-                logger.debug(f"Successfully caught DocumentTypeError for '{invalid_type}': {str(context.exception)}")
+                logger.debug(
+                    f"Successfully caught DocumentTypeError for '{invalid_type}': "
+                    f"{str(context.exception)}"
+                )
 
     def test_values(self):
         """Test that values() returns all document type strings."""
@@ -129,7 +133,9 @@ class TestDocumentType(unittest.TestCase):
             str_rep = str(member)
             logger.debug(f"  - String representation: '{str_rep}'")
             self.assertEqual(str_rep, member.value)
-            logger.debug(f"  - Verified string representation matches value: '{str_rep}' == '{member.value}'")
+            logger.debug(
+                f"  - Verified string representation matches value: '{str_rep}' == '{member.value}'"
+            )
 
     def test_case_sensitivity(self):
         """Test case sensitivity in string conversion."""
@@ -139,7 +145,7 @@ class TestDocumentType(unittest.TestCase):
             ("ADVISORY CIRCULAR", DocumentType.ADVISORY_CIRCULAR),
             ("Advisory Circular", DocumentType.ADVISORY_CIRCULAR),
             ("Advisory circular", DocumentType.ADVISORY_CIRCULAR),
-            ("aDvIsOrY cIrCuLaR", DocumentType.ADVISORY_CIRCULAR)
+            ("aDvIsOrY cIrCuLaR", DocumentType.ADVISORY_CIRCULAR),
         ]
 
         for input_str, expected in test_cases:
@@ -157,7 +163,7 @@ class TestDocumentType(unittest.TestCase):
             ("Advisory  Circular", DocumentType.ADVISORY_CIRCULAR),
             ("\tAdvisory Circular\t", DocumentType.ADVISORY_CIRCULAR),
             ("Advisory\nCircular", DocumentType.ADVISORY_CIRCULAR),
-            ("  Advisory   Circular  ", DocumentType.ADVISORY_CIRCULAR)
+            ("  Advisory   Circular  ", DocumentType.ADVISORY_CIRCULAR),
         ]
 
         for input_str, expected in test_cases:
@@ -169,15 +175,19 @@ class TestDocumentType(unittest.TestCase):
                 stripped = input_str.strip()
                 logger.debug(f"After strip: '{stripped}' (length: {len(stripped)})")
 
-                normalized = re.sub(r'\s+', ' ', stripped)
-                logger.debug(f"After regex normalization: '{normalized}' (length: {len(normalized)})")
+                normalized = re.sub(r"\s+", " ", stripped)
+                logger.debug(
+                    f"After regex normalization: '{normalized}' (length: {len(normalized)})"
+                )
 
                 title_cased = normalized.title()
                 logger.debug(f"After title case: '{title_cased}' (length: {len(title_cased)})")
 
                 result = DocumentType.from_string(input_str)
                 self.assertEqual(result, expected)
-                logger.debug(f"Successfully handled whitespace variation: '{input_str}' -> '{result}'")
+                logger.debug(
+                    f"Successfully handled whitespace variation: '{input_str}' -> '{result}'"
+                )
 
     def test_edge_cases(self):
         """Test edge cases and special inputs."""
@@ -189,13 +199,13 @@ class TestDocumentType(unittest.TestCase):
             ("\nAdvisory\nCircular\n", DocumentType.ADVISORY_CIRCULAR),
             ("\tAdvisory\tCircular\t", DocumentType.ADVISORY_CIRCULAR),
             ("Advisory\t\nCircular", DocumentType.ADVISORY_CIRCULAR),
-            ("  Advisory   Circular  ", DocumentType.ADVISORY_CIRCULAR)
+            ("  Advisory   Circular  ", DocumentType.ADVISORY_CIRCULAR),
         ]
 
         for input_str, expected in test_cases:
             with self.subTest(input_str=input_str):
                 logger.debug(f"Testing edge case: '{input_str}'")
-                normalized = re.sub(r'\s+', ' ', input_str.strip())
+                normalized = re.sub(r"\s+", " ", input_str.strip())
                 logger.debug(f"Normalized input: '{normalized}'")
                 result = DocumentType.from_string(input_str)
                 self.assertEqual(result, expected)
@@ -212,13 +222,13 @@ class TestDocumentType(unittest.TestCase):
             ("  Advisory   Circular  ", "Advisory Circular"),
             ("advisory  circular", "Advisory Circular"),
             ("ADVISORY  CIRCULAR", "Advisory Circular"),
-            ("Advisory  Circular", "Advisory Circular")
+            ("Advisory  Circular", "Advisory Circular"),
         ]
 
         for input_str, expected_normalized in test_cases:
             with self.subTest(input_str=input_str):
                 logger.debug(f"Testing normalization for: '{input_str}'")
-                normalized = re.sub(r'\s+', ' ', input_str.strip()).title()
+                normalized = re.sub(r"\s+", " ", input_str.strip()).title()
                 logger.debug(f"Normalized to: '{normalized}'")
                 self.assertEqual(normalized, expected_normalized)
                 logger.debug(f"Successfully normalized: '{input_str}' -> '{normalized}'")
@@ -233,7 +243,7 @@ class TestDocumentType(unittest.TestCase):
             "  Advisory  Circular  ",
             "ADVISORY CIRCULAR",
             "advisory circular",
-            "Advisory\nCircular"
+            "Advisory\nCircular",
         ]
 
         iterations = 1000
@@ -278,10 +288,16 @@ class TestDocumentType(unittest.TestCase):
         logger.debug(f"  - Total iterations: {iterations * len(test_cases)}")
 
         # Assert that the total time is reasonable (under 2 seconds)
-        self.assertLess(total_time, 2.0,
-            f"Performance test took {total_time:.3f} seconds, which exceeds the 2 second threshold")
+        self.assertLess(
+            total_time,
+            2.0,
+            f"Performance test took {total_time:.3f} seconds, which exceeds the 2 second threshold",
+        )
 
         # Assert that average time per conversion is reasonable (under 1ms)
         avg_time = statistics.mean(all_times)
-        self.assertLess(avg_time, 0.001,
-            f"Average time per conversion ({avg_time:.6f} seconds) exceeds 1ms threshold")
+        self.assertLess(
+            avg_time,
+            0.001,
+            f"Average time per conversion ({avg_time:.6f} seconds) exceeds 1ms threshold",
+        )

@@ -11,9 +11,14 @@ PARAMS = [
     ("# Title\nOld link: https://www.faa.gov/info.", "https://www.faa.gov"),
 ]
 
+
 def test_deprecated_links():
     for text, expected in PARAMS:
         result = checker.check_text(text)
         print(f"All issues for input '{text}':", result.issues)  # Always print for debug
-        msgs = [i['message'] for i in result.issues if i.get('severity') in (Severity.ERROR, Severity.WARNING)]
+        msgs = [
+            i["message"]
+            for i in result.issues
+            if i.get("severity") in (Severity.ERROR, Severity.WARNING)
+        ]
         assert any(expected in m for m in msgs), f"Expected suggestion '{expected}' in {msgs}"

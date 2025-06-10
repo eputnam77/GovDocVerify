@@ -1,12 +1,16 @@
 import re
+
 from documentcheckertool.config.boilerplate_texts import BOILERPLATE_PARAGRAPHS
 
-_NORMALISE = re.compile(r'\s+')
+_NORMALISE = re.compile(r"\s+")
+
 
 def _norm(text: str) -> str:
-    return _NORMALISE.sub(' ', text.strip()).lower()
+    return _NORMALISE.sub(" ", text.strip()).lower()
+
 
 _NORMALISED = {_norm(p) for p in BOILERPLATE_PARAGRAPHS}
+
 
 def is_boilerplate(text: str) -> bool:
     """
