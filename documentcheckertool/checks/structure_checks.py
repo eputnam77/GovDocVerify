@@ -48,7 +48,7 @@ class StructureMessages:
 
     # Cross-reference messages
     CROSS_REFERENCE_INFO = (
-        "Found cross-reference. Verify the referenced target exists and is correct."
+        "Cross-reference detected. Verify the referenced target exists and is correct."
     )
 
     # Watermark messages
@@ -250,7 +250,14 @@ class StructureChecks(BaseChecker):
         current_section_name = None
 
         for para in paragraphs:
-            if para.style.name.startswith("Heading"):
+            text = para.text if hasattr(para, "text") else str(para)
+            is_heading = False
+            if hasattr(para, "style"):
+                is_heading = para.style.name.startswith("Heading")
+            else:
+                is_heading = text.isupper() and text.endswith(".")
+
+            if is_heading:
                 if current_section:
                     is_list_section = self._is_list_section(
                         current_section, current_section_name, list_pattern, bullet_pattern
@@ -269,7 +276,7 @@ class StructureChecks(BaseChecker):
                         is_list_section,
                     )
                 current_section = []
-                current_section_name = para.text
+                current_section_name = text
             else:
                 current_section.append(para)
 
@@ -304,7 +311,9 @@ class StructureChecks(BaseChecker):
             return True
 
         # Check if majority of paragraphs are bullet points
-        bullet_count = sum(1 for p in section if bullet_pattern.match(p.text))
+        bullet_count = sum(
+            1 for p in section if bullet_pattern.match(p.text if hasattr(p, "text") else str(p))
+        )
         bullet_percentage = (bullet_count / len(section)) * 100 if section else 0
 
         logger.debug(
@@ -410,7 +419,7 @@ class StructureChecks(BaseChecker):
         current_list_style = None
 
         for i, para in enumerate(paragraphs):
-            text = para.text.strip()
+            text = para.text.strip() if hasattr(para, "text") else str(para).strip()
             for marker in list_markers:
                 if text.startswith(marker):
                     if current_list_style and marker != current_list_style:
@@ -427,7 +436,7 @@ class StructureChecks(BaseChecker):
     def _check_parentheses(self, paragraphs, results):
         """Check for unmatched parentheses."""
         for i, para in enumerate(paragraphs):
-            text = para.text
+            text = para.text if hasattr(para, "text") else str(para)
             open_count = text.count("(")
             close_count = text.count(")")
             if open_count != close_count:
@@ -883,11 +892,28 @@ class StructureChecks(BaseChecker):
             r"more requirements are specified in)\s+(?:paragraph|section|para)"
         )
         if re.search(pattern, line, re.IGNORECASE):
-            if not line.strip().endswith("."):
+            stripped = line.strip()
+            if not stripped.endswith(".") or stripped.endswith("..."):
                 result["warnings"].append(
                     {"message": "Incorrect punctuation", "line_number": line_num}
                 )
-                logger.debug(f"Added punctuation warning for line {line_num}: missing period")
+                logger.debug(
+                    "Added punctuation warning for line %d: missing or invalid period",
+                    line_num,
+                )
+
+            # Ensure no additional text follows the reference number
+            pattern = r"(?:paragraph|section|para)\s+[A-Z]?\.?\d+(?:\.\d+)*"
+            match = re.search(pattern, stripped, re.IGNORECASE)
+            trailing = stripped[match.end() :] if match else ""
+            if match and trailing and not trailing.lstrip().startswith("."):
+                result["warnings"].append(
+                    {"message": "Incorrect punctuation", "line_number": line_num}
+                )
+                logger.debug(
+                    "Added punctuation warning for line %d: text follows reference number",
+                    line_num,
+                )
 
         # Check for improper abbreviations like "para" which should trigger punctuation warning
         if re.search(r"(?:see|refer to|as noted in)\s+para\s+", line, re.IGNORECASE):

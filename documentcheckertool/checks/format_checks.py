@@ -69,8 +69,17 @@ class FormatMessages:
 
 
 class FormatChecks(BaseChecker):
-    def __init__(self):
-        super().__init__()
+    def __init__(self, terminology_manager=None) -> None:
+        """Initialize the format checks.
+
+        Parameters
+        ----------
+        terminology_manager : TerminologyManager | None
+            Optional terminology manager passed through ``BaseChecker``.  It is
+            currently unused but kept for API compatibility.
+        """
+
+        super().__init__(terminology_manager)
         self.category = "format"
 
     def run_checks(self, document: Document, doc_type: str, results: DocumentCheckResult) -> None:
