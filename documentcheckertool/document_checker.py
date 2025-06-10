@@ -117,19 +117,26 @@ class FAADocumentChecker:
             document_path.lower().endswith(".docx") or document_path.lower().endswith(".doc")
         ):
             doc = Document(document_path)
-            doc.text = "\n".join([paragraph.text for paragraph in doc.paragraphs])
+            doc.text = "\n".join([p.text for p in doc.paragraphs])
             logger.debug(
-                f"Loaded document from file: {document_path}, "
-                f"extracted text length: {len(doc.text)}"
+                "Loaded document from file: %s, extracted text length: %d",
+                document_path,
+                len(doc.text),
             )
+            return doc
+
+        doc = Document()
+
+        if isinstance(document_path, list):
+            lines = document_path
+            logger.debug(f"Creating document from list of strings, count: {len(document_path)}")
         else:
-            doc = Document()
-            if isinstance(document_path, list):
-                doc.text = "\n".join(document_path)
-                logger.debug(f"Created document from list of strings, length: {len(document_path)}")
-            else:
-                doc.text = document_path
-                logger.debug(f"Created document from raw string, length: {len(document_path)}")
+            lines = str(document_path).splitlines()
+            logger.debug(f"Creating document from raw string, line count: {len(lines)}")
+
+        for line in lines:
+            doc.add_paragraph(line)
+        doc.text = "\n".join(lines)
         return doc
 
     def _get_check_modules(self):
