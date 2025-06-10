@@ -97,9 +97,10 @@ class TerminologyManager:
         logger.debug("--- Acronym check start ---")
         logger.debug(f"Text to check: {text}")
 
-        # First, check if the entire text matches any ignored patterns
-        if self._should_ignore_text(text):
-            return DocumentCheckResult(success=True, issues=[])
+        # Don't ignore the entire text if it happens to contain an
+        # ignored pattern.  Instead, handle the skip logic for each
+        # potential acronym so valid issues elsewhere are still
+        # reported.
 
         # Initialize tracking variables
         check_state = self._initialize_check_state()
@@ -165,9 +166,16 @@ class TerminologyManager:
 
         for match in self.usage_pattern.finditer(text):
             acronym = match.group(0)
-            full_text = match.group(0)
+            # Provide some surrounding context so ignored patterns that span
+            # beyond the acronym itself can be detected.
+            context_window = text[max(0, match.start() - 20) : match.end() + 20]
 
-            if self._should_skip_acronym(acronym, full_text, "usage"):
+            if self._should_skip_acronym(acronym, context_window, "usage"):
+                # If we skip due to an ignore pattern but the acronym was
+                # previously defined, consider it used so the definition is
+                # not flagged as unused later.
+                if acronym in check_state["defined_acronyms"]:
+                    check_state["used_acronyms"].add(acronym)
                 continue
 
             if self._handle_acronym_usage(acronym, match, text, check_state):
