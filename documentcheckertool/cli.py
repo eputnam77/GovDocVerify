@@ -6,7 +6,11 @@ import sys
 
 from documentcheckertool.document_checker import FAADocumentChecker
 from documentcheckertool.logging_config import setup_logging
-from documentcheckertool.models import VisibilitySettings
+from documentcheckertool.models import (
+    DocumentType,
+    DocumentTypeError,
+    VisibilitySettings,
+)
 from documentcheckertool.utils.formatting import FormatStyle, ResultFormatter
 from documentcheckertool.utils.terminology_utils import TerminologyManager
 
@@ -312,32 +316,26 @@ def _create_visibility_settings(args, parser: argparse.ArgumentParser) -> Visibi
 def main() -> int:
     """Main entry point for the CLI application."""
     try:
-        # Handle case where no arguments are provided
-        if len(sys.argv) < 3:
-            print("Usage: script.py <file_path> <doc_type>")
-            return 1
-
-        # Simple argument parsing for basic usage
-        if len(sys.argv) >= 3:
+        # Handle positional argument usage: script.py <file> <doc_type>
+        if (
+            len(sys.argv) == 3
+            and not sys.argv[1].startswith("-")
+            and not sys.argv[2].startswith("-")
+        ):
             file_path = sys.argv[1]
-            doc_type = sys.argv[2]
+            doc_type_input = sys.argv[2]
 
-            # Validate document type
-            valid_doc_types = ["ADVISORY_CIRCULAR", "POLICY", "ORDER", "NOTICE"]
-            if doc_type not in valid_doc_types:
-                print(f"Invalid document type: {doc_type}")
+            try:
+                doc_type = DocumentType.from_string(doc_type_input).value
+            except DocumentTypeError:
+                print(f"Invalid document type: {doc_type_input}")
                 return 1
 
-            # Set up basic logging
             setup_logging(debug=False)
-
-            # Process document with default settings
             result = process_document(file_path, doc_type)
-
-            # Return appropriate exit code
             return 1 if result.get("has_errors", False) else 0
 
-        # If we have more arguments, use the full argument parser
+        # Use full argument parser for flag-based invocation
         parser = _create_argument_parser()
         args = parser.parse_args()
 
@@ -353,8 +351,13 @@ def main() -> int:
         # Create visibility settings
         visibility_settings = _create_visibility_settings(args, parser)
 
-        # Process document and display results
-        result = process_document(args.file, args.type, visibility_settings, group_by=args.group_by)
+        try:
+            doc_type = DocumentType.from_string(args.type).value
+        except DocumentTypeError:
+            print(f"Invalid document type: {args.type}")
+            return 1
+
+        result = process_document(args.file, doc_type, visibility_settings, group_by=args.group_by)
         print(result["rendered"])
         return 1 if result.get("has_errors", False) else 0
 
