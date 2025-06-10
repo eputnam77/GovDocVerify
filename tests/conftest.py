@@ -17,7 +17,6 @@ sys.path.insert(0, str(project_root))
 tests_dir = Path(__file__).parent
 sys.path.insert(0, str(tests_dir))
 
-
 @pytest.fixture
 def managers():
     tm = TerminologyManager()
