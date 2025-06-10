@@ -13,7 +13,7 @@ from documentcheckertool.utils.terminology_utils import TerminologyManager
 logger = logging.getLogger(__name__)
 
 
-def process_document(
+def process_document(  # noqa: C901 - function is complex but mirrors CLI logic
     file_path: str,
     doc_type: str,
     visibility_settings: VisibilitySettings = None,
@@ -109,11 +109,11 @@ def process_document(
         logger.info("Document processing completed successfully")
 
         # Return a dictionary with the expected structure for tests
-        has_errors = not results.success if hasattr(results, 'success') else False
+        has_errors = not results.success if hasattr(results, "success") else False
         return {
             "has_errors": has_errors,
             "rendered": formatted_results,
-            "by_category": filtered_results_dict
+            "by_category": filtered_results_dict,
         }
 
     except FileNotFoundError:

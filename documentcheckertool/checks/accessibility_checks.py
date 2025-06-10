@@ -541,10 +541,10 @@ class AccessibilityChecks(BaseChecker):
 
         # For 508 compliance checks, also check for test document issues
         if doc_type == "508_compliance":
-            if hasattr(document, 'paragraphs'):
+            if hasattr(document, "paragraphs"):
                 content = [p.text for p in document.paragraphs]
             else:
-                content = str(document).split('\n')
+                content = str(document).split("\n")
             self._check_test_document_issues(content, results)
 
     def _check_alt_text(

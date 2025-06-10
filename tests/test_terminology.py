@@ -59,7 +59,8 @@ class TestTerminologyChecks:
         result = self.terminology_checks.check(content)
         assert not result["has_errors"]
         assert any(
-            "Change" in issue["message"] and "to an alternative like 'under' or 'following'" in issue["message"]
+            "Change" in issue["message"]
+            and "to an alternative like 'under' or 'following'" in issue["message"]
             for issue in result["warnings"]
         )
 
@@ -151,7 +152,8 @@ class TestTerminologyChecks:
         flagged = [
             issue
             for issue in result["warnings"]
-            if "Remove '49 U.S.C. 106(g)'" in issue["message"] and "This authority citation was deleted" in issue["message"]
+            if "Remove '49 U.S.C. 106(g)'" in issue["message"]
+            and "This authority citation was deleted" in issue["message"]
         ]
         assert len(flagged) >= 1
         # Check that a suggestion is present and 106(g) is removed from the suggestion

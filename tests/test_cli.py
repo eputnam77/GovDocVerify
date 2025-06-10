@@ -16,19 +16,17 @@ class TestCLI:
     @patch("documentcheckertool.cli.FAADocumentChecker")
     def test_process_document(self, mock_checker):
         # Mock the checker's run_all_document_checks method
-        mock_result = type('MockResult', (), {
-            'success': True,
-            'issues': [],
-            'per_check_results': {
-                'test_category': {
-                    'test_check': {
-                        'success': True,
-                        'issues': [],
-                        'details': {}
-                    }
-                }
-            }
-        })()
+        mock_result = type(
+            "MockResult",
+            (),
+            {
+                "success": True,
+                "issues": [],
+                "per_check_results": {
+                    "test_category": {"test_check": {"success": True, "issues": [], "details": {}}}
+                },
+            },
+        )()
         mock_checker.return_value.run_all_document_checks.return_value = mock_result
 
         result = process_document("test.docx", "ADVISORY_CIRCULAR")

@@ -2,4 +2,4 @@
 
 from . import cli
 
-__all__ = ['cli']
+__all__ = ["cli"]
