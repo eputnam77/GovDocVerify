@@ -37,10 +37,14 @@ class FormatMessages:
 
     # Dash spacing messages
     DASH_SPACE_REMOVE_AROUND = (
-        "Remove spaces before and after dashes, unless spacing is needed for clarity."
+        "Use X–Y (no spaces around the dash), unless spacing is needed for clarity or context."
     )
-    DASH_SPACE_REMOVE_BEFORE = "Remove space before the dash, unless spacing is needed for clarity."
-    DASH_SPACE_REMOVE_AFTER = "Remove space after dash, unless spacing is needed for clarity."
+    DASH_SPACE_REMOVE_BEFORE = (
+        "Use X–Y (no spaces before the dash), unless spacing is needed for clarity or context."
+    )
+    DASH_SPACE_REMOVE_AFTER = (
+        "Use X–Y (no spaces after the dash), unless spacing is needed for clarity or context."
+    )
 
     # Punctuation messages
     DOUBLE_PERIOD_WARNING = "Found double periods in line {line}. Remove the unnecessary periods."
