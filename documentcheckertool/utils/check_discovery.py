@@ -34,11 +34,16 @@ def _get_class_category(obj, name, default_category):
         return default_category
 
 
-def _is_valid_check_method(method_name):
-    """Check if a method name is a valid check method."""
-    standard_methods = ["check_text", "check_document", "run_checks"]
-    special_methods = ["_check_paragraph_length", "_check_sentence_length"]
-    return method_name in standard_methods or method_name in special_methods
+def _is_valid_check_method(method_name: str) -> bool:
+    """Return ``True`` if ``method_name`` represents a check implementation."""
+
+    standard_methods = {"check_text", "check_document"}
+    special_methods = {"_check_paragraph_length", "_check_sentence_length"}
+
+    if method_name in standard_methods or method_name in special_methods:
+        return True
+
+    return method_name.startswith("check_") or method_name.startswith("_check_")
 
 
 def _process_class_methods(obj, class_category, category_mappings):

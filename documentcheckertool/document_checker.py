@@ -43,7 +43,9 @@ class FAADocumentChecker:
         logger.debug(
             f"HeadingChecks initialized with pattern_cache: {self.heading_checks.pattern_cache}"
         )
-        self.format_checks = FormatChecks()
+        # Pass the terminology manager for API consistency, even though the
+        # current implementation does not use it.
+        self.format_checks = FormatChecks(self.terminology_manager)
         self.structure_checks = StructureChecks()
         self.terminology_checks = TerminologyChecks(self.terminology_manager)
         logger.debug(
