@@ -40,7 +40,7 @@ class TestCLI:
     def test_main_success(self, mock_process):
         mock_process.return_value = {"has_errors": False, "rendered": "", "by_category": {}}
 
-        with patch("sys.argv", ["script.py", "test.docx", "ADVISORY_CIRCULAR"]):
+        with patch("sys.argv", ["script.py", "test.docx", "Advisory Circular"]):
             result = main()
             assert result == 0
 
@@ -55,8 +55,9 @@ class TestCLI:
     @patch("documentcheckertool.cli.process_document")
     def test_main_invalid_args(self, mock_process):
         with patch("sys.argv", ["script.py"]):
-            result = main()
-            assert result == 1
+            with pytest.raises(SystemExit) as exc_info:
+                main()
+            assert exc_info.value.code == 2
 
     @patch("documentcheckertool.cli.process_document")
     def test_main_invalid_doc_type(self, mock_process):

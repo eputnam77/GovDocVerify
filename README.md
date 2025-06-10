@@ -1051,10 +1051,13 @@ Example:
 
 ## Command-Line Arguments
 
-> **Note:** The only supported CLI entry point is the root-level `cli.py` in the project root. Do **not** use any `cli.py` inside the `documentcheckertool` package for CLI usage. All CLI commands should be run as:
+> **Note:** The only supported CLI entry point is the root-level `cli.py` in the project root. Do **not** use any `cli.py` inside the `documentcheckertool` package for CLI usage. You can invoke the CLI in two ways:
 >
 > ```sh
-> python cli.py [arguments]
+> # positional arguments
+> python cli.py <file> <document type>
+> # or with explicit flags
+> python cli.py --file <file> --type <document type> [other flags]
 > ```
 
 The Document Checker Tool supports the following command-line arguments when run via `python cli.py`:
