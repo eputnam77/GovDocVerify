@@ -1,0 +1,69 @@
+from documentcheckertool.models import DocumentCheckResult, Severity
+from documentcheckertool.utils.formatting import FormatStyle, ResultFormatter
+
+
+def _make_result(issues=None, details=None):
+    return DocumentCheckResult(success=not issues, issues=issues or [], details=details)
+
+
+def test_format_readability_issues():
+    metrics = {
+        "flesch_reading_ease": 65,
+        "flesch_kincaid_grade": 9,
+        "gunning_fog_index": 11,
+        "passive_voice_percentage": 12,
+    }
+    issues = [
+        {
+            "type": "jargon",
+            "word": "utilize",
+            "suggestion": "use",
+            "sentence": "We should utilize this API",
+        },
+        {"type": "readability_score", "message": "Low score"},
+    ]
+    result = _make_result(issues=issues, details={"metrics": metrics})
+    fmt = ResultFormatter()
+    lines = fmt._format_readability_issues(result)
+    assert any("Flesch Reading Ease" in line for line in lines)
+    assert any("utilize" in line for line in lines)
+    assert any("Low score" in line for line in lines)
+
+
+def test_format_accessibility_and_standard_issue():
+    access_result = _make_result(
+        issues=[
+            {
+                "category": "508_compliance_heading_structure",
+                "message": "Heading structure",
+                "context": "H1 missing",
+                "recommendation": "Add H1",
+            },
+            {"category": "image_alt_text", "context": "img.png"},
+            {"category": "hyperlink_accessibility", "user_message": "Bad link"},
+            {"category": "color_contrast", "message": "Low contrast"},
+        ]
+    )
+    fmt = ResultFormatter()
+    lines = fmt._format_accessibility_issues(access_result)
+    assert any("Context" in line for line in lines)
+    assert any("Missing alt text" in line for line in lines)
+    assert any("Bad link" in line for line in lines)
+    assert any("Low contrast" in line for line in lines)
+
+    # standard issue helper
+    assert fmt._format_standard_issue("simple") == "    \u2022 simple"
+    d = fmt._format_standard_issue({"incorrect": "a", "correct": "b"})
+    assert "Replace 'a'" in d
+    d = fmt._format_standard_issue({"sentence": "s", "word_count": 5})
+    assert "Review this sentence" in d
+    d = fmt._format_standard_issue({"type": "long_paragraph", "message": "long"})
+    assert "long" in d
+
+
+def test_format_results_unknown_group():
+    result = _make_result(issues=[{"message": "err", "severity": Severity.ERROR}])
+    data = {"x": {"y": result}}
+    fmt = ResultFormatter(style=FormatStyle.PLAIN)
+    text = fmt.format_results(data, "AC", group_by="other")
+    assert "Internal error" in text
