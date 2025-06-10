@@ -3,7 +3,10 @@
 import logging
 
 from documentcheckertool.checks.check_registry import CheckRegistry
-from documentcheckertool.utils.check_discovery import discover_checks, validate_check_registration
+from documentcheckertool.utils.check_discovery import (
+    discover_checks,
+    validate_check_registration,
+)
 
 logger = logging.getLogger(__name__)
 

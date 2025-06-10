@@ -221,7 +221,9 @@ class FAADocumentChecker:
             # Join list content into paragraphs
             for paragraph_text in content:
                 if paragraph_text.strip():
-                    self.structure_checks._check_paragraph_length(paragraph_text, results, max_words)
+                    self.structure_checks._check_paragraph_length(
+                        paragraph_text, results, max_words
+                    )
         else:
             # Handle single string content
             self.structure_checks._check_paragraph_length(content, results, max_words)
@@ -273,5 +275,5 @@ class FAADocumentChecker:
             logger.error(f"Error checking Section 508 compliance: {str(e)}")
             return DocumentCheckResult(
                 success=False,
-                issues=[{"error": f"Error checking Section 508 compliance: {str(e)}"}]
+                issues=[{"error": f"Error checking Section 508 compliance: {str(e)}"}],
             )

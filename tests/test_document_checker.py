@@ -259,12 +259,12 @@ class TestFAADocumentChecker(unittest.TestCase):
         # Verify each check module was called
         for name, mock in mock_checks.items():
             logger.debug(f"Verifying {name}")
-            if hasattr(mock, "check_text"):
+            if hasattr(mock, "check_text") and not hasattr(mock, "check_document"):
                 mock.check_text.assert_called_once_with(doc_text)
                 logger.debug(f"{name} check_text called")
             else:
-                mock.run_checks.assert_called_once_with(ANY, None, ANY)
-                logger.debug(f"{name} run_checks called")
+                mock.check_document.assert_called_once_with(ANY, None)
+                logger.debug(f"{name} check_document called")
 
         # Verify the total number of check modules matches our expectations
         self.assertEqual(len(mock_checks), 8, "Expected 8 check modules to be run")
