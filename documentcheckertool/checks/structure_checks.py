@@ -750,11 +750,7 @@ class StructureChecks(BaseChecker):
         logger.debug(f"[StructureChecks] check called with {len(content)} lines")
 
         # Initialize result structure
-        result = {
-            "has_errors": False,
-            "errors": [],
-            "warnings": []
-        }
+        result = {"has_errors": False, "errors": [], "warnings": []}
 
         # Extract section definitions from content
         defined_sections = self._extract_defined_sections(content)
@@ -770,8 +766,10 @@ class StructureChecks(BaseChecker):
                 line, line_num, defined_sections, section_lines, result
             )
 
-        logger.debug(f"Check completed. Has errors: {result['has_errors']}, "
-                    f"Errors: {len(result['errors'])}, Warnings: {len(result['warnings'])}")
+        logger.debug(
+            f"Check completed. Has errors: {result['has_errors']}, "
+            f"Errors: {len(result['errors'])}, Warnings: {len(result['warnings'])}"
+        )
 
         return result
 
@@ -780,13 +778,13 @@ class StructureChecks(BaseChecker):
         defined_sections = set()
 
         # Pattern to match section definitions like "2.1 Title", "25.1309 Title", etc.
-        section_def_pattern = re.compile(r'^([A-Z]?\.?\d+(?:\.\d+)*)\s+(.+)$')
+        section_def_pattern = re.compile(r"^([A-Z]?\.?\d+(?:\.\d+)*)\s+(.+)$")
 
         for line in content:
             line = line.strip()
             match = section_def_pattern.match(line)
             if match:
-                section_num = match.group(1).strip('.')
+                section_num = match.group(1).strip(".")
                 defined_sections.add(section_num)
                 logger.debug(f"Found section definition: {section_num}")
 
@@ -795,21 +793,25 @@ class StructureChecks(BaseChecker):
     def _build_section_line_mapping(self, content: List[str]) -> Dict[str, int]:
         """Build mapping of section numbers to their line numbers."""
         section_lines = {}
-        section_def_pattern = re.compile(r'^([A-Z]?\.?\d+(?:\.\d+)*)\s+(.+)$')
+        section_def_pattern = re.compile(r"^([A-Z]?\.?\d+(?:\.\d+)*)\s+(.+)$")
 
         for line_num, line in enumerate(content, 1):
             line = line.strip()
             match = section_def_pattern.match(line)
             if match:
-                section_num = match.group(1).strip('.')
+                section_num = match.group(1).strip(".")
                 section_lines[section_num] = line_num
                 logger.debug(f"Mapped section {section_num} to line {line_num}")
 
         return section_lines
 
     def _check_line_cross_references(
-        self, line: str, line_num: int, defined_sections: set,
-        section_lines: Dict[str, int], result: Dict[str, Any]
+        self,
+        line: str,
+        line_num: int,
+        defined_sections: set,
+        section_lines: Dict[str, int],
+        result: Dict[str, Any],
     ):
         """Check a single line for cross-reference issues."""
         line = line.strip()
@@ -819,14 +821,14 @@ class StructureChecks(BaseChecker):
         # Skip legal references (CFR, USC, etc.) but only if they don't contain
         # internal section references
         skip_patterns = [
-            r'(?:U\.S\.C\.|USC)\s+(?:§+\s*)?(?:Section|section)?\s*\d+'
-            r'(?!\s*,\s*(?:section|paragraph))',
-            r'Section\s+\d+(?:\([a-z]\))*\s+of\s+(?:the\s+)?'
-            r'(?:United States Code|U\.S\.C\.)(?!\s*,\s*(?:section|paragraph))',
-            r'(?:Section|§)\s*\d+(?:\([a-z]\))*\s+of\s+the\s+Act(?!\s*,\s*(?:section|paragraph))',
-            r'\d+\s*(?:CFR|C\.F\.R\.)(?!\s*part\s*\d+\s*,\s*(?:section|paragraph))',
-            r'Public\s+Law\s+\d+[-–]\d+(?!\s*,\s*(?:section|paragraph))',
-            r'(?:see|refer to|under)\s+Appendix\s+[A-Z]',  # Skip appendix references
+            r"(?:U\.S\.C\.|USC)\s+(?:§+\s*)?(?:Section|section)?\s*\d+"
+            r"(?!\s*,\s*(?:section|paragraph))",
+            r"Section\s+\d+(?:\([a-z]\))*\s+of\s+(?:the\s+)?"
+            r"(?:United States Code|U\.S\.C\.)(?!\s*,\s*(?:section|paragraph))",
+            r"(?:Section|§)\s*\d+(?:\([a-z]\))*\s+of\s+the\s+Act(?!\s*,\s*(?:section|paragraph))",
+            r"\d+\s*(?:CFR|C\.F\.R\.)(?!\s*part\s*\d+\s*,\s*(?:section|paragraph))",
+            r"Public\s+Law\s+\d+[-–]\d+(?!\s*,\s*(?:section|paragraph))",
+            r"(?:see|refer to|under)\s+Appendix\s+[A-Z]",  # Skip appendix references
         ]
 
         should_skip = False
@@ -852,15 +854,15 @@ class StructureChecks(BaseChecker):
         """Check for references to sections and verify they exist."""
         # Pattern to match references like "paragraph 2.1", "section 25.1309", etc.
         ref_patterns = [
-            r'(?:paragraph|section|subsection)\s+([A-Z]?\.?\d+(?:\.\d+)*)',
-            r'(?:paragraph|section|subsection)\s+\(([a-z])\)',
-            r'(?:paragraph|section|subsection)\s+\((\d+)\)'
+            r"(?:paragraph|section|subsection)\s+([A-Z]?\.?\d+(?:\.\d+)*)",
+            r"(?:paragraph|section|subsection)\s+\(([a-z])\)",
+            r"(?:paragraph|section|subsection)\s+\((\d+)\)",
         ]
 
         for pattern in ref_patterns:
             matches = re.finditer(pattern, line, re.IGNORECASE)
             for match in matches:
-                ref = match.group(1).strip('.')
+                ref = match.group(1).strip(".")
                 logger.debug(f"Found reference to '{ref}' in line {line_num}")
 
                 # Skip single letter or single digit references for now
@@ -869,32 +871,27 @@ class StructureChecks(BaseChecker):
 
                 if ref not in defined_sections:
                     error_msg = f"Reference to non-existent section {ref}"
-                    result["errors"].append({
-                        "message": error_msg,
-                        "line_number": line_num
-                    })
+                    result["errors"].append({"message": error_msg, "line_number": line_num})
                     result["has_errors"] = True
                     logger.debug(f"Added error: {error_msg}")
 
     def _check_reference_formatting(self, line: str, line_num: int, result: Dict[str, Any]):
         """Check for formatting issues in references."""
         # Check for punctuation issues - any line containing a reference should end with a period
-        pattern = (r'(?:see|refer to|as discussed in|as noted in|'
-                  r'more requirements are specified in)\s+(?:paragraph|section|para)')
+        pattern = (
+            r"(?:see|refer to|as discussed in|as noted in|"
+            r"more requirements are specified in)\s+(?:paragraph|section|para)"
+        )
         if re.search(pattern, line, re.IGNORECASE):
-            if not line.strip().endswith('.'):
-                result["warnings"].append({
-                    "message": "Incorrect punctuation",
-                    "line_number": line_num
-                })
+            if not line.strip().endswith("."):
+                result["warnings"].append(
+                    {"message": "Incorrect punctuation", "line_number": line_num}
+                )
                 logger.debug(f"Added punctuation warning for line {line_num}: missing period")
 
         # Check for improper abbreviations like "para" which should trigger punctuation warning
-        if re.search(r'(?:see|refer to|as noted in)\s+para\s+', line, re.IGNORECASE):
-            result["warnings"].append({
-                "message": "Incorrect punctuation",
-                "line_number": line_num
-            })
+        if re.search(r"(?:see|refer to|as noted in)\s+para\s+", line, re.IGNORECASE):
+            result["warnings"].append({"message": "Incorrect punctuation", "line_number": line_num})
             logger.debug(f"Added punctuation warning for line {line_num}: improper abbreviation")
 
         # Check for spacing issues
@@ -904,45 +901,50 @@ class StructureChecks(BaseChecker):
         # "paragraph" and "section"
         # But the test seems to expect that lowercase is wrong, so let's check for lowercase
         cap_patterns = [
-            (r'(?:see|refer to|as discussed in|as noted in)\s+(?:paragraph|section)',
-             "Incorrect capitalization"),
+            (
+                r"(?:see|refer to|as discussed in|as noted in)\s+(?:paragraph|section)",
+                "Incorrect capitalization",
+            ),
         ]
 
         for pattern, message in cap_patterns:
             if re.search(pattern, line, re.IGNORECASE):
-                result["warnings"].append({
-                    "message": message,
-                    "line_number": line_num
-                })
-                logger.debug(f"Added capitalization warning for line {line_num}: "
-                           f"should be capitalized")
+                result["warnings"].append({"message": message, "line_number": line_num})
+                logger.debug(
+                    f"Added capitalization warning for line {line_num}: " f"should be capitalized"
+                )
 
     def _check_spacing_issues(self, line: str, line_num: int, result: Dict[str, Any]):
         """Check for spacing issues in references."""
         spacing_patterns = [
             # Missing space patterns
-            (r'(?:see|refer to|under)\s+(?:section|paragraph|subsection)'
-             r'(?:[a-zA-Z0-9])', "Incorrect spacing"),
-            (r'(?:refer)\s+to(?:paragraph|section)', "Incorrect spacing"),  # "toparagraph"
+            (
+                r"(?:see|refer to|under)\s+(?:section|paragraph|subsection)" r"(?:[a-zA-Z0-9])",
+                "Incorrect spacing",
+            ),
+            (r"(?:refer)\s+to(?:paragraph|section)", "Incorrect spacing"),  # "toparagraph"
             # Extra space patterns
-            (r'(?:see|refer to|under)\s+(?:section|paragraph|subsection)\s{2,}',
-             "Incorrect spacing"),
-            (r'(?:refer)\s+to\s{2,}', "Incorrect spacing"),  # "to  paragraph"
-            (r'(?:under)\s{2,}', "Incorrect spacing"),  # "under  subsection"
+            (
+                r"(?:see|refer to|under)\s+(?:section|paragraph|subsection)\s{2,}",
+                "Incorrect spacing",
+            ),
+            (r"(?:refer)\s+to\s{2,}", "Incorrect spacing"),  # "to  paragraph"
+            (r"(?:under)\s{2,}", "Incorrect spacing"),  # "under  subsection"
         ]
 
         for pattern, message in spacing_patterns:
             if re.search(pattern, line, re.IGNORECASE):
-                result["warnings"].append({
-                    "message": message,
-                    "line_number": line_num
-                })
+                result["warnings"].append({"message": message, "line_number": line_num})
                 logger.debug(f"Added spacing warning for line {line_num}")
                 break  # Only add one spacing warning per line
 
     def _check_circular_references(
-        self, line: str, line_num: int, defined_sections: set,
-        section_lines: Dict[str, int], result: Dict[str, Any]
+        self,
+        line: str,
+        line_num: int,
+        defined_sections: set,
+        section_lines: Dict[str, int],
+        result: Dict[str, Any],
     ):
         """Check for circular references (section referring to itself)."""
         # Find the section this line belongs to
@@ -951,35 +953,35 @@ class StructureChecks(BaseChecker):
             return
 
         # Check if line references the current section
-        ref_pattern = r'(?:paragraph|section|subsection)\s+([A-Z]?\.?\d+(?:\.\d+)*)'
+        ref_pattern = r"(?:paragraph|section|subsection)\s+([A-Z]?\.?\d+(?:\.\d+)*)"
         matches = re.finditer(ref_pattern, line, re.IGNORECASE)
 
         for match in matches:
-            ref = match.group(1).strip('.')
+            ref = match.group(1).strip(".")
             if ref == current_section:
-                result["warnings"].append({
-                    "message": "Circular reference detected",
-                    "line_number": line_num
-                })
-                logger.debug(f"Found circular reference in line {line_num}: "
-                           f"section {current_section} references itself")
+                result["warnings"].append(
+                    {"message": "Circular reference detected", "line_number": line_num}
+                )
+                logger.debug(
+                    f"Found circular reference in line {line_num}: "
+                    f"section {current_section} references itself"
+                )
 
     def _check_malformed_references(self, line: str, line_num: int, result: Dict[str, Any]):
         """Check for malformed references."""
         malformed_patterns = [
-            (r'section\d+', "Malformed reference"),  # Missing space
-            (r'paragraph\d+', "Malformed reference"),  # Missing space
-            (r'subsection\d+', "Malformed reference"),  # Missing space
-            (r'(?:section|paragraph)\s+\d+(?:\.\d+){4,}',
-             "Invalid section number"),  # Too many levels
+            (r"section\d+", "Malformed reference"),  # Missing space
+            (r"paragraph\d+", "Malformed reference"),  # Missing space
+            (r"subsection\d+", "Malformed reference"),  # Missing space
+            (
+                r"(?:section|paragraph)\s+\d+(?:\.\d+){4,}",
+                "Invalid section number",
+            ),  # Too many levels
         ]
 
         for pattern, message in malformed_patterns:
             if re.search(pattern, line, re.IGNORECASE):
-                result["errors"].append({
-                    "message": message,
-                    "line_number": line_num
-                })
+                result["errors"].append({"message": message, "line_number": line_num})
                 result["has_errors"] = True
                 logger.debug(f"Found malformed reference in line {line_num}")
 
@@ -987,35 +989,33 @@ class StructureChecks(BaseChecker):
         """Check for inconsistent reference formats."""
         # Look for different reference patterns that might be inconsistent
         nested_patterns = [
-            r'section\s+\d+(?:\.\d+)*\([a-z]\)\(\d+\)',  # section 25.1309(a)(1)
-            r'paragraph\s+\([a-z]\)\s+of\s+section\s+\d+(?:\.\d+)*',
+            r"section\s+\d+(?:\.\d+)*\([a-z]\)\(\d+\)",  # section 25.1309(a)(1)
+            r"paragraph\s+\([a-z]\)\s+of\s+section\s+\d+(?:\.\d+)*",
             # paragraph (a) of section 25.1309
-            r'subsection\s+\(\d+\)\s+of\s+paragraph\s+\([a-z]\)',  # subsection (1) of paragraph (a)
+            r"subsection\s+\(\d+\)\s+of\s+paragraph\s+\([a-z]\)",  # subsection (1) of paragraph (a)
         ]
 
         # Check if line contains nested or complex reference patterns
         for pattern in nested_patterns:
             if re.search(pattern, line, re.IGNORECASE):
-                result["warnings"].append({
-                    "message": "Inconsistent reference format",
-                    "line_number": line_num
-                })
+                result["warnings"].append(
+                    {"message": "Inconsistent reference format", "line_number": line_num}
+                )
                 logger.debug(f"Added inconsistent format warning for line {line_num}")
                 return
 
         # Check for inconsistent terminology (para vs paragraph vs section vs subsection)
         inconsistent_patterns = [
-            r'(?:see|refer to|as noted in)\s+para\s+',  # "para" instead of "paragraph"
-            r'(?:see|refer to|as noted in)\s+subsection\s+\d+(?:\.\d+)*\s+for',
+            r"(?:see|refer to|as noted in)\s+para\s+",  # "para" instead of "paragraph"
+            r"(?:see|refer to|as noted in)\s+subsection\s+\d+(?:\.\d+)*\s+for",
             # "subsection" instead of "section"
         ]
 
         for pattern in inconsistent_patterns:
             if re.search(pattern, line, re.IGNORECASE):
-                result["warnings"].append({
-                    "message": "Inconsistent reference format",
-                    "line_number": line_num
-                })
+                result["warnings"].append(
+                    {"message": "Inconsistent reference format", "line_number": line_num}
+                )
                 logger.debug(f"Added inconsistent terminology warning for line {line_num}")
                 break
 
