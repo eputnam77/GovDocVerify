@@ -1,15 +1,17 @@
+import logging
 import time
 
 from documentcheckertool.utils.decorators import profile_performance
 
 
-def test_profile_performance(capsys):
+def test_profile_performance(caplog):
     @profile_performance
     def sample(x):
         time.sleep(0.01)
         return x * 2
 
-    result = sample(3)
-    captured = capsys.readouterr()
+    with caplog.at_level(logging.DEBUG):
+        result = sample(3)
+
     assert result == 6
-    assert "sample took" in captured.out
+    assert any("sample took" in record.message for record in caplog.records)

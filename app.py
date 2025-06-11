@@ -121,7 +121,7 @@ def process_document(
     group_by: str = "category",
 ) -> str:
     """Process a document and return formatted results."""
-    print("[PROOF] process_document called")
+    logger.debug("[PROOF] process_document called")
     logger.debug(
         "[DIAG] process_document called with "
         f"file_path={file_path}, "

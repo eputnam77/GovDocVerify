@@ -1,5 +1,8 @@
+import logging
 import time
 from functools import wraps
+
+logger = logging.getLogger(__name__)
 
 
 def profile_performance(func):
@@ -11,7 +14,7 @@ def profile_performance(func):
         result = func(*args, **kwargs)
         end_time = time.time()
         execution_time = end_time - start_time
-        print(f"{func.__name__} took {execution_time:.4f} seconds to execute")
+        logger.debug(f"{func.__name__} took {execution_time:.4f} seconds to execute")
         return result
 
     return wrapper

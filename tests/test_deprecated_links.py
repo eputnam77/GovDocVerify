@@ -15,7 +15,6 @@ PARAMS = [
 def test_deprecated_links():
     for text, expected in PARAMS:
         result = checker.check_text(text)
-        print(f"All issues for input '{text}':", result.issues)  # Always print for debug
         msgs = [
             i["message"]
             for i in result.issues
