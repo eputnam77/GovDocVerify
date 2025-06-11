@@ -4,15 +4,15 @@ import argparse
 import logging
 import sys
 
-from documentcheckertool.document_checker import FAADocumentChecker
 from documentcheckertool.logging_config import setup_logging
 from documentcheckertool.models import (
     DocumentType,
     DocumentTypeError,
     VisibilitySettings,
 )
+from documentcheckertool.processing import build_results_dict
+from documentcheckertool.processing import process_document as _run_checks
 from documentcheckertool.utils.formatting import FormatStyle, ResultFormatter
-from documentcheckertool.utils.terminology_utils import TerminologyManager
 
 logger = logging.getLogger(__name__)
 
@@ -41,51 +41,15 @@ def process_document(  # noqa: C901 - function is complex but mirrors CLI logic
 
         formatter = ResultFormatter(style=FormatStyle.PLAIN)
 
-        # Initialize the document checker
-        TerminologyManager()
-        checker = FAADocumentChecker()
-
-        # Detect file type using mimetypes and file extension
-        import mimetypes
-
-        mime_type, _ = mimetypes.guess_type(file_path)
-        logger.info(f"Detected MIME type: {mime_type}")
-
-        # If DOCX, pass file path directly to checker
-        if (
-            mime_type == "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-            or file_path.lower().endswith(".docx")
-        ):
-            logger.info("Processing as DOCX file")
-            results = checker.run_all_document_checks(file_path, doc_type)
-        else:
-            logger.info(f"Reading file: {file_path}")
-            try:
-                with open(file_path, "r", encoding="utf-8") as f:
-                    content = f.read()
-            except UnicodeDecodeError:
-                logger.warning("UTF-8 decode failed, trying with different encoding")
-                with open(file_path, "r", encoding="latin-1") as f:
-                    content = f.read()
-            logger.info("Running document checks (text file)")
-            results = checker.run_all_document_checks(content, doc_type)
+        # Run the document checks using the shared processing module
+        results = _run_checks(file_path, doc_type)
 
         logger.info("Formatting results")
         logger.debug(f"Raw results type: {type(results)}")
         logger.debug(f"Raw results dir: {dir(results)}")
 
-        # Use per_check_results if available
-        results_dict = getattr(results, "per_check_results", None)
-        if not results_dict:
-            results_dict = {
-                "all": {
-                    "all": {
-                        "success": results.success,
-                        "issues": results.issues,
-                        "details": getattr(results, "details", {}),
-                    }
-                }
-            }
+        # Build a normalized results dictionary
+        results_dict = build_results_dict(results)
 
         # --- FILTER RESULTS BASED ON VISIBILITY SETTINGS ---
         # Only include categories where visibility_settings.<category> is True

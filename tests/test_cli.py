@@ -13,7 +13,7 @@ class TestCLI:
     def setup(self):
         self.terminology_manager = TerminologyManager()
 
-    @patch("documentcheckertool.cli.FAADocumentChecker")
+    @patch("documentcheckertool.processing.FAADocumentChecker")
     def test_process_document(self, mock_checker):
         # Mock the checker's run_all_document_checks method
         mock_result = type(
