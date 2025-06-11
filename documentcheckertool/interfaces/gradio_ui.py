@@ -911,13 +911,43 @@ h2 {{
     return html_content
 
 
-def generate_report_file(results_data, doc_type_value, format="html"):
-    """Generate downloadable report file."""
+def generate_report_file(results_data=None, doc_type_value=None, format="html"):
+    """Generate downloadable report file.
+
+    Parameters
+    ----------
+    results_data : dict | None
+        Result information as returned by the CLI or API. If ``None`` the last
+        processed results stored in ``_last_results`` are used.
+    doc_type_value : str | None
+        Unused currently but kept for API compatibility.
+    format : str
+        One of ``"html"``, ``"docx"`` or ``"pdf"``.
+    """
+
     try:
-        # Extract data needed for report generation
-        report_data = _extract_report_data()
-        if not report_data:
-            return None
+        if results_data is None:
+            report_data = _extract_report_data()
+            if not report_data:
+                return None
+        else:
+            # Normalize provided data
+            report_data = {
+                "results_dict": results_data.get(
+                    "results_dict",
+                    results_data.get("by_category", results_data),
+                ),
+                "visibility_settings": results_data.get(
+                    "visibility_settings", VisibilitySettings()
+                ),
+                "summary": results_data.get("summary"),
+                "formatted_results": results_data.get(
+                    "formatted_results", results_data.get("rendered", "")
+                ),
+            }
+            if report_data["summary"] is None:
+                total, counts = _count_issues_in_results(report_data["results_dict"])
+                report_data["summary"] = {"total": total, "by_category": counts}
 
         results_dict = report_data["results_dict"]
         visibility_settings = report_data["visibility_settings"]
