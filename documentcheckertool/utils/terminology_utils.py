@@ -244,6 +244,11 @@ class TerminologyManager:
             logger.debug("Skipping location reference for DC")
             return True
 
+        # Skip references to USC without periods to avoid false positives
+        if acronym == "USC":
+            logger.debug("Skipping unpunctuated USC reference")
+            return True
+
         # Check if the full context matches any ignored patterns
         for pattern in self.ignored_patterns:
             if pattern.search(full_text):

@@ -290,6 +290,44 @@ class TestAcronyms(unittest.TestCase):
         self.assertEqual(len(result.issues), 0)
         logger.debug("Valid words test passed")
 
+    def test_standard_ac_definition(self):
+        """Ensure AC defined with the standard term is accepted."""
+        text = "The advisory circular (AC) provides guidance. The AC applies."
+        result = self.acronym_checker.check_text(text)
+        self.assertTrue(result.success)
+        self.assertEqual(len(result.issues), 0)
+
+    def test_standard_tso_definition(self):
+        """Ensure TSO defined with the standard term is accepted."""
+        text = (
+            "The Technical Standard Order (TSO) provides requirements. "
+            "Compliance with the TSO is required."
+        )
+        result = self.acronym_checker.check_text(text)
+        self.assertTrue(result.success)
+        self.assertEqual(len(result.issues), 0)
+
+    def test_dc_location_not_acronym(self):
+        """Ensure location references like Washington, DC are ignored."""
+        text = "The meeting will be held in Washington, DC next week."
+        result = self.acronym_checker.check_text(text)
+        self.assertTrue(result.success)
+        self.assertEqual(len(result.issues), 0)
+
+    def test_ignore_usc_without_periods(self):
+        """Ensure USC without periods is not treated as an acronym."""
+        text = "According to 49 USC 106(g), actions are authorized."
+        result = self.acronym_checker.check_text(text)
+        self.assertTrue(result.success)
+        self.assertEqual(len(result.issues), 0)
+
+    def test_all_caps_word_not_acronym(self):
+        """Ensure uppercase words in valid_words are ignored."""
+        text = "The process is GOOD and meets standards."
+        result = self.acronym_checker.check_text(text)
+        self.assertTrue(result.success)
+        self.assertEqual(len(result.issues), 0)
+
     def test_complex_document(self):
         """Test a complex document with multiple acronyms and edge cases."""
         text = """
@@ -452,17 +490,13 @@ class TestAcronyms(unittest.TestCase):
         self.assertFalse(result.success)
 
         expected_missing = [
-            "SC",
             "EPA",
             "EO",
             "SE",
-            "USC",
             "DRS",
             "DOD",
             "PS",
             "AMACC",
-            "ISO",
-            "EMI",
             "HIRF",
         ]
         for acro in expected_missing:
