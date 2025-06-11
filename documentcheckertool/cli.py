@@ -24,7 +24,7 @@ def process_document(  # noqa: C901 - function is complex but mirrors CLI logic
     group_by: str = "category",
 ) -> dict:
     """Process a document and return results as a dictionary."""
-    print("[PROOF] process_document called")
+    logger.debug("[PROOF] process_document called")
     logger.debug(
         "[DIAG] process_document called with "
         f"file_path={file_path}, "
@@ -328,7 +328,7 @@ def main() -> int:
             try:
                 doc_type = DocumentType.from_string(doc_type_input).value
             except DocumentTypeError:
-                print(f"Invalid document type: {doc_type_input}")
+                logger.error(f"Invalid document type: {doc_type_input}")
                 return 1
 
             setup_logging(debug=False)
@@ -354,21 +354,21 @@ def main() -> int:
         try:
             doc_type = DocumentType.from_string(args.type).value
         except DocumentTypeError:
-            print(f"Invalid document type: {args.type}")
+            logger.error(f"Invalid document type: {args.type}")
             return 1
 
         result = process_document(args.file, doc_type, visibility_settings, group_by=args.group_by)
-        print(result["rendered"])
+        logger.info(result["rendered"])
         return 1 if result.get("has_errors", False) else 0
 
     except FileNotFoundError:
-        print("File not found")
+        logger.error("File not found")
         return 1
     except PermissionError:
-        print("Permission denied")
+        logger.error("Permission denied")
         return 1
     except Exception as e:
-        print(f"Error: {e}")
+        logger.error(f"Error: {e}")
         return 1
 
 

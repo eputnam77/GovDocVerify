@@ -157,9 +157,8 @@ def test_proposed_wording(doc_type, content, expect_flag):
     message = "Found 'proposed' wording—remove draft phrasing for final documents."
     flagged = any(message in getattr(i, "message", str(i)) for i in results.issues)
     if flagged != expect_flag:
-        print("DEBUG: All issue messages:")
         for i in results.issues:
-            print(getattr(i, "message", str(i)))
+            logging.getLogger(__name__).debug(getattr(i, "message", str(i)))
     assert flagged == expect_flag
 
 

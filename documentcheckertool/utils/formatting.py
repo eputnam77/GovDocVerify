@@ -1,9 +1,12 @@
+import logging
 from enum import Enum
 from typing import Any, Dict, List, Union
 
 from colorama import Fore, Style
 
 from documentcheckertool.models import DocumentCheckResult, Severity
+
+logger = logging.getLogger(__name__)
 
 
 class FormatStyle(Enum):
@@ -488,7 +491,7 @@ class ResultFormatter:
 
                 f.write(report)
         except Exception as e:
-            print(f"Error saving report: {e}")
+            logger.exception("Error saving report: %s", e)
 
     def _format_readability_issues(self, result: DocumentCheckResult) -> List[str]:
         """Format readability issues with clear, actionable feedback."""
