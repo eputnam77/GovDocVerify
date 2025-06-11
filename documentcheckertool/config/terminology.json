@@ -67,7 +67,9 @@
             "METAR": "Meteorological Aerodrome Report",
             "TAF": "Terminal Aerodrome Forecast",
             "FAA-HQ": "Federal Aviation Administration Headquarters",
-            "RTCA": "Radio Technical Commission for Aeronautics"
+            "RTCA": "Radio Technical Commission for Aeronautics",
+            "SC": "Special Conditions",
+            "RGL": "Regulatory and Guidance Library"
         },
         "custom": {
             "API": "Application Programming Interface",
