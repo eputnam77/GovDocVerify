@@ -8,9 +8,15 @@ from backend.api import process_doc_endpoint
 
 app = FastAPI(title="FAA-Document-Checker API")
 
+allow_origins_env = os.getenv("ALLOW_ORIGINS")
+if allow_origins_env:
+    allow_origins = [o.strip() for o in allow_origins_env.split(",") if o.strip()]
+else:
+    allow_origins = ["*"]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # tighten this in prod
+    allow_origins=allow_origins,
     allow_methods=["POST", "GET"],
     allow_headers=["*"],
 )

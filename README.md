@@ -405,6 +405,7 @@ pip install -r requirements.txt  # Only needed once
 uvicorn backend.main:app --reload
 ```
 - The API will be available at [http://127.0.0.1:8000](http://127.0.0.1:8000).
+- Set `ALLOW_ORIGINS` to a comma-separated list to restrict CORS (defaults to `*`).
 
 ### 2. Start the Frontend Website
 
