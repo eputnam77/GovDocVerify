@@ -290,6 +290,44 @@ class TestAcronyms(unittest.TestCase):
         self.assertEqual(len(result.issues), 0)
         logger.debug("Valid words test passed")
 
+    def test_standard_ac_definition(self):
+        """Ensure AC defined with the standard term is accepted."""
+        text = "The advisory circular (AC) provides guidance. The AC applies."
+        result = self.acronym_checker.check_text(text)
+        self.assertTrue(result.success)
+        self.assertEqual(len(result.issues), 0)
+
+    def test_standard_tso_definition(self):
+        """Ensure TSO defined with the standard term is accepted."""
+        text = (
+            "The Technical Standard Order (TSO) provides requirements. "
+            "Compliance with the TSO is required."
+        )
+        result = self.acronym_checker.check_text(text)
+        self.assertTrue(result.success)
+        self.assertEqual(len(result.issues), 0)
+
+    def test_dc_location_not_acronym(self):
+        """Ensure location references like Washington, DC are ignored."""
+        text = "The meeting will be held in Washington, DC next week."
+        result = self.acronym_checker.check_text(text)
+        self.assertTrue(result.success)
+        self.assertEqual(len(result.issues), 0)
+
+    def test_ignore_usc_without_periods(self):
+        """Ensure USC without periods is not treated as an acronym."""
+        text = "According to 49 USC 106(g), actions are authorized."
+        result = self.acronym_checker.check_text(text)
+        self.assertTrue(result.success)
+        self.assertEqual(len(result.issues), 0)
+
+    def test_all_caps_word_not_acronym(self):
+        """Ensure uppercase words in valid_words are ignored."""
+        text = "The process is GOOD and meets standards."
+        result = self.acronym_checker.check_text(text)
+        self.assertTrue(result.success)
+        self.assertEqual(len(result.issues), 0)
+
     def test_complex_document(self):
         """Test a complex document with multiple acronyms and edge cases."""
         text = """
@@ -304,11 +342,9 @@ class TestAcronyms(unittest.TestCase):
         The A1B2 is used.
         """
         result = self.acronym_checker.check_text(text)
-        # VLACRONYM should be ignored due to length > 10
-        self.assertTrue(
-            result.success, "All acronyms should be either predefined, valid words, or ignored"
-        )
-        self.assertEqual(len(result.issues), 0, "No issues should be found")
+        # VLACRONYM is defined but never used and should be reported
+        self.assertFalse(result.success)
+        self.assert_issue_contains(result, "Acronym 'VLACRONYM' is defined but never used")
         logger.debug("Complex document test passed")
 
     def test_acronyms_with_punctuation(self):
@@ -427,6 +463,46 @@ class TestAcronyms(unittest.TestCase):
         self.assertTrue(result.success)
         self.assertEqual(len(result.issues), 0)
         logger.debug("Different formats test passed")
+
+    def test_sample_acronym_findings(self):
+        """Ensure acronyms are flagged when not defined at first use."""
+
+        text = """
+        SC requirements apply.
+        EPA oversees regulations.
+        EASA issues guidance.
+        EO mandates action.
+        SE documents exist.
+        USC provides authority.
+        DRS handles data.
+        DOD policies apply.
+        PS references documents.
+        AMACC procedures follow.
+        NASA explores space.
+        ISO sets standards.
+        EMI occurs frequently.
+        HIRF affects equipment.
+
+        The National Transportation Safety Board (NTSB) investigates.
+        """
+        result = self.acronym_checker.check_text(text)
+
+        self.assertFalse(result.success)
+
+        expected_missing = [
+            "EPA",
+            "EO",
+            "SE",
+            "DRS",
+            "DOD",
+            "PS",
+            "AMACC",
+            "HIRF",
+        ]
+        for acro in expected_missing:
+            self.assert_issue_contains(result, f"Confirm '{acro}' was defined at its first use")
+
+        self.assert_issue_contains(result, "Acronym 'NTSB' is defined but never used")
 
     def assert_issue_contains(self, result: DocumentCheckResult, message: str):
         """Helper method to check if result contains an issue with the given message."""

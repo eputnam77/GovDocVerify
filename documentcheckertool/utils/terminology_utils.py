@@ -41,6 +41,9 @@ class TerminologyManager:
         self.terminology_data = self._load_terminology()
         self.defined_acronyms: Dict[str, str] = {}
         self.used_acronyms: Set[str] = set()
+        # Precompute a set of common roman numerals (1-50) to avoid false
+        # positives for section numbers like "Section II".
+        self.roman_numerals = self._generate_roman_numerals(50)
         self._validate_config()
         logger.info("Initialized TerminologyManager")
         self.definition_pattern = re.compile(r"\b([\w\s&]+?)\s*\((\b[A-Z]{2,}\b)\)")
@@ -92,14 +95,49 @@ class TerminologyManager:
             logger.warning(f"Valid words file not found at {valid_words_file}")
             return set()
 
+    @staticmethod
+    def _generate_roman_numerals(limit: int) -> Set[str]:
+        """Generate a set of roman numerals up to a limit."""
+        numerals = []
+        mapping = [
+            (50, "L"),
+            (40, "XL"),
+            (10, "X"),
+            (9, "IX"),
+            (5, "V"),
+            (4, "IV"),
+            (1, "I"),
+        ]
+
+        def to_roman(num: int) -> str:
+            result = ""
+            for val, sym in mapping:
+                while num >= val:
+                    result += sym
+                    num -= val
+            return result
+
+        for i in range(1, limit + 1):
+            numerals.append(to_roman(i))
+        return set(numerals)
+
+    @staticmethod
+    def _add_issue(check_state: Dict, issue: Dict) -> None:
+        """Add an issue if one with the same message hasn't been recorded."""
+        key = (issue.get("type"), issue.get("message"))
+        if key not in check_state["issue_keys"]:
+            check_state["issues"].append(issue)
+            check_state["issue_keys"].add(key)
+
     def check_text(self, text: str) -> DocumentCheckResult:
         """Check text for acronym definitions and usage."""
         logger.debug("--- Acronym check start ---")
         logger.debug(f"Text to check: {text}")
 
-        # First, check if the entire text matches any ignored patterns
-        if self._should_ignore_text(text):
-            return DocumentCheckResult(success=True, issues=[])
+        # Don't ignore the entire text if it happens to contain an
+        # ignored pattern.  Instead, handle the skip logic for each
+        # potential acronym so valid issues elsewhere are still
+        # reported.
 
         # Initialize tracking variables
         check_state = self._initialize_check_state()
@@ -127,6 +165,7 @@ class TerminologyManager:
         """Initialize the state for acronym checking."""
         return {
             "issues": [],
+            "issue_keys": set(),
             "defined_acronyms": set(),
             "used_acronyms": set(),
             "defined_acronyms_info": {},
@@ -165,9 +204,16 @@ class TerminologyManager:
 
         for match in self.usage_pattern.finditer(text):
             acronym = match.group(0)
-            full_text = match.group(0)
+            # Provide some surrounding context so ignored patterns that span
+            # beyond the acronym itself can be detected.
+            context_window = text[max(0, match.start() - 20) : match.end() + 20]
 
-            if self._should_skip_acronym(acronym, full_text, "usage"):
+            if self._should_skip_acronym(acronym, context_window, "usage"):
+                # If we skip due to an ignore pattern but the acronym was
+                # previously defined, consider it used so the definition is
+                # not flagged as unused later.
+                if acronym in check_state["defined_acronyms"]:
+                    check_state["used_acronyms"].add(acronym)
                 continue
 
             if self._handle_acronym_usage(acronym, match, text, check_state):
@@ -186,6 +232,21 @@ class TerminologyManager:
         # Skip long acronyms immediately
         if len(acronym) >= 10:
             logger.debug(f"Skipping long acronym {context}: {acronym} (length: {len(acronym)})")
+            return True
+
+        # Skip common roman numerals (e.g. "II", "III") to avoid false positives
+        if acronym in self.roman_numerals:
+            logger.debug(f"Skipping roman numeral {context}: {acronym}")
+            return True
+
+        # Skip "Washington, DC" style location references
+        if acronym == "DC" and re.search(r"Washington", full_text):
+            logger.debug("Skipping location reference for DC")
+            return True
+
+        # Skip references to USC without periods to avoid false positives
+        if acronym == "USC":
+            logger.debug("Skipping unpunctuated USC reference")
             return True
 
         # Check if the full context matches any ignored patterns
@@ -228,13 +289,14 @@ class TerminologyManager:
 
         if clean_def.lower() != clean_std_def.lower():
             logger.warning(f"Non-standard definition for {acronym}: {definition} vs {standard_def}")
-            check_state["issues"].append(
+            self._add_issue(
+                check_state,
                 {
                     "type": "acronym_definition",
                     "message": f"Acronym '{acronym}' defined with non-standard definition",
                     "line": text[: match.start()].count("\n") + 1,
                     "context": full_text,
-                }
+                },
             )
 
     def _handle_acronym_usage(self, acronym: str, match, text: str, check_state: Dict) -> bool:
@@ -300,13 +362,14 @@ class TerminologyManager:
             and acronym not in check_state["all_known_acronyms"]
         ):
             logger.warning(f"Undefined acronym found: {acronym}")
-            check_state["issues"].append(
+            self._add_issue(
+                check_state,
                 {
                     "type": "acronym_usage",
                     "message": f"Confirm '{acronym}' was defined at its first use",
                     "line": text[: match.start()].count("\n") + 1,
                     "context": match.group(0),
-                }
+                },
             )
 
     def _check_unused_acronyms(self, check_state: Dict) -> List:
@@ -328,13 +391,14 @@ class TerminologyManager:
                 continue
 
             logger.warning(f"Found unused acronym: {acronym}")
-            check_state["issues"].append(
+            self._add_issue(
+                check_state,
                 {
                     "type": "acronym_usage",
                     "message": f"Acronym '{acronym}' is defined but never used",
-                    "line": 1,  # We don't track line numbers for unused acronyms
+                    "line": 1,
                     "context": f"{check_state['defined_acronyms_info'][acronym]} ({acronym})",
-                }
+                },
             )
 
         return check_state["issues"]

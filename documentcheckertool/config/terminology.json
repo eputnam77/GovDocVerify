@@ -67,7 +67,18 @@
             "METAR": "Meteorological Aerodrome Report",
             "TAF": "Terminal Aerodrome Forecast",
             "FAA-HQ": "Federal Aviation Administration Headquarters",
-            "RTCA": "Radio Technical Commission for Aeronautics"
+            "RTCA": "Radio Technical Commission for Aeronautics",
+            "SC": "Special Conditions",
+            "RGL": "Regulatory and Guidance Library",
+            "EMI": "Electromagnetic Interference",
+            "FPI": "Flourescent Penetrant Inspection",
+            "ISO": "International Organization for Standards",
+            "ASNT": "American Society for Nondestruction Testing, Inc.",
+            "NDI": "Nondestructive Inspection",
+            "NDT": "Nondestructive Testing",
+            "NIST": "National Institute of Standards and Technology",
+            "ECI": "Eddy Current Inspection",
+            "SEE": "Single Event Upsets"
         },
         "custom": {
             "API": "Application Programming Interface",
