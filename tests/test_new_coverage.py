@@ -89,3 +89,24 @@ def test_gradio_ui_helpers(tmp_path):
     file_path = gradio_ui.generate_report_file(None, None, format="html")
     assert file_path and os.path.exists(file_path)
     os.remove(file_path)
+
+
+def test_generate_report_file_docx_pdf(tmp_path):
+    res_dict = {"readability": {"c": {"issues": [{"message": "m"}]}}}
+    data = {
+        "results_dict": res_dict,
+        "visibility_settings": gradio_ui.VisibilitySettings(),
+        "summary": {"total": 1, "by_category": {"readability": 1}},
+        "formatted_results": "<div>ok</div>",
+    }
+
+    docx_path = gradio_ui.generate_report_file(data, "AC", format="docx")
+    assert docx_path and os.path.exists(docx_path)
+    os.remove(docx_path)
+
+    with mock.patch("pdfkit.from_string") as mk:
+        mk.side_effect = lambda html, path: open(path, "wb").write(b"%PDF-1.4")
+        pdf_path = gradio_ui.generate_report_file(data, "AC", format="pdf")
+        assert pdf_path and os.path.exists(pdf_path)
+        mk.assert_called_once()
+        os.remove(pdf_path)
