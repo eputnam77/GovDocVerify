@@ -162,8 +162,7 @@ class DocumentCheckResult:
             html.append(f"<h3 style='color: {color};'>{severity.value_str} Severity Issues:</h3>")
             html.append("<ul>")
             for issue in issues:
-                line_info = f" (line {issue['line_number']})" if issue.get("line_number") else ""
-                html.append(f"<li>{issue['message']}{line_info}</li>")
+                html.append(f"<li>{issue['message']}</li>")
             html.append("</ul>")
 
         html.append("</div>")

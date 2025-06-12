@@ -243,13 +243,11 @@ class ResultFormatter:
             output.append('<ul style="list-style-type: none; padding-left: 20px;">')
             for issue in issues:
                 message = issue.get("message") or issue.get("error", str(issue))
-                line = issue.get("line_number")
-                line_info = f" (Line {line})" if line is not None else ""
                 span_style = f"color: {severity_colors_html[sev]}; font-weight: bold;"
                 li_content = (
                     f"<li style='margin-bottom: 8px;'>"
                     f"<span style='{span_style}'>[{sev.upper()}]</span> "
-                    f"{message}{line_info}</li>"
+                    f"{message}</li>"
                 )
                 output.append(li_content)
             output.append("</ul>")
@@ -266,9 +264,7 @@ class ResultFormatter:
             output.append("-" * 60)
             for issue in issues:
                 message = issue.get("message") or issue.get("error", str(issue))
-                line = issue.get("line_number")
-                line_info = f" (Line {line})" if line is not None else ""
-                output.append(f"  • {message}{line_info}")
+                output.append(f"  • {message}")
             output.append("")
 
     def _format_by_severity(self, results: Dict[str, Any], output: List[str]) -> str:
@@ -356,15 +352,13 @@ class ResultFormatter:
             for result, issues in category_data:
                 for issue in issues:
                     message = issue.get("message") or issue.get("error", str(issue))
-                    line = issue.get("line_number")
-                    line_info = f" (Line {line})" if line is not None else ""
                     check_name = getattr(result, "check_name", "General")
                     span_style = "color: #721c24; font-weight: bold;"
                     check_display = check_name.replace("_", " ").title()
                     li_content = (
                         f"<li style='margin-bottom: 8px;'>"
                         f"<span style='{span_style}'>[{check_display}]</span> "
-                        f"{message}{line_info}</li>"
+                        f"{message}</li>"
                     )
                     output.append(li_content)
             output.append("</ul>")
@@ -382,17 +376,11 @@ class ResultFormatter:
             for result, issues in category_data:
                 for issue in issues:
                     message = issue.get("message") or issue.get("error", str(issue))
-                    line = issue.get("line_number")
-                    line_info = (
-                        self._format_colored_text(f" (Line {line})", Fore.BLUE)
-                        if line is not None
-                        else ""
-                    )
                     check_name = getattr(result, "check_name", "General")
                     check_label = self._format_colored_text(
                         f"[{check_name.replace('_', ' ').title()}]", Fore.RED
                     )
-                    output.append(f"  • {check_label} {message}{line_info}")
+                    output.append(f"  • {check_label} {message}")
             output.append("")
 
     def _format_by_category(self, results: Dict[str, Any], output: List[str]) -> str:
