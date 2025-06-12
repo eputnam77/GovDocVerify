@@ -1,9 +1,11 @@
 import logging
 import re
+import xml.etree.ElementTree as ET
 from functools import wraps
 from typing import Any, Dict, List, Optional
 
 from docx import Document
+from docx.opc.constants import RELATIONSHIP_TYPE as RT
 
 from documentcheckertool.checks.check_registry import CheckRegistry
 from documentcheckertool.config.boilerplate_texts import BOILERPLATE_PARAGRAPHS
@@ -142,6 +144,30 @@ class StructureChecks(BaseChecker):
     def __init__(self, terminology_manager=None):
         super().__init__(terminology_manager)
         self.category = "structure"
+
+    @staticmethod
+    def _find_watermark_in_paragraphs(paragraphs, valid_marks) -> Optional[str]:
+        for para in paragraphs:
+            normalized = StructureChecks._normalize_watermark_text(para.text)
+            if normalized in valid_marks:
+                return para.text.strip()
+        return None
+
+    @staticmethod
+    def _extract_text_from_xml(xml_bytes: bytes) -> str:
+        """Extract text content from a header or footer XML blob."""
+        try:
+            root = ET.fromstring(xml_bytes)
+        except Exception as exc:  # pragma: no cover - log and continue
+            logger.error("Failed parsing header/footer XML: %s", exc)
+            return ""
+
+        texts = [
+            t.text
+            for t in root.iter("{http://schemas.openxmlformats.org/wordprocessingml/2006/main}t")
+            if t.text
+        ]
+        return " ".join(texts).strip()
 
     @CheckRegistry.register("structure")
     def run_checks(self, document: Document, doc_type: str, results: DocumentCheckResult) -> None:
@@ -488,40 +514,39 @@ class StructureChecks(BaseChecker):
             )
 
     def _extract_watermark(self, doc: Document) -> Optional[str]:
-        """Extract watermark text from the document body and headers/footers."""
-
-        def find_mark(paragraphs) -> Optional[str]:
-            for para in paragraphs:
-                normalized = self._normalize_watermark_text(para.text)
-                if normalized in valid_marks:
-                    return para.text.strip()
-            return None
+        """Extract watermark text from the document body, headers, and footers."""
 
         valid_marks = [self._normalize_watermark_text(w.text) for w in self.VALID_WATERMARKS]
         valid_marks.append("draft")
 
-        text = find_mark(doc.paragraphs)
+        # Check body paragraphs
+        text = self._find_watermark_in_paragraphs(doc.paragraphs, valid_marks)
         if text:
+            logger.debug("Watermark found in body paragraphs: %s", text)
             return text
 
+        # Check header and footer paragraphs
         for section in doc.sections:
-            header_mark = find_mark(section.header.paragraphs)
+            header_mark = self._find_watermark_in_paragraphs(section.header.paragraphs, valid_marks)
             if header_mark:
+                logger.debug("Watermark found in header paragraph: %s", header_mark)
                 return header_mark
-            footer_mark = find_mark(section.footer.paragraphs)
+            footer_mark = self._find_watermark_in_paragraphs(section.footer.paragraphs, valid_marks)
             if footer_mark:
+                logger.debug("Watermark found in footer paragraph: %s", footer_mark)
                 return footer_mark
 
-        """Extract watermark text from the document."""
-        valid_marks = [self._normalize_watermark_text(w.text) for w in self.VALID_WATERMARKS]
-        valid_marks.append("draft")
+        # Search header and footer XML for watermark text (e.g., WordArt shapes)
+        for rel in doc.part.rels.values():
+            if rel.reltype in (RT.HEADER, RT.FOOTER):
+                full_text = self._extract_text_from_xml(rel.target_part.blob)
+                normalized_full = self._normalize_watermark_text(full_text)
+                for mark in valid_marks:
+                    if mark in normalized_full:
+                        logger.debug("Watermark found in header/footer XML: %s", full_text)
+                        return full_text
 
-        for para in doc.paragraphs:
-            normalized = self._normalize_watermark_text(para.text)
-            if normalized in valid_marks:
-                return para.text.strip()
-
-        # TODO: Extract watermark from headers/footers when available
+        logger.debug("No watermark found in document")
         return None
 
     @staticmethod
