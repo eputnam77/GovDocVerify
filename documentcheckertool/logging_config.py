@@ -2,6 +2,7 @@ import logging
 import logging.config
 import os
 import sys
+from io import TextIOWrapper
 
 log_path = os.path.abspath("document_checker.log")
 
@@ -71,12 +72,15 @@ def setup_logging(debug=False):
     Args:
         debug (bool): If True, use DEBUG level logging. If False, use INFO level.
     """
-    # Ensure stdout can handle UTF-8 output across platforms
+    # Ensure stdout uses UTF-8 and does not crash on unsupported characters
     if hasattr(sys.stdout, "reconfigure"):
         try:
-            sys.stdout.reconfigure(encoding="utf-8")
+            sys.stdout.reconfigure(encoding="utf-8", errors="replace")
         except Exception:
-            pass
+            # On some platforms stdout may not support reconfigure
+            sys.stdout = TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
+    else:
+        sys.stdout = TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
 
     if debug:
         logging.config.dictConfig(LOGGING_CONFIG)
