@@ -320,3 +320,25 @@ class TestStructureChecks:
             )
             == 2
         )
+
+    def test_required_ac_paragraphs_missing(self):
+        doc = Document()
+        for para in StructureChecks.AC_REQUIRED_PARAGRAPHS[:-1]:
+            doc.add_paragraph(para)
+        results = DocumentCheckResult(success=True, issues=[])
+        self.structure_checks._check_required_ac_paragraphs(
+            doc.paragraphs, "Advisory Circular", results
+        )
+        assert any(
+            "Required Advisory Circular paragraph" in issue["message"] for issue in results.issues
+        )
+
+    def test_required_ac_paragraphs_present(self):
+        doc = Document()
+        for para in StructureChecks.AC_REQUIRED_PARAGRAPHS:
+            doc.add_paragraph(para)
+        results = DocumentCheckResult(success=True, issues=[])
+        self.structure_checks._check_required_ac_paragraphs(
+            doc.paragraphs, "Advisory Circular", results
+        )
+        assert len(results.issues) == 0

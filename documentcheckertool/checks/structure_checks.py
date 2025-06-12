@@ -6,6 +6,7 @@ from typing import Any, Dict, List, Optional
 from docx import Document
 
 from documentcheckertool.checks.check_registry import CheckRegistry
+from documentcheckertool.config.boilerplate_texts import BOILERPLATE_PARAGRAPHS
 from documentcheckertool.models import DocumentCheckResult, Severity
 
 from .base_checker import BaseChecker
@@ -128,6 +129,8 @@ class WatermarkRequirement:
 class StructureChecks(BaseChecker):
     """Checks for document structure issues."""
 
+    AC_REQUIRED_PARAGRAPHS = [p for p in BOILERPLATE_PARAGRAPHS[1:5]]
+
     VALID_WATERMARKS = [
         WatermarkRequirement("draft for FAA review", "internal_review"),
         WatermarkRequirement("draft for public comments", "public_comment"),
@@ -151,6 +154,7 @@ class StructureChecks(BaseChecker):
         self._check_cross_references(document, results)
         self._check_parentheses(paragraphs, results)
         self._check_watermark(document, results, doc_type)
+        self._check_required_ac_paragraphs(paragraphs, doc_type, results)
 
     def _check_paragraph_length(
         self, text: str, results: DocumentCheckResult, max_words: int = 150
@@ -505,6 +509,28 @@ class StructureChecks(BaseChecker):
                     message=StructureMessages.CROSS_REFERENCE_INFO,
                     severity=Severity.INFO,
                     line_number=i + 1,
+                )
+
+    def _check_required_ac_paragraphs(
+        self, paragraphs, doc_type: str, results: DocumentCheckResult
+    ) -> None:
+        """Ensure Advisory Circulars contain required boilerplate paragraphs."""
+        if doc_type != "Advisory Circular":
+            return
+
+        normalised_doc = {
+            re.sub(r"\s+", " ", (p.text if hasattr(p, "text") else str(p)).strip()).lower(): i
+            for i, p in enumerate(paragraphs, 1)
+        }
+
+        for para in self.AC_REQUIRED_PARAGRAPHS:
+            norm_para = re.sub(r"\s+", " ", para.strip()).lower()
+            if norm_para not in normalised_doc:
+                preview = self._get_text_preview(para)
+                results.add_issue(
+                    message=f"Required Advisory Circular paragraph missing: '{preview}'",
+                    severity=Severity.ERROR,
+                    line_number=None,
                 )
 
     def _extract_paragraph_numbering(self, doc: Document) -> List[tuple]:
