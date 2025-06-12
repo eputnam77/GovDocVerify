@@ -819,8 +819,6 @@ def _add_docx_detailed_results(doc, filtered_results):
                     for issue in result["issues"]:
                         p = doc.add_paragraph(style="List Bullet")
                         p.add_run(issue["message"])
-                        if issue.get("line_number"):
-                            p.add_run(f' (Line {issue["line_number"]})').italic = True
 
 
 def _generate_pdf_report(filepath, summary, filtered_results):
@@ -895,10 +893,7 @@ h2 {{
                     html_content += f"<h3>{display_name}</h3>\n<ul>\n"
 
                     for issue in result["issues"]:
-                        line_info = (
-                            f" (Line {issue['line_number']})" if issue.get("line_number") else ""
-                        )
-                        html_content += f'<li class="issue">{issue["message"]}{line_info}</li>\n'
+                        html_content += f'<li class="issue">{issue["message"]}</li>\n'
 
                     html_content += "</ul>"
 
