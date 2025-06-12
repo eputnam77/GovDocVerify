@@ -71,6 +71,13 @@ def setup_logging(debug=False):
     Args:
         debug (bool): If True, use DEBUG level logging. If False, use INFO level.
     """
+    # Ensure stdout can handle UTF-8 output across platforms
+    if hasattr(sys.stdout, "reconfigure"):
+        try:
+            sys.stdout.reconfigure(encoding="utf-8")
+        except Exception:
+            pass
+
     if debug:
         logging.config.dictConfig(LOGGING_CONFIG)
     else:
