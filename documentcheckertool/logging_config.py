@@ -19,7 +19,7 @@ LOGGING_CONFIG = {
             "class": "logging.StreamHandler",
             "level": "DEBUG",
             "formatter": "default",
-            "stream": sys.stdout,
+            "stream": "ext://sys.stdout",
         },
         "file": {
             "class": "logging.FileHandler",
@@ -49,7 +49,7 @@ LOGGING_CONFIG_INFO = {
             "class": "logging.StreamHandler",
             "level": "INFO",
             "formatter": "default",
-            "stream": sys.stdout,
+            "stream": "ext://sys.stdout",
         },
         "file": {
             "class": "logging.FileHandler",
