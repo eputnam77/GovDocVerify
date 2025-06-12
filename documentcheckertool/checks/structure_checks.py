@@ -488,6 +488,30 @@ class StructureChecks(BaseChecker):
             )
 
     def _extract_watermark(self, doc: Document) -> Optional[str]:
+        """Extract watermark text from the document body and headers/footers."""
+
+        def find_mark(paragraphs) -> Optional[str]:
+            for para in paragraphs:
+                normalized = self._normalize_watermark_text(para.text)
+                if normalized in valid_marks:
+                    return para.text.strip()
+            return None
+
+        valid_marks = [self._normalize_watermark_text(w.text) for w in self.VALID_WATERMARKS]
+        valid_marks.append("draft")
+
+        text = find_mark(doc.paragraphs)
+        if text:
+            return text
+
+        for section in doc.sections:
+            header_mark = find_mark(section.header.paragraphs)
+            if header_mark:
+                return header_mark
+            footer_mark = find_mark(section.footer.paragraphs)
+            if footer_mark:
+                return footer_mark
+
         """Extract watermark text from the document."""
         valid_marks = [self._normalize_watermark_text(w.text) for w in self.VALID_WATERMARKS]
         valid_marks.append("draft")

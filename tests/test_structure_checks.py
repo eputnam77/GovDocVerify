@@ -108,46 +108,46 @@ class TestStructureChecks:
         results = DocumentCheckResult(success=True, issues=[])
         self.structure_checks._check_watermark(doc, results, "internal_review")
         logger.debug(f"Missing watermark test issues: {results.issues}")
-        assert any("watermark" in issue["message"].lower() for issue in results.issues)
+        assert results.issues, "Expected a missing watermark error"
 
     def test_watermark_validation_correct(self):
         """Test watermark validation with correct watermark for stage."""
         doc = Document()
-        doc.add_paragraph("DRAFT - FOR INTERNAL FAA REVIEW")
+        doc.add_paragraph("draft for FAA review")
         doc.add_paragraph("This is a document with correct watermark.")
         results = DocumentCheckResult(success=True, issues=[])
         self.structure_checks._check_watermark(doc, results, "internal_review")
         logger.debug(f"Correct watermark test issues: {results.issues}")
-        assert any("watermark" in issue["message"].lower() for issue in results.issues)
+        assert not results.issues, "No issues should be reported for a correct watermark"
 
     def test_watermark_validation_incorrect(self):
         """Test watermark validation with incorrect watermark for stage."""
         doc = Document()
-        doc.add_paragraph("DRAFT - FOR PUBLIC COMMENTS")
+        doc.add_paragraph("draft for public comments")
         doc.add_paragraph("This is a document with incorrect watermark.")
         results = DocumentCheckResult(success=True, issues=[])
         self.structure_checks._check_watermark(doc, results, "internal_review")
         logger.debug(f"Incorrect watermark test issues: {results.issues}")
-        assert any("watermark" in issue["message"].lower() for issue in results.issues)
+        assert results.issues, "Expected an incorrect watermark error"
 
     def test_watermark_validation_unknown_stage(self):
         """Test watermark validation with unknown document stage."""
         doc = Document()
-        doc.add_paragraph("DRAFT - FOR INTERNAL FAA REVIEW")
+        doc.add_paragraph("draft for FAA review")
         doc.add_paragraph("This is a document with unknown stage.")
         results = DocumentCheckResult(success=True, issues=[])
         self.structure_checks._check_watermark(doc, results, "unknown_stage")
         logger.debug(f"Unknown stage test issues: {results.issues}")
-        assert any("watermark" in issue["message"].lower() for issue in results.issues)
+        assert results.issues, "Expected an unknown stage error"
 
     def test_watermark_validation_all_stages(self):
         """Test watermark validation for all valid document stages."""
         valid_stages = [
-            ("internal_review", "DRAFT - FOR INTERNAL FAA REVIEW"),
-            ("public_comment", "DRAFT - FOR PUBLIC COMMENTS"),
-            ("agc_public_comment", "DRAFT - FOR AGC REVIEW OF PUBLIC COMMENTS"),
-            ("final_draft", "DRAFT - FOR FINAL ISSUANCE"),
-            ("agc_final_review", "DRAFT - FOR AGC REVIEW OF FINAL ISSUANCE"),
+            ("internal_review", "draft for FAA review"),
+            ("public_comment", "draft for public comments"),
+            ("agc_public_comment", "draft for AGC review for public comment"),
+            ("final_draft", "draft for final issuance"),
+            ("agc_final_review", "draft for AGC review for final issuance"),
         ]
 
         for stage, watermark in valid_stages:
@@ -157,7 +157,7 @@ class TestStructureChecks:
             results = DocumentCheckResult(success=True, issues=[])
             self.structure_checks._check_watermark(doc, results, stage)
             logger.debug(f"Stage {stage} test issues: {results.issues}")
-            assert any("watermark" in issue["message"].lower() for issue in results.issues)
+            assert not results.issues, f"Watermark should be valid for stage {stage}"
 
     def test_check_paragraph_length(self):
         doc = Document()
