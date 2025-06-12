@@ -475,7 +475,10 @@ class StructureChecks(BaseChecker):
             )
             return
 
-        if watermark_text != expected_watermark.text:
+        normalized_watermark = self._normalize_watermark_text(watermark_text)
+        expected_normalized = self._normalize_watermark_text(expected_watermark.text)
+
+        if normalized_watermark != expected_normalized:
             results.add_issue(
                 message=StructureMessages.WATERMARK_INCORRECT.format(
                     doc_type=doc_type, expected=expected_watermark.text
@@ -485,16 +488,38 @@ class StructureChecks(BaseChecker):
             )
 
     def _extract_watermark(self, doc: Document) -> Optional[str]:
-        """Extract watermark text from Word document headers/footers."""
-        # First check document body for watermark
-        for para in doc.paragraphs:
-            if para.text.strip().upper() == "DRAFT":
-                return para.text.strip()
+        """Extract watermark text from the document body and headers/footers."""
 
-        # TODO: Implement header/footer watermark extraction
-        # This will need to use python-docx to extract watermark
-        # from document sections and headers/footers
+        def find_mark(paragraphs) -> Optional[str]:
+            for para in paragraphs:
+                normalized = self._normalize_watermark_text(para.text)
+                if normalized in valid_marks:
+                    return para.text.strip()
+            return None
+
+        valid_marks = [self._normalize_watermark_text(w.text) for w in self.VALID_WATERMARKS]
+        valid_marks.append("draft")
+
+        text = find_mark(doc.paragraphs)
+        if text:
+            return text
+
+        for section in doc.sections:
+            header_mark = find_mark(section.header.paragraphs)
+            if header_mark:
+                return header_mark
+            footer_mark = find_mark(section.footer.paragraphs)
+            if footer_mark:
+                return footer_mark
+
         return None
+
+    @staticmethod
+    def _normalize_watermark_text(text: str) -> str:
+        """Normalize watermark text for comparison."""
+        text = text.lower().replace("-", " ")
+        text = re.sub(r"\s+", " ", text).strip()
+        return text
 
     def _check_cross_references(self, document, results):
         """Check for cross-references."""
