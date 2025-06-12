@@ -512,6 +512,16 @@ class StructureChecks(BaseChecker):
             if footer_mark:
                 return footer_mark
 
+        """Extract watermark text from the document."""
+        valid_marks = [self._normalize_watermark_text(w.text) for w in self.VALID_WATERMARKS]
+        valid_marks.append("draft")
+
+        for para in doc.paragraphs:
+            normalized = self._normalize_watermark_text(para.text)
+            if normalized in valid_marks:
+                return para.text.strip()
+
+        # TODO: Extract watermark from headers/footers when available
         return None
 
     @staticmethod
