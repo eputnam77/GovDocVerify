@@ -2,6 +2,7 @@
 
 import argparse
 import logging
+import os
 import sys
 
 from documentcheckertool.logging_config import setup_logging
@@ -15,6 +16,22 @@ from documentcheckertool.processing import process_document as _run_checks
 from documentcheckertool.utils.formatting import FormatStyle, ResultFormatter
 
 logger = logging.getLogger(__name__)
+
+
+def _safe_print(text: str) -> None:
+    """Print ``text`` to stdout, replacing unsupported characters.
+
+    This avoids ``UnicodeEncodeError`` on terminals that cannot handle
+    certain Unicode characters (e.g. emoji on Windows CP1252 consoles).
+    """
+    encoding = sys.stdout.encoding or "utf-8"
+    try:
+        sys.stdout.write(text + os.linesep)
+        sys.stdout.flush()
+    except UnicodeEncodeError:
+        sys.stdout.buffer.write(text.encode(encoding, errors="replace"))
+        sys.stdout.buffer.write(os.linesep.encode(encoding))
+        sys.stdout.flush()
 
 
 def process_document(  # noqa: C901 - function is complex but mirrors CLI logic
@@ -322,7 +339,7 @@ def main() -> int:
             return 1
 
         result = process_document(args.file, doc_type, visibility_settings, group_by=args.group_by)
-        logger.info(result["rendered"])
+        _safe_print(result["rendered"])
         return 1 if result.get("has_errors", False) else 0
 
     except FileNotFoundError:
