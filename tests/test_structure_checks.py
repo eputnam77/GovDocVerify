@@ -1,6 +1,8 @@
 # pytest -v tests/test_structure_checks.py --log-cli-level=DEBUG
 
 import logging
+import xml.etree.ElementTree as ET
+import zipfile
 
 import pytest
 from docx import Document
@@ -158,6 +160,32 @@ class TestStructureChecks:
             self.structure_checks._check_watermark(doc, results, stage)
             logger.debug(f"Stage {stage} test issues: {results.issues}")
             assert not results.issues, f"Watermark should be valid for stage {stage}"
+
+    def test_watermark_header_footer_xml_detection(self, tmp_path):
+        """Watermark should be detected in header XML shapes."""
+        doc = Document()
+        section = doc.sections[0]
+        section.header.add_paragraph("")
+
+        doc_path = tmp_path / "wm.docx"
+        doc.save(doc_path)
+
+        with zipfile.ZipFile(doc_path, "a") as z:
+            xml = z.read("word/header1.xml").decode("utf-8")
+            root = ET.fromstring(xml)
+            new = ET.fromstring(
+                '<w:p xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" '
+                'xmlns:v="urn:schemas-microsoft-com:vml"><w:r><w:pict><v:shape><v:textbox>'
+                "<w:txbxContent><w:p><w:r><w:t>draft for FAA review</w:t></w:r></w:p>"
+                "</w:txbxContent></v:textbox></v:shape></w:pict></w:r></w:p>"
+            )
+            root.append(new)
+            z.writestr("word/header1.xml", ET.tostring(root))
+
+        doc2 = Document(doc_path)
+        results = DocumentCheckResult(success=True, issues=[])
+        self.structure_checks._check_watermark(doc2, results, "internal_review")
+        assert not results.issues
 
     def test_check_paragraph_length(self):
         doc = Document()
