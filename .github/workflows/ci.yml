@@ -2,9 +2,9 @@ name: CI
 
 on:
   push:
-    branches: [ main, gtihub-action ]
+    branches: [ main, BugFixing ]
   pull_request:
-    branches: [ main, gtihub-action ]
+    branches: [ main, BugFixing ]
 
 jobs:
   test:
