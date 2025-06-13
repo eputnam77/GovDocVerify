@@ -195,7 +195,9 @@ class ResultFormatter:
             output.append("=" * 80)
             output.append("")
 
-    def _add_readability_section(self, output: List[str], result: DocumentCheckResult) -> None:
+    def _add_readability_section(
+        self, output: List[str], result: DocumentCheckResult | Dict[str, Any]
+    ) -> None:
         """Add readability metrics section right after the header."""
         lines = self._format_readability_issues(result)
         if not lines:
@@ -529,12 +531,19 @@ class ResultFormatter:
         except Exception as e:
             logger.exception("Error saving report: %s", e)
 
-    def _format_readability_issues(self, result: DocumentCheckResult) -> List[str]:
+    def _format_readability_issues(self, result: DocumentCheckResult | Dict[str, Any]) -> List[str]:
         """Format readability issues with clear, actionable feedback."""
-        formatted_issues = []
+        formatted_issues: List[str] = []
 
-        if result.details and "metrics" in result.details:
-            metrics = result.details["metrics"]
+        details = getattr(result, "details", None)
+        if isinstance(result, dict):
+            details = result.get("details")
+            issues = result.get("issues", [])
+        else:
+            issues = result.issues
+
+        if details and "metrics" in details:
+            metrics = details["metrics"]
             formatted_issues.append("\n  Readability Scores:")
             formatted_issues.append(
                 f"    • Flesch Reading Ease: {metrics['flesch_reading_ease']} (Aim for 50+)"
@@ -551,9 +560,9 @@ class ResultFormatter:
             )
             formatted_issues.append(passive_voice_msg)
 
-        if result.issues:
+        if issues:
             formatted_issues.append("\n  Identified Issues:")
-            for issue in result.issues:
+            for issue in issues:
                 if issue["type"] == "jargon":
                     jargon_msg = (
                         f"    • Replace '{issue['word']}' with '{issue['suggestion']}' "
