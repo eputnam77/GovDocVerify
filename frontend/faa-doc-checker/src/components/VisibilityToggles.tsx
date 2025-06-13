@@ -7,6 +7,7 @@ const categories = [
   { key: "readability", label: "Readability" },
   { key: "paragraph_length", label: "Paragraph Length" },
   { key: "terminology", label: "Terminology" },
+  { key: "acronym", label: "Acronym" },
   { key: "headings", label: "Headings" },
   { key: "structure", label: "Structure" },
   { key: "format", label: "Format" },

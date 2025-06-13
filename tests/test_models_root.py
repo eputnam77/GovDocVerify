@@ -30,6 +30,7 @@ def test_visibility_settings_roundtrip():
         show_readability=False,
         show_format=False,
         show_document_status=False,
+        show_acronym=False,
     )
     data = vis.to_dict()
     assert not data["readability"]
@@ -38,6 +39,7 @@ def test_visibility_settings_roundtrip():
     assert vis2.show_readability is False
     assert vis2.show_format is False
     assert vis2.show_document_status is False
+    assert vis2.show_acronym is False
 
 
 def test_issue_dataclass_and_pattern_config():
