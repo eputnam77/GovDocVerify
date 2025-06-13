@@ -46,7 +46,6 @@ class StructureMessages:
 
     # Parentheses messages
     PARENTHESES_UNMATCHED = (
-        "Found unmatched parentheses. "
         "Add missing opening or closing parentheses in: '{snippet}'."
     )
 
