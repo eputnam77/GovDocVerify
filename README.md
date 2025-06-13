@@ -252,7 +252,7 @@ This section provides comprehensive descriptions of each check performed by the 
 - **After:** Either update the table reference or add table 5-2 if missing
 
 ### Readability Issues
-**Description:** Analyzes document readability using multiple metrics including Flesch Reading Ease, Flesch-Kincaid Grade Level, and Gunning Fog Index. Also checks for passive voice usage and technical jargon.
+**Description:** Analyzes document readability using multiple metrics including Flesch Reading Ease, Flesch-Kincaid Grade Level, and Gunning Fog Index. Also checks for passive voice usage and technical jargon. The analysis section reports the overall percentage of passive voice sentences.
 
 **Solution:** Simplify language, reduce passive voice, and replace technical jargon with plain language alternatives.
 

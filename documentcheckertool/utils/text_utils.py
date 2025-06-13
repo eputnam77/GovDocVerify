@@ -350,6 +350,31 @@ def calculate_readability_metrics(
         return {"flesch_reading_ease": 0, "flesch_kincaid_grade": 0, "gunning_fog_index": 0}
 
 
+def calculate_passive_voice_percentage(text: str) -> float:
+    """Return the percentage of sentences written in passive voice.
+
+    Args:
+        text: The input text to analyze.
+
+    Returns:
+        Percentage of sentences using passive voice rounded to one decimal place.
+    """
+    sentences = split_sentences(text)
+    if not sentences:
+        return 0.0
+
+    passive_patterns = [
+        r"\b(?:am|is|are|was|were|be|been|being)\s+\w+ed\b",
+        r"\b(?:am|is|are|was|were|be|been|being)\s+\w+en\b",
+        r"\b(?:has|have|had)\s+been\s+\w+ed\b",
+        r"\b(?:has|have|had)\s+been\s+\w+en\b",
+    ]
+    passive_regex = re.compile("|".join(passive_patterns), re.IGNORECASE)
+    passive_count = sum(1 for sentence in sentences if passive_regex.search(sentence))
+    percentage = (passive_count / len(sentences)) * 100
+    return round(percentage, 1)
+
+
 def get_valid_words(terminology_manager: Optional[TerminologyManager] = None) -> Set[str]:
     """Get valid words from terminology data. Fallback to heading_words if empty."""
     manager = terminology_manager or TerminologyManager()

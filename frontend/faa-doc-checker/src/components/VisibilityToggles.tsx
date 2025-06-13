@@ -5,6 +5,7 @@ interface Props {
 
 const categories = [
   { key: "readability", label: "Readability" },
+  { key: "analysis", label: "Analysis" },
   { key: "paragraph_length", label: "Paragraph Length" },
   { key: "terminology", label: "Terminology" },
   { key: "acronym", label: "Acronym" },
