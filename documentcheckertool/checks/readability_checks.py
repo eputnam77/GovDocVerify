@@ -46,6 +46,7 @@ class ReadabilityChecks(BaseChecker):
         total_words = 0
         total_sentences = 0
         total_syllables = 0
+        complex_words = 0
         passive_count = 0
 
         passive_patterns = [
@@ -61,7 +62,11 @@ class ReadabilityChecks(BaseChecker):
             total_sentences += len(sentences)
             words = paragraph.split()
             total_words += len(words)
-            total_syllables += sum(self._count_syllables(word) for word in words)
+            for word in words:
+                syllables = self._count_syllables(word)
+                total_syllables += syllables
+                if syllables >= 3:
+                    complex_words += 1
 
             for sentence in sentences:
                 if passive_regex.search(sentence):
@@ -70,7 +75,12 @@ class ReadabilityChecks(BaseChecker):
             self._check_paragraph_structure(paragraph, results)
 
         if total_sentences:
-            metrics = calculate_readability_metrics(total_words, total_sentences, total_syllables)
+            metrics = calculate_readability_metrics(
+                total_words,
+                total_sentences,
+                total_syllables,
+                complex_word_count=complex_words,
+            )
             metrics["passive_voice_percentage"] = round((passive_count / total_sentences) * 100, 1)
             results.details = {"metrics": metrics}
             self._check_document_thresholds(metrics, results)
@@ -126,10 +136,11 @@ class ReadabilityChecks(BaseChecker):
         """Add issues based on overall document readability metrics."""
         flesch_ease = metrics.get("flesch_reading_ease", 0)
         flesch_grade = metrics.get("flesch_kincaid_grade", 0)
+        fog_index = metrics.get("gunning_fog_index", 0)
 
-        if flesch_ease < 60:
+        if flesch_ease < READABILITY_CONFIG.get("min_flesch_score", 50):
             message = (
-                f"Text is hard to read (Flesch Reading Ease: {flesch_ease:.1f}). "
+                f"Text is hard to read (Flesch Reading Ease: {flesch_ease:.1f}; Aim for 50+). "
                 "Use simpler words and shorter sentences to improve readability."
             )
             results.add_issue(
@@ -138,10 +149,21 @@ class ReadabilityChecks(BaseChecker):
                 category="analysis",
             )
 
-        if flesch_grade > 12:
+        if fog_index > READABILITY_CONFIG.get("max_gunning_fog_index", 12):
             message = (
-                f"Text is complex (Flesch-Kincaid Grade Level: {flesch_grade:.1f}). "
-                "Consider using simpler words and shorter sentences for a wider audience."
+                f"Text is complex (Gunning Fog Index: {fog_index:.1f}; Aim for 12 or lower). "
+                "Shorter sentences and simpler words can help reduce complexity."
+            )
+            results.add_issue(
+                message=message,
+                severity=Severity.WARNING,
+                category="analysis",
+            )
+
+        if flesch_grade > READABILITY_CONFIG.get("max_flesch_kincaid_grade", 12):
+            message = (
+                f"Grade level is {flesch_grade:.1f} (Aim for 12 or lower). "
+                "Consider simplifying language if appropriate."
             )
             results.add_issue(
                 message=message,
@@ -153,7 +175,8 @@ class ReadabilityChecks(BaseChecker):
         if passive_pct > READABILITY_CONFIG.get("max_passive_voice_percentage", 10):
             message = (
                 f"Document uses {passive_pct:.1f}% passive voice (target: less than 10%). "
-                "Consider using more active voice."
+                "Consider using more active voice. This is a readability recommendation, "
+                "not a strict style rule. Passive voice may be acceptable depending on the context."
             )
             results.add_issue(
                 message=message,
@@ -294,7 +317,10 @@ class ReadabilityChecks(BaseChecker):
                         stats["complex_words"] += 1
 
         metrics = calculate_readability_metrics(
-            stats["total_words"], stats["total_sentences"], stats["total_syllables"]
+            stats["total_words"],
+            stats["total_sentences"],
+            stats["total_syllables"],
+            complex_word_count=stats["complex_words"],
         )
 
         metrics_result = DocumentCheckResult()

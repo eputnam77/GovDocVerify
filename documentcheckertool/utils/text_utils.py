@@ -316,7 +316,10 @@ def normalize_document_type(doc_type: str) -> str:
 
 
 def calculate_readability_metrics(
-    word_count: int, sentence_count: int, syllable_count: int
+    word_count: int,
+    sentence_count: int,
+    syllable_count: int,
+    complex_word_count: int | None = None,
 ) -> Dict[str, float]:
     """Calculate various readability metrics."""
     try:
@@ -331,7 +334,12 @@ def calculate_readability_metrics(
         )
 
         # Gunning Fog Index
-        fog_index = 0.4 * ((word_count / sentence_count) + 100 * (syllable_count / word_count))
+        if complex_word_count is not None and word_count:
+            fog_index = 0.4 * (
+                (word_count / sentence_count) + 100 * (complex_word_count / word_count)
+            )
+        else:
+            fog_index = 0.4 * ((word_count / sentence_count) + 100 * (syllable_count / word_count))
 
         return {
             "flesch_reading_ease": round(flesch_ease, 1),
