@@ -307,6 +307,11 @@ def _create_visibility_controls():
                     value=True,
                     info="Show readability metrics and scores",
                 )
+                show_analysis = gr.Checkbox(
+                    label="Detailed Analysis",
+                    value=True,
+                    info="Show Flesch, Gunning Fog, and passive voice metrics",
+                )
                 show_paragraph_length = gr.Checkbox(
                     label="Paragraph & Sentence Length",
                     value=True,
@@ -351,6 +356,7 @@ def _create_visibility_controls():
 
     return {
         "show_readability": show_readability,
+        "show_analysis": show_analysis,
         "show_paragraph_length": show_paragraph_length,
         "show_terminology": show_terminology,
         "show_acronym": show_acronym,
@@ -399,6 +405,7 @@ def _setup_event_handlers(components):
             components["template_type"],
             components["group_by"],
             components["show_readability"],
+            components["show_analysis"],
             components["show_paragraph_length"],
             components["show_terminology"],
             components["show_acronym"],
@@ -440,6 +447,7 @@ def _create_process_function():
         template_type_value,
         group_by_value,
         show_readability_value,
+        show_analysis_value,
         show_paragraph_length_value,
         show_terminology_value,
         show_acronym_value,
@@ -492,6 +500,7 @@ def _create_process_function():
                     doc_type_value,
                     group_by_value,
                     show_readability_value,
+                    show_analysis_value,
                     show_paragraph_length_value,
                     show_terminology_value,
                     show_acronym_value,
@@ -530,6 +539,7 @@ def _process_results(
     doc_type_value,
     group_by_value,
     show_readability_value,
+    show_analysis_value,
     show_paragraph_length_value,
     show_terminology_value,
     show_acronym_value,
@@ -548,6 +558,7 @@ def _process_results(
     # Build visibility settings
     visibility_settings = _build_visibility_settings(
         show_readability_value,
+        show_analysis_value,
         show_paragraph_length_value,
         show_terminology_value,
         show_acronym_value,
@@ -664,6 +675,7 @@ def _count_issues_in_results(results_dict):
 
 def _build_visibility_settings(
     show_readability_value,
+    show_analysis_value,
     show_paragraph_length_value,
     show_terminology_value,
     show_acronym_value,
@@ -676,6 +688,7 @@ def _build_visibility_settings(
     """Build visibility settings from UI values."""
     return VisibilitySettings(
         show_readability=show_readability_value,
+        show_analysis=show_analysis_value,
         show_paragraph_length=show_paragraph_length_value,
         show_terminology=show_terminology_value,
         show_acronym=show_acronym_value,
@@ -691,6 +704,7 @@ def _get_selected_categories(visibility_settings):
     """Get selected categories based on visibility settings."""
     visibility_to_categories = {
         "show_readability": ["readability"],
+        "show_analysis": ["analysis"],
         "show_paragraph_length": ["paragraph_length", "sentence_length"],
         "show_terminology": ["terminology"],
         "show_acronym": ["acronym"],

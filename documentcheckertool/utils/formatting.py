@@ -481,12 +481,12 @@ class ResultFormatter:
         output: List[str] = []
         self._add_header(output, metadata)
 
-        readability_cat = results.get("readability")
-        if readability_cat:
-            if isinstance(readability_cat, dict):
-                readability_result = next(iter(readability_cat.values()))
+        analysis_cat = results.get("analysis") or results.get("readability")
+        if analysis_cat:
+            if isinstance(analysis_cat, dict):
+                readability_result = next(iter(analysis_cat.values()))
             else:
-                readability_result = readability_cat
+                readability_result = analysis_cat
             self._add_readability_section(output, readability_result)
 
         if group_by == "severity":

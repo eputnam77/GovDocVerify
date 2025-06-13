@@ -1073,6 +1073,7 @@ The Document Checker Tool supports the following command-line arguments when run
 | `--debug`                 | flag                   | Enable debug mode                                   |
 | `--show-all`              | flag                   | Show all sections (default)                         |
 | `--hide-readability`      | flag                   | Hide readability metrics                            |
+| `--hide-analysis`         | flag                   | Hide readability analysis details                  |
 | `--hide-paragraph-length` | flag                   | Hide paragraph and sentence length checks           |
 | `--hide-terminology`      | flag                   | Hide terminology checks                             |
 | `--hide-acronym`          | flag                   | Hide acronym checks                                 |
@@ -1081,8 +1082,8 @@ The Document Checker Tool supports the following command-line arguments when run
 | `--hide-format`           | flag                   | Hide format checks                                  |
 | `--hide-accessibility`    | flag                   | Hide accessibility checks                           |
 | `--hide-document-status`  | flag                   | Hide document status checks                         |
-| `--hide CATEGORY`         | string/list            | Hide the specified categories (comma- or space-separated). Mutually exclusive with --hide-*, --show-only, and --show-all. Categories: readability, paragraph_length, terminology, acronym, headings, structure, format, accessibility, document_status |
-| `--show-only CATEGORY`    | string/list            | Show only the specified categories (comma- or space-separated). Mutually exclusive with --hide-* and --show-all. Categories: readability, paragraph_length, terminology, acronym, headings, structure, format, accessibility, document_status |
+| `--hide CATEGORY`         | string/list            | Hide the specified categories (comma- or space-separated). Mutually exclusive with --hide-*, --show-only, and --show-all. Categories: readability, analysis, paragraph_length, terminology, acronym, headings, structure, format, accessibility, document_status |
+| `--show-only CATEGORY`    | string/list            | Show only the specified categories (comma- or space-separated). Mutually exclusive with --hide-* and --show-all. Categories: readability, analysis, paragraph_length, terminology, acronym, headings, structure, format, accessibility, document_status |
 
 ### Document Type Options for `--type`
 
@@ -1170,6 +1171,11 @@ Here are several example commands demonstrating different CLI options:
   python cli.py --file mydoc.docx --type "Order" --hide-readability
   ```
 
+- **Hide analysis metrics:**
+  ```sh
+  python cli.py --file mydoc.docx --type "Order" --hide-analysis
+  ```
+
 - **Group results by severity:**
   ```sh
   python cli.py --file mydoc.docx --type "Federal Register Notice" --group-by severity
@@ -1183,6 +1189,7 @@ Here are several example commands demonstrating different CLI options:
 ### Valid Categories for `--show-only`
 
 - readability
+- analysis
 - paragraph_length
 - terminology
 - acronym
