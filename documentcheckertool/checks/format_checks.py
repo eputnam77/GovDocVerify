@@ -51,6 +51,7 @@ class FormatMessages:
 
     # Parentheses messages
     UNMATCHED_PARENTHESES_WARNING = (
+        "Found unmatched parentheses in line {line}. "
         "Add missing opening or closing parentheses in: '{context}'."
     )
 
