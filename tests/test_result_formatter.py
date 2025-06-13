@@ -30,6 +30,23 @@ def test_format_readability_issues():
     assert any("Low score" in line for line in lines)
 
 
+def test_format_readability_issues_dict():
+    """Ensure formatting works when given a plain dictionary."""
+    metrics = {
+        "flesch_reading_ease": 60,
+        "flesch_kincaid_grade": 10,
+        "gunning_fog_index": 12,
+        "passive_voice_percentage": 20,
+    }
+    issues = [
+        {"type": "passive_voice", "message": "Too much passive"},
+    ]
+    result_dict = {"success": False, "issues": issues, "details": {"metrics": metrics}}
+    fmt = ResultFormatter()
+    lines = fmt._format_readability_issues(result_dict)
+    assert any("Passive Voice" in line for line in lines)
+
+
 def test_format_accessibility_and_standard_issue():
     access_result = _make_result(
         issues=[
