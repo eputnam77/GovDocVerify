@@ -47,6 +47,21 @@ def test_format_readability_issues_dict():
     assert any("Passive Voice" in line for line in lines)
 
 
+def test_format_readability_missing_type():
+    """Handle readability issues lacking a 'type' key."""
+    metrics = {
+        "flesch_reading_ease": 55,
+        "flesch_kincaid_grade": 11,
+        "gunning_fog_index": 13,
+        "passive_voice_percentage": 15,
+    }
+    issues = [{"message": "Generic message"}]
+    result = _make_result(issues=issues, details={"metrics": metrics})
+    fmt = ResultFormatter()
+    lines = fmt._format_readability_issues(result)
+    assert any("Generic message" in line for line in lines)
+
+
 def test_format_accessibility_and_standard_issue():
     access_result = _make_result(
         issues=[

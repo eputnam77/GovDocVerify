@@ -563,13 +563,16 @@ class ResultFormatter:
         if issues:
             formatted_issues.append("\n  Identified Issues:")
             for issue in issues:
-                if issue["type"] == "jargon":
+                issue_type = issue.get("type")
+                if issue_type == "jargon":
                     jargon_msg = (
                         f"    • Replace '{issue['word']}' with '{issue['suggestion']}' "
                         f"in: \"{issue['sentence']}\""
                     )
                     formatted_issues.append(jargon_msg)
-                elif issue["type"] in ["readability_score", "passive_voice"]:
+                elif issue_type in ["readability_score", "passive_voice"]:
+                    formatted_issues.append(f"    • {issue['message']}")
+                elif "message" in issue:
                     formatted_issues.append(f"    • {issue['message']}")
 
         return formatted_issues
