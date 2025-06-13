@@ -38,60 +38,40 @@ class ReadabilityChecks(BaseChecker):
         return results
 
     def check_text(self, text: str) -> DocumentCheckResult:
-        """Check text for readability issues."""
+        """Check text for readability issues using overall document metrics."""
         results = DocumentCheckResult()
+
         paragraphs = [line.strip() for line in text.splitlines() if line.strip()]
 
+        total_words = 0
+        total_sentences = 0
+        total_syllables = 0
+
         for paragraph in paragraphs:
-            self._check_readability_thresholds(paragraph, results)
+            sentences = split_sentences(paragraph)
+            total_sentences += len(sentences)
+            words = paragraph.split()
+            total_words += len(words)
+            total_syllables += sum(self._count_syllables(word) for word in words)
+
+            self._check_paragraph_structure(paragraph, results)
+
+        if total_sentences:
+            metrics = calculate_readability_metrics(total_words, total_sentences, total_syllables)
+            results.details = {"metrics": metrics}
+            self._check_document_thresholds(metrics, results)
 
         return results
 
-    def _check_readability_thresholds(self, text: str, results: DocumentCheckResult) -> None:
-        """Check readability metrics against thresholds."""
+    def _check_paragraph_structure(self, text: str, results: DocumentCheckResult) -> None:
+        """Check sentence and paragraph length for a single paragraph."""
         try:
             if is_boilerplate(text):
-                return  # skip mandated boiler-plate completely
-            # Calculate basic metrics
-            words = text.split()
-            sentences = text.split(".")
-            sentences = [s.strip() for s in sentences if s.strip()]
-
-            if not sentences:
                 return
 
-            avg_words_per_sentence = len(words) / len(sentences)
-            avg_syllables_per_word = sum(self._count_syllables(word) for word in words) / len(words)
+            sentences = split_sentences(text)
 
-            # Calculate readability scores
-            flesch_ease = 206.835 - 1.015 * avg_words_per_sentence - 84.6 * avg_syllables_per_word
-            flesch_grade = 0.39 * avg_words_per_sentence + 11.8 * avg_syllables_per_word - 15.59
-
-            # Check thresholds
-            if flesch_ease < 60:
-                message = (
-                    f"Text is hard to read (Flesch Reading Ease: {flesch_ease:.1f}). "
-                    "Use simpler words and shorter sentences to improve readability."
-                )
-                results.add_issue(
-                    message=message,
-                    severity=Severity.WARNING,
-                    category=getattr(self, "category", "readability"),
-                )
-
-            if flesch_grade > 12:
-                message = (
-                    f"Text is complex (Flesch-Kincaid Grade Level: {flesch_grade:.1f}). "
-                    "Consider using simpler words and shorter sentences for a wider audience."
-                )
-                results.add_issue(
-                    message=message,
-                    severity=Severity.WARNING,
-                    category=getattr(self, "category", "readability"),
-                )
-
-            # Check sentence length
-            for i, sentence in enumerate(sentences, 1):
+            for sentence in sentences:
                 word_count = len(sentence.split())
                 if word_count > 25:
                     sentence_preview = self._get_text_preview(sentence.strip())
@@ -105,7 +85,6 @@ class ReadabilityChecks(BaseChecker):
                         category=getattr(self, "category", "readability"),
                     )
 
-            # Check paragraph length by sentences and lines
             sentence_count = len(sentences)
             line_count = len([line for line in text.splitlines() if line.strip()])
             if sentence_count > 6 or line_count > 8:
@@ -119,12 +98,40 @@ class ReadabilityChecks(BaseChecker):
                     severity=Severity.WARNING,
                     category=getattr(self, "category", "readability"),
                 )
-
         except Exception as e:
             logger.error(f"Error in readability check: {str(e)}")
             results.add_issue(
                 message=f"Error calculating readability metrics: {str(e)}",
                 severity=Severity.ERROR,
+                category=getattr(self, "category", "readability"),
+            )
+
+    def _check_document_thresholds(
+        self, metrics: Dict[str, float], results: DocumentCheckResult
+    ) -> None:
+        """Add issues based on overall document readability metrics."""
+        flesch_ease = metrics.get("flesch_reading_ease", 0)
+        flesch_grade = metrics.get("flesch_kincaid_grade", 0)
+
+        if flesch_ease < 60:
+            message = (
+                f"Text is hard to read (Flesch Reading Ease: {flesch_ease:.1f}). "
+                "Use simpler words and shorter sentences to improve readability."
+            )
+            results.add_issue(
+                message=message,
+                severity=Severity.WARNING,
+                category=getattr(self, "category", "readability"),
+            )
+
+        if flesch_grade > 12:
+            message = (
+                f"Text is complex (Flesch-Kincaid Grade Level: {flesch_grade:.1f}). "
+                "Consider using simpler words and shorter sentences for a wider audience."
+            )
+            results.add_issue(
+                message=message,
+                severity=Severity.WARNING,
                 category=getattr(self, "category", "readability"),
             )
 
@@ -264,7 +271,9 @@ class ReadabilityChecks(BaseChecker):
             stats["total_words"], stats["total_sentences"], stats["total_syllables"]
         )
 
-        issues = self._check_readability_thresholds(metrics)
+        metrics_result = DocumentCheckResult()
+        self._check_document_thresholds(metrics, metrics_result)
+        issues = metrics_result.issues
 
         return DocumentCheckResult(
             success=len(issues) == 0, issues=issues, details={"metrics": metrics}
