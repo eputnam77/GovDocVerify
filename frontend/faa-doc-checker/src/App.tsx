@@ -36,6 +36,7 @@ export default function App() {
     readability: true,
     paragraph_length: true,
     terminology: true,
+    acronym: true,
     headings: true,
     structure: true,
     format: true,

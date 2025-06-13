@@ -61,7 +61,9 @@ def test_result_formatter_severity_grouping():
 
 
 def test_gradio_ui_helpers(tmp_path):
-    vis = gradio_ui._build_visibility_settings(True, False, True, False, True, False, True, False)
+    vis = gradio_ui._build_visibility_settings(
+        True, False, True, True, False, True, False, True, False
+    )
     selected = gradio_ui._get_selected_categories(vis)
     assert "readability" in selected
     assert "paragraph_length" not in selected

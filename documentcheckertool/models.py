@@ -136,6 +136,7 @@ class VisibilitySettings:
     show_format: bool = True
     show_accessibility: bool = True
     show_document_status: bool = True
+    show_acronym: bool = True
 
     def to_dict(self) -> Dict[str, bool]:
         """Convert settings to dictionary format."""
@@ -148,6 +149,7 @@ class VisibilitySettings:
             "format": self.show_format,
             "accessibility": self.show_accessibility,
             "document_status": self.show_document_status,
+            "acronym": self.show_acronym,
         }
 
     @classmethod
@@ -162,6 +164,7 @@ class VisibilitySettings:
             show_format=data.get("format", True),
             show_accessibility=data.get("accessibility", True),
             show_document_status=data.get("document_status", True),
+            show_acronym=data.get("acronym", True),
         )
 
     @classmethod

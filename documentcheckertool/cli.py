@@ -151,6 +151,7 @@ def _create_argument_parser() -> argparse.ArgumentParser:
     visibility_group.add_argument(
         "--hide-terminology", action="store_true", help="Hide terminology checks"
     )
+    visibility_group.add_argument("--hide-acronym", action="store_true", help="Hide acronym checks")
     visibility_group.add_argument(
         "--hide-headings", action="store_true", help="Hide heading checks"
     )
@@ -172,7 +173,7 @@ def _create_argument_parser() -> argparse.ArgumentParser:
         help=(
             "Show only the specified categories. Accepts a comma- or space-separated list. "
             "Cannot be used with --hide-* or --show-all. "
-            "Categories: readability, paragraph_length, terminology, headings, structure, "
+            "Categories: readability, paragraph_length, terminology, acronym, headings, structure, "
             "format, accessibility, document_status."
         ),
     )
@@ -184,7 +185,7 @@ def _create_argument_parser() -> argparse.ArgumentParser:
         help=(
             "Hide the specified categories. Accepts a comma- or space-separated list. "
             "Cannot be used with --hide-* or --show-only/--show-all. "
-            "Categories: readability, paragraph_length, terminology, headings, structure, "
+            "Categories: readability, paragraph_length, terminology, acronym, headings, structure, "
             "format, accessibility, document_status."
         ),
     )
@@ -198,6 +199,7 @@ def _validate_argument_exclusivity(args, parser: argparse.ArgumentParser) -> Non
             args.hide_readability,
             args.hide_paragraph_length,
             args.hide_terminology,
+            args.hide_acronym,
             args.hide_headings,
             args.hide_structure,
             args.hide_format,
@@ -214,6 +216,7 @@ def _validate_argument_exclusivity(args, parser: argparse.ArgumentParser) -> Non
             args.hide_readability,
             args.hide_paragraph_length,
             args.hide_terminology,
+            args.hide_acronym,
             args.hide_headings,
             args.hide_structure,
             args.hide_format,
@@ -232,6 +235,7 @@ def _get_valid_categories() -> list[str]:
         "readability",
         "paragraph_length",
         "terminology",
+        "acronym",
         "headings",
         "structure",
         "format",
@@ -297,6 +301,7 @@ def _create_visibility_settings(args, parser: argparse.ArgumentParser) -> Visibi
         show_format=not args.hide_format,
         show_accessibility=not args.hide_accessibility,
         show_document_status=not args.hide_document_status,
+        show_acronym=not args.hide_acronym,
     )
 
 
