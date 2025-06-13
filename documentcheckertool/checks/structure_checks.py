@@ -45,9 +45,7 @@ class StructureMessages:
     )
 
     # Parentheses messages
-    PARENTHESES_UNMATCHED = (
-        "Add missing opening or closing parentheses in: '{snippet}'."
-    )
+    PARENTHESES_UNMATCHED = "Add missing opening or closing parentheses in: '{snippet}'."
 
     # Cross-reference messages
     CROSS_REFERENCE_INFO = (
@@ -146,10 +144,13 @@ class StructureChecks(BaseChecker):
         self.category = "structure"
 
     @staticmethod
-    def _find_watermark_in_paragraphs(paragraphs, valid_marks) -> Optional[str]:
+    def _find_watermark_in_paragraphs(paragraphs, valid_marks=None) -> Optional[str]:
         for para in paragraphs:
+            style_name = getattr(para.style, "name", "").lower()
+            if "watermark" in style_name and para.text.strip():
+                return para.text.strip()
             normalized = StructureChecks._normalize_watermark_text(para.text)
-            if normalized in valid_marks:
+            if valid_marks and normalized in valid_marks:
                 return para.text.strip()
         return None
 
@@ -483,7 +484,7 @@ class StructureChecks(BaseChecker):
     def _check_watermark(
         self, document: Document, results: DocumentCheckResult, doc_type: str
     ) -> None:
-        """Check if document has appropriate watermark for its stage."""
+        """Check if the document contains any watermark."""
         watermark_text = self._extract_watermark(document)
 
         if not watermark_text:
@@ -491,31 +492,6 @@ class StructureChecks(BaseChecker):
                 message=StructureMessages.WATERMARK_MISSING, severity=Severity.ERROR, line_number=1
             )
             return
-
-        # Find matching requirement for stage
-        expected_watermark = next(
-            (w for w in self.VALID_WATERMARKS if w.doc_stage == doc_type), None
-        )
-
-        if not expected_watermark:
-            results.add_issue(
-                message=StructureMessages.WATERMARK_UNKNOWN_STAGE.format(doc_type=doc_type),
-                severity=Severity.ERROR,
-                line_number=1,
-            )
-            return
-
-        normalized_watermark = self._normalize_watermark_text(watermark_text)
-        expected_normalized = self._normalize_watermark_text(expected_watermark.text)
-
-        if normalized_watermark != expected_normalized:
-            results.add_issue(
-                message=StructureMessages.WATERMARK_INCORRECT.format(
-                    doc_type=doc_type, expected=expected_watermark.text
-                ),
-                severity=Severity.ERROR,
-                line_number=1,
-            )
 
     def _extract_watermark(self, doc: Document) -> Optional[str]:
         """Extract watermark text from the document body, headers, and footers."""
@@ -543,12 +519,20 @@ class StructureChecks(BaseChecker):
         # Search header and footer XML for watermark text (e.g., WordArt shapes)
         for rel in doc.part.rels.values():
             if rel.reltype in (RT.HEADER, RT.FOOTER):
+                try:
+                    root = ET.fromstring(rel.target_part.blob)
+                except Exception as exc:  # pragma: no cover - log and continue
+                    logger.error("Failed parsing header/footer XML: %s", exc)
+                    continue
+
+                has_shape = root.find(".//{urn:schemas-microsoft-com:vml}shape") is not None
+                if not has_shape:
+                    continue
+
                 full_text = self._extract_text_from_xml(rel.target_part.blob)
-                normalized_full = self._normalize_watermark_text(full_text)
-                for mark in valid_marks:
-                    if mark in normalized_full:
-                        logger.debug("Watermark found in header/footer XML: %s", full_text)
-                        return full_text
+                if full_text.strip():
+                    logger.debug("Watermark found in header/footer XML: %s", full_text)
+                    return full_text
 
         logger.debug("No watermark found in document")
         return None
