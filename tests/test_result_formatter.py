@@ -80,3 +80,19 @@ def test_format_results_with_metadata():
     )
     assert "Title: Doc" in text
     assert "Author: A" in text
+
+
+def test_readability_section_position():
+    metrics = {
+        "flesch_reading_ease": 70,
+        "flesch_kincaid_grade": 8,
+        "gunning_fog_index": 10,
+        "passive_voice_percentage": 5,
+    }
+    readability = _make_result(details={"metrics": metrics})
+    heading = _make_result(issues=[{"message": "Heading issue", "severity": Severity.ERROR}])
+    data = {"readability": {"check": readability}, "headings": {"check": heading}}
+    fmt = ResultFormatter(style=FormatStyle.PLAIN)
+    report = fmt.format_results(data, "AC")
+    assert "Flesch Reading Ease" in report
+    assert report.index("Flesch Reading Ease") < report.index("HEADINGS")
