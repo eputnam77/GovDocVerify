@@ -49,7 +49,7 @@ class StructureMessages:
 
     # Cross-reference messages
     CROSS_REFERENCE_INFO = (
-        "Cross-reference detected. Verify the referenced target exists and is correct."
+        "Cross-reference found: '{snippet}'. Confirm the referenced section exists in the document."
     )
 
     # Watermark messages
@@ -553,10 +553,12 @@ class StructureChecks(BaseChecker):
                 text,
                 re.IGNORECASE,
             ):
+                snippet = self._get_text_preview(text, max_words=10)
                 results.add_issue(
-                    message=StructureMessages.CROSS_REFERENCE_INFO,
+                    message=StructureMessages.CROSS_REFERENCE_INFO.format(snippet=snippet),
                     severity=Severity.INFO,
                     line_number=i + 1,
+                    context=snippet,
                 )
 
     def _check_required_ac_paragraphs(
