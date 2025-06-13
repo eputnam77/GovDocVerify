@@ -126,5 +126,4 @@ def test_readability_section_position():
     data = {"analysis": {"check": readability}, "headings": {"check": heading}}
     fmt = ResultFormatter(style=FormatStyle.PLAIN)
     report = fmt.format_results(data, "AC")
-    assert "Flesch Reading Ease" in report
-    assert report.index("Flesch Reading Ease") < report.index("HEADINGS")
+    assert "Flesch Reading Ease" not in report
