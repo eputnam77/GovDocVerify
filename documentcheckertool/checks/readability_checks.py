@@ -46,6 +46,15 @@ class ReadabilityChecks(BaseChecker):
         total_words = 0
         total_sentences = 0
         total_syllables = 0
+        passive_count = 0
+
+        passive_patterns = [
+            r"\b(?:am|is|are|was|were|be|been|being)\s+\w+ed\b",
+            r"\b(?:am|is|are|was|were|be|been|being)\s+\w+en\b",
+            r"\b(?:has|have|had)\s+been\s+\w+ed\b",
+            r"\b(?:has|have|had)\s+been\s+\w+en\b",
+        ]
+        passive_regex = re.compile("|".join(passive_patterns), re.IGNORECASE)
 
         for paragraph in paragraphs:
             sentences = split_sentences(paragraph)
@@ -54,10 +63,15 @@ class ReadabilityChecks(BaseChecker):
             total_words += len(words)
             total_syllables += sum(self._count_syllables(word) for word in words)
 
+            for sentence in sentences:
+                if passive_regex.search(sentence):
+                    passive_count += 1
+
             self._check_paragraph_structure(paragraph, results)
 
         if total_sentences:
             metrics = calculate_readability_metrics(total_words, total_sentences, total_syllables)
+            metrics["passive_voice_percentage"] = round((passive_count / total_sentences) * 100, 1)
             results.details = {"metrics": metrics}
             self._check_document_thresholds(metrics, results)
 
@@ -128,6 +142,18 @@ class ReadabilityChecks(BaseChecker):
             message = (
                 f"Text is complex (Flesch-Kincaid Grade Level: {flesch_grade:.1f}). "
                 "Consider using simpler words and shorter sentences for a wider audience."
+            )
+            results.add_issue(
+                message=message,
+                severity=Severity.WARNING,
+                category=getattr(self, "category", "readability"),
+            )
+
+        passive_pct = metrics.get("passive_voice_percentage", 0)
+        if passive_pct > READABILITY_CONFIG.get("max_passive_voice_percentage", 10):
+            message = (
+                f"Document uses {passive_pct:.1f}% passive voice (target: less than 10%). "
+                "Consider using more active voice."
             )
             results.add_issue(
                 message=message,
