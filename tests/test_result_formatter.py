@@ -67,3 +67,16 @@ def test_format_results_unknown_group():
     fmt = ResultFormatter(style=FormatStyle.PLAIN)
     text = fmt.format_results(data, "AC", group_by="other")
     assert "Internal error" in text
+
+
+def test_format_results_with_metadata():
+    result = _make_result()
+    data = {"x": {"y": result}}
+    fmt = ResultFormatter(style=FormatStyle.PLAIN)
+    text = fmt.format_results(
+        data,
+        "AC",
+        metadata={"title": "Doc", "author": "A", "last_modified_by": "B"},
+    )
+    assert "Title: Doc" in text
+    assert "Author: A" in text

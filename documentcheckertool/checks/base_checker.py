@@ -21,9 +21,11 @@ class BaseChecker:
         """Base method to run all checks for this checker."""
         raise NotImplementedError("Subclasses must implement run_checks")
 
-    def format_results(self, results: Dict[str, Any], doc_type: str) -> str:
+    def format_results(
+        self, results: Dict[str, Any], doc_type: str, metadata: Dict[str, Any] | None = None
+    ) -> str:
         """Format check results using the unified formatter."""
-        return self.formatter.format_results(results, doc_type)
+        return self.formatter.format_results(results, doc_type, metadata=metadata)
 
     def check_text(self, content: str) -> DocumentCheckResult:
         """Check text content and return results."""

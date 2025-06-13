@@ -41,6 +41,8 @@ A tool for checking and validating documents against FAA standards, with a moder
 - **API backend** (FastAPI).
 - **Legacy Gradio UI** for quick local or Hugging Face Spaces use.
 - **Detailed error reporting** and structured logging.
+- **Displays document metadata** (title, author, last modified by) before the
+  results.
 
 ---
 

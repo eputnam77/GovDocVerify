@@ -16,6 +16,7 @@ from documentcheckertool.models import (
 )
 from documentcheckertool.processing import build_results_dict
 from documentcheckertool.processing import process_document as _run_checks
+from documentcheckertool.utils import extract_docx_metadata
 from documentcheckertool.utils.formatting import FormatStyle, ResultFormatter
 
 logger = logging.getLogger(__name__)
@@ -47,6 +48,7 @@ def process_document(
     try:
         logger.info(f"Processing document of type: {doc_type}, group_by: {group_by}")
         formatter = ResultFormatter(style=FormatStyle.HTML)
+        metadata = extract_docx_metadata(file_path)
 
         # Run the document checks using the shared processing module
         results = _run_checks(file_path, doc_type)
@@ -60,7 +62,12 @@ def process_document(
         logger.debug(f"[DIAG] Final results_dict keys: {list(results_dict.keys())}")
 
         logger.info(f"Results dict before formatting: {results_dict}")
-        formatted_results = formatter.format_results(results_dict, doc_type, group_by=group_by)
+        formatted_results = formatter.format_results(
+            results_dict,
+            doc_type,
+            group_by=group_by,
+            metadata=metadata,
+        )
         logger.info("Document processing completed successfully")
         return formatted_results
 

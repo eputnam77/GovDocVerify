@@ -11,6 +11,7 @@ from documentcheckertool.models import (
     DocumentType,
     VisibilitySettings,
 )
+from documentcheckertool.utils import extract_docx_metadata
 from documentcheckertool.utils.formatting import (
     FormatStyle,
     ResultFormatter,
@@ -458,6 +459,7 @@ def _create_process_function():
 
             try:
                 validate_file(temp_file_path)
+                metadata = extract_docx_metadata(temp_file_path)
                 checker = FAADocumentChecker()
                 result_obj = checker.run_all_document_checks(
                     document_path=temp_file_path, doc_type=doc_type_value
@@ -490,6 +492,7 @@ def _create_process_function():
                     show_accessibility_value,
                     show_document_status_value,
                     status,
+                    metadata,
                 )
 
             finally:
@@ -526,6 +529,7 @@ def _process_results(
     show_accessibility_value,
     show_document_status_value,
     status,
+    metadata=None,
 ):
     """Process and format the check results."""
     # Count issues in results_dict
@@ -550,7 +554,10 @@ def _process_results(
     # Format results
     formatter = ResultFormatter(style=FormatStyle.HTML)
     formatted_results = formatter.format_results(
-        filtered_results, doc_type_value, group_by=group_by_value
+        filtered_results,
+        doc_type_value,
+        group_by=group_by_value,
+        metadata=metadata,
     )
 
     if formatted_results is None:
@@ -588,6 +595,7 @@ def _process_results(
         "visibility": visibility_settings.to_dict(),
         "summary": getattr(result_obj, "summary", {}),
         "formatted_results": formatted_results,
+        "metadata": metadata,
     }
     status = "Check complete."
     return (
@@ -736,6 +744,7 @@ def _extract_report_data():
         "visibility_settings": VisibilitySettings.from_dict(_last_results["visibility"]),
         "summary": _last_results["summary"],
         "formatted_results": _last_results.get("formatted_results"),
+        "metadata": _last_results.get("metadata", {}),
     }
 
 

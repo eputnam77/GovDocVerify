@@ -171,17 +171,27 @@ class ResultFormatter:
             + (f"\n      Fix: {rec}" if rec else "")
         )
 
-    def _add_header(self, output: List[str]) -> None:
-        """Add header to the output based on style."""
+    def _add_header(self, output: List[str], metadata: Dict[str, Any] | None) -> None:
+        """Add header and optional metadata to the output."""
         if self._style == FormatStyle.HTML:
             output.append('<div class="results-container">')
             output.append(
                 '<h1 style="color: #0056b3; text-align: center;">Document Check Summary</h1>'
             )
+            if metadata:
+                output.append('<div class="metadata">')
+                for key, value in metadata.items():
+                    label = key.replace("_", " ").title()
+                    output.append(f"<p><strong>{label}:</strong> {value}</p>")
+                output.append("</div>")
             output.append('<hr style="border: 1px solid #0056b3;">')
         else:
             output.append("=" * 80)
             output.append(self._format_colored_text("📋 DOCUMENT CHECK RESULTS SUMMARY", Fore.CYAN))
+            if metadata:
+                for key, value in metadata.items():
+                    label = key.replace("_", " ").title()
+                    output.append(f"{label}: {value}")
             output.append("=" * 80)
             output.append("")
 
@@ -423,7 +433,12 @@ class ResultFormatter:
         return "\n".join(output)
 
     def format_results(
-        self, results: Dict[str, Any], doc_type: str, group_by: str = "category"
+        self,
+        results: Dict[str, Any],
+        doc_type: str,
+        *,
+        group_by: str = "category",
+        metadata: Dict[str, Any] | None = None,
     ) -> str:
         """
         Format check results into a detailed, user-friendly report.
@@ -436,8 +451,8 @@ class ResultFormatter:
         Returns:
             str: Formatted report with consistent styling
         """
-        output = []
-        self._add_header(output)
+        output: List[str] = []
+        self._add_header(output, metadata)
 
         if group_by == "severity":
             return self._format_by_severity(results, output)

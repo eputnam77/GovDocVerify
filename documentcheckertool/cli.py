@@ -13,6 +13,7 @@ from documentcheckertool.models import (
 )
 from documentcheckertool.processing import build_results_dict
 from documentcheckertool.processing import process_document as _run_checks
+from documentcheckertool.utils import extract_docx_metadata
 from documentcheckertool.utils.formatting import FormatStyle, ResultFormatter
 
 logger = logging.getLogger(__name__)
@@ -57,6 +58,7 @@ def process_document(  # noqa: C901 - function is complex but mirrors CLI logic
             visibility_settings = VisibilitySettings()
 
         formatter = ResultFormatter(style=FormatStyle.PLAIN)
+        metadata = extract_docx_metadata(file_path)
 
         # Run the document checks using the shared processing module
         results = _run_checks(file_path, doc_type)
@@ -89,7 +91,10 @@ def process_document(  # noqa: C901 - function is complex but mirrors CLI logic
         # ---------------------------------------------------
 
         formatted_results = formatter.format_results(
-            filtered_results_dict, doc_type, group_by=group_by
+            filtered_results_dict,
+            doc_type,
+            group_by=group_by,
+            metadata=metadata,
         )
         logger.info("Document processing completed successfully")
 
@@ -99,6 +104,7 @@ def process_document(  # noqa: C901 - function is complex but mirrors CLI logic
             "has_errors": has_errors,
             "rendered": formatted_results,
             "by_category": filtered_results_dict,
+            "metadata": metadata,
         }
 
     except FileNotFoundError:
