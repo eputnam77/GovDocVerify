@@ -101,7 +101,11 @@ class TestStructureChecks:
         results = DocumentCheckResult(success=True, issues=[])
         self.structure_checks._check_parentheses([p.text for p in doc.paragraphs], results)
         logger.debug(f"Parentheses test issues: {results.issues}")
-        assert any("parentheses" in issue["message"].lower() for issue in results.issues)
+        assert any(
+            "parentheses" in issue["message"].lower() and "unmatched" in issue["message"].lower()
+            for issue in results.issues
+        )
+        assert any("context" in issue and issue["context"] for issue in results.issues)
 
     def test_watermark_validation_missing(self):
         """Test watermark validation when watermark is missing."""

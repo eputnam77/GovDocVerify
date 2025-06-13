@@ -46,7 +46,8 @@ class StructureMessages:
 
     # Parentheses messages
     PARENTHESES_UNMATCHED = (
-        "Found unmatched parentheses. Add any missing opening or closing parentheses."
+        "Found unmatched parentheses. "
+        "Add missing opening or closing parentheses in: '{snippet}'."
     )
 
     # Cross-reference messages
@@ -470,10 +471,14 @@ class StructureChecks(BaseChecker):
             open_count = text.count("(")
             close_count = text.count(")")
             if open_count != close_count:
+                snippet = text.strip()
+                if len(snippet.split()) > 10:
+                    snippet = self._get_text_preview(snippet, max_words=10)
                 results.add_issue(
-                    message=StructureMessages.PARENTHESES_UNMATCHED,
+                    message=StructureMessages.PARENTHESES_UNMATCHED.format(snippet=snippet),
                     severity=Severity.WARNING,
                     line_number=i + 1,
+                    context=snippet,
                 )
 
     def _check_watermark(
