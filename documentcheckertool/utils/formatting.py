@@ -195,6 +195,31 @@ class ResultFormatter:
             output.append("=" * 80)
             output.append("")
 
+    def _add_readability_section(self, output: List[str], result: DocumentCheckResult) -> None:
+        """Add readability metrics section right after the header."""
+        lines = self._format_readability_issues(result)
+        if not lines:
+            return
+
+        if self._style == FormatStyle.HTML:
+            output.append('<div class="readability-section" style="margin-top: 20px;">')
+            output.append(
+                '<h2 style="color: #0056b3; margin-bottom: 10px;">Readability Analysis</h2>'
+            )
+            output.append('<ul style="list-style-type: none; padding-left: 20px;">')
+            for line in lines:
+                clean = line.strip()
+                if clean:
+                    output.append(f"<li>{clean}</li>")
+            output.append("</ul>")
+            output.append("</div>")
+        else:
+            output.append("=" * 80)
+            output.append(self._format_colored_text("📊 READABILITY ANALYSIS", Fore.CYAN))
+            output.extend(lines)
+            output.append("=" * 80)
+            output.append("")
+
     def _collect_severity_buckets(self, results: Dict[str, Any]) -> Dict[str, List]:
         """Collect and organize issues by severity."""
         severity_buckets = {"error": [], "warning": [], "info": []}
@@ -453,6 +478,14 @@ class ResultFormatter:
         """
         output: List[str] = []
         self._add_header(output, metadata)
+
+        readability_cat = results.pop("readability", None)
+        if readability_cat:
+            if isinstance(readability_cat, dict):
+                readability_result = next(iter(readability_cat.values()))
+            else:
+                readability_result = readability_cat
+            self._add_readability_section(output, readability_result)
 
         if group_by == "severity":
             return self._format_by_severity(results, output)
