@@ -481,7 +481,7 @@ class ResultFormatter:
         output: List[str] = []
         self._add_header(output, metadata)
 
-        readability_cat = results.pop("readability", None)
+        readability_cat = results.get("readability")
         if readability_cat:
             if isinstance(readability_cat, dict):
                 readability_result = next(iter(readability_cat.values()))
@@ -544,34 +544,37 @@ class ResultFormatter:
 
         if details and "metrics" in details:
             metrics = details["metrics"]
-            formatted_issues.append("\n  Readability Scores:")
             formatted_issues.append(
-                f"    • Flesch Reading Ease: {metrics['flesch_reading_ease']} (Aim for 50+)"
+                f"Flesch Reading Ease: {metrics['flesch_reading_ease']} "
+                "(Aim for 50+; higher is easier to read)"
             )
             formatted_issues.append(
-                f"    • Grade Level: {metrics['flesch_kincaid_grade']} (Aim for 10 or lower)"
+                f"Gunning Fog Index: {metrics['gunning_fog_index']} " "(Aim for 12 or lower)"
+            )
+            formatted_issues.append(
+                f"Grade Level: {metrics['flesch_kincaid_grade']} "
+                "(Aim for 10 or lower; 12 acceptable for technical/legal)"
             )
             if "passive_voice_percentage" in metrics:
-                passive_voice_msg = (
-                    f"    • Passive Voice: {metrics['passive_voice_percentage']}% "
-                    "(Aim for less than 10%)"
+                formatted_issues.append(
+                    f"Passive Voice: {metrics['passive_voice_percentage']}% "
+                    "(Aim for 10% or lower)"
                 )
-                formatted_issues.append(passive_voice_msg)
+            formatted_issues.append("")
 
         if issues:
-            formatted_issues.append("\n  Identified Issues:")
+            formatted_issues.append("Issues:")
             for issue in issues:
                 issue_type = issue.get("type")
                 if issue_type == "jargon":
-                    jargon_msg = (
-                        f"    • Replace '{issue['word']}' with '{issue['suggestion']}' "
+                    formatted_issues.append(
+                        f"Replace '{issue['word']}' with '{issue['suggestion']}' "
                         f"in: \"{issue['sentence']}\""
                     )
-                    formatted_issues.append(jargon_msg)
                 elif issue_type in ["readability_score", "passive_voice"]:
-                    formatted_issues.append(f"    • {issue['message']}")
+                    formatted_issues.append(issue["message"])
                 elif "message" in issue:
-                    formatted_issues.append(f"    • {issue['message']}")
+                    formatted_issues.append(issue["message"])
 
         return formatted_issues
 
