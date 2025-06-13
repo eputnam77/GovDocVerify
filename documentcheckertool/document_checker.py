@@ -221,7 +221,12 @@ class FAADocumentChecker:
                     return True
         return False
 
-    def check_paragraph_length(self, content, max_words: int = 150) -> DocumentCheckResult:
+    def check_paragraph_length(
+        self,
+        content,
+        max_sentences: int = 6,
+        max_lines: int = 8,
+    ) -> DocumentCheckResult:
         """Check paragraph length for given content."""
         logger.debug(f"Checking paragraph length for {len(content)} items")
         results = DocumentCheckResult()
@@ -231,11 +236,16 @@ class FAADocumentChecker:
             for paragraph_text in content:
                 if paragraph_text.strip():
                     self.structure_checks._check_paragraph_length(
-                        paragraph_text, results, max_words
+                        paragraph_text,
+                        results,
+                        max_sentences,
+                        max_lines,
                     )
         else:
             # Handle single string content
-            self.structure_checks._check_paragraph_length(content, results, max_words)
+            self.structure_checks._check_paragraph_length(
+                content, results, max_sentences, max_lines
+            )
 
         results.success = len(results.issues) == 0
         return results

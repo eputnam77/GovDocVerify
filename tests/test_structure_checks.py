@@ -23,8 +23,8 @@ class TestStructureChecks:
 
     def test_paragraph_length(self):
         doc = Document()
-        # Create a paragraph with more than 150 words
-        long_text = "word " * 200
+        # Create a paragraph with more than six sentences
+        long_text = " ".join([f"Sentence {i}." for i in range(7)])
         doc.add_paragraph(long_text)
         doc.add_paragraph("This is a normal paragraph.")
         results = DocumentCheckResult(success=True, issues=[])
@@ -193,7 +193,7 @@ class TestStructureChecks:
 
     def test_check_paragraph_length(self):
         doc = Document()
-        long_para = "word " * 200  # 200 words
+        long_para = " ".join([f"Sentence {i}." for i in range(7)])
         doc.add_paragraph(long_para)
         doc.add_paragraph("This is a normal paragraph.")
         results = DocumentCheckResult(success=True, issues=[])
@@ -335,7 +335,7 @@ class TestStructureChecks:
 
     def test_mixed_content_flags_only_non_boiler(self):
         boiler = BOILERPLATE_PARAGRAPHS[0]
-        long_para = boiler + " Additional text exceeding limits."
+        long_para = boiler + " " + " ".join([f"Sentence {i}." for i in range(7)])
         doc = Document()
         doc.add_paragraph(boiler)
         doc.add_paragraph(long_para)

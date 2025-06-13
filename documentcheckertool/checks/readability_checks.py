@@ -40,18 +40,10 @@ class ReadabilityChecks(BaseChecker):
     def check_text(self, text: str) -> DocumentCheckResult:
         """Check text for readability issues."""
         results = DocumentCheckResult()
-        lines = text.split("\n")
+        paragraphs = [line.strip() for line in text.splitlines() if line.strip()]
 
-        # Process paragraphs
-        current_paragraph = []
-        for line in lines:
-            if line.strip():
-                current_paragraph.append(line)
-            elif current_paragraph:
-                self._check_readability_thresholds("".join(current_paragraph), results)
-                current_paragraph = []
-        if current_paragraph:
-            self._check_readability_thresholds("".join(current_paragraph), results)
+        for paragraph in paragraphs:
+            self._check_readability_thresholds(paragraph, results)
 
         return results
 
@@ -113,12 +105,15 @@ class ReadabilityChecks(BaseChecker):
                         category=getattr(self, "category", "readability"),
                     )
 
-            # Check paragraph length
-            if len(words) > 150:
+            # Check paragraph length by sentences and lines
+            sentence_count = len(sentences)
+            line_count = len([line for line in text.splitlines() if line.strip()])
+            if sentence_count > 6 or line_count > 8:
                 paragraph_preview = self._get_text_preview(text.strip())
                 results.add_issue(
                     message=(
-                        f"Paragraph '{paragraph_preview}' is too long at {len(words)} words. "
+                        f"Paragraph '{paragraph_preview}' exceeds length limits with "
+                        f"{sentence_count} sentences and {line_count} lines. "
                         "Break it into smaller paragraphs for better readability."
                     ),
                     severity=Severity.WARNING,
