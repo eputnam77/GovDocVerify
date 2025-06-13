@@ -142,7 +142,7 @@ class ReadabilityChecks(BaseChecker):
         if fog_index > READABILITY_CONFIG.get("max_gunning_fog_index", 12):
             message = (
                 f"Text is complex (Gunning Fog Index: {fog_index:.1f}; Aim for 12 or lower). "
-                "Shorter sentences and simpler words can help reduce complexity."
+                "Use simpler words and shorter sentences to reduce complexity."
             )
             results.add_issue(
                 message=message,
