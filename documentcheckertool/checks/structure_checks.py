@@ -45,7 +45,7 @@ class StructureMessages:
     )
 
     # Parentheses messages
-    PARENTHESES_UNMATCHED = "Add missing opening or closing parentheses in: '{snippet}'."
+    PARENTHESES_UNMATCHED = "Add missing opening or closing parentheses in: '{snippet}'"
 
     # Cross-reference messages
     CROSS_REFERENCE_INFO = (

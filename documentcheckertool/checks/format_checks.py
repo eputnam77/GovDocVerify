@@ -50,7 +50,7 @@ class FormatMessages:
     DOUBLE_PERIOD_WARNING = "Found double periods in line {line}. Remove the unnecessary periods."
 
     # Parentheses messages
-    UNMATCHED_PARENTHESES_WARNING = "Add missing opening or closing parentheses in: '{context}'."
+    UNMATCHED_PARENTHESES_WARNING = "Add missing opening or closing parentheses in: '{context}'"
 
     # Section symbol messages
     SECTION_SYMBOL_CFR_ERROR = 'Remove the section symbol after "14 CFR"'
