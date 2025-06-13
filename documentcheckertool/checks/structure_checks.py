@@ -184,19 +184,25 @@ class StructureChecks(BaseChecker):
         self._check_required_ac_paragraphs(paragraphs, doc_type, results)
 
     def _check_paragraph_length(
-        self, text: str, results: DocumentCheckResult, max_words: int = 150
+        self,
+        text: str,
+        results: DocumentCheckResult,
+        max_sentences: int = 6,
+        max_lines: int = 8,
     ) -> None:
-        """Check if paragraph exceeds maximum word count."""
+        """Check if paragraph exceeds maximum sentence or line count."""
         if not text or not text.strip():
             return
 
-        words = text.split()
-        word_count = len(words)
+        sentences = [s.strip() for s in re.split(r"[.!?]", text) if s.strip()]
+        sentence_count = len(sentences)
+        line_count = len([line for line in text.splitlines() if line.strip()])
 
-        if word_count > max_words:
+        if sentence_count > max_sentences or line_count > max_lines:
             preview = self._get_text_preview(text)
-            message = StructureMessages.PARAGRAPH_LENGTH_WARNING.format(
-                preview=preview, word_count=word_count, max_words=max_words
+            message = (
+                f"Paragraph '{preview}' exceeds length limits with "
+                f"{sentence_count} sentences and {line_count} lines."
             )
             results.add_issue(
                 message=message,
