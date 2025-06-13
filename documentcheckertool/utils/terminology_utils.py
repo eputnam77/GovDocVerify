@@ -296,6 +296,7 @@ class TerminologyManager:
                     "message": f"Acronym '{acronym}' defined with non-standard definition",
                     "line": text[: match.start()].count("\n") + 1,
                     "context": full_text,
+                    "category": "acronym",
                 },
             )
 
@@ -369,6 +370,7 @@ class TerminologyManager:
                     "message": f"Confirm '{acronym}' was defined at its first use",
                     "line": text[: match.start()].count("\n") + 1,
                     "context": match.group(0),
+                    "category": "acronym",
                 },
             )
 
@@ -398,6 +400,7 @@ class TerminologyManager:
                     "message": f"Acronym '{acronym}' is defined but never used",
                     "line": 1,
                     "context": f"{check_state['defined_acronyms_info'][acronym]} ({acronym})",
+                    "category": "acronym",
                 },
             )
 
