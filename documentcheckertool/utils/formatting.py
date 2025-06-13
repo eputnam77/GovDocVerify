@@ -551,14 +551,12 @@ class ResultFormatter:
             formatted_issues.append(
                 f"    • Grade Level: {metrics['flesch_kincaid_grade']} (Aim for 10 or lower)"
             )
-            formatted_issues.append(
-                f"    • Gunning Fog Index: {metrics['gunning_fog_index']} (Aim for 12 or lower)"
-            )
-            passive_voice_msg = (
-                f"    • Passive Voice: {metrics['passive_voice_percentage']}% "
-                "(Aim for less than 10%)"
-            )
-            formatted_issues.append(passive_voice_msg)
+            if "passive_voice_percentage" in metrics:
+                passive_voice_msg = (
+                    f"    • Passive Voice: {metrics['passive_voice_percentage']}% "
+                    "(Aim for less than 10%)"
+                )
+                formatted_issues.append(passive_voice_msg)
 
         if issues:
             formatted_issues.append("\n  Identified Issues:")
