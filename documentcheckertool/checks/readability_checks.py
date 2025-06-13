@@ -117,7 +117,7 @@ class ReadabilityChecks(BaseChecker):
             results.add_issue(
                 message=f"Error calculating readability metrics: {str(e)}",
                 severity=Severity.ERROR,
-                category=getattr(self, "category", "readability"),
+                category="analysis",
             )
 
     def _check_document_thresholds(
@@ -135,7 +135,7 @@ class ReadabilityChecks(BaseChecker):
             results.add_issue(
                 message=message,
                 severity=Severity.WARNING,
-                category=getattr(self, "category", "readability"),
+                category="analysis",
             )
 
         if flesch_grade > 12:
@@ -146,7 +146,7 @@ class ReadabilityChecks(BaseChecker):
             results.add_issue(
                 message=message,
                 severity=Severity.WARNING,
-                category=getattr(self, "category", "readability"),
+                category="analysis",
             )
 
         passive_pct = metrics.get("passive_voice_percentage", 0)
@@ -158,7 +158,7 @@ class ReadabilityChecks(BaseChecker):
             results.add_issue(
                 message=message,
                 severity=Severity.WARNING,
-                category=getattr(self, "category", "readability"),
+                category="analysis",
             )
 
     def _count_syllables(self, word: str) -> int:

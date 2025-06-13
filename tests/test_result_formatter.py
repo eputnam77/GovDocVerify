@@ -123,7 +123,7 @@ def test_readability_section_position():
     }
     readability = _make_result(details={"metrics": metrics})
     heading = _make_result(issues=[{"message": "Heading issue", "severity": Severity.ERROR}])
-    data = {"readability": {"check": readability}, "headings": {"check": heading}}
+    data = {"analysis": {"check": readability}, "headings": {"check": heading}}
     fmt = ResultFormatter(style=FormatStyle.PLAIN)
     report = fmt.format_results(data, "AC")
     assert "Flesch Reading Ease" in report

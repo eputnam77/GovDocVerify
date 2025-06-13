@@ -144,6 +144,11 @@ def _create_argument_parser() -> argparse.ArgumentParser:
         "--hide-readability", action="store_true", help="Hide readability metrics"
     )
     visibility_group.add_argument(
+        "--hide-analysis",
+        action="store_true",
+        help="Hide readability analysis details",
+    )
+    visibility_group.add_argument(
         "--hide-paragraph-length",
         action="store_true",
         help="Hide paragraph and sentence length checks",
@@ -173,8 +178,8 @@ def _create_argument_parser() -> argparse.ArgumentParser:
         help=(
             "Show only the specified categories. Accepts a comma- or space-separated list. "
             "Cannot be used with --hide-* or --show-all. "
-            "Categories: readability, paragraph_length, terminology, acronym, headings, structure, "
-            "format, accessibility, document_status."
+            "Categories: readability, analysis, paragraph_length, terminology, "
+            "acronym, headings, structure, format, accessibility, document_status."
         ),
     )
     visibility_group.add_argument(
@@ -185,8 +190,8 @@ def _create_argument_parser() -> argparse.ArgumentParser:
         help=(
             "Hide the specified categories. Accepts a comma- or space-separated list. "
             "Cannot be used with --hide-* or --show-only/--show-all. "
-            "Categories: readability, paragraph_length, terminology, acronym, headings, structure, "
-            "format, accessibility, document_status."
+            "Categories: readability, analysis, paragraph_length, terminology, "
+            "acronym, headings, structure, format, accessibility, document_status."
         ),
     )
     return parser
@@ -197,6 +202,7 @@ def _validate_argument_exclusivity(args, parser: argparse.ArgumentParser) -> Non
     if args.show_only:
         hide_flags = [
             args.hide_readability,
+            args.hide_analysis,
             args.hide_paragraph_length,
             args.hide_terminology,
             args.hide_acronym,
@@ -214,6 +220,7 @@ def _validate_argument_exclusivity(args, parser: argparse.ArgumentParser) -> Non
     if args.hide:
         hide_flags = [
             args.hide_readability,
+            args.hide_analysis,
             args.hide_paragraph_length,
             args.hide_terminology,
             args.hide_acronym,
@@ -233,6 +240,7 @@ def _get_valid_categories() -> list[str]:
     """Get the list of valid category names."""
     return [
         "readability",
+        "analysis",
         "paragraph_length",
         "terminology",
         "acronym",
@@ -294,6 +302,7 @@ def _create_visibility_settings(args, parser: argparse.ArgumentParser) -> Visibi
     # Default visibility settings based on individual hide flags
     return VisibilitySettings(
         show_readability=not args.hide_readability,
+        show_analysis=not args.hide_analysis,
         show_paragraph_length=not args.hide_paragraph_length,
         show_terminology=not args.hide_terminology,
         show_headings=not args.hide_headings,

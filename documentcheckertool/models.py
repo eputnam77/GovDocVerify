@@ -129,6 +129,7 @@ class VisibilitySettings:
     """Settings for controlling visibility of different check categories."""
 
     show_readability: bool = True
+    show_analysis: bool = True
     show_paragraph_length: bool = True
     show_terminology: bool = True
     show_headings: bool = True
@@ -142,6 +143,7 @@ class VisibilitySettings:
         """Convert settings to dictionary format."""
         return {
             "readability": self.show_readability,
+            "analysis": self.show_analysis,
             "paragraph_length": self.show_paragraph_length,
             "terminology": self.show_terminology,
             "headings": self.show_headings,
@@ -157,6 +159,7 @@ class VisibilitySettings:
         """Create settings from dictionary format."""
         return cls(
             show_readability=data.get("readability", True),
+            show_analysis=data.get("analysis", True),
             show_paragraph_length=data.get("paragraph_length", True),
             show_terminology=data.get("terminology", True),
             show_headings=data.get("headings", True),
