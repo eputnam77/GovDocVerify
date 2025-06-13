@@ -34,6 +34,7 @@ export default function App() {
   const [html, setHtml] = useState<string>("");
   const [visibility, setVisibility] = useState<Record<string, boolean>>({
     readability: true,
+    analysis: true,
     paragraph_length: true,
     terminology: true,
     acronym: true,

@@ -10,6 +10,7 @@ from documentcheckertool.models import DocumentCheckResult, Severity
 from documentcheckertool.utils.boilerplate_utils import is_boilerplate
 from documentcheckertool.utils.terminology_utils import TerminologyManager
 from documentcheckertool.utils.text_utils import (
+    calculate_passive_voice_percentage,
     calculate_readability_metrics,
     count_syllables,
     count_words,
@@ -47,15 +48,6 @@ class ReadabilityChecks(BaseChecker):
         total_sentences = 0
         total_syllables = 0
         complex_words = 0
-        passive_count = 0
-
-        passive_patterns = [
-            r"\b(?:am|is|are|was|were|be|been|being)\s+\w+ed\b",
-            r"\b(?:am|is|are|was|were|be|been|being)\s+\w+en\b",
-            r"\b(?:has|have|had)\s+been\s+\w+ed\b",
-            r"\b(?:has|have|had)\s+been\s+\w+en\b",
-        ]
-        passive_regex = re.compile("|".join(passive_patterns), re.IGNORECASE)
 
         for paragraph in paragraphs:
             sentences = split_sentences(paragraph)
@@ -68,11 +60,9 @@ class ReadabilityChecks(BaseChecker):
                 if syllables >= 3:
                     complex_words += 1
 
-            for sentence in sentences:
-                if passive_regex.search(sentence):
-                    passive_count += 1
-
             self._check_paragraph_structure(paragraph, results)
+
+        passive_pct = calculate_passive_voice_percentage(text)
 
         if total_sentences:
             metrics = calculate_readability_metrics(
@@ -81,7 +71,7 @@ class ReadabilityChecks(BaseChecker):
                 total_syllables,
                 complex_word_count=complex_words,
             )
-            metrics["passive_voice_percentage"] = round((passive_count / total_sentences) * 100, 1)
+            metrics["passive_voice_percentage"] = passive_pct
             results.details = {"metrics": metrics}
             self._check_document_thresholds(metrics, results)
 
