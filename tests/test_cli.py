@@ -35,6 +35,7 @@ class TestCLI:
         assert isinstance(result["rendered"], str)
         assert "by_category" in result
         assert isinstance(result["by_category"], dict)
+        assert "metadata" in result
 
     @patch("documentcheckertool.cli.process_document")
     def test_main_success(self, mock_process):
