@@ -466,6 +466,9 @@ pip install -e .
 ```
 from the project root, or always use `poetry run ...` if using Poetry.
 
+If you encounter a build error like `invalid command 'bdist_wheel'`, ensure the
+`wheel` package is installed. This dependency is listed in `requirements.txt`.
+
 ---
 
 ## Development Tools & Best Practices
