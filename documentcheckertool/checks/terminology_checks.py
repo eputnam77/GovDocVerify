@@ -53,7 +53,8 @@ class TerminologyChecks(BaseChecker):
             for standard, variants in TERMINOLOGY_VARIANTS.items():
                 for variant in variants:
                     pattern = rf"\b{re.escape(variant)}\b"
-                    if re.search(pattern, text, re.IGNORECASE):
+                    flags = 0 if variant.lower() == standard.lower() else re.IGNORECASE
+                    if re.search(pattern, text, flags):
                         logger.debug(
                             f"[Terminology] Matched variant '{variant}' (should use '{standard}') "
                             f"in line {i+1}"
@@ -188,7 +189,8 @@ class TerminologyChecks(BaseChecker):
             for standard, variants in TERMINOLOGY_VARIANTS.items():
                 for variant in variants:
                     pattern = rf"\b{re.escape(variant)}\b"
-                    if re.search(pattern, line, re.IGNORECASE):
+                    flags = 0 if variant.lower() == standard.lower() else re.IGNORECASE
+                    if re.search(pattern, line, flags):
                         logger.debug(
                             f"[Terminology] Matched variant '{variant}' (should use '{standard}') "
                             f"in line {i}"

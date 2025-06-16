@@ -128,6 +128,17 @@ class TestTerminologyChecks(TestBase):
         msgs = [iss["message"] for iss in result.issues]
         self.assertTrue(any("European Union Aviation Safety Agency (EASA)" in m for m in msgs))
 
+    def test_email_case_sensitive_variants(self):
+        """Ensure capitalization-only variants don't flag correct lowercase usage."""
+        doc = "Send the form via email."
+        result = self.terminology_checks.check_text(doc)
+        self.assert_no_issues(result)
+
+        doc_bad = "Send the form via Email."
+        result_bad = self.terminology_checks.check_text(doc_bad)
+        self.assert_has_issues(result_bad)
+        self.assert_issue_contains(result_bad, 'Change "Email" to "email"')
+
 
 @pytest.mark.parametrize(
     "doc_type,content,expect_flag",
