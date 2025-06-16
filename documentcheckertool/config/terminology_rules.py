@@ -48,6 +48,9 @@ class TerminologyMessages:
     # Authority citation messages
     OBSOLETE_CITATION_WARNING = "Found invalid citation. Confirm or remove {citation}."
 
+    # Relative reference messages
+    ABOVE_BELOW_WARNING = "Avoid vague references like 'above' or 'below'; cite a specific section."
+
 
 # Common replacements (specific word/phrase replacements only)
 TERM_REPLACEMENTS = {
@@ -90,8 +93,6 @@ FORBIDDEN_TERMS = {
     "latter": "Avoid using 'latter'; specify the item explicitly",
     "former": "Avoid using 'former'; specify the item explicitly",
     "respectively": "Avoid using 'respectively' as it can be confusing",
-    "above": "Avoid using 'above'",
-    "below": "Avoid using 'below'",
 }
 
 # Multiple accepted forms - only for terms where either form is acceptable at any point

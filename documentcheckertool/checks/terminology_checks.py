@@ -19,6 +19,18 @@ from .base_checker import BaseChecker
 
 logger = logging.getLogger(__name__)
 
+# Match 'above' or 'below' when used as vague cross references, such as
+# "see above" or "the section below". This avoids flagging phrases like
+# "above the threshold" that are not references.
+ABOVE_BELOW_REF_PATTERN = re.compile(
+    r"\b(?:see|refer to|as(?:\s+(?:mentioned|stated|discussed|noted|described))?|"
+    r"mentioned|stated|discussed|noted|described)\s+(above|below)\b|"
+    r"\b(?:paragraph|section|figure|table|chapter|item|list)s?\s+(above|below)\b|"
+    r"\bthe\s+(above|below)(?:-(?:mentioned|listed|referenced))?\s+(?:paragraph|section|figure|table|chapter|item|list)\b|"
+    r"\b(?:above|below)-(?:mentioned|listed|referenced)\b",
+    re.IGNORECASE,
+)
+
 
 class TerminologyChecks(BaseChecker):
     """Class for handling terminology-related checks."""
@@ -72,6 +84,14 @@ class TerminologyChecks(BaseChecker):
         """Check for forbidden or discouraged terms."""
         for i, text in enumerate(paragraphs):
             logger.debug(f"[Terminology] Checking forbidden terms in line {i+1}: {text!r}")
+            if ABOVE_BELOW_REF_PATTERN.search(text):
+                logger.debug(f"[Terminology] Matched relative reference in line {i+1}")
+                results.add_issue(
+                    message=TerminologyMessages.ABOVE_BELOW_WARNING,
+                    severity=Severity.WARNING,
+                    line_number=i + 1,
+                    category=getattr(self, "category", "terminology"),
+                )
             for term, message in FORBIDDEN_TERMS.items():
                 pattern = rf"\b{re.escape(term)}\b"
                 if re.search(pattern, text, re.IGNORECASE):
@@ -169,6 +189,15 @@ class TerminologyChecks(BaseChecker):
         """Check for forbidden terms in text lines."""
         issues = []
         for i, line in enumerate(lines, 1):
+            if ABOVE_BELOW_REF_PATTERN.search(line):
+                logger.debug(f"[Terminology] Matched relative reference in line {i}")
+                issues.append(
+                    {
+                        "message": TerminologyMessages.ABOVE_BELOW_WARNING,
+                        "severity": Severity.WARNING,
+                        "category": getattr(self, "category", "terminology"),
+                    }
+                )
             for term, message in FORBIDDEN_TERMS.items():
                 pattern = rf"\b{re.escape(term)}\b"
                 if re.search(pattern, line, re.IGNORECASE):
