@@ -30,8 +30,10 @@ class TestTerminologyChecks(TestBase):
         logger.debug(f"Cross reference check result: {result}")
         logger.debug(f"Issues found: {result.issues}")
         self.assert_has_issues(result)
-        self.assert_issue_contains(result, "Avoid using 'above'")
-        self.assert_issue_contains(result, "Avoid using 'below'")
+        self.assert_issue_contains(
+            result,
+            "Avoid vague references like 'above' or 'below'; cite a specific section.",
+        )
 
     def test_required_language(self):
         """Test required language checking."""
