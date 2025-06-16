@@ -3,6 +3,7 @@
 # This includes all runtime requirements plus dev/test tools
 
 -r requirements.txt
+wheel>=0.42.0
 
 # Testing
 pytest>=8.3.5
