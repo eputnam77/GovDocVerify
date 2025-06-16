@@ -3,6 +3,7 @@
 import logging
 
 import pytest
+from docx import Document
 
 from documentcheckertool.checks.reference_checks import (
     DocumentTitleFormatCheck,
@@ -523,6 +524,19 @@ class TestDocumentTitleFormatting:
         """Test that AC titles with italics are correct."""
         content = ["Use AC 33.91, *Engine System and Component Tests*, dated 25 July 2020."]
         result = self.title_checker.check_text(content, "Advisory Circular")
+
+        assert result.success
+        assert len(result.issues) == 0
+
+    def test_ac_title_with_word_italics_should_pass(self):
+        """AC titles italicized in a DOCX file should be detected."""
+        doc = Document()
+        p = doc.add_paragraph()
+        p.add_run("Use AC 33.91, ")
+        italic_run = p.add_run("Engine System and Component Tests")
+        italic_run.italic = True
+        p.add_run(", dated 25 July 2020.")
+        result = self.title_checker.check_document(doc, "Advisory Circular")
 
         assert result.success
         assert len(result.issues) == 0
