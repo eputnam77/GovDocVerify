@@ -56,9 +56,7 @@ class DocumentTitleFormatCheck(BaseChecker):
 
         return self._check_document_title_formatting(lines, doc_type)
 
-    def _check_document_title_formatting(
-        self, lines: List[str], doc_type: str
-    ) -> DocumentCheckResult:
+    def _check_document_title_formatting(self, lines: List, doc_type: str) -> DocumentCheckResult:
         """Check for proper document title formatting based on document type."""
         logger.debug(f"Checking document title formatting for doc_type: {doc_type}")
         issues = []
@@ -67,14 +65,30 @@ class DocumentTitleFormatCheck(BaseChecker):
         doc_title_pattern = self._get_document_title_pattern()
 
         for line_idx, line in enumerate(lines):
-            logger.debug(f"Processing line {line_idx + 1}: {line[:100]}...")
-            matches = doc_title_pattern.finditer(line)
+            if hasattr(line, "text"):
+                text = line.text
+                italic_regions = self._get_italic_regions(line)
+            else:
+                text = str(line)
+                italic_regions = None
+
+            logger.debug(f"Processing line {line_idx + 1}: {text[:100]}...")
+            matches = doc_title_pattern.finditer(text)
 
             for match in matches:
                 title_text = match.group(1).strip().rstrip(",")
+                start, end = match.span(1)
                 logger.debug(f"Found document title: '{title_text}'")
 
-                issue = self._check_title_format(title_text, doc_type, line, line_idx)
+                issue = self._check_title_format(
+                    title_text,
+                    doc_type,
+                    text,
+                    line_idx,
+                    italic_regions=italic_regions,
+                    start=start,
+                    end=end,
+                )
                 if issue:
                     issues.append(issue)
 
@@ -89,14 +103,47 @@ class DocumentTitleFormatCheck(BaseChecker):
             re.IGNORECASE,
         )
 
-    def _check_title_format(self, title_text: str, doc_type: str, line: str, line_idx: int) -> dict:
+    def _check_title_format(
+        self,
+        title_text: str,
+        doc_type: str,
+        line: str,
+        line_idx: int,
+        *,
+        italic_regions: list | None = None,
+        start: int | None = None,
+        end: int | None = None,
+    ) -> dict:
         """Check the format of a single title and return issue if found."""
         if doc_type == "Advisory Circular":
-            return self._check_ac_title_format(title_text, line, line_idx)
-        else:
-            return self._check_non_ac_title_format(title_text, doc_type, line, line_idx)
+            return self._check_ac_title_format(
+                title_text,
+                line,
+                line_idx,
+                italic_regions=italic_regions,
+                start=start,
+                end=end,
+            )
+        return self._check_non_ac_title_format(
+            title_text,
+            doc_type,
+            line,
+            line_idx,
+            italic_regions=italic_regions,
+            start=start,
+            end=end,
+        )
 
-    def _check_ac_title_format(self, title_text: str, line: str, line_idx: int) -> dict:
+    def _check_ac_title_format(
+        self,
+        title_text: str,
+        line: str,
+        line_idx: int,
+        *,
+        italic_regions: list | None = None,
+        start: int | None = None,
+        end: int | None = None,
+    ) -> dict:
         """Check AC document title formatting (should be in italics)."""
         if self._is_quoted(title_text):
             clean_title = title_text.strip("\"'").rstrip(",").strip()
@@ -108,7 +155,7 @@ class DocumentTitleFormatCheck(BaseChecker):
                 "AC document titles should use italics, not quotation marks",
                 f"*{clean_title}*",
             )
-        elif not self._is_formatted(title_text):
+        elif not self._is_formatted(title_text, italic_regions, start, end):
             logger.debug(f"Found unformatted title in AC: {title_text}")
             return self._create_issue(
                 line,
@@ -117,16 +164,24 @@ class DocumentTitleFormatCheck(BaseChecker):
                 "AC document titles should be formatted in italics",
                 f"*{title_text.strip()}*",
             )
-        elif self._is_italicized(title_text):
+        elif self._is_italicized(title_text, italic_regions, start, end):
             logger.debug(f"Correctly formatted AC title: {title_text}")
 
         return None
 
     def _check_non_ac_title_format(
-        self, title_text: str, doc_type: str, line: str, line_idx: int
+        self,
+        title_text: str,
+        doc_type: str,
+        line: str,
+        line_idx: int,
+        *,
+        italic_regions: list | None = None,
+        start: int | None = None,
+        end: int | None = None,
     ) -> dict:
         """Check non-AC document title formatting (should be in quotes)."""
-        if self._is_italicized(title_text):
+        if self._is_italicized(title_text, italic_regions, start, end):
             clean_title = title_text.strip("*").strip()
             logger.debug(f"Found italicized title in non-AC: {title_text}")
             return self._create_issue(
@@ -136,7 +191,7 @@ class DocumentTitleFormatCheck(BaseChecker):
                 f"{doc_type} document titles should use quotation marks, not italics",
                 f'"{clean_title}"',
             )
-        elif not self._is_formatted(title_text):
+        elif not self._is_formatted(title_text, italic_regions, start, end):
             logger.debug(f"Found unformatted title in non-AC: {title_text}")
             return self._create_issue(
                 line,
@@ -154,13 +209,55 @@ class DocumentTitleFormatCheck(BaseChecker):
             title_text.startswith("'") and title_text.endswith("'")
         )
 
-    def _is_italicized(self, title_text: str) -> bool:
-        """Check if title is wrapped in asterisks (italics)."""
+    def _is_italicized(
+        self,
+        title_text: str,
+        italic_regions: list | None = None,
+        start: int | None = None,
+        end: int | None = None,
+    ) -> bool:
+        """Check if title is italicized in text or by docx formatting."""
+        if italic_regions is not None and start is not None and end is not None:
+            for i_start, i_end in italic_regions:
+                if start >= i_start and end <= i_end:
+                    return True
+            return False
         return title_text.startswith("*") and title_text.endswith("*")
 
-    def _is_formatted(self, title_text: str) -> bool:
+    def _is_formatted(
+        self,
+        title_text: str,
+        italic_regions: list | None = None,
+        start: int | None = None,
+        end: int | None = None,
+    ) -> bool:
         """Check if title has any formatting (quotes or italics)."""
-        return self._is_quoted(title_text) or self._is_italicized(title_text)
+        return self._is_quoted(title_text) or self._is_italicized(
+            title_text,
+            italic_regions,
+            start,
+            end,
+        )
+
+    def _get_italic_regions(self, paragraph) -> list:
+        """Return ranges of italic text within a paragraph."""
+        regions = []
+        index = 0
+        in_region = False
+        region_start = 0
+        for run in getattr(paragraph, "runs", []):
+            run_len = len(run.text)
+            if bool(run.italic):
+                if not in_region:
+                    region_start = index
+                    in_region = True
+            elif in_region:
+                regions.append((region_start, index))
+                in_region = False
+            index += run_len
+        if in_region:
+            regions.append((region_start, index))
+        return regions
 
     def _create_issue(
         self, line: str, line_idx: int, title_text: str, issue_text: str, correct_format: str
@@ -210,10 +307,10 @@ class DocumentTitleFormatCheck(BaseChecker):
                 category=getattr(self, "category", "reference"),
             )
 
-    def _extract_lines_from_document(self, document) -> List[str]:
-        """Extract lines from various document formats."""
+    def _extract_lines_from_document(self, document) -> List:
+        """Extract lines or paragraphs from various document formats."""
         if hasattr(document, "paragraphs"):
-            return [p.text for p in document.paragraphs]
+            return list(document.paragraphs)
         elif hasattr(document, "text"):
             return str(document.text).split("\n")
         elif isinstance(document, list):
