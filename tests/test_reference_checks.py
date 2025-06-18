@@ -481,6 +481,7 @@ class TestTableFigureReferenceCheck:
             ("Analyze table 1 of this AC, Table 1-1 of this AC.", 0),
             ("As shown in Table 3-2, the component values...", 0),
             ("Refer to table 3-2 for limits.", 0),
+            ("The tests identified in Table 1-1 (see Section 3) are required.", 0),
             ('"Table 2-1" lists the data.', 1),
         ],
     )

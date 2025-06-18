@@ -507,8 +507,8 @@ class TableFigureReferenceCheck(BaseChecker):
         is_special_context = bool(patterns["special_context"].match(line.strip()))
         logger.debug(f"Line is in special context: {is_special_context}")
 
-        # Clean the line for reference checking while preserving context
-        cleaned_line, has_quotes, has_parentheses = self._clean_line_for_checking(line)
+        # Clean the line for reference checking
+        cleaned_line = self._clean_line_for_checking(line)
 
         # Check for references
         ref_patterns = [(patterns["table_ref"], "Table"), (patterns["figure_ref"], "Figure")]
@@ -522,8 +522,6 @@ class TableFigureReferenceCheck(BaseChecker):
                     ref_type,
                     line,
                     cleaned_line,
-                    has_quotes,
-                    has_parentheses,
                     is_special_context,
                 )
                 if issue:
@@ -531,14 +529,11 @@ class TableFigureReferenceCheck(BaseChecker):
 
         return issues
 
-    def _clean_line_for_checking(self, line: str) -> tuple:
-        """Clean line for reference checking while preserving context info."""
-        cleaned_line = line.strip()
-        has_quotes = '"' in cleaned_line or "'" in cleaned_line
-        has_parentheses = "(" in cleaned_line or ")" in cleaned_line
-        cleaned_line = re.sub(r'["\']|\(|\)', "", cleaned_line)
+    def _clean_line_for_checking(self, line: str) -> str:
+        """Clean line for reference checking."""
+        cleaned_line = re.sub(r'["\']|\(|\)', "", line.strip())
         logger.debug(f"Cleaned line: {cleaned_line}")
-        return cleaned_line, has_quotes, has_parentheses
+        return cleaned_line
 
     def _check_reference_match(
         self,
@@ -546,13 +541,36 @@ class TableFigureReferenceCheck(BaseChecker):
         ref_type: str,
         original_line: str,
         cleaned_line: str,
-        has_quotes: bool,
-        has_parentheses: bool,
         is_special_context: bool,
     ) -> dict:
         """Check a single reference match and return issue if found."""
         ref_text = match.group()
         word = match.group(1)
+
+        start, end = match.span()
+        orig_match = re.search(re.escape(ref_text), original_line)
+        if orig_match:
+            start, end = orig_match.span()
+        before = original_line[:start]
+        after = original_line[end:]
+        before_stripped = before.rstrip()
+        after_stripped = after.lstrip()
+        has_parentheses = (
+            before_stripped.endswith("(") or (start == 0 and original_line.lstrip().startswith("("))
+        ) and after_stripped.startswith(")")
+        has_quotes = (
+            (
+                before_stripped.endswith('"')
+                or (start == 0 and original_line.lstrip().startswith('"'))
+            )
+            and after_stripped.startswith('"')
+        ) or (
+            (
+                before_stripped.endswith("'")
+                or (start == 0 and original_line.lstrip().startswith("'"))
+            )
+            and after_stripped.startswith("'")
+        )
 
         # Handle references wrapped in quotes or parentheses first
         if (has_quotes or has_parentheses) and word[0].isupper():
@@ -578,7 +596,13 @@ class TableFigureReferenceCheck(BaseChecker):
         is_sentence_start = self._is_sentence_start(cleaned_line, match)
 
         return self._validate_reference_capitalization(
-            ref_text, word, ref_type, original_line, is_sentence_start, has_quotes, has_parentheses
+            ref_text,
+            word,
+            ref_type,
+            original_line,
+            is_sentence_start,
+            has_quotes,
+            has_parentheses,
         )
 
     def _is_complex_reference(self, ref_text: str, word: str) -> bool:
