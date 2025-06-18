@@ -23,6 +23,11 @@ class ReferenceMessages:
     FIGURE_REF_WITHIN_SENTENCE = "Figure reference within sentence should be lowercase"
     FIGURE_REF_IN_QUOTES_PARENS = "Figure reference in quotes/parentheses should be lowercase"
 
+    # Numbering format messages
+    TABLE_FIGURE_NUMBERING = (
+        "Use '{ref_type} X-Y' for ACs and Orders, " "or '{ref_type} X' for other document types."
+    )
+
     # Document title format messages
     AC_TITLE_USE_ITALICS = "AC document titles should use italics, not quotation marks"
     AC_TITLE_FORMAT_ITALICS = "AC document titles should be formatted in italics"
@@ -366,6 +371,7 @@ class TableFigureReferenceCheck(BaseChecker):
         super().__init__()
         self.terminology_manager = TerminologyManager()
         self.category = "formatting"
+        self.doc_type = "GENERAL"
         logger.info("Initialized TableFigureReferenceCheck")
 
     def check(self, doc: List[str], doc_type: str = "GENERAL") -> DocumentCheckResult:
@@ -386,6 +392,7 @@ class TableFigureReferenceCheck(BaseChecker):
         logger.debug(f"Starting reference check with document type: {doc_type}")
         logger.debug(f"Document length: {len(doc)} lines")
 
+        self.doc_type = doc_type
         return self._check_core(doc)
 
     def validate_input(self, doc: List[str]) -> bool:
@@ -400,10 +407,11 @@ class TableFigureReferenceCheck(BaseChecker):
         logger.debug(f"Document validation successful: {len(doc)} lines")
         return True
 
-    def check_text(self, text) -> DocumentCheckResult:
+    def check_text(self, text, doc_type: str = "GENERAL") -> DocumentCheckResult:
         """
         Accepts a string or list of strings, and calls the main check logic.
         """
+        self.doc_type = doc_type
         if isinstance(text, list):
             lines = text
         else:
@@ -517,15 +525,14 @@ class TableFigureReferenceCheck(BaseChecker):
             logger.debug(f"Found {len(matches)} {ref_type} references in line")
 
             for match in matches:
-                issue = self._check_reference_match(
+                ref_issues = self._check_reference_match(
                     match,
                     ref_type,
                     line,
                     cleaned_line,
                     is_special_context,
                 )
-                if issue:
-                    issues.append(issue)
+                issues.extend(ref_issues)
 
         return issues
 
@@ -542,10 +549,12 @@ class TableFigureReferenceCheck(BaseChecker):
         original_line: str,
         cleaned_line: str,
         is_special_context: bool,
-    ) -> dict:
-        """Check a single reference match and return issue if found."""
+    ) -> List[dict]:
+        """Check a single reference match and return list of issues if found."""
+        issues = []
         ref_text = match.group()
         word = match.group(1)
+        number_part = match.group(2)
 
         start, end = match.span()
         orig_match = re.search(re.escape(ref_text), original_line)
@@ -575,27 +584,35 @@ class TableFigureReferenceCheck(BaseChecker):
         # Handle references wrapped in quotes or parentheses first
         if (has_quotes or has_parentheses) and word[0].isupper():
             logger.debug(f"Found uppercase {ref_type} reference in quotes/parentheses")
-            return {
-                "reference": ref_text,
-                "issue": f"{ref_type} reference in quotes/parentheses should be lowercase",
-                "line": original_line,
-                "correct_form": ref_text.lower(),
-            }
+            issues.append(
+                {
+                    "reference": ref_text,
+                    "issue": f"{ref_type} reference in quotes/parentheses should be lowercase",
+                    "line": original_line,
+                    "correct_form": ref_text.lower(),
+                }
+            )
+            return issues
 
         # Skip complex references
         if self._is_complex_reference(ref_text, word):
             logger.debug(f"Skipping style check for complex reference: {ref_text}")
-            return None
+            return issues
 
         # Skip validation for special contexts
         if is_special_context:
             logger.debug(f"Skipping validation for special context: {ref_text}")
-            return None
+            return issues
+
+        # Check numbering format based on doc_type
+        numbering_issue = self._check_number_format(number_part, ref_type, original_line)
+        if numbering_issue:
+            issues.append(numbering_issue)
 
         # Check sentence position and capitalization
         is_sentence_start = self._is_sentence_start(cleaned_line, match)
 
-        return self._validate_reference_capitalization(
+        cap_issue = self._validate_reference_capitalization(
             ref_text,
             word,
             ref_type,
@@ -604,10 +621,21 @@ class TableFigureReferenceCheck(BaseChecker):
             has_quotes,
             has_parentheses,
         )
+        if cap_issue:
+            issues.append(cap_issue)
+
+        return issues
 
     def _is_complex_reference(self, ref_text: str, word: str) -> bool:
         """Check if reference is complex and should skip style checking."""
         rest = ref_text.split(word, 1)[1]  # part after "Table"/"Figure"
+        if (
+            self.doc_type in ["Advisory Circular", "Order"]
+            and re.fullmatch(r"\d+-\d+", rest)
+            and word.lower() in ("table", "figure")
+        ):
+            return False
+
         return (
             "." in rest
             or "-" in rest
@@ -662,6 +690,18 @@ class TableFigureReferenceCheck(BaseChecker):
                 "correct_form": ref_text.lower(),
             }
 
+        return None
+
+    def _check_number_format(self, number: str, ref_type: str, line: str) -> dict | None:
+        """Check numbering format based on document type."""
+        doc_type = getattr(self, "doc_type", "GENERAL")
+        has_hyphen = "-" in number
+        if doc_type in ["Advisory Circular", "Order"] and not has_hyphen:
+            return {
+                "reference": f"{ref_type} {number}",
+                "issue": ReferenceMessages.TABLE_FIGURE_NUMBERING.format(ref_type=ref_type),
+                "line": line,
+            }
         return None
 
     def _create_final_result(self, issues: List[dict]) -> DocumentCheckResult:

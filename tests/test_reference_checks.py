@@ -475,6 +475,29 @@ class TestTableFigureReferenceCheck:
         assert result.success
         assert len(result.issues) == 0
 
+    def test_reference_numbering_ac(self):
+        """Table/Figure references in ACs require X-Y numbering."""
+        content = [
+            "Refer to Table 1 for limits.",
+            "See figure 2 for details.",
+        ]
+        result = self.checker.check(content, "Advisory Circular")
+
+        assert not result.success
+        assert len(result.issues) == 3
+        assert any("X-Y" in issue["issue"] for issue in result.issues)
+
+    def test_reference_numbering_other(self):
+        """Other document types should not use X-Y numbering."""
+        content = [
+            "Refer to Table 1-1 for limits.",
+            "See figure 2-2 for details.",
+        ]
+        result = self.checker.check(content, "Other")
+
+        assert result.success
+        assert len(result.issues) == 0
+
     @pytest.mark.parametrize(
         "text, violations",
         [
