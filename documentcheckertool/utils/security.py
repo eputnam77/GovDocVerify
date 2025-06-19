@@ -2,6 +2,7 @@ import logging
 import os
 import time
 from functools import wraps
+from pathlib import Path
 from typing import Dict
 
 import filetype
@@ -23,6 +24,22 @@ class SecurityError(Exception):
     """Custom exception for security-related errors."""
 
     pass
+
+
+def sanitize_file_path(file_path: str, base_dir: str | None = None) -> str:
+    """Return a normalized path and guard against path traversal."""
+    if base_dir is None:
+        base_dir = os.getcwd()
+
+    normalized_path = Path(file_path).expanduser().resolve()
+    base_path = Path(base_dir).resolve()
+
+    try:
+        normalized_path.relative_to(base_path)
+    except ValueError as exc:
+        raise SecurityError("Path traversal detected") from exc
+
+    return str(normalized_path)
 
 
 def validate_file(file_path: str) -> None:

@@ -15,6 +15,7 @@ from documentcheckertool.processing import build_results_dict
 from documentcheckertool.processing import process_document as _run_checks
 from documentcheckertool.utils import extract_docx_metadata
 from documentcheckertool.utils.formatting import FormatStyle, ResultFormatter
+from documentcheckertool.utils.security import SecurityError, sanitize_file_path
 
 logger = logging.getLogger(__name__)
 
@@ -51,6 +52,7 @@ def process_document(  # noqa: C901 - function is complex but mirrors CLI logic
     )
 
     try:
+        file_path = sanitize_file_path(file_path)
         logger.info(f"Processing document of type: {doc_type}, group_by: {group_by}")
 
         # Use default visibility settings if none provided
@@ -113,6 +115,10 @@ def process_document(  # noqa: C901 - function is complex but mirrors CLI logic
         raise
     except PermissionError:
         error_msg = f"❌ ERROR: Permission denied: {file_path}"
+        logger.error(error_msg)
+        raise
+    except SecurityError as sec_err:
+        error_msg = f"❌ ERROR: {sec_err}"
         logger.error(error_msg)
         raise
     except Exception as e:
