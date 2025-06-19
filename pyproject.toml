@@ -17,6 +17,7 @@ dependencies = [
     "typing-extensions>=4.9.0",
     "filetype>=1.2.0",
     "python-multipart>=0.0.20",
+    "zipp==3.19.1",
 ]
 
 [[project.authors]]
