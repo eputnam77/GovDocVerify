@@ -19,6 +19,7 @@ filetype>=1.2.0
 python-multipart>=0.0.20
 wheel>=0.42.0
 zipp==3.19.1
+anyio>=4.4.0
 
 # Optional: Only needed if running the FastAPI backend directly
 # uvicorn>=0.23.0
