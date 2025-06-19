@@ -1,4 +1,5 @@
 import { useState } from "react";
+import DOMPurify from 'dompurify';
 import axios from "axios";
 import UploadPanel from "./components/UploadPanel";
 import VisibilityToggles from "./components/VisibilityToggles";
@@ -59,7 +60,7 @@ export default function App() {
       headers: { "Content-Type": "multipart/form-data" },
     });
     console.log(resp);
-    setHtml(resp.html);
+    setHtml(DOMPurify.sanitize(resp.html));
   };
 
   return (
