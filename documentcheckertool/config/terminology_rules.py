@@ -83,6 +83,7 @@ TERM_REPLACEMENTS = {
     "USC": "U.S.C. (per the GPO Style Manual)",
     "in accordance with": "under (per FAA Order 1320.46)",
     "in compliance with": "under (per FAA Order 1320.46)",
+    "un-annunciated": "unannunciated",
 }
 
 # Terms to avoid (only subjective/style terms, not formatting issues)

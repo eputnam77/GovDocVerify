@@ -141,6 +141,13 @@ class TestTerminologyChecks(TestBase):
         self.assert_has_issues(result_bad)
         self.assert_issue_contains(result_bad, 'Change "Email" to "email"')
 
+    def test_unannunciated_variant(self):
+        """Flag hyphenated 'un-annunciated' as incorrect."""
+        doc = "The fault remained un-annunciated during testing."
+        result = self.terminology_checks.check_text(doc)
+        self.assert_has_issues(result)
+        self.assert_issue_contains(result, 'Change "un-annunciated" to "unannunciated"')
+
 
 @pytest.mark.parametrize(
     "doc_type,content,expect_flag",
