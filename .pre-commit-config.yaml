@@ -40,3 +40,11 @@ repos:
       - id: name-tests-test
       - id: requirements-txt-fixer
       - id: sort-simple-yaml
+
+  - repo: local
+    hooks:
+      - id: snyk-test
+        name: Snyk Security Scan
+        entry: snyk test --file=requirements.txt
+        language: system
+        pass_filenames: false
