@@ -2,7 +2,7 @@
 
 import unittest
 
-from format_checks import FormattingChecker
+from documentcheckertool.checks.format_checks import FormattingChecker
 
 
 class TestFormattingChecker(unittest.TestCase):
