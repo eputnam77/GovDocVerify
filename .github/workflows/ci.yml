@@ -25,27 +25,13 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements.txt
           pip install -r requirements-dev.txt
-      - name: Install Snyk
-        run: pip install snyk
-
-      - name: Run Snyk security scan
-        env:
-          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
-        run: snyk test --file=requirements.txt
 
       - name: Install project (editable)
         run: pip install -e .
 
-      - name: Lint with ruff
-        run: ruff check .
-
-      - name: Check formatting with black
-        run: black --check .
-
-      - name: Check imports with isort
-        run: isort --check-only .
+      - name: Run pre-commit checks
+        run: pre-commit run --all-files
 
       - name: Run tests with coverage
         run: |
@@ -53,14 +39,14 @@ jobs:
 
       - name: Check coverage >= 90%
         run: |
-          python -c "
-          import xml.etree.ElementTree as ET
-          import sys
-          tree = ET.parse('coverage.xml')
-          root = tree.getroot()
-          coverage = float(root.attrib['line-rate']) * 100
+          python - <<'PY'
+          import xml.etree.ElementTree as ET, sys
+          coverage = float(ET.parse('coverage.xml').getroot().attrib['line-rate']) * 100
           print(f'Coverage: {coverage:.2f}%')
           if coverage < 90.0:
-              print('::error::Test coverage {:.2f}% is below 90%'.format(coverage))
+              print(f"::error::Test coverage {coverage:.2f}% is below 90%")
               sys.exit(1)
-          "
+          PY
+
+      - name: Audit dependencies
+        run: pip-audit -r requirements.txt

@@ -776,7 +776,7 @@ The project includes several development tools configured in Poetry:
 - **Linting**: `poetry run ruff check .`
 - **Type Checking**: `poetry run mypy .`
 - **Security Scanning**: `poetry run bandit -r .`
-- **Dependency Scanning**: `snyk test --file=requirements.txt`
+- **Dependency Scanning**: `pip-audit -r requirements.txt`
 - **Testing**: `poetry run pytest`
 - **Dead Code Detection**: `poetry run vulture .`
 
