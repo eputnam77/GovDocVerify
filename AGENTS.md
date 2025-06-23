@@ -23,6 +23,25 @@ This document describes the rules and expectations for AI coding and debugging a
   * Re-run the entire test suite (`pytest` or project equivalent) after any code or test modification.
   * If a test fails, halt and correct the issue immediately. Do not suppress or skip failing tests.
 
+## Security Scanning (NEW)
+* **All commits must pass `Snyk` vulnerability scanning.**
+  * Run `snyk test` (via the `snyk-security` MCP server) over the full repo.
+  * Any **high** or **critical** issue blocks the merge; the agent must fix or document why a false-positive.
+  * Re-run the scan after every change that adds dependencies or alters build scripts.
+
+## External Tools & MCP Servers
+Agents may (and should) call these servers when relevant:
+
+| Tool | Purpose |
+|------|---------|
+|`exa`|Codebase search & structural queries|
+|`collaborative-reasoning`|Deep reflective reasoning on complex tasks|
+|`mem0-memory-mcp`|Recall decisions, design notes, or historical context|
+|`mcp-obsidian`|Write or update docs/ADRs in the linked Obsidian vault|
+|`snyk-security`|Static dependency & code-level security scanning|
+
+Calls are made through OpenAI function-calling; results must be acted on or surfaced to reviewers.
+
 ---
 
 ## Security and Best Practices
