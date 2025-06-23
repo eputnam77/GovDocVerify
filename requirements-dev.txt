@@ -19,7 +19,7 @@ ruff>=0.5.1
 mypy>=1.10
 
 # Security
-bandit>=1.9
+bandit>=1.8.5
 semgrep>=1.123.0
 pip-audit>=2.7
 
