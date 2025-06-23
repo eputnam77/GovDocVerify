@@ -3,7 +3,7 @@ import os
 import time
 from functools import wraps
 from pathlib import Path
-from typing import Dict
+from typing import Any, Callable, Dict
 
 import filetype
 from fastapi import HTTPException
@@ -27,17 +27,20 @@ class SecurityError(Exception):
 
 
 def sanitize_file_path(file_path: str, base_dir: str | None = None) -> str:
-    """Return a normalized path and guard against path traversal."""
-    if base_dir is None:
-        base_dir = os.getcwd()
+    """Return a normalized path with optional path traversal protection.
 
+    If ``base_dir`` is provided, the resolved ``file_path`` must be located
+    within that directory; otherwise a :class:`SecurityError` is raised. When
+    ``base_dir`` is ``None`` (the default), the path is simply normalized.
+    """
     normalized_path = Path(file_path).expanduser().resolve()
-    base_path = Path(base_dir).resolve()
 
-    try:
-        normalized_path.relative_to(base_path)
-    except ValueError as exc:
-        raise SecurityError("Path traversal detected") from exc
+    if base_dir is not None:
+        base_path = Path(base_dir).resolve()
+        try:
+            normalized_path.relative_to(base_path)
+        except ValueError as exc:
+            raise SecurityError("Path traversal detected") from exc
 
     return str(normalized_path)
 
@@ -80,7 +83,7 @@ class RateLimiter:
     def __init__(self, max_requests: int = 10, time_window: int = 60):
         self.max_requests = max_requests
         self.time_window = time_window
-        self.requests: Dict[str, list] = {}
+        self.requests: Dict[str, list[float]] = {}
 
     def is_rate_limited(self, client_id: str) -> bool:
         """Check if a client has exceeded the rate limit."""
@@ -110,11 +113,11 @@ class RateLimiter:
 rate_limiter = RateLimiter()
 
 
-def rate_limit(func):
+def rate_limit(func: Callable[..., Any]) -> Callable[..., Any]:
     """Decorator for rate limiting API endpoints."""
 
     @wraps(func)
-    async def wrapper(*args, **kwargs):
+    async def wrapper(*args: Any, **kwargs: Any) -> Any:
         # In a real application, you'd get the client IP or API key here
         client_id = "default"  # Replace with actual client identification
 
