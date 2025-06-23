@@ -110,19 +110,19 @@ def process_document(  # noqa: C901 - function is complex but mirrors CLI logic
         }
 
     except FileNotFoundError:
-        error_msg = f"❌ ERROR: File not found: {file_path}"
+        error_msg = f"ERROR: File not found: {file_path}"
         logger.error(error_msg)
         raise
     except PermissionError:
-        error_msg = f"❌ ERROR: Permission denied: {file_path}"
+        error_msg = f"ERROR: Permission denied: {file_path}"
         logger.error(error_msg)
         raise
     except SecurityError as sec_err:
-        error_msg = f"❌ ERROR: {sec_err}"
+        error_msg = f"ERROR: {sec_err}"
         logger.error(error_msg)
         raise
     except Exception as e:
-        error_msg = f"❌ ERROR: Error processing document: {str(e)}"
+        error_msg = f"ERROR: Error processing document: {str(e)}"
         logger.error(error_msg)
         raise
 
