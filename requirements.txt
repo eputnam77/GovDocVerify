@@ -3,13 +3,13 @@
 # For development/testing, see requirements-dev.txt or use Poetry (see pyproject.toml)
 
 # Main app dependencies
-# gradio>=5.31.0  # Commented out - not supported in OpenAI Codex (requires web server/browser)
-# fastapi>=0.109.1  # Commented out - not supported in OpenAI Codex (requires ASGI server)
-# starlette>=0.40.0  # Commented out - not supported in OpenAI Codex (web framework)
+gradio>=5.31.0
+fastapi>=0.109.1
+starlette>=0.40.0
 python-docx>=0.8.11
 beautifulsoup4>=4.12.0
-# pdfkit>=1.0.0  # Commented out - not supported in OpenAI Codex (requires wkhtmltopdf binary)
-nltk>=3.9.1  # WARNING: Ensure no runtime downloads (nltk.download()) - no network access in Codex
+pdfkit>=1.0.0
+nltk>=3.9.1
 pandas>=2.2.1
 numpy>=1.24.3
 pydantic>=2.11.4
