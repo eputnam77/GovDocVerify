@@ -22,7 +22,18 @@ dependencies = [
     "anyio>=4.4.0",
 ]
 
-[project.optional-dependencies.dev]
+[project.optional-dependencies]
+dev = [
+    "ruff>=0.5",
+    "mypy>=1.10",
+    "pytest>=8",
+    "pytest-cov>=5",
+    "hypothesis>=6",
+    "bandit>=1.9",
+    "semgrep>=1.123.0",
+    "pip-audit>=2.7",
+    "pre-commit>=3.7"
+]
 format = ["ruff>=0.5"]
 lint = ["ruff>=0.5"]
 typing = ["mypy>=1.10"]
