@@ -4,8 +4,8 @@ default_language_version:
 
 repos:
   # ── Ruff: lint → auto-fix → format ───────────────────────────────────────────
-  - repo: https://github.com/astral-sh/ruff
-    rev: v0.5.1
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.4.7
     hooks:
       - id: ruff
         args: [--fix]
