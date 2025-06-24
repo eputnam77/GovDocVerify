@@ -3,16 +3,16 @@ import re
 import threading
 import warnings
 from pathlib import Path
-from typing import List, Pattern
+from typing import Any, Dict, List, Pattern
 
 
 class PatternCache:
     """Thread-safe cache for compiled regex patterns and pattern registry."""
 
-    def __init__(self, patterns_file: str = None):
-        self._cache = {}
+    def __init__(self, patterns_file: str | None = None) -> None:
+        self._cache: Dict[str, Pattern] = {}
         self._lock = threading.Lock()
-        self._pattern_registry = {}
+        self._pattern_registry: Dict[str, Dict[str, List[str]]] = {}
         # Default to config/terminology.json
         if patterns_file is None:
             patterns_file = str(Path(__file__).parent.parent / "config" / "terminology.json")
@@ -24,7 +24,7 @@ class PatternCache:
         """Load patterns from JSON file into the registry."""
         try:
             with open(patterns_file, "r") as f:
-                patterns_data = json.load(f)
+                patterns_data: Dict[str, Dict[str, List[str]]] | Dict[str, Any] = json.load(f)
 
             # Support both top-level and nested under 'patterns'
             for category in ["required_language", "boilerplate"]:
@@ -53,7 +53,7 @@ class PatternCache:
 
     def get_required_language_patterns(self, doc_type: str) -> List[Pattern]:
         """Get compiled patterns for required language by document type."""
-        patterns = []
+        patterns: List[Pattern] = []
         if "required_language" in self._pattern_registry:
             doc_patterns = self._pattern_registry["required_language"].get(doc_type, [])
             patterns = [self.get_pattern(p) for p in doc_patterns]
@@ -61,7 +61,7 @@ class PatternCache:
 
     def get_boilerplate_patterns(self, doc_type: str) -> List[Pattern]:
         """Get compiled patterns for boilerplate text by document type."""
-        patterns = []
+        patterns: List[Pattern] = []
         if "boilerplate" in self._pattern_registry:
             doc_patterns = self._pattern_registry["boilerplate"].get(doc_type, [])
             patterns = [self.get_pattern(p) for p in doc_patterns]
