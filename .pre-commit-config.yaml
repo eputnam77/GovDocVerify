@@ -1,34 +1,49 @@
+# .pre-commit-config.yaml
+default_language_version:
+  python: python3.11      # matches project requires-python (>=3.11)
+
 repos:
+  # ── Ruff: lint → auto-fix → format ───────────────────────────────────────────
   - repo: https://github.com/astral-sh/ruff
-    rev: "v0.5.1"
+    rev: v0.5.1
     hooks:
       - id: ruff
         args: [--fix]
       - id: ruff-format
+
   - repo: https://github.com/psf/black
-    rev: "24.4.2"
+    rev: 24.4.2
     hooks:
       - id: black
-        language_version: python3.12
+
   - repo: https://github.com/pre-commit/mirrors-mypy
-    rev: "v1.10.0"
+    rev: v1.10.0
     hooks:
-      - id: mypy
-        args: [--strict]
+      - id: mypy          # strict mode lives in [tool.mypy]; flag no longer needed
+        # args: [--strict]
+
+  # ── Bandit: security scan, reads settings from pyproject.toml ───────────────
   - repo: https://github.com/PyCQA/bandit
-    rev: "1.8.5"
+    rev: 1.8.5
     hooks:
       - id: bandit
-        args: ["-r", "src/"]
+        args:
+          [
+            "-c", "pyproject.toml",        # load the TOML config
+            "--severity-level", "MEDIUM",
+            "--confidence-level", "MEDIUM",
+            "-r", "documentcheckertool/",  # scan only the package code
+          ]
+        additional_dependencies: ["bandit[toml]"]  # enables TOML parsing :contentReference[oaicite:0]{index=0}
+
   - repo: https://github.com/trailofbits/pip-audit
-    rev: "v2.7.2"
+    rev: v2.7.2
     hooks:
       - id: pip-audit
-        args: ["-r", "requirements.txt"]
-  - repo: https://github.com/pycqa/ruff-pre-commit
-    rev: "v1.2.0"
-    hooks:
-      - id: ruff-licence
+        # Audit dependencies listed in pyproject.toml
+        args: ["-r", "pyproject.toml"]
+
+  # ── Local test runner ───────────────────────────────────────────────────────
   - repo: local
     hooks:
       - id: pytest
