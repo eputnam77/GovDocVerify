@@ -3,6 +3,7 @@ repos:
     rev: "v0.5.1"
     hooks:
       - id: ruff
+        args: [--fix]
       - id: ruff-format
   - repo: https://github.com/psf/black
     rev: "24.4.2"
@@ -13,12 +14,25 @@ repos:
     rev: "v1.10.0"
     hooks:
       - id: mypy
+        args: [--strict]
   - repo: https://github.com/PyCQA/bandit
-    rev: "1.9.0"
+    rev: "1.8.5"
     hooks:
       - id: bandit
-        args: ["-r"]
+        args: ["-r", "src/"]
+  - repo: https://github.com/trailofbits/pip-audit
+    rev: "v2.7.2"
+    hooks:
+      - id: pip-audit
+        args: ["-r", "requirements.txt"]
   - repo: https://github.com/pycqa/ruff-pre-commit
     rev: "v1.2.0"
     hooks:
       - id: ruff-licence
+  - repo: local
+    hooks:
+      - id: pytest
+        name: pytest
+        entry: pytest
+        language: system
+        pass_filenames: false
