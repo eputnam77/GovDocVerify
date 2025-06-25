@@ -348,7 +348,12 @@ project-root/
   ```bash
   pip install -r requirements.txt
   ```
-  This installs only the minimal set of packages needed to run the app.
+This installs only the minimal set of packages needed to run the app.
+
+If you prefer using **Poetry**, simply run `poetry install`. Poetry reads
+`pyproject.toml` and installs the same dependencies (add `--with dev` for
+development extras). You do **not** need to combine this with the requirements
+files—choose either pip **or** Poetry.
 
 **Tip:** If you're not sure, use `requirements-dev.txt` for the most complete setup.
 
@@ -359,6 +364,10 @@ project-root/
 ### 1. Python Environment (Backend & Gradio)
 
 **From the project root directory:**
+
+> **Dependency note:** Use **one** install method. Either install with pip and
+> a requirements file **or** run `poetry install`. Installing from multiple
+> files is unnecessary.
 
 #### a. Using venv + pip
 ```bash
