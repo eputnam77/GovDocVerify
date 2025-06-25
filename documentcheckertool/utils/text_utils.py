@@ -316,7 +316,10 @@ def normalize_document_type(doc_type: str) -> str:
 
 
 def calculate_readability_metrics(
-    word_count: int, sentence_count: int, syllable_count: int
+    word_count: int,
+    sentence_count: int,
+    syllable_count: int,
+    complex_word_count: int | None = None,
 ) -> Dict[str, float]:
     """Calculate various readability metrics."""
     try:
@@ -331,7 +334,12 @@ def calculate_readability_metrics(
         )
 
         # Gunning Fog Index
-        fog_index = 0.4 * ((word_count / sentence_count) + 100 * (syllable_count / word_count))
+        if complex_word_count is not None and word_count:
+            fog_index = 0.4 * (
+                (word_count / sentence_count) + 100 * (complex_word_count / word_count)
+            )
+        else:
+            fog_index = 0.4 * ((word_count / sentence_count) + 100 * (syllable_count / word_count))
 
         return {
             "flesch_reading_ease": round(flesch_ease, 1),
@@ -340,6 +348,31 @@ def calculate_readability_metrics(
         }
     except ZeroDivisionError:
         return {"flesch_reading_ease": 0, "flesch_kincaid_grade": 0, "gunning_fog_index": 0}
+
+
+def calculate_passive_voice_percentage(text: str) -> float:
+    """Return the percentage of sentences written in passive voice.
+
+    Args:
+        text: The input text to analyze.
+
+    Returns:
+        Percentage of sentences using passive voice rounded to one decimal place.
+    """
+    sentences = split_sentences(text)
+    if not sentences:
+        return 0.0
+
+    passive_patterns = [
+        r"\b(?:am|is|are|was|were|be|been|being)\s+\w+ed\b",
+        r"\b(?:am|is|are|was|were|be|been|being)\s+\w+en\b",
+        r"\b(?:has|have|had)\s+been\s+\w+ed\b",
+        r"\b(?:has|have|had)\s+been\s+\w+en\b",
+    ]
+    passive_regex = re.compile("|".join(passive_patterns), re.IGNORECASE)
+    passive_count = sum(1 for sentence in sentences if passive_regex.search(sentence))
+    percentage = (passive_count / len(sentences)) * 100
+    return round(percentage, 1)
 
 
 def get_valid_words(terminology_manager: Optional[TerminologyManager] = None) -> Set[str]:

@@ -7,10 +7,12 @@ from fastapi.responses import JSONResponse
 
 from app import process_document
 from documentcheckertool.models import VisibilitySettings
+from documentcheckertool.utils.security import SecurityError, rate_limit, validate_file
 
 log = logging.getLogger(__name__)
 
 
+@rate_limit
 async def process_doc_endpoint(
     doc_file: UploadFile = File(...),
     doc_type: str = Form(...),
@@ -22,6 +24,11 @@ async def process_doc_endpoint(
         with tempfile.NamedTemporaryFile(delete=False, suffix=".docx") as tmp:
             tmp.write(await doc_file.read())
             tmp_path = tmp.name
+
+        try:
+            validate_file(tmp_path)
+        except SecurityError as se:
+            raise HTTPException(status_code=400, detail=str(se)) from se
 
         vis = VisibilitySettings.from_dict_json(visibility_json)
         html_result = process_document(tmp_path, doc_type, vis, group_by=group_by)
@@ -38,6 +45,8 @@ async def process_doc_endpoint(
         # Fallback for legacy string output
         return JSONResponse({"html": html_result})
 
+    except HTTPException:
+        raise
     except Exception as e:
         log.exception("processing failed")
         raise HTTPException(500, str(e))

@@ -50,9 +50,7 @@ class FormatMessages:
     DOUBLE_PERIOD_WARNING = "Found double periods in line {line}. Remove the unnecessary periods."
 
     # Parentheses messages
-    UNMATCHED_PARENTHESES_WARNING = (
-        "Found unmatched parentheses in line {line}. Add missing opening or closing parentheses."
-    )
+    UNMATCHED_PARENTHESES_WARNING = "Add missing opening or closing parentheses in: '{context}'"
 
     # Section symbol messages
     SECTION_SYMBOL_CFR_ERROR = 'Remove the section symbol after "14 CFR"'
@@ -544,11 +542,17 @@ class FormattingChecker(BaseChecker):
             close_count = line.count(")")
             if open_count != close_count:
                 logger.debug(f"Found unmatched parentheses in line {i}")
+                snippet = line.strip()
+                if len(snippet) > 60:
+                    snippet = snippet[:60] + "..."
                 issues.append(
                     {
-                        "message": FormatMessages.UNMATCHED_PARENTHESES_WARNING.format(line=i),
+                        "message": FormatMessages.UNMATCHED_PARENTHESES_WARNING.format(
+                            line=i, context=snippet
+                        ),
                         "severity": Severity.WARNING,
                         "line_number": i,
+                        "context": snippet,
                         "checker": "FormattingChecker",
                     }
                 )

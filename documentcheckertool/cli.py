@@ -2,19 +2,38 @@
 
 import argparse
 import logging
+import os
 import sys
 
-from documentcheckertool.document_checker import FAADocumentChecker
 from documentcheckertool.logging_config import setup_logging
 from documentcheckertool.models import (
     DocumentType,
     DocumentTypeError,
     VisibilitySettings,
 )
+from documentcheckertool.processing import build_results_dict
+from documentcheckertool.processing import process_document as _run_checks
+from documentcheckertool.utils import extract_docx_metadata
 from documentcheckertool.utils.formatting import FormatStyle, ResultFormatter
-from documentcheckertool.utils.terminology_utils import TerminologyManager
+from documentcheckertool.utils.security import SecurityError, sanitize_file_path
 
 logger = logging.getLogger(__name__)
+
+
+def _safe_print(text: str) -> None:
+    """Print ``text`` to stdout, replacing unsupported characters.
+
+    This avoids ``UnicodeEncodeError`` on terminals that cannot handle
+    certain Unicode characters (e.g. emoji on Windows CP1252 consoles).
+    """
+    encoding = sys.stdout.encoding or "utf-8"
+    try:
+        sys.stdout.write(text + os.linesep)
+        sys.stdout.flush()
+    except UnicodeEncodeError:
+        sys.stdout.buffer.write(text.encode(encoding, errors="replace"))
+        sys.stdout.buffer.write(os.linesep.encode(encoding))
+        sys.stdout.flush()
 
 
 def process_document(  # noqa: C901 - function is complex but mirrors CLI logic
@@ -24,7 +43,7 @@ def process_document(  # noqa: C901 - function is complex but mirrors CLI logic
     group_by: str = "category",
 ) -> dict:
     """Process a document and return results as a dictionary."""
-    print("[PROOF] process_document called")
+    logger.debug("[PROOF] process_document called")
     logger.debug(
         "[DIAG] process_document called with "
         f"file_path={file_path}, "
@@ -33,6 +52,7 @@ def process_document(  # noqa: C901 - function is complex but mirrors CLI logic
     )
 
     try:
+        file_path = sanitize_file_path(file_path)
         logger.info(f"Processing document of type: {doc_type}, group_by: {group_by}")
 
         # Use default visibility settings if none provided
@@ -40,52 +60,17 @@ def process_document(  # noqa: C901 - function is complex but mirrors CLI logic
             visibility_settings = VisibilitySettings()
 
         formatter = ResultFormatter(style=FormatStyle.PLAIN)
+        metadata = extract_docx_metadata(file_path)
 
-        # Initialize the document checker
-        TerminologyManager()
-        checker = FAADocumentChecker()
-
-        # Detect file type using mimetypes and file extension
-        import mimetypes
-
-        mime_type, _ = mimetypes.guess_type(file_path)
-        logger.info(f"Detected MIME type: {mime_type}")
-
-        # If DOCX, pass file path directly to checker
-        if (
-            mime_type == "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-            or file_path.lower().endswith(".docx")
-        ):
-            logger.info("Processing as DOCX file")
-            results = checker.run_all_document_checks(file_path, doc_type)
-        else:
-            logger.info(f"Reading file: {file_path}")
-            try:
-                with open(file_path, "r", encoding="utf-8") as f:
-                    content = f.read()
-            except UnicodeDecodeError:
-                logger.warning("UTF-8 decode failed, trying with different encoding")
-                with open(file_path, "r", encoding="latin-1") as f:
-                    content = f.read()
-            logger.info("Running document checks (text file)")
-            results = checker.run_all_document_checks(content, doc_type)
+        # Run the document checks using the shared processing module
+        results = _run_checks(file_path, doc_type)
 
         logger.info("Formatting results")
         logger.debug(f"Raw results type: {type(results)}")
         logger.debug(f"Raw results dir: {dir(results)}")
 
-        # Use per_check_results if available
-        results_dict = getattr(results, "per_check_results", None)
-        if not results_dict:
-            results_dict = {
-                "all": {
-                    "all": {
-                        "success": results.success,
-                        "issues": results.issues,
-                        "details": getattr(results, "details", {}),
-                    }
-                }
-            }
+        # Build a normalized results dictionary
+        results_dict = build_results_dict(results)
 
         # --- FILTER RESULTS BASED ON VISIBILITY SETTINGS ---
         # Only include categories where visibility_settings.<category> is True
@@ -108,7 +93,10 @@ def process_document(  # noqa: C901 - function is complex but mirrors CLI logic
         # ---------------------------------------------------
 
         formatted_results = formatter.format_results(
-            filtered_results_dict, doc_type, group_by=group_by
+            filtered_results_dict,
+            doc_type,
+            group_by=group_by,
+            metadata=metadata,
         )
         logger.info("Document processing completed successfully")
 
@@ -118,18 +106,23 @@ def process_document(  # noqa: C901 - function is complex but mirrors CLI logic
             "has_errors": has_errors,
             "rendered": formatted_results,
             "by_category": filtered_results_dict,
+            "metadata": metadata,
         }
 
     except FileNotFoundError:
-        error_msg = f"❌ ERROR: File not found: {file_path}"
+        error_msg = f"ERROR: File not found: {file_path}"
         logger.error(error_msg)
         raise
     except PermissionError:
-        error_msg = f"❌ ERROR: Permission denied: {file_path}"
+        error_msg = f"ERROR: Permission denied: {file_path}"
+        logger.error(error_msg)
+        raise
+    except SecurityError as sec_err:
+        error_msg = f"ERROR: {sec_err}"
         logger.error(error_msg)
         raise
     except Exception as e:
-        error_msg = f"❌ ERROR: Error processing document: {str(e)}"
+        error_msg = f"ERROR: Error processing document: {str(e)}"
         logger.error(error_msg)
         raise
 
@@ -157,6 +150,11 @@ def _create_argument_parser() -> argparse.ArgumentParser:
         "--hide-readability", action="store_true", help="Hide readability metrics"
     )
     visibility_group.add_argument(
+        "--hide-analysis",
+        action="store_true",
+        help="Hide readability analysis details",
+    )
+    visibility_group.add_argument(
         "--hide-paragraph-length",
         action="store_true",
         help="Hide paragraph and sentence length checks",
@@ -164,6 +162,7 @@ def _create_argument_parser() -> argparse.ArgumentParser:
     visibility_group.add_argument(
         "--hide-terminology", action="store_true", help="Hide terminology checks"
     )
+    visibility_group.add_argument("--hide-acronym", action="store_true", help="Hide acronym checks")
     visibility_group.add_argument(
         "--hide-headings", action="store_true", help="Hide heading checks"
     )
@@ -185,8 +184,8 @@ def _create_argument_parser() -> argparse.ArgumentParser:
         help=(
             "Show only the specified categories. Accepts a comma- or space-separated list. "
             "Cannot be used with --hide-* or --show-all. "
-            "Categories: readability, paragraph_length, terminology, headings, structure, "
-            "format, accessibility, document_status."
+            "Categories: readability, analysis, paragraph_length, terminology, "
+            "acronym, headings, structure, format, accessibility, document_status."
         ),
     )
     visibility_group.add_argument(
@@ -197,8 +196,8 @@ def _create_argument_parser() -> argparse.ArgumentParser:
         help=(
             "Hide the specified categories. Accepts a comma- or space-separated list. "
             "Cannot be used with --hide-* or --show-only/--show-all. "
-            "Categories: readability, paragraph_length, terminology, headings, structure, "
-            "format, accessibility, document_status."
+            "Categories: readability, analysis, paragraph_length, terminology, "
+            "acronym, headings, structure, format, accessibility, document_status."
         ),
     )
     return parser
@@ -209,8 +208,10 @@ def _validate_argument_exclusivity(args, parser: argparse.ArgumentParser) -> Non
     if args.show_only:
         hide_flags = [
             args.hide_readability,
+            args.hide_analysis,
             args.hide_paragraph_length,
             args.hide_terminology,
+            args.hide_acronym,
             args.hide_headings,
             args.hide_structure,
             args.hide_format,
@@ -225,8 +226,10 @@ def _validate_argument_exclusivity(args, parser: argparse.ArgumentParser) -> Non
     if args.hide:
         hide_flags = [
             args.hide_readability,
+            args.hide_analysis,
             args.hide_paragraph_length,
             args.hide_terminology,
+            args.hide_acronym,
             args.hide_headings,
             args.hide_structure,
             args.hide_format,
@@ -243,8 +246,10 @@ def _get_valid_categories() -> list[str]:
     """Get the list of valid category names."""
     return [
         "readability",
+        "analysis",
         "paragraph_length",
         "terminology",
+        "acronym",
         "headings",
         "structure",
         "format",
@@ -303,6 +308,7 @@ def _create_visibility_settings(args, parser: argparse.ArgumentParser) -> Visibi
     # Default visibility settings based on individual hide flags
     return VisibilitySettings(
         show_readability=not args.hide_readability,
+        show_analysis=not args.hide_analysis,
         show_paragraph_length=not args.hide_paragraph_length,
         show_terminology=not args.hide_terminology,
         show_headings=not args.hide_headings,
@@ -310,6 +316,7 @@ def _create_visibility_settings(args, parser: argparse.ArgumentParser) -> Visibi
         show_format=not args.hide_format,
         show_accessibility=not args.hide_accessibility,
         show_document_status=not args.hide_document_status,
+        show_acronym=not args.hide_acronym,
     )
 
 
@@ -328,7 +335,7 @@ def main() -> int:
             try:
                 doc_type = DocumentType.from_string(doc_type_input).value
             except DocumentTypeError:
-                print(f"Invalid document type: {doc_type_input}")
+                logger.error(f"Invalid document type: {doc_type_input}")
                 return 1
 
             setup_logging(debug=False)
@@ -354,21 +361,21 @@ def main() -> int:
         try:
             doc_type = DocumentType.from_string(args.type).value
         except DocumentTypeError:
-            print(f"Invalid document type: {args.type}")
+            logger.error(f"Invalid document type: {args.type}")
             return 1
 
         result = process_document(args.file, doc_type, visibility_settings, group_by=args.group_by)
-        print(result["rendered"])
+        _safe_print(result["rendered"])
         return 1 if result.get("has_errors", False) else 0
 
     except FileNotFoundError:
-        print("File not found")
+        logger.error("File not found")
         return 1
     except PermissionError:
-        print("Permission denied")
+        logger.error("Permission denied")
         return 1
     except Exception as e:
-        print(f"Error: {e}")
+        logger.error(f"Error: {e}")
         return 1
 
 

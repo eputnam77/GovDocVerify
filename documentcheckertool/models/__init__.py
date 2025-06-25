@@ -162,8 +162,7 @@ class DocumentCheckResult:
             html.append(f"<h3 style='color: {color};'>{severity.value_str} Severity Issues:</h3>")
             html.append("<ul>")
             for issue in issues:
-                line_info = f" (line {issue['line_number']})" if issue.get("line_number") else ""
-                html.append(f"<li>{issue['message']}{line_info}</li>")
+                html.append(f"<li>{issue['message']}</li>")
             html.append("</ul>")
 
         html.append("</div>")
@@ -175,6 +174,7 @@ class VisibilitySettings:
     """Settings for controlling visibility of different check categories."""
 
     show_readability: bool = True
+    show_analysis: bool = True
     show_paragraph_length: bool = True
     show_terminology: bool = True
     show_headings: bool = True
@@ -182,11 +182,13 @@ class VisibilitySettings:
     show_format: bool = True
     show_accessibility: bool = True
     show_document_status: bool = True
+    show_acronym: bool = True
 
     def to_dict(self) -> Dict[str, bool]:
         """Convert settings to dictionary format."""
         return {
             "readability": self.show_readability,
+            "analysis": self.show_analysis,
             "paragraph_length": self.show_paragraph_length,
             "terminology": self.show_terminology,
             "headings": self.show_headings,
@@ -194,6 +196,7 @@ class VisibilitySettings:
             "format": self.show_format,
             "accessibility": self.show_accessibility,
             "document_status": self.show_document_status,
+            "acronym": self.show_acronym,
         }
 
     @classmethod
@@ -201,6 +204,7 @@ class VisibilitySettings:
         """Create settings from dictionary format."""
         return cls(
             show_readability=settings.get("readability", True),
+            show_analysis=settings.get("analysis", True),
             show_paragraph_length=settings.get("paragraph_length", True),
             show_terminology=settings.get("terminology", True),
             show_headings=settings.get("headings", True),
@@ -208,6 +212,7 @@ class VisibilitySettings:
             show_format=settings.get("format", True),
             show_accessibility=settings.get("accessibility", True),
             show_document_status=settings.get("document_status", True),
+            show_acronym=settings.get("acronym", True),
         )
 
     @classmethod

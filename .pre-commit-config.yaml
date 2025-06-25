@@ -1,42 +1,53 @@
+# .pre-commit-config.yaml
+default_language_version:
+  python: python3.11      # matches project requires-python (>=3.11)
+
 repos:
+  # ── Ruff: lint → auto-fix → format ───────────────────────────────────────────
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.4.7
+    hooks:
+      - id: ruff
+        args: [--fix]
+      - id: ruff-format
+
   - repo: https://github.com/psf/black
     rev: 24.4.2
     hooks:
       - id: black
 
-  - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.11.8
-    hooks:
-      - id: ruff
-        args: [--fix]
-
   - repo: https://github.com/pre-commit/mirrors-mypy
-    rev: v1.15.0
+    rev: v1.10.0
     hooks:
-      - id: mypy
-        additional_dependencies: [types-all]
+      - id: mypy          # strict mode lives in [tool.mypy]; flag no longer needed
+        # args: [--strict]
 
+  # ── Bandit: security scan, reads settings from pyproject.toml ───────────────
   - repo: https://github.com/PyCQA/bandit
-    rev: 1.8.3
+    rev: 1.8.5
     hooks:
       - id: bandit
-        args: ["-c", "pyproject.toml"]
+        args:
+          [
+            "-c", "pyproject.toml",        # load the TOML config
+            "--severity-level", "MEDIUM",
+            "--confidence-level", "MEDIUM",
+            "-r", "documentcheckertool/",  # scan only the package code
+          ]
+        additional_dependencies: ["bandit[toml]"]  # enables TOML parsing :contentReference[oaicite:0]{index=0}
 
-  - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v4.5.0
+  - repo: https://github.com/trailofbits/pip-audit
+    rev: v2.7.2
     hooks:
-      - id: trailing-whitespace
-      - id: end-of-file-fixer
-      - id: check-yaml
-      - id: check-added-large-files
-      - id: check-ast
-      - id: check-json
-      - id: check-merge-conflict
-      - id: check-toml
-      - id: check-xml
-      - id: debug-statements
-      - id: detect-private-key
-      - id: mixed-line-ending
-      - id: name-tests-test
-      - id: requirements-txt-fixer
-      - id: sort-simple-yaml
+      - id: pip-audit
+        # Audit dependencies listed in pyproject.toml
+        args: ["-r", "pyproject.toml"]
+
+  # ── Local test runner ───────────────────────────────────────────────────────
+  - repo: local
+    hooks:
+      - id: pytest
+        name: pytest
+        entry: pytest
+        language: system
+        pass_filenames: false

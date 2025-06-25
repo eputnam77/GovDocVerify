@@ -3,6 +3,7 @@
 import logging
 
 import pytest
+from docx import Document
 
 from documentcheckertool.checks.reference_checks import (
     DocumentTitleFormatCheck,
@@ -474,12 +475,36 @@ class TestTableFigureReferenceCheck:
         assert result.success
         assert len(result.issues) == 0
 
+    def test_reference_numbering_ac(self):
+        """Table/Figure references in ACs require X-Y numbering."""
+        content = [
+            "Refer to Table 1 for limits.",
+            "See figure 2 for details.",
+        ]
+        result = self.checker.check(content, "Advisory Circular")
+
+        assert not result.success
+        assert len(result.issues) == 3
+        assert any("X-Y" in issue["issue"] for issue in result.issues)
+
+    def test_reference_numbering_other(self):
+        """Other document types should not use X-Y numbering."""
+        content = [
+            "Refer to Table 1-1 for limits.",
+            "See figure 2-2 for details.",
+        ]
+        result = self.checker.check(content, "Other")
+
+        assert result.success
+        assert len(result.issues) == 0
+
     @pytest.mark.parametrize(
         "text, violations",
         [
             ("Analyze table 1 of this AC, Table 1-1 of this AC.", 0),
             ("As shown in Table 3-2, the component values...", 0),
             ("Refer to table 3-2 for limits.", 0),
+            ("The tests identified in Table 1-1 (see Section 3) are required.", 0),
             ('"Table 2-1" lists the data.', 1),
         ],
     )
@@ -523,6 +548,19 @@ class TestDocumentTitleFormatting:
         """Test that AC titles with italics are correct."""
         content = ["Use AC 33.91, *Engine System and Component Tests*, dated 25 July 2020."]
         result = self.title_checker.check_text(content, "Advisory Circular")
+
+        assert result.success
+        assert len(result.issues) == 0
+
+    def test_ac_title_with_word_italics_should_pass(self):
+        """AC titles italicized in a DOCX file should be detected."""
+        doc = Document()
+        p = doc.add_paragraph()
+        p.add_run("Use AC 33.91, ")
+        italic_run = p.add_run("Engine System and Component Tests")
+        italic_run.italic = True
+        p.add_run(", dated 25 July 2020.")
+        result = self.title_checker.check_document(doc, "Advisory Circular")
 
         assert result.success
         assert len(result.issues) == 0

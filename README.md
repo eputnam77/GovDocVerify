@@ -41,6 +41,8 @@ A tool for checking and validating documents against FAA standards, with a moder
 - **API backend** (FastAPI).
 - **Legacy Gradio UI** for quick local or Hugging Face Spaces use.
 - **Detailed error reporting** and structured logging.
+- **Displays document metadata** (title, author, last modified by) before the
+  results.
 
 ---
 
@@ -250,7 +252,7 @@ This section provides comprehensive descriptions of each check performed by the 
 - **After:** Either update the table reference or add table 5-2 if missing
 
 ### Readability Issues
-**Description:** Analyzes document readability using multiple metrics including Flesch Reading Ease, Flesch-Kincaid Grade Level, and Gunning Fog Index. Also checks for passive voice usage and technical jargon.
+**Description:** Analyzes document readability using multiple metrics including Flesch Reading Ease, Flesch-Kincaid Grade Level, and Gunning Fog Index. Also checks for passive voice usage and technical jargon. The analysis section reports the overall percentage of passive voice sentences.
 
 **Solution:** Simplify language, reduce passive voice, and replace technical jargon with plain language alternatives.
 
@@ -346,7 +348,12 @@ project-root/
   ```bash
   pip install -r requirements.txt
   ```
-  This installs only the minimal set of packages needed to run the app.
+This installs only the minimal set of packages needed to run the app.
+
+If you prefer using **Poetry**, simply run `poetry install`. Poetry reads
+`pyproject.toml` and installs the same dependencies (add `--with dev` for
+development extras). You do **not** need to combine this with the requirements
+files—choose either pip **or** Poetry.
 
 **Tip:** If you're not sure, use `requirements-dev.txt` for the most complete setup.
 
@@ -357,6 +364,10 @@ project-root/
 ### 1. Python Environment (Backend & Gradio)
 
 **From the project root directory:**
+
+> **Dependency note:** Use **one** install method. Either install with pip and
+> a requirements file **or** run `poetry install`. Installing from multiple
+> files is unnecessary.
 
 #### a. Using venv + pip
 ```bash
@@ -405,6 +416,7 @@ pip install -r requirements.txt  # Only needed once
 uvicorn backend.main:app --reload
 ```
 - The API will be available at [http://127.0.0.1:8000](http://127.0.0.1:8000).
+- Set `ALLOW_ORIGINS` to a comma-separated list to restrict CORS (defaults to `*`).
 
 ### 2. Start the Frontend Website
 
@@ -462,6 +474,9 @@ If you see `ModuleNotFoundError: No module named 'documentcheckertool'`, run:
 pip install -e .
 ```
 from the project root, or always use `poetry run ...` if using Poetry.
+
+If you encounter a build error like `invalid command 'bdist_wheel'`, ensure the
+`wheel` package is installed. This dependency is listed in `requirements.txt`.
 
 ---
 
@@ -770,6 +785,7 @@ The project includes several development tools configured in Poetry:
 - **Linting**: `poetry run ruff check .`
 - **Type Checking**: `poetry run mypy .`
 - **Security Scanning**: `poetry run bandit -r .`
+- **Dependency Scanning**: `pip-audit -r requirements.txt`
 - **Testing**: `poetry run pytest`
 - **Dead Code Detection**: `poetry run vulture .`
 
@@ -1070,15 +1086,17 @@ The Document Checker Tool supports the following command-line arguments when run
 | `--debug`                 | flag                   | Enable debug mode                                   |
 | `--show-all`              | flag                   | Show all sections (default)                         |
 | `--hide-readability`      | flag                   | Hide readability metrics                            |
+| `--hide-analysis`         | flag                   | Hide readability analysis details                  |
 | `--hide-paragraph-length` | flag                   | Hide paragraph and sentence length checks           |
 | `--hide-terminology`      | flag                   | Hide terminology checks                             |
+| `--hide-acronym`          | flag                   | Hide acronym checks                                 |
 | `--hide-headings`         | flag                   | Hide heading checks                                 |
 | `--hide-structure`        | flag                   | Hide structure checks                               |
 | `--hide-format`           | flag                   | Hide format checks                                  |
 | `--hide-accessibility`    | flag                   | Hide accessibility checks                           |
 | `--hide-document-status`  | flag                   | Hide document status checks                         |
-| `--hide CATEGORY`         | string/list            | Hide the specified categories (comma- or space-separated). Mutually exclusive with --hide-*, --show-only, and --show-all. Categories: readability, paragraph_length, terminology, headings, structure, format, accessibility, document_status |
-| `--show-only CATEGORY`    | string/list            | Show only the specified categories (comma- or space-separated). Mutually exclusive with --hide-* and --show-all. Categories: readability, paragraph_length, terminology, headings, structure, format, accessibility, document_status |
+| `--hide CATEGORY`         | string/list            | Hide the specified categories (comma- or space-separated). Mutually exclusive with --hide-*, --show-only, and --show-all. Categories: readability, analysis, paragraph_length, terminology, acronym, headings, structure, format, accessibility, document_status |
+| `--show-only CATEGORY`    | string/list            | Show only the specified categories (comma- or space-separated). Mutually exclusive with --hide-* and --show-all. Categories: readability, analysis, paragraph_length, terminology, acronym, headings, structure, format, accessibility, document_status |
 
 ### Document Type Options for `--type`
 
@@ -1126,6 +1144,11 @@ Here are several example commands demonstrating different CLI options:
   python cli.py --file mydoc.docx --type "Advisory Circular" --show-only headings
   ```
 
+- **Show only acronyms:**
+  ```sh
+  python cli.py --file mydoc.docx --type "Advisory Circular" --show-only acronym
+  ```
+
 - **Show only multiple categories (e.g., headings and terminology):**
   ```sh
   python cli.py --file mydoc.docx --type "Advisory Circular" --show-only headings terminology
@@ -1138,6 +1161,11 @@ Here are several example commands demonstrating different CLI options:
   python cli.py --file mydoc.docx --type "Advisory Circular" --hide readability accessibility
   # or
   python cli.py --file mydoc.docx --type "Advisory Circular" --hide readability,accessibility
+  ```
+
+- **Hide acronyms only:**
+  ```sh
+  python cli.py --file mydoc.docx --type "Advisory Circular" --hide-acronym
   ```
   > **Note:** You can now use a single `--hide` flag with a comma- or space-separated list. This cannot be combined with any `--hide-*`, `--show-only`, or `--show-all` flags.
 
@@ -1156,6 +1184,11 @@ Here are several example commands demonstrating different CLI options:
   python cli.py --file mydoc.docx --type "Order" --hide-readability
   ```
 
+- **Hide analysis metrics:**
+  ```sh
+  python cli.py --file mydoc.docx --type "Order" --hide-analysis
+  ```
+
 - **Group results by severity:**
   ```sh
   python cli.py --file mydoc.docx --type "Federal Register Notice" --group-by severity
@@ -1169,8 +1202,10 @@ Here are several example commands demonstrating different CLI options:
 ### Valid Categories for `--show-only`
 
 - readability
+- analysis
 - paragraph_length
 - terminology
+- acronym
 - headings
 - structure
 - format

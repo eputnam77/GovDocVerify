@@ -3,19 +3,26 @@
 # This includes all runtime requirements plus dev/test tools
 
 -r requirements.txt
+wheel>=0.42.0
 
 # Testing
-pytest>=8.3.5
-pytest-cov>=4.1.0
+pytest>=8.0
+pytest-cov>=5.0
 pytest-asyncio>=0.23.5
+hypothesis>=6.0
 
 # Linting and formatting
-black>=24.2.0
-isort>=5.13.2
-ruff>=0.2.2
+black>=24.4.2
+ruff>=0.5.1
 
 # Type checking
-mypy>=1.8.0
+mypy>=1.10
+
+# Security
+bandit>=1.8.5
+semgrep>=1.123.0
+pip-audit>=2.7
 
 # Pre-commit hooks
-pre-commit>=3.6.0
+pre-commit>=3.7
+

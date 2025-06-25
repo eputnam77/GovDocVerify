@@ -1,9 +1,12 @@
+import logging
 from enum import Enum
 from typing import Any, Dict, List, Union
 
 from colorama import Fore, Style
 
 from documentcheckertool.models import DocumentCheckResult, Severity
+
+logger = logging.getLogger(__name__)
 
 
 class FormatStyle(Enum):
@@ -168,17 +171,27 @@ class ResultFormatter:
             + (f"\n      Fix: {rec}" if rec else "")
         )
 
-    def _add_header(self, output: List[str]) -> None:
-        """Add header to the output based on style."""
+    def _add_header(self, output: List[str], metadata: Dict[str, Any] | None) -> None:
+        """Add header and optional metadata to the output."""
         if self._style == FormatStyle.HTML:
             output.append('<div class="results-container">')
             output.append(
                 '<h1 style="color: #0056b3; text-align: center;">Document Check Summary</h1>'
             )
+            if metadata:
+                output.append('<div class="metadata">')
+                for key, value in metadata.items():
+                    label = key.replace("_", " ").title()
+                    output.append(f"<p><strong>{label}:</strong> {value}</p>")
+                output.append("</div>")
             output.append('<hr style="border: 1px solid #0056b3;">')
         else:
             output.append("=" * 80)
             output.append(self._format_colored_text("📋 DOCUMENT CHECK RESULTS SUMMARY", Fore.CYAN))
+            if metadata:
+                for key, value in metadata.items():
+                    label = key.replace("_", " ").title()
+                    output.append(f"{label}: {value}")
             output.append("=" * 80)
             output.append("")
 
@@ -240,13 +253,11 @@ class ResultFormatter:
             output.append('<ul style="list-style-type: none; padding-left: 20px;">')
             for issue in issues:
                 message = issue.get("message") or issue.get("error", str(issue))
-                line = issue.get("line_number")
-                line_info = f" (Line {line})" if line is not None else ""
                 span_style = f"color: {severity_colors_html[sev]}; font-weight: bold;"
                 li_content = (
                     f"<li style='margin-bottom: 8px;'>"
                     f"<span style='{span_style}'>[{sev.upper()}]</span> "
-                    f"{message}{line_info}</li>"
+                    f"{message}</li>"
                 )
                 output.append(li_content)
             output.append("</ul>")
@@ -263,9 +274,7 @@ class ResultFormatter:
             output.append("-" * 60)
             for issue in issues:
                 message = issue.get("message") or issue.get("error", str(issue))
-                line = issue.get("line_number")
-                line_info = f" (Line {line})" if line is not None else ""
-                output.append(f"  • {message}{line_info}")
+                output.append(f"  • {message}")
             output.append("")
 
     def _format_by_severity(self, results: Dict[str, Any], output: List[str]) -> str:
@@ -353,15 +362,13 @@ class ResultFormatter:
             for result, issues in category_data:
                 for issue in issues:
                     message = issue.get("message") or issue.get("error", str(issue))
-                    line = issue.get("line_number")
-                    line_info = f" (Line {line})" if line is not None else ""
                     check_name = getattr(result, "check_name", "General")
                     span_style = "color: #721c24; font-weight: bold;"
                     check_display = check_name.replace("_", " ").title()
                     li_content = (
                         f"<li style='margin-bottom: 8px;'>"
                         f"<span style='{span_style}'>[{check_display}]</span> "
-                        f"{message}{line_info}</li>"
+                        f"{message}</li>"
                     )
                     output.append(li_content)
             output.append("</ul>")
@@ -379,17 +386,11 @@ class ResultFormatter:
             for result, issues in category_data:
                 for issue in issues:
                     message = issue.get("message") or issue.get("error", str(issue))
-                    line = issue.get("line_number")
-                    line_info = (
-                        self._format_colored_text(f" (Line {line})", Fore.BLUE)
-                        if line is not None
-                        else ""
-                    )
                     check_name = getattr(result, "check_name", "General")
                     check_label = self._format_colored_text(
                         f"[{check_name.replace('_', ' ').title()}]", Fore.RED
                     )
-                    output.append(f"  • {check_label} {message}{line_info}")
+                    output.append(f"  • {check_label} {message}")
             output.append("")
 
     def _format_by_category(self, results: Dict[str, Any], output: List[str]) -> str:
@@ -432,7 +433,12 @@ class ResultFormatter:
         return "\n".join(output)
 
     def format_results(
-        self, results: Dict[str, Any], doc_type: str, group_by: str = "category"
+        self,
+        results: Dict[str, Any],
+        doc_type: str,
+        *,
+        group_by: str = "category",
+        metadata: Dict[str, Any] | None = None,
     ) -> str:
         """
         Format check results into a detailed, user-friendly report.
@@ -445,8 +451,8 @@ class ResultFormatter:
         Returns:
             str: Formatted report with consistent styling
         """
-        output = []
-        self._add_header(output)
+        output: List[str] = []
+        self._add_header(output, metadata)
 
         if group_by == "severity":
             return self._format_by_severity(results, output)
@@ -488,41 +494,52 @@ class ResultFormatter:
 
                 f.write(report)
         except Exception as e:
-            print(f"Error saving report: {e}")
+            logger.exception("Error saving report: %s", e)
 
-    def _format_readability_issues(self, result: DocumentCheckResult) -> List[str]:
+    def _format_readability_issues(self, result: DocumentCheckResult | Dict[str, Any]) -> List[str]:
         """Format readability issues with clear, actionable feedback."""
-        formatted_issues = []
+        formatted_issues: List[str] = []
 
-        if result.details and "metrics" in result.details:
-            metrics = result.details["metrics"]
-            formatted_issues.append("\n  Readability Scores:")
-            formatted_issues.append(
-                f"    • Flesch Reading Ease: {metrics['flesch_reading_ease']} (Aim for 50+)"
-            )
-            formatted_issues.append(
-                f"    • Grade Level: {metrics['flesch_kincaid_grade']} (Aim for 10 or lower)"
-            )
-            formatted_issues.append(
-                f"    • Gunning Fog Index: {metrics['gunning_fog_index']} (Aim for 12 or lower)"
-            )
-            passive_voice_msg = (
-                f"    • Passive Voice: {metrics['passive_voice_percentage']}% "
-                "(Aim for less than 10%)"
-            )
-            formatted_issues.append(passive_voice_msg)
+        details = getattr(result, "details", None)
+        if isinstance(result, dict):
+            details = result.get("details")
+            issues = result.get("issues", [])
+        else:
+            issues = result.issues
 
-        if result.issues:
-            formatted_issues.append("\n  Identified Issues:")
-            for issue in result.issues:
-                if issue["type"] == "jargon":
-                    jargon_msg = (
-                        f"    • Replace '{issue['word']}' with '{issue['suggestion']}' "
+        if details and "metrics" in details:
+            metrics = details["metrics"]
+            formatted_issues.append(
+                f"Flesch Reading Ease: {metrics['flesch_reading_ease']} "
+                "(Aim for 50+; higher is easier to read)"
+            )
+            formatted_issues.append(
+                f"Gunning Fog Index: {metrics['gunning_fog_index']} " "(Aim for 12 or lower)"
+            )
+            formatted_issues.append(
+                f"Grade Level: {metrics['flesch_kincaid_grade']} "
+                "(Aim for 10 or lower; 12 acceptable for technical/legal)"
+            )
+            if "passive_voice_percentage" in metrics:
+                formatted_issues.append(
+                    f"Passive Voice: {metrics['passive_voice_percentage']}% "
+                    "(Aim for 10% or lower)"
+                )
+            formatted_issues.append("")
+
+        if issues:
+            formatted_issues.append("Issues:")
+            for issue in issues:
+                issue_type = issue.get("type")
+                if issue_type == "jargon":
+                    formatted_issues.append(
+                        f"Replace '{issue['word']}' with '{issue['suggestion']}' "
                         f"in: \"{issue['sentence']}\""
                     )
-                    formatted_issues.append(jargon_msg)
-                elif issue["type"] in ["readability_score", "passive_voice"]:
-                    formatted_issues.append(f"    • {issue['message']}")
+                elif issue_type in ["readability_score", "passive_voice"]:
+                    formatted_issues.append(issue["message"])
+                elif "message" in issue:
+                    formatted_issues.append(issue["message"])
 
         return formatted_issues
 

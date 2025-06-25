@@ -11,6 +11,7 @@ from documentcheckertool.models import (
     DocumentType,
     VisibilitySettings,
 )
+from documentcheckertool.utils import extract_docx_metadata
 from documentcheckertool.utils.formatting import (
     FormatStyle,
     ResultFormatter,
@@ -306,6 +307,11 @@ def _create_visibility_controls():
                     value=True,
                     info="Show readability metrics and scores",
                 )
+                show_analysis = gr.Checkbox(
+                    label="Detailed Analysis",
+                    value=True,
+                    info="Show Flesch, Gunning Fog, and passive voice metrics",
+                )
                 show_paragraph_length = gr.Checkbox(
                     label="Paragraph & Sentence Length",
                     value=True,
@@ -315,6 +321,11 @@ def _create_visibility_controls():
                     label="Terminology Checks",
                     value=True,
                     info="Show terminology and style checks",
+                )
+                show_acronym = gr.Checkbox(
+                    label="Acronym Checks",
+                    value=True,
+                    info="Show acronym definition and usage checks",
                 )
                 show_headings = gr.Checkbox(
                     label="Heading Checks",
@@ -345,8 +356,10 @@ def _create_visibility_controls():
 
     return {
         "show_readability": show_readability,
+        "show_analysis": show_analysis,
         "show_paragraph_length": show_paragraph_length,
         "show_terminology": show_terminology,
+        "show_acronym": show_acronym,
         "show_headings": show_headings,
         "show_structure": show_structure,
         "show_format": show_format,
@@ -392,8 +405,10 @@ def _setup_event_handlers(components):
             components["template_type"],
             components["group_by"],
             components["show_readability"],
+            components["show_analysis"],
             components["show_paragraph_length"],
             components["show_terminology"],
+            components["show_acronym"],
             components["show_headings"],
             components["show_structure"],
             components["show_format"],
@@ -432,8 +447,10 @@ def _create_process_function():
         template_type_value,
         group_by_value,
         show_readability_value,
+        show_analysis_value,
         show_paragraph_length_value,
         show_terminology_value,
+        show_acronym_value,
         show_headings_value,
         show_structure_value,
         show_format_value,
@@ -458,6 +475,7 @@ def _create_process_function():
 
             try:
                 validate_file(temp_file_path)
+                metadata = extract_docx_metadata(temp_file_path)
                 checker = FAADocumentChecker()
                 result_obj = checker.run_all_document_checks(
                     document_path=temp_file_path, doc_type=doc_type_value
@@ -482,14 +500,17 @@ def _create_process_function():
                     doc_type_value,
                     group_by_value,
                     show_readability_value,
+                    show_analysis_value,
                     show_paragraph_length_value,
                     show_terminology_value,
+                    show_acronym_value,
                     show_headings_value,
                     show_structure_value,
                     show_format_value,
                     show_accessibility_value,
                     show_document_status_value,
                     status,
+                    metadata,
                 )
 
             finally:
@@ -518,14 +539,17 @@ def _process_results(
     doc_type_value,
     group_by_value,
     show_readability_value,
+    show_analysis_value,
     show_paragraph_length_value,
     show_terminology_value,
+    show_acronym_value,
     show_headings_value,
     show_structure_value,
     show_format_value,
     show_accessibility_value,
     show_document_status_value,
     status,
+    metadata=None,
 ):
     """Process and format the check results."""
     # Count issues in results_dict
@@ -534,8 +558,10 @@ def _process_results(
     # Build visibility settings
     visibility_settings = _build_visibility_settings(
         show_readability_value,
+        show_analysis_value,
         show_paragraph_length_value,
         show_terminology_value,
+        show_acronym_value,
         show_headings_value,
         show_structure_value,
         show_format_value,
@@ -550,7 +576,10 @@ def _process_results(
     # Format results
     formatter = ResultFormatter(style=FormatStyle.HTML)
     formatted_results = formatter.format_results(
-        filtered_results, doc_type_value, group_by=group_by_value
+        filtered_results,
+        doc_type_value,
+        group_by=group_by_value,
+        metadata=metadata,
     )
 
     if formatted_results is None:
@@ -588,6 +617,7 @@ def _process_results(
         "visibility": visibility_settings.to_dict(),
         "summary": getattr(result_obj, "summary", {}),
         "formatted_results": formatted_results,
+        "metadata": metadata,
     }
     status = "Check complete."
     return (
@@ -645,8 +675,10 @@ def _count_issues_in_results(results_dict):
 
 def _build_visibility_settings(
     show_readability_value,
+    show_analysis_value,
     show_paragraph_length_value,
     show_terminology_value,
+    show_acronym_value,
     show_headings_value,
     show_structure_value,
     show_format_value,
@@ -656,8 +688,10 @@ def _build_visibility_settings(
     """Build visibility settings from UI values."""
     return VisibilitySettings(
         show_readability=show_readability_value,
+        show_analysis=show_analysis_value,
         show_paragraph_length=show_paragraph_length_value,
         show_terminology=show_terminology_value,
+        show_acronym=show_acronym_value,
         show_headings=show_headings_value,
         show_structure=show_structure_value,
         show_format=show_format_value,
@@ -670,8 +704,10 @@ def _get_selected_categories(visibility_settings):
     """Get selected categories based on visibility settings."""
     visibility_to_categories = {
         "show_readability": ["readability"],
+        "show_analysis": ["analysis"],
         "show_paragraph_length": ["paragraph_length", "sentence_length"],
         "show_terminology": ["terminology"],
+        "show_acronym": ["acronym"],
         "show_headings": ["heading"],
         "show_structure": ["structure"],
         "show_format": ["format"],
@@ -736,6 +772,7 @@ def _extract_report_data():
         "visibility_settings": VisibilitySettings.from_dict(_last_results["visibility"]),
         "summary": _last_results["summary"],
         "formatted_results": _last_results.get("formatted_results"),
+        "metadata": _last_results.get("metadata", {}),
     }
 
 
@@ -819,8 +856,6 @@ def _add_docx_detailed_results(doc, filtered_results):
                     for issue in result["issues"]:
                         p = doc.add_paragraph(style="List Bullet")
                         p.add_run(issue["message"])
-                        if issue.get("line_number"):
-                            p.add_run(f' (Line {issue["line_number"]})').italic = True
 
 
 def _generate_pdf_report(filepath, summary, filtered_results):
@@ -895,10 +930,7 @@ h2 {{
                     html_content += f"<h3>{display_name}</h3>\n<ul>\n"
 
                     for issue in result["issues"]:
-                        line_info = (
-                            f" (Line {issue['line_number']})" if issue.get("line_number") else ""
-                        )
-                        html_content += f'<li class="issue">{issue["message"]}{line_info}</li>\n'
+                        html_content += f'<li class="issue">{issue["message"]}</li>\n'
 
                     html_content += "</ul>"
 

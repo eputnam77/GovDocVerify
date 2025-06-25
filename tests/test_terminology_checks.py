@@ -30,8 +30,10 @@ class TestTerminologyChecks(TestBase):
         logger.debug(f"Cross reference check result: {result}")
         logger.debug(f"Issues found: {result.issues}")
         self.assert_has_issues(result)
-        self.assert_issue_contains(result, "Avoid using 'above'")
-        self.assert_issue_contains(result, "Avoid using 'below'")
+        self.assert_issue_contains(
+            result,
+            "Avoid vague references like 'above' or 'below'; cite a specific section.",
+        )
 
     def test_required_language(self):
         """Test required language checking."""
@@ -128,6 +130,24 @@ class TestTerminologyChecks(TestBase):
         msgs = [iss["message"] for iss in result.issues]
         self.assertTrue(any("European Union Aviation Safety Agency (EASA)" in m for m in msgs))
 
+    def test_email_case_sensitive_variants(self):
+        """Ensure capitalization-only variants don't flag correct lowercase usage."""
+        doc = "Send the form via email."
+        result = self.terminology_checks.check_text(doc)
+        self.assert_no_issues(result)
+
+        doc_bad = "Send the form via Email."
+        result_bad = self.terminology_checks.check_text(doc_bad)
+        self.assert_has_issues(result_bad)
+        self.assert_issue_contains(result_bad, 'Change "Email" to "email"')
+
+    def test_unannunciated_variant(self):
+        """Flag hyphenated 'un-annunciated' as incorrect."""
+        doc = "The fault remained un-annunciated during testing."
+        result = self.terminology_checks.check_text(doc)
+        self.assert_has_issues(result)
+        self.assert_issue_contains(result, 'Change "un-annunciated" to "unannunciated"')
+
 
 @pytest.mark.parametrize(
     "doc_type,content,expect_flag",
@@ -157,9 +177,8 @@ def test_proposed_wording(doc_type, content, expect_flag):
     message = "Found 'proposed' wording—remove draft phrasing for final documents."
     flagged = any(message in getattr(i, "message", str(i)) for i in results.issues)
     if flagged != expect_flag:
-        print("DEBUG: All issue messages:")
         for i in results.issues:
-            print(getattr(i, "message", str(i)))
+            logging.getLogger(__name__).debug(getattr(i, "message", str(i)))
     assert flagged == expect_flag
 
 

@@ -10,6 +10,7 @@ from documentcheckertool.models import DocumentCheckResult, Severity
 from documentcheckertool.utils.boilerplate_utils import is_boilerplate
 from documentcheckertool.utils.terminology_utils import TerminologyManager
 from documentcheckertool.utils.text_utils import (
+    calculate_passive_voice_percentage,
     calculate_readability_metrics,
     count_syllables,
     count_words,
@@ -38,68 +39,53 @@ class ReadabilityChecks(BaseChecker):
         return results
 
     def check_text(self, text: str) -> DocumentCheckResult:
-        """Check text for readability issues."""
+        """Check text for readability issues using overall document metrics."""
         results = DocumentCheckResult()
-        lines = text.split("\n")
 
-        # Process paragraphs
-        current_paragraph = []
-        for line in lines:
-            if line.strip():
-                current_paragraph.append(line)
-            elif current_paragraph:
-                self._check_readability_thresholds("".join(current_paragraph), results)
-                current_paragraph = []
-        if current_paragraph:
-            self._check_readability_thresholds("".join(current_paragraph), results)
+        paragraphs = [line.strip() for line in text.splitlines() if line.strip()]
+
+        total_words = 0
+        total_sentences = 0
+        total_syllables = 0
+        complex_words = 0
+
+        for paragraph in paragraphs:
+            sentences = split_sentences(paragraph)
+            total_sentences += len(sentences)
+            words = paragraph.split()
+            total_words += len(words)
+            for word in words:
+                syllables = self._count_syllables(word)
+                total_syllables += syllables
+                if syllables >= 3:
+                    complex_words += 1
+
+            self._check_paragraph_structure(paragraph, results)
+
+        passive_pct = calculate_passive_voice_percentage(text)
+
+        if total_sentences:
+            metrics = calculate_readability_metrics(
+                total_words,
+                total_sentences,
+                total_syllables,
+                complex_word_count=complex_words,
+            )
+            metrics["passive_voice_percentage"] = passive_pct
+            results.details = {"metrics": metrics}
+            self._check_document_thresholds(metrics, results)
 
         return results
 
-    def _check_readability_thresholds(self, text: str, results: DocumentCheckResult) -> None:
-        """Check readability metrics against thresholds."""
+    def _check_paragraph_structure(self, text: str, results: DocumentCheckResult) -> None:
+        """Check sentence and paragraph length for a single paragraph."""
         try:
             if is_boilerplate(text):
-                return  # skip mandated boiler-plate completely
-            # Calculate basic metrics
-            words = text.split()
-            sentences = text.split(".")
-            sentences = [s.strip() for s in sentences if s.strip()]
-
-            if not sentences:
                 return
 
-            avg_words_per_sentence = len(words) / len(sentences)
-            avg_syllables_per_word = sum(self._count_syllables(word) for word in words) / len(words)
+            sentences = split_sentences(text)
 
-            # Calculate readability scores
-            flesch_ease = 206.835 - 1.015 * avg_words_per_sentence - 84.6 * avg_syllables_per_word
-            flesch_grade = 0.39 * avg_words_per_sentence + 11.8 * avg_syllables_per_word - 15.59
-
-            # Check thresholds
-            if flesch_ease < 60:
-                message = (
-                    f"Text is hard to read (Flesch Reading Ease: {flesch_ease:.1f}). "
-                    "Use simpler words and shorter sentences to improve readability."
-                )
-                results.add_issue(
-                    message=message,
-                    severity=Severity.WARNING,
-                    category=getattr(self, "category", "readability"),
-                )
-
-            if flesch_grade > 12:
-                message = (
-                    f"Text is complex (Flesch-Kincaid Grade Level: {flesch_grade:.1f}). "
-                    "Consider using simpler words and shorter sentences for a wider audience."
-                )
-                results.add_issue(
-                    message=message,
-                    severity=Severity.WARNING,
-                    category=getattr(self, "category", "readability"),
-                )
-
-            # Check sentence length
-            for i, sentence in enumerate(sentences, 1):
+            for sentence in sentences:
                 word_count = len(sentence.split())
                 if word_count > 25:
                     sentence_preview = self._get_text_preview(sentence.strip())
@@ -113,24 +99,79 @@ class ReadabilityChecks(BaseChecker):
                         category=getattr(self, "category", "readability"),
                     )
 
-            # Check paragraph length
-            if len(words) > 150:
+            sentence_count = len(sentences)
+            line_count = len([line for line in text.splitlines() if line.strip()])
+            if sentence_count > 6 or line_count > 8:
                 paragraph_preview = self._get_text_preview(text.strip())
                 results.add_issue(
                     message=(
-                        f"Paragraph '{paragraph_preview}' is too long at {len(words)} words. "
+                        f"Paragraph '{paragraph_preview}' exceeds length limits with "
+                        f"{sentence_count} sentences and {line_count} lines. "
                         "Break it into smaller paragraphs for better readability."
                     ),
                     severity=Severity.WARNING,
                     category=getattr(self, "category", "readability"),
                 )
-
         except Exception as e:
             logger.error(f"Error in readability check: {str(e)}")
             results.add_issue(
                 message=f"Error calculating readability metrics: {str(e)}",
                 severity=Severity.ERROR,
-                category=getattr(self, "category", "readability"),
+                category="analysis",
+            )
+
+    def _check_document_thresholds(
+        self, metrics: Dict[str, float], results: DocumentCheckResult
+    ) -> None:
+        """Add issues based on overall document readability metrics."""
+        flesch_ease = metrics.get("flesch_reading_ease", 0)
+        flesch_grade = metrics.get("flesch_kincaid_grade", 0)
+        fog_index = metrics.get("gunning_fog_index", 0)
+
+        if flesch_ease < READABILITY_CONFIG.get("min_flesch_score", 50):
+            message = (
+                f"Text is hard to read (Flesch Reading Ease: {flesch_ease:.1f}; Aim for 50+). "
+                "Use simpler words and shorter sentences to improve readability."
+            )
+            results.add_issue(
+                message=message,
+                severity=Severity.WARNING,
+                category="analysis",
+            )
+
+        if fog_index > READABILITY_CONFIG.get("max_gunning_fog_index", 12):
+            message = (
+                f"Text is complex (Gunning Fog Index: {fog_index:.1f}; Aim for 12 or lower). "
+                "Use simpler words and shorter sentences to reduce complexity."
+            )
+            results.add_issue(
+                message=message,
+                severity=Severity.WARNING,
+                category="analysis",
+            )
+
+        if flesch_grade > READABILITY_CONFIG.get("max_flesch_kincaid_grade", 12):
+            message = (
+                f"Grade level is {flesch_grade:.1f} (Aim for 12 or lower). "
+                "Consider simplifying language if appropriate."
+            )
+            results.add_issue(
+                message=message,
+                severity=Severity.WARNING,
+                category="analysis",
+            )
+
+        passive_pct = metrics.get("passive_voice_percentage", 0)
+        if passive_pct > READABILITY_CONFIG.get("max_passive_voice_percentage", 10):
+            message = (
+                f"Document uses {passive_pct:.1f}% passive voice (target: less than 10%). "
+                "Consider using more active voice. This is a readability recommendation, "
+                "not a strict style rule. Passive voice may be acceptable depending on the context."
+            )
+            results.add_issue(
+                message=message,
+                severity=Severity.WARNING,
+                category="analysis",
             )
 
     def _count_syllables(self, word: str) -> int:
@@ -266,10 +307,15 @@ class ReadabilityChecks(BaseChecker):
                         stats["complex_words"] += 1
 
         metrics = calculate_readability_metrics(
-            stats["total_words"], stats["total_sentences"], stats["total_syllables"]
+            stats["total_words"],
+            stats["total_sentences"],
+            stats["total_syllables"],
+            complex_word_count=stats["complex_words"],
         )
 
-        issues = self._check_readability_thresholds(metrics)
+        metrics_result = DocumentCheckResult()
+        self._check_document_thresholds(metrics, metrics_result)
+        issues = metrics_result.issues
 
         return DocumentCheckResult(
             success=len(issues) == 0, issues=issues, details={"metrics": metrics}

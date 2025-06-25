@@ -1,3 +1,5 @@
 fastapi
+starlette>=0.40.0
 uvicorn
 python-docx
+h11>=0.16.0

@@ -20,15 +20,12 @@ class TestStructureChecks(TestBase):
 
     def test_paragraph_length_check_invalid(self):
         """Test paragraph length check with invalid paragraphs."""
-        content = [
-            "This is a very long paragraph that exceeds the acceptable length limit. " * 20,
-            "This is another very long paragraph that exceeds the acceptable length limit. " * 20,
-            "This is a third very long paragraph that exceeds the acceptable length limit. " * 20,
-        ]
+        long_para = " ".join([f"Sentence {i}." for i in range(7)])
+        content = [long_para, long_para, long_para]
         self.create_test_docx(content, "invalid_paragraph_length.docx")
         result = self.checker.check_paragraph_length(content)
         self.assert_has_issues(result)
-        self.assert_issue_contains(result, "exceeds the 150-word limit")
+        self.assert_issue_contains(result, "exceeds length limits")
 
     def test_sentence_length_check_valid(self):
         """Test sentence length check with valid sentences."""
@@ -65,9 +62,9 @@ class TestStructureChecks(TestBase):
     def test_readability_check_valid(self):
         """Test readability check with valid text."""
         content = [
-            "The aircraft must meet the requirements.",
-            "The pilot must maintain visual contact.",
-            "The runway must be clear for landing.",
+            "The cat sat on the mat.",
+            "The dog barked.",
+            "It rained today.",
         ]
         self.create_test_docx(content, "valid_readability.docx")
         result = self.checker.check_readability(content)

@@ -2,6 +2,7 @@ import logging
 import logging.config
 import os
 import sys
+from io import TextIOWrapper
 
 log_path = os.path.abspath("document_checker.log")
 
@@ -18,7 +19,7 @@ LOGGING_CONFIG = {
             "class": "logging.StreamHandler",
             "level": "DEBUG",
             "formatter": "default",
-            "stream": sys.stdout,
+            "stream": "ext://sys.stdout",
         },
         "file": {
             "class": "logging.FileHandler",
@@ -48,7 +49,7 @@ LOGGING_CONFIG_INFO = {
             "class": "logging.StreamHandler",
             "level": "INFO",
             "formatter": "default",
-            "stream": sys.stdout,
+            "stream": "ext://sys.stdout",
         },
         "file": {
             "class": "logging.FileHandler",
@@ -71,6 +72,17 @@ def setup_logging(debug=False):
     Args:
         debug (bool): If True, use DEBUG level logging. If False, use INFO level.
     """
+    # Ensure stdio streams use UTF-8 and gracefully handle unsupported characters
+    for stream_name in ("stdout", "stderr"):
+        stream = getattr(sys, stream_name)
+        if hasattr(stream, "reconfigure"):
+            try:
+                stream.reconfigure(encoding="utf-8", errors="replace")
+                continue
+            except Exception:
+                pass
+        setattr(sys, stream_name, TextIOWrapper(stream.buffer, encoding="utf-8", errors="replace"))
+
     if debug:
         logging.config.dictConfig(LOGGING_CONFIG)
     else:

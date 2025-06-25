@@ -23,12 +23,16 @@ This ensures your code is formatted with Black before every commit.
    python -m venv venv
    source venv/bin/activate  # On Windows: venv\Scripts\activate
    ```
-3. Install dependencies:
+3. Install dependencies (choose **one** approach):
    ```bash
    pip install --upgrade pip
-   pip install -r requirements.txt
-   pip install -r requirements-dev.txt
+   pip install -r requirements-dev.txt  # includes requirements.txt
    ```
+   Or with Poetry:
+   ```bash
+   poetry install --with dev
+   ```
+   Either method installs the same packages—no need to run both.
 4. Install the project in editable mode:
    ```bash
    pip install -e .

@@ -13,7 +13,7 @@ class TestCLI:
     def setup(self):
         self.terminology_manager = TerminologyManager()
 
-    @patch("documentcheckertool.cli.FAADocumentChecker")
+    @patch("documentcheckertool.processing.FAADocumentChecker")
     def test_process_document(self, mock_checker):
         # Mock the checker's run_all_document_checks method
         mock_result = type(
@@ -35,6 +35,7 @@ class TestCLI:
         assert isinstance(result["rendered"], str)
         assert "by_category" in result
         assert isinstance(result["by_category"], dict)
+        assert "metadata" in result
 
     @patch("documentcheckertool.cli.process_document")
     def test_main_success(self, mock_process):

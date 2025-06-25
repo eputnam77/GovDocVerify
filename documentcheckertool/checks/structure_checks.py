@@ -1,11 +1,14 @@
 import logging
 import re
+import xml.etree.ElementTree as ET
 from functools import wraps
 from typing import Any, Dict, List, Optional
 
 from docx import Document
+from docx.opc.constants import RELATIONSHIP_TYPE as RT
 
 from documentcheckertool.checks.check_registry import CheckRegistry
+from documentcheckertool.config.boilerplate_texts import BOILERPLATE_PARAGRAPHS
 from documentcheckertool.models import DocumentCheckResult, Severity
 
 from .base_checker import BaseChecker
@@ -42,13 +45,11 @@ class StructureMessages:
     )
 
     # Parentheses messages
-    PARENTHESES_UNMATCHED = (
-        "Found unmatched parentheses. Add any missing opening or closing parentheses."
-    )
+    PARENTHESES_UNMATCHED = "Add missing opening or closing parentheses in: '{snippet}'"
 
     # Cross-reference messages
     CROSS_REFERENCE_INFO = (
-        "Cross-reference detected. Verify the referenced target exists and is correct."
+        "Cross-reference found: '{snippet}'. Confirm the referenced section exists in the document."
     )
 
     # Watermark messages
@@ -128,6 +129,8 @@ class WatermarkRequirement:
 class StructureChecks(BaseChecker):
     """Checks for document structure issues."""
 
+    AC_REQUIRED_PARAGRAPHS = [p for p in BOILERPLATE_PARAGRAPHS[1:5]]
+
     VALID_WATERMARKS = [
         WatermarkRequirement("draft for FAA review", "internal_review"),
         WatermarkRequirement("draft for public comments", "public_comment"),
@@ -140,6 +143,33 @@ class StructureChecks(BaseChecker):
         super().__init__(terminology_manager)
         self.category = "structure"
 
+    @staticmethod
+    def _find_watermark_in_paragraphs(paragraphs, valid_marks=None) -> Optional[str]:
+        for para in paragraphs:
+            style_name = getattr(para.style, "name", "").lower()
+            if "watermark" in style_name and para.text.strip():
+                return para.text.strip()
+            normalized = StructureChecks._normalize_watermark_text(para.text)
+            if valid_marks and normalized in valid_marks:
+                return para.text.strip()
+        return None
+
+    @staticmethod
+    def _extract_text_from_xml(xml_bytes: bytes) -> str:
+        """Extract text content from a header or footer XML blob."""
+        try:
+            root = ET.fromstring(xml_bytes)
+        except Exception as exc:  # pragma: no cover - log and continue
+            logger.error("Failed parsing header/footer XML: %s", exc)
+            return ""
+
+        texts = [
+            t.text
+            for t in root.iter("{http://schemas.openxmlformats.org/wordprocessingml/2006/main}t")
+            if t.text
+        ]
+        return " ".join(texts).strip()
+
     @CheckRegistry.register("structure")
     def run_checks(self, document: Document, doc_type: str, results: DocumentCheckResult) -> None:
         """Run all structure-related checks."""
@@ -151,21 +181,28 @@ class StructureChecks(BaseChecker):
         self._check_cross_references(document, results)
         self._check_parentheses(paragraphs, results)
         self._check_watermark(document, results, doc_type)
+        self._check_required_ac_paragraphs(paragraphs, doc_type, results)
 
     def _check_paragraph_length(
-        self, text: str, results: DocumentCheckResult, max_words: int = 150
+        self,
+        text: str,
+        results: DocumentCheckResult,
+        max_sentences: int = 6,
+        max_lines: int = 8,
     ) -> None:
-        """Check if paragraph exceeds maximum word count."""
+        """Check if paragraph exceeds maximum sentence or line count."""
         if not text or not text.strip():
             return
 
-        words = text.split()
-        word_count = len(words)
+        sentences = [s.strip() for s in re.split(r"[.!?]", text) if s.strip()]
+        sentence_count = len(sentences)
+        line_count = len([line for line in text.splitlines() if line.strip()])
 
-        if word_count > max_words:
+        if sentence_count > max_sentences or line_count > max_lines:
             preview = self._get_text_preview(text)
-            message = StructureMessages.PARAGRAPH_LENGTH_WARNING.format(
-                preview=preview, word_count=word_count, max_words=max_words
+            message = (
+                f"Paragraph '{preview}' exceeds length limits with "
+                f"{sentence_count} sentences and {line_count} lines."
             )
             results.add_issue(
                 message=message,
@@ -440,16 +477,20 @@ class StructureChecks(BaseChecker):
             open_count = text.count("(")
             close_count = text.count(")")
             if open_count != close_count:
+                snippet = text.strip()
+                if len(snippet.split()) > 10:
+                    snippet = self._get_text_preview(snippet, max_words=10)
                 results.add_issue(
-                    message=StructureMessages.PARENTHESES_UNMATCHED,
+                    message=StructureMessages.PARENTHESES_UNMATCHED.format(snippet=snippet),
                     severity=Severity.WARNING,
                     line_number=i + 1,
+                    context=snippet,
                 )
 
     def _check_watermark(
         self, document: Document, results: DocumentCheckResult, doc_type: str
     ) -> None:
-        """Check if document has appropriate watermark for its stage."""
+        """Check if the document contains any watermark."""
         watermark_text = self._extract_watermark(document)
 
         if not watermark_text:
@@ -458,39 +499,56 @@ class StructureChecks(BaseChecker):
             )
             return
 
-        # Find matching requirement for stage
-        expected_watermark = next(
-            (w for w in self.VALID_WATERMARKS if w.doc_stage == doc_type), None
-        )
-
-        if not expected_watermark:
-            results.add_issue(
-                message=StructureMessages.WATERMARK_UNKNOWN_STAGE.format(doc_type=doc_type),
-                severity=Severity.ERROR,
-                line_number=1,
-            )
-            return
-
-        if watermark_text != expected_watermark.text:
-            results.add_issue(
-                message=StructureMessages.WATERMARK_INCORRECT.format(
-                    doc_type=doc_type, expected=expected_watermark.text
-                ),
-                severity=Severity.ERROR,
-                line_number=1,
-            )
-
     def _extract_watermark(self, doc: Document) -> Optional[str]:
-        """Extract watermark text from Word document headers/footers."""
-        # First check document body for watermark
-        for para in doc.paragraphs:
-            if para.text.strip().upper() == "DRAFT":
-                return para.text.strip()
+        """Extract watermark text from the document body, headers, and footers."""
 
-        # TODO: Implement header/footer watermark extraction
-        # This will need to use python-docx to extract watermark
-        # from document sections and headers/footers
+        valid_marks = [self._normalize_watermark_text(w.text) for w in self.VALID_WATERMARKS]
+        valid_marks.append("draft")
+
+        # Check body paragraphs
+        text = self._find_watermark_in_paragraphs(doc.paragraphs, valid_marks)
+        if text:
+            logger.debug("Watermark found in body paragraphs: %s", text)
+            return text
+
+        # Check header and footer paragraphs
+        for section in doc.sections:
+            header_mark = self._find_watermark_in_paragraphs(section.header.paragraphs, valid_marks)
+            if header_mark:
+                logger.debug("Watermark found in header paragraph: %s", header_mark)
+                return header_mark
+            footer_mark = self._find_watermark_in_paragraphs(section.footer.paragraphs, valid_marks)
+            if footer_mark:
+                logger.debug("Watermark found in footer paragraph: %s", footer_mark)
+                return footer_mark
+
+        # Search header and footer XML for watermark text (e.g., WordArt shapes)
+        for rel in doc.part.rels.values():
+            if rel.reltype in (RT.HEADER, RT.FOOTER):
+                try:
+                    root = ET.fromstring(rel.target_part.blob)
+                except Exception as exc:  # pragma: no cover - log and continue
+                    logger.error("Failed parsing header/footer XML: %s", exc)
+                    continue
+
+                has_shape = root.find(".//{urn:schemas-microsoft-com:vml}shape") is not None
+                if not has_shape:
+                    continue
+
+                full_text = self._extract_text_from_xml(rel.target_part.blob)
+                if full_text.strip():
+                    logger.debug("Watermark found in header/footer XML: %s", full_text)
+                    return full_text
+
+        logger.debug("No watermark found in document")
         return None
+
+    @staticmethod
+    def _normalize_watermark_text(text: str) -> str:
+        """Normalize watermark text for comparison."""
+        text = text.lower().replace("-", " ")
+        text = re.sub(r"\s+", " ", text).strip()
+        return text
 
     def _check_cross_references(self, document, results):
         """Check for cross-references."""
@@ -501,10 +559,34 @@ class StructureChecks(BaseChecker):
                 text,
                 re.IGNORECASE,
             ):
+                snippet = self._get_text_preview(text, max_words=10)
                 results.add_issue(
-                    message=StructureMessages.CROSS_REFERENCE_INFO,
+                    message=StructureMessages.CROSS_REFERENCE_INFO.format(snippet=snippet),
                     severity=Severity.INFO,
                     line_number=i + 1,
+                    context=snippet,
+                )
+
+    def _check_required_ac_paragraphs(
+        self, paragraphs, doc_type: str, results: DocumentCheckResult
+    ) -> None:
+        """Ensure Advisory Circulars contain required boilerplate paragraphs."""
+        if doc_type != "Advisory Circular":
+            return
+
+        normalised_doc = {
+            re.sub(r"\s+", " ", (p.text if hasattr(p, "text") else str(p)).strip()).lower(): i
+            for i, p in enumerate(paragraphs, 1)
+        }
+
+        for para in self.AC_REQUIRED_PARAGRAPHS:
+            norm_para = re.sub(r"\s+", " ", para.strip()).lower()
+            if norm_para not in normalised_doc:
+                preview = self._get_text_preview(para)
+                results.add_issue(
+                    message=f"Required Advisory Circular paragraph missing: '{preview}'",
+                    severity=Severity.ERROR,
+                    line_number=None,
                 )
 
     def _extract_paragraph_numbering(self, doc: Document) -> List[tuple]:

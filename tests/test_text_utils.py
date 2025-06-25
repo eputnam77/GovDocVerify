@@ -4,6 +4,7 @@ import pytest
 
 from documentcheckertool.utils.terminology_utils import TerminologyManager
 from documentcheckertool.utils.text_utils import (
+    calculate_passive_voice_percentage,
     calculate_readability_metrics,
     count_syllables,
     count_words,
@@ -313,3 +314,8 @@ class TestTextUtils:
         valid_words = get_valid_words()
         assert isinstance(valid_words, set)
         assert len(valid_words) > 0
+
+    def test_calculate_passive_voice_percentage(self):
+        text = "The process was completed by the team. " "The team completed the process."
+        pct = calculate_passive_voice_percentage(text)
+        assert pct == 50.0
