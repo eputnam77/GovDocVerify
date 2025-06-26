@@ -26,3 +26,4 @@ pip-audit>=2.7
 # Pre-commit hooks
 pre-commit>=3.7
 
+zipp>=3.19.1 # not directly required, pinned by Snyk to avoid a vulnerability
