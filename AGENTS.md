@@ -1,218 +1,198 @@
-# AGENTS.md — Coding and Debugging Guidelines
+# AGENTS.md
 
-This document defines the rules and expectations for AI coding and debugging agents in this repository. **Follow these instructions to ensure all code contributions are correct, secure, and production-ready on the first pass.** Code as if your work will be immediately published and scrutinized for quality and security.
-
----
-
-## Linting and Formatting
-
-* **All code (new or modified) must fully comply with [ruff](https://docs.astral.sh/ruff/) and [black](https://black.readthedocs.io/en/stable/).**
-
-  * There must be **no warnings or errors** for line length, complexity, style, or formatting.
-  * Run `ruff .` and `black --check .` before any commit or pull request.
-  * **Never ignore or suppress** linting errors or warnings. Treat warnings as errors.
-  * Code must be ready for publication on the first pass—do not defer fixes.
+*Authoritative playbook for the OpenAI Codex multi‑agent workflow in this repository*
 
 ---
 
-## Testing
+## 0 · Global Settings
 
-* **Never break existing tests.**
+| Key                  | Value                                                |
+| -------------------- | ---------------------------------------------------- |
+| Default shell        | `bash` (Linux)                                       |
+| Python version       | **3.12**                                             |
+| Virtual env manager  | **uv** (falls back to `python -m venv`)              |
+| Package manager      | **poetry** (`poetry install`)                        |
+| Test runner          | **pytest**                                           |
+| Coverage thresholds  | 70 % on feature branches → 90 % on `main`           |
+| Code formatter       | **black**                                            |
+| Linter               | **ruff** (includes import‑sorting)                   |
+| Static‑type checker  | **mypy --strict**                                    |
+| Security scanners    | **bandit -r src**, **pip-audit -r requirements.txt** |
+| Docs generator       | **MkDocs Material** (`mkdocs build`)                 |
+| Commit message style | **Conventional Commits**                             |
+| CI provider          | **GitHub Actions**                                   |
 
-  * Always maintain or improve test coverage. Add or update tests for any code changes.
-  * Re-run the entire test suite (`pytest` or project equivalent) after any code or test modification.
-  * If a test fails, halt and correct the issue immediately. Do not suppress or skip failing tests.
-  * **Maintain 90%+ test coverage**; fail CI if coverage drops below threshold.
-  * Use `pytest-cov` and `coverage.py` for coverage reporting.
-  * Include property-based tests with `hypothesis` for data validation and edge cases.
-
----
-
-## Security Scanning and Best Practices
-
-* Use the latest recommended Python and library best practices.
-* Avoid deprecated, unmaintained, or insecure libraries and patterns.
-* **Run security scans before every commit:**
-
-  * `bandit -r src/` for Python-specific security issues
-  * `pip-audit -r requirements.txt` for dependency vulnerabilities
-  * `semgrep` for custom security rules (if configured)
-* **Never commit API keys, tokens, or secrets**—use environment variables.
-* Never commit code with known security issues or technical debt.
-* Do not introduce new dependencies unless required and reviewed.
-* Actively check for and address security vulnerabilities.
-* **All commits must pass `Snyk` vulnerability scanning** (`snyk test` via the `snyk-security` MCP server). Any **high** or **critical** issue blocks the merge; false-positives must be documented. Re-scan after any dependency or build script changes.
+> **Data flow** Every agent works from the latest commit on its branch and communicates only via GitHub Issues/PRs.
 
 ---
 
-## Dependency Management
+## 1 · Agents & Execution Order
 
-* **Use modern tools:**
+|  #  | Agent ID     | Purpose (summary)                                                                     | Auto‑trigger condition        |
+| --- | ------------ | ------------------------------------------------------------------------------------- | ----------------------------- |
+|  0  | `planner`    | Parse `PRD.md`, create `TASKS.md` (epics → issues with acceptance criteria & labels). | manual                        |
+|  1  | `architect`  | Design folder layout, write ADRs, initialise `pyproject.toml`, CI workflow.           | `planner` PR merged           |
+|  2  | `scaffolder` | Generate skeleton code/tests for each open issue.                                     | `architect` PR merged         |
+|  3  | `builder`    | Implement code for issues marked **ready**; keep tests ≥70 % cov.                     | new ready issue               |
+|  4  | `verifier`   | Cross-reference PRD.md → TASKS.md → implemented code. Generate completeness report.   | after reviewer                |
+|  5  | `linter`     | Run `ruff --fix` & `black`; open PR if diff.                                          | after builder push            |
+|  6  | `tester`     | Execute dev‑gate (`pytest`, type‑check, coverage ≥70 %).                              | after linter green            |
+|  7  | `fixer`      | Patch only failing files, re‑run gate until green.                                    | on test failure               |
+|  8  | `security`   | Run Bandit & pip‑audit; open CVE issues.                                              | nightly · before merge → main |
+|  9  | `docwriter`  | Update `README.md`, API refs, examples, changelog.                                    | branch green & cov ≥90 %      |
+|  10  | `reviewer`   | Human‑style review; request approvals.                                                | after docwriter               |
+|  11  | `releasebot` | Bump semver, tag, build & push Docker image, draft release notes.                     | PR merged → main              |
 
-  * Prefer [`uv`](https://docs.astral.sh/uv/) for faster package installation.
-  * Use `pyproject.toml` over `requirements.txt` when possible.
-  * Pin dependencies appropriately; only set upper bounds when necessary.
-  * Use lockfiles for reproducible builds.
-* **Before adding new dependencies:**
+### Agent Handoff Conventions
 
-  * Check if existing dependencies can solve the problem.
-  * Verify packages are actively maintained and secure.
-  * Add to the appropriate group (dev, test, security, etc.).
-* **Run dependency audits regularly:**
-
-  * `pip-audit` for vulnerabilities.
-  * `uv pip compile` for dependency resolution.
-  * Update dependencies when security issues are found.
-
----
-
-## Code Quality
-
-* Prioritize clarity, readability, and maintainability at all times.
-* Avoid unnecessary complexity, convoluted logic, long functions, or long lines.
-* Structure code for ease of understanding and maintenance.
-* **Use static type checking with [MyPy](https://mypy.readthedocs.io/):**
-
-  * Enable strict type checking mode.
-  * Add type hints to all public functions and methods.
-  * Use `mypy --strict` to catch type errors before runtime.
-* **Python best practices:**
-
-  * Use f-strings, comprehensions, `pathlib`, `dataclasses`, and/or `Pydantic` where appropriate.
+* **Feature branches** enforce the *dev gate* (70 % coverage).
+* The **main** branch enforces the *release gate* (90 % coverage, security pass, docs build).
+* Each agent finishing successfully applies the label `ready-for:<next-agent>`; a GitHub Action reads this label and triggers the next agent via the Codex API.
 
 ---
 
-## Pre-commit Requirements
+## 2 · Quality Gates
 
-**Agents must run the complete pre-commit pipeline before any commit:**
+### Dev Gate (feature branches)
 
-1. **Formatting and Linting:**
+```bash
+ruff check src tests
+black --check src tests
+mypy --strict src
+bandit -r src -lll --skip B101      # allow asserts during early dev
+pytest -q --cov=src --cov-fail-under=70
+```
 
-   ```bash
-   ruff --fix .
-   black --check .
-   ```
-2. **Type Checking:**
+### Release Gate (`main`)
 
-   ```bash
-   mypy src/ --strict
-   ```
-3. **Testing:**
+```bash
+ruff check src tests
+black --check src tests
+mypy --strict src
+bandit -r src -lll
+pip-audit -r requirements.txt
+pytest -q --cov=src --cov-fail-under=90
+mkdocs build --strict
+```
 
-   ```bash
-   pytest --cov=src --cov-report=term-missing
-   coverage report --fail-under=90
-   ```
-4. **Security Scanning:**
-
-   ```bash
-   bandit -r src/ -f json -o bandit-report.json
-   pip-audit -r requirements.txt
-   ```
-5. **Pre-commit Hooks:**
-
-   ```bash
-   pre-commit run --all-files
-   ```
-
-**All checks must pass before committing. Never bypass or suppress any failures.**
+Any non‑zero exit hands control to **fixer**.
 
 ---
 
-## External Tools & MCP Servers
+## 3 · Writing Style Guidelines
 
-Agents may (and should) call these servers when relevant:
+### Documentation Standards
 
-| Tool                      | Purpose                                                |
-| ------------------------- | ------------------------------------------------------ |
-| `exa`                     | Codebase search & structural queries                   |
-| `collaborative-reasoning` | Deep reflective reasoning on complex tasks             |
-| `mem0-memory-mcp`         | Recall decisions, design notes, or historical context  |
-| `mcp-obsidian`            | Write or update docs/ADRs in the linked Obsidian vault |
-| `snyk-security`           | Static dependency & code-level security scanning       |
+All documentation generated by the `docwriter` agent must follow these style guidelines:
 
-*Calls are made through OpenAI function-calling; results must be acted on or surfaced to reviewers.*
+#### Tone & Voice
+- **Friendly and conversational** - Write like you're explaining to a colleague over coffee
+- **Enthusiastic but not over-the-top** - Show genuine excitement about features and solutions
+- **Active voice preferred** - "The system processes data" not "Data is processed by the system"
+- **Confident and helpful** - Use encouraging language that builds user confidence
+- **Inclusive and welcoming** - Use "they/them" pronouns and create an inviting atmosphere
+- **Avoid corporate jargon** - Use plain language that feels human and relatable
+- **Celebrate user success** - Frame features as helping users achieve their goals
 
----
+#### Structure & Formatting
+- **Clear hierarchical headings** - Use consistent heading levels (H1 → H2 → H3)
+- **Code examples for every feature** - Include practical, runnable examples
+- **Step-by-step instructions** - Break complex processes into numbered steps
+- **Cross-references** - Link related sections and external resources
 
-## Fixes & Refactoring
+#### Content Guidelines
+- **Start with the problem** - Explain what the feature solves before how it works
+- **Include use cases** - Show real-world scenarios where features apply
+- **Error handling** - Document common errors and their solutions
+- **Performance notes** - Mention any performance implications or limitations
 
-* Any fix for lint, test, or security issues must **not** introduce new problems elsewhere.
-* Always re-run all lints and tests after any change.
-* Refactor only as necessary to resolve problems or improve code quality.
-* Do not introduce unrelated changes in a single commit.
-* **Use conventional commits** with `commitizen` or `cz-git` for consistent commit messages.
+#### Technical Writing Standards
+- **Consistent terminology** - Use the same terms throughout all documentation
+- **API documentation** - Include parameter types, return values, and examples
+- **Changelog format** - Follow [Keep a Changelog](https://keepachangelog.com/) standards
+- **README structure** - Installation, quick start, features, contributing, license
 
----
+### Style Templates
 
-## System Messages, Debugging, and Documentation
-
-* **User-facing messages** must be clear and actionable.
-
-  * Example: “Replace {x} with {y}.”
-* **Debug/log messages** must provide context for troubleshooting.
-* **Documentation** (README, docstrings) must be beginner-friendly—aim for clarity and grace.
-* **Use structured logging** with Python’s `logging` or Pydantic.
-* **Include meaningful log messages** at key execution points with unique identifiers and timestamps.
-
----
-
-## First-Pass Correctness
-
-* All code must be correct, complete, and production-ready on the first submission.
-* Never propose partial, incomplete, or “fix later” code.
-* If code cannot be made to pass all lints and tests, stop and explain the issue for human review.
+The `docwriter` agent should reference these templates:
+- `templates/README.md` - Standard README structure
+- `templates/API_DOCS.md` - API documentation format
+- `templates/CHANGELOG.md` - Release notes template
 
 ---
 
-## Multi-Language Projects
+## 4 · Branch & Commit Policy
 
-* Only modify Python code unless otherwise instructed.
-* For other stacks (JS/TS), apply equivalent linting and testing discipline (ESLint, TypeScript, pnpm, Vitest, etc.).
-* For environment or workflow setup, see CONTRIBUTING.md.
+* **Branches** `plan/<slug>` · `scaffold/<slug>` · `feat/<slug>` · `fix/<issue>` · `docs/<topic>` · `test/<scope>`
+* **Commits** follow Conventional Commits, e.g.
 
----
-
-## Environment Setup Requirements
-
-* **Python 3.11+** with virtual environment isolation
-* **Essential tools installed:**
-
-  * `ruff>=0.5.0`, `black>=24.4.2`, `mypy>=1.10.0`, `pytest>=8.0.0`, `pytest-cov>=5.0.0`
-  * `hypothesis>=6.0.0`, `bandit>=1.9.0`, `pre-commit>=3.7.0`
-* **Pre-commit hooks configured and installed**
-* **CI/CD pipeline compatible** (GitHub Actions or equivalent)
-* **For containerized environments** (Docker, Codespaces):
-
-  * Include all development dependencies in the container.
-  * Set up proper Python path, environment variables, and pre-commit hooks at container initialization.
+  ```
+  feat(auth): add OAuth2 login flow
+  fix(api): prevent division‑by‑zero in calculator
+  chore(ci): raise coverage threshold to 90%
+  ```
+* Default merge strategy: **squash-merge**, with required-status checks on `main`.
 
 ---
 
-## Performance and Optimization
+## 5 · Automation Workflow (GitHub Actions)
 
-* **Use fast development tools:**
+The central router (`.github/workflows/agents.yml`) decides which agent to launch next:
 
-  * `uv` for package install speed
-  * `ruff` for fast linting
-  * Parallel testing with `pytest-xdist`
-* **Optimize for time and space complexity** in algorithms.
-* **Handle edge cases and exceptions robustly.**
-* **Implement proper error handling and secure sensitive data.**
-* **Use caching strategies** where appropriate for performance.
+```yaml
+on:
+  push:
+    branches: ["**"]
+jobs:
+  codex-router:
+    steps:
+      - uses: actions/checkout@v4
+      - name: Detect next agent
+        run: >-
+          ./scripts/next-agent.sh  # sets $NEXT_AGENT env var
+      - name: Trigger agent via Codex API
+        if: env.NEXT_AGENT != ''
+        run: >-
+          codex run --agent "$NEXT_AGENT"
+```
 
 ---
 
-## Before You Commit or Merge
+## 6 · Environment Setup
 
-**Agents must:**
+* **Python 3.12** via `pyenv` or container.
+* Local dev startup:
 
-1. Run `ruff .` and `black --check .` and resolve any issues before committing.
-2. Run all tests (`pytest` or project equivalent) and ensure all pass.
-3. Confirm no test or lint error is ignored, suppressed, or skipped.
-4. Ensure all user and debug messages are clear and useful.
-5. Run a complete security scan with bandit and pip-audit.
-6. Verify test coverage meets 90%+ threshold.
-7. Check type safety with MyPy strict mode.
-8. Run pre-commit hooks on all files.
-9. If uncertain, prompt for a code review or highlight specific questions in the commit.
+  ```bash
+  uv venv
+  uv pip install -r requirements-dev.txt
+  pre-commit install
+  ```
+* Codespaces/VS Code: devcontainer runs pre-commit on open.
+
+---
+
+## 7 · Failure‑Recovery Matrix
+
+| Problem            | Responsible Agent | Remedy                         |
+| ------------------ | ----------------- | ------------------------------ |
+| Lint error         | linter            | Auto-fix & push                |
+| Type error         | tester → fixer    | Patch types/code               |
+| Test failure       | fixer             | Minimal diff fix, ensure green |
+| Coverage drop      | builder/tester    | Add tests or mark exceptions   |
+| High CVE           | security          | Bump dependency or patch code  |
+| Docs build failure | docwriter         | Regenerate & push fix          |
+
+---
+
+## 8 · References
+
+* [Ruff documentation](https://docs.astral.sh/ruff/)
+* [Black documentation](https://black.readthedocs.io/)
+* [Pytest documentation](https://docs.pytest.org/)
+* [Bandit documentation](https://bandit.readthedocs.io/)
+* [pip-audit](https://pypi.org/project/pip-audit/)
+
+---
+
+*End of AGENTS.md*
