@@ -53,8 +53,8 @@ email = "contact@example.com"
 
 # ── Package discovery ─────────────────────────────────────────────────────────
 [tool.setuptools.packages.find]
-include = ["documentcheckertool*"]
-exclude = ["backend*", "frontend*", "tests*"]
+where = ["src"]
+exclude = ["tests*", ".dev*"]
 
 # ── Code style / linting ──────────────────────────────────────────────────────
 [tool.black]

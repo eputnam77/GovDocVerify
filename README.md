@@ -311,6 +311,8 @@ This section provides comprehensive descriptions of each check performed by the 
 
 ```
 project-root/
+├── src/
+│   └── documentcheckertool/   # Core package code (to be migrated)
 ├── backend/                   # FastAPI backend (API for document processing)
 │   ├── main.py
 │   ├── api.py
@@ -319,12 +321,12 @@ project-root/
 │   ├── package.json
 │   ├── src/
 │   └── ...
-├── documentcheckertool/       # Core Python logic, checks, models, utils
 ├── tests/                     # Python tests (pytest)
+├── docs/                      # MkDocs documentation
+├── scripts/                   # Helper scripts (e.g. next-agent.sh)
 ├── app.py                     # Gradio app entry point (legacy/alternative)
-├── requirements.txt           # Python dependencies (core)
-├── pyproject.toml             # Poetry config (preferred for dev)
-└── ...
+├── pyproject.toml             # Poetry/PEP 621 config
+└── requirements.txt           # Runtime dependencies (for non-Poetry installs)
 ```
 
 ---
