@@ -1,6 +1,6 @@
 import logging
 from types import SimpleNamespace
-from typing import cast
+from typing import Any, cast
 
 from docx import Document
 
@@ -193,7 +193,11 @@ class FAADocumentChecker:
             {"error": f"Error in {category} checks: {str(error)}", "category": category}
         )
 
-    def _populate_check_results(self, combined_results, per_check_results):
+    def _populate_check_results(
+        self,
+        combined_results: DocumentCheckResult,
+        per_check_results: dict[str, dict[str, Any]],
+    ) -> None:
         """Ensure per_check_results is populated with all issues."""
         if (
             not per_check_results or not self._has_any_issues(per_check_results)
@@ -211,7 +215,7 @@ class FAADocumentChecker:
             # Convert to per_check_results structure
             per_check_results.update({cat: {"general": res} for cat, res in grouped.items()})
 
-    def _has_any_issues(self, per_check_results):
+    def _has_any_issues(self, per_check_results: dict[str, dict[str, Any]]) -> bool:
         """Check if any results contain issues."""
         for cat in per_check_results.values():
             for check in cat.values():

@@ -1,20 +1,24 @@
 import logging
 import time
 from functools import wraps
+from typing import Any, Callable, TypeVar, cast
 
 logger = logging.getLogger(__name__)
 
 
-def profile_performance(func):
-    """Decorator to profile function performance."""
+F = TypeVar("F", bound=Callable[..., Any])
+
+
+def profile_performance(func: F) -> F:
+    """Decorator to log the execution time of a function."""
 
     @wraps(func)
-    def wrapper(*args, **kwargs):
+    def wrapper(*args: Any, **kwargs: Any) -> Any:
         start_time = time.time()
         result = func(*args, **kwargs)
         end_time = time.time()
         execution_time = end_time - start_time
-        logger.debug(f"{func.__name__} took {execution_time:.4f} seconds to execute")
+        logger.debug("%s took %.4f seconds to execute", func.__name__, execution_time)
         return result
 
-    return wrapper
+    return cast(F, wrapper)
