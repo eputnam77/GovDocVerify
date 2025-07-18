@@ -1,12 +1,18 @@
 import importlib
 import inspect
 import logging
-from typing import Dict, List
+from types import ModuleType
+from typing import Any, Callable, Dict, List, Type
 
 logger = logging.getLogger(__name__)
 
 
-def _process_function(obj, name, default_category, category_mappings):
+def _process_function(
+    obj: Callable[..., Any],
+    name: str,
+    default_category: str,
+    category_mappings: Dict[str, List[str]],
+) -> None:
     """Process a function to determine if it's a check function."""
     if name.startswith("check_") or name.startswith("_check_"):
         category = default_category
@@ -22,7 +28,7 @@ def _process_function(obj, name, default_category, category_mappings):
         logger.debug(f"Skipping {name} - doesn't match check naming pattern")
 
 
-def _get_class_category(obj, name, default_category):
+def _get_class_category(obj: Type[Any], name: str, default_category: str) -> str:
     """Get the category for a checker class."""
     try:
         class_instance = obj()
@@ -46,7 +52,9 @@ def _is_valid_check_method(method_name: str) -> bool:
     return method_name.startswith("check_") or method_name.startswith("_check_")
 
 
-def _process_class_methods(obj, class_category, category_mappings):
+def _process_class_methods(
+    obj: Type[Any], class_category: str, category_mappings: Dict[str, List[str]]
+) -> None:
     """Process methods of a checker class."""
     for method_name, method in inspect.getmembers(obj, predicate=inspect.isfunction):
         logger.debug(f"Examining method: {method_name}")
@@ -63,7 +71,12 @@ def _process_class_methods(obj, class_category, category_mappings):
             logger.debug(f"Skipping {method_name} - not a registered check method")
 
 
-def _process_class(obj, name, default_category, category_mappings):
+def _process_class(
+    obj: Type[Any],
+    name: str,
+    default_category: str,
+    category_mappings: Dict[str, List[str]],
+) -> None:
     """Process a class to determine if it's a checker class."""
     try:
         from documentcheckertool.checks.base_checker import BaseChecker
@@ -76,7 +89,9 @@ def _process_class(obj, name, default_category, category_mappings):
         logger.warning(f"Could not import BaseChecker for class {name}")
 
 
-def _process_module_members(module, default_category, category_mappings):
+def _process_module_members(
+    module: ModuleType, default_category: str, category_mappings: Dict[str, List[str]]
+) -> None:
     """Process all members of a module."""
     for name, obj in inspect.getmembers(module):
         logger.debug(f"Examining member: {name}, type: {type(obj)}")
@@ -88,7 +103,7 @@ def _process_module_members(module, default_category, category_mappings):
             logger.debug(f"Skipping {name} - not a function or class")
 
 
-def _process_module(module_name, category_mappings):
+def _process_module(module_name: str, category_mappings: Dict[str, List[str]]) -> None:
     """Process a single module to discover checks."""
     try:
         logger.debug(f"Attempting to import module: {module_name}")
@@ -105,7 +120,7 @@ def _process_module(module_name, category_mappings):
         logger.error(f"Unexpected error processing module {module_name}: {str(e)}", exc_info=True)
 
 
-def _get_check_modules():
+def _get_check_modules() -> List[str]:
     """Get the list of check modules to process."""
     return [
         "heading_checks",
@@ -126,7 +141,7 @@ def discover_checks() -> Dict[str, List[str]]:
         Dictionary mapping categories to lists of check function names
     """
     check_modules = _get_check_modules()
-    category_mappings = {}
+    category_mappings: Dict[str, List[str]] = {}
     logger.debug("Starting check discovery process")
     logger.debug(f"Looking for checks in modules: {check_modules}")
 
@@ -155,7 +170,11 @@ def validate_check_registration() -> Dict[str, List[str]]:
     registered_checks = CheckRegistry.get_category_mappings()
     logger.debug(f"Registered checks: {registered_checks}")
 
-    validation_results = {"missing_categories": [], "missing_checks": [], "extra_checks": []}
+    validation_results: Dict[str, List[str]] = {
+        "missing_categories": [],
+        "missing_checks": [],
+        "extra_checks": [],
+    }
 
     # Check for missing categories
     _check_missing_categories(discovered_checks, registered_checks, validation_results)

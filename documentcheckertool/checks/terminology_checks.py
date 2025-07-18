@@ -4,7 +4,7 @@ import logging
 import re
 from typing import Any, Dict
 
-from docx import Document
+from docx.document import Document as DocxDocument
 
 from documentcheckertool.checks.check_registry import CheckRegistry
 from documentcheckertool.config.terminology_rules import (
@@ -35,20 +35,26 @@ ABOVE_BELOW_REF_PATTERN = re.compile(
 class TerminologyChecks(BaseChecker):
     """Class for handling terminology-related checks."""
 
-    def __init__(self, terminology_manager=None):
+    def __init__(self, terminology_manager: Any | None = None) -> None:
         super().__init__(terminology_manager)
-        self.category = "terminology"
-        self.heading_words = terminology_manager.terminology_data.get("heading_words", [])
+        self.category: str = "terminology"
+        self.heading_words: list[str] = (
+            terminology_manager.terminology_data.get("heading_words", [])
+            if terminology_manager is not None
+            else []
+        )
         logger.info("Initialized TerminologyChecks with terminology manager")
 
     @CheckRegistry.register("terminology")
-    def check_document(self, document: Document, doc_type: str) -> DocumentCheckResult:
+    def check_document(self, document: DocxDocument, doc_type: str) -> DocumentCheckResult:
         """Check document for terminology issues."""
         results = DocumentCheckResult()
         self.run_checks(document, doc_type, results)
         return results
 
-    def run_checks(self, document: Document, doc_type: str, results: DocumentCheckResult) -> None:
+    def run_checks(
+        self, document: DocxDocument, doc_type: str, results: DocumentCheckResult
+    ) -> None:
         """Run all terminology-related checks."""
         logger.info(f"Running terminology checks for document type: {doc_type}")
 
@@ -58,7 +64,7 @@ class TerminologyChecks(BaseChecker):
         self._check_forbidden_terms(text_content, results)
         self._check_term_replacements(text_content, results)
 
-    def _check_consistency(self, paragraphs, results):
+    def _check_consistency(self, paragraphs: list[str], results: DocumentCheckResult) -> None:
         """Check for consistent terminology usage."""
         for i, text in enumerate(paragraphs):
             logger.debug(f"[Terminology] Checking line {i+1}: {text!r}")
@@ -80,7 +86,7 @@ class TerminologyChecks(BaseChecker):
                             category=getattr(self, "category", "terminology"),
                         )
 
-    def _check_forbidden_terms(self, paragraphs, results):
+    def _check_forbidden_terms(self, paragraphs: list[str], results: DocumentCheckResult) -> None:
         """Check for forbidden or discouraged terms."""
         for i, text in enumerate(paragraphs):
             logger.debug(f"[Terminology] Checking forbidden terms in line {i+1}: {text!r}")
@@ -103,7 +109,7 @@ class TerminologyChecks(BaseChecker):
                         category=getattr(self, "category", "terminology"),
                     )
 
-    def _check_term_replacements(self, paragraphs, results):
+    def _check_term_replacements(self, paragraphs: list[str], results: DocumentCheckResult) -> None:
         """
         Flag any outdated terms that have a direct replacement in
         TERM_REPLACEMENTS.  Suggest the approved wording.
@@ -169,9 +175,9 @@ class TerminologyChecks(BaseChecker):
         logger.debug(f"Terminology checks completed. Found {len(issues)} issues.")
         return result
 
-    def _check_split_infinitives(self, lines):
+    def _check_split_infinitives(self, lines: list[str]) -> list[Dict[str, Any]]:
         """Check for split infinitives in text lines."""
-        issues = []
+        issues: list[Dict[str, Any]] = []
         split_infinitive_pattern = re.compile(r"\bto\s+(?:\w+\s+){1,3}\w+\b", re.IGNORECASE)
         for i, line in enumerate(lines, 1):
             logger.debug(f"[Terminology] Checking line {i}: {line!r}")
@@ -185,9 +191,9 @@ class TerminologyChecks(BaseChecker):
                 )
         return issues
 
-    def _check_forbidden_terms_in_lines(self, lines):
+    def _check_forbidden_terms_in_lines(self, lines: list[str]) -> list[Dict[str, Any]]:
         """Check for forbidden terms in text lines."""
-        issues = []
+        issues: list[Dict[str, Any]] = []
         for i, line in enumerate(lines, 1):
             if ABOVE_BELOW_REF_PATTERN.search(line):
                 logger.debug(f"[Terminology] Matched relative reference in line {i}")
@@ -211,9 +217,9 @@ class TerminologyChecks(BaseChecker):
                     )
         return issues
 
-    def _check_terminology_variants_in_lines(self, lines):
+    def _check_terminology_variants_in_lines(self, lines: list[str]) -> list[Dict[str, Any]]:
         """Check for terminology variants in text lines."""
-        issues = []
+        issues: list[Dict[str, Any]] = []
         for i, line in enumerate(lines, 1):
             for standard, variants in TERMINOLOGY_VARIANTS.items():
                 for variant in variants:
@@ -233,9 +239,9 @@ class TerminologyChecks(BaseChecker):
                         )
         return issues
 
-    def _check_obsolete_terms_in_lines(self, lines):
+    def _check_obsolete_terms_in_lines(self, lines: list[str]) -> list[Dict[str, Any]]:
         """Check for obsolete terms that need replacement."""
-        issues = []
+        issues: list[Dict[str, Any]] = []
         for i, line in enumerate(lines, 1):
             for obsolete, approved in TERM_REPLACEMENTS.items():
                 pattern = self._get_pattern_for_obsolete_term(obsolete)
@@ -250,7 +256,7 @@ class TerminologyChecks(BaseChecker):
                     )
         return issues
 
-    def _get_pattern_for_obsolete_term(self, obsolete):
+    def _get_pattern_for_obsolete_term(self, obsolete: str) -> str:
         """Get the appropriate regex pattern for an obsolete term."""
         special_cases = [
             "CFR Part",
@@ -284,8 +290,8 @@ class TerminologyChecks(BaseChecker):
         Returns:
             Dict containing check results
         """
-        errors = []
-        warnings = []
+        errors: list[Dict[str, Any]] = []
+        warnings: list[Dict[str, Any]] = []
 
         # Split content into paragraphs
         paragraphs = content.split("\n")
@@ -302,9 +308,9 @@ class TerminologyChecks(BaseChecker):
 
         return {"has_errors": len(errors) > 0, "errors": errors, "warnings": warnings}
 
-    def _check_usc_cfr_formatting(self, paragraphs):
+    def _check_usc_cfr_formatting(self, paragraphs: list[str]) -> list[Dict[str, Any]]:
         """Check USC/CFR formatting in paragraphs."""
-        warnings = []
+        warnings: list[Dict[str, Any]] = []
         for i, paragraph in enumerate(paragraphs, 1):
             # Check USC formatting
             if "USC" in paragraph:
@@ -347,9 +353,9 @@ class TerminologyChecks(BaseChecker):
                 )
         return warnings
 
-    def _check_gendered_terms(self, paragraphs):
+    def _check_gendered_terms(self, paragraphs: list[str]) -> list[Dict[str, Any]]:
         """Check for gendered terms in paragraphs."""
-        warnings = []
+        warnings: list[Dict[str, Any]] = []
         gendered_terms = {"chairman": "chair", "flagman": "flagperson", "manpower": "labor force"}
         for i, paragraph in enumerate(paragraphs, 1):
             for term, replacement in gendered_terms.items():
@@ -364,9 +370,9 @@ class TerminologyChecks(BaseChecker):
                     )
         return warnings
 
-    def _check_plain_language(self, paragraphs):
+    def _check_plain_language(self, paragraphs: list[str]) -> list[Dict[str, Any]]:
         """Check for legalese terms that should be simplified."""
-        warnings = []
+        warnings: list[Dict[str, Any]] = []
         legalese_terms = [
             "pursuant to",
             "in accordance with",
@@ -400,9 +406,9 @@ class TerminologyChecks(BaseChecker):
                         )
         return warnings
 
-    def _check_aviation_terminology(self, paragraphs):
+    def _check_aviation_terminology(self, paragraphs: list[str]) -> list[Dict[str, Any]]:
         """Check aviation terminology usage."""
-        warnings = []
+        warnings: list[Dict[str, Any]] = []
         aviation_terms = {
             "flight crew": "flightcrew",
             "cockpit": "flight deck",
@@ -421,9 +427,9 @@ class TerminologyChecks(BaseChecker):
                     )
         return warnings
 
-    def _check_qualifiers(self, paragraphs):
+    def _check_qualifiers(self, paragraphs: list[str]) -> list[Dict[str, Any]]:
         """Check for unnecessary qualifiers."""
-        warnings = []
+        warnings: list[Dict[str, Any]] = []
         qualifiers = ["very", "extremely", "quite"]
         for i, paragraph in enumerate(paragraphs, 1):
             for qualifier in qualifiers:
@@ -438,9 +444,9 @@ class TerminologyChecks(BaseChecker):
                     )
         return warnings
 
-    def _check_plural_usage(self, paragraphs):
+    def _check_plural_usage(self, paragraphs: list[str]) -> list[Dict[str, Any]]:
         """Check plural noun usage."""
-        warnings = []
+        warnings: list[Dict[str, Any]] = []
         plural_terms = ["data", "criteria", "phenomena"]
         for i, paragraph in enumerate(paragraphs, 1):
             for term in plural_terms:
@@ -458,9 +464,9 @@ class TerminologyChecks(BaseChecker):
                     )
         return warnings
 
-    def _check_obsolete_citations(self, paragraphs):
+    def _check_obsolete_citations(self, paragraphs: list[str]) -> list[Dict[str, Any]]:
         """Check for obsolete authority citations."""
-        warnings = []
+        warnings: list[Dict[str, Any]] = []
         AUTHORITY_LINE_REGEX = re.compile(r"Authority\s*:(.*)", re.IGNORECASE)
         OBSOLETE_CITATIONS = [
             (
