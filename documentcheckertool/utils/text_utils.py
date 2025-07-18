@@ -1,7 +1,7 @@
 import logging
 import re
 import unicodedata
-from typing import Dict, List, Optional, Set
+from typing import Any, Dict, List, Optional, Set
 
 from .terminology_utils import TerminologyManager
 
@@ -29,7 +29,7 @@ def split_sentences(text: str) -> List[str]:
     return sentences or [""]
 
 
-def _initialize_sentence_context(text: str, logger) -> Dict:
+def _initialize_sentence_context(text: str, logger: logging.Logger) -> Dict[str, Any]:
     """Initialize context for sentence splitting."""
     terminology_manager = TerminologyManager()
     abbreviations = set(terminology_manager.get_standard_acronyms().keys())

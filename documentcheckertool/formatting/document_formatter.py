@@ -6,7 +6,7 @@ from ..models import DocumentCheckResult
 class DocumentFormatter:
     """Formats document text according to style guidelines."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize the document formatter."""
         self.quotation_pattern = re.compile(r'["\'](.*?)["\']')
         self.section_pattern = re.compile(r"§\s*(\d+)")
