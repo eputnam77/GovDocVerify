@@ -1,3 +1,5 @@
 # Document Checker Tool
 
-This documentation is built with MkDocs. Future features and API references will appear here.
+Welcome to the documentation for the Document Checker Tool. This project validates FAA documents for style, formatting, and accessibility issues.
+
+Use the navigation to explore installation instructions, developer notes, example scenarios, and the API reference.
