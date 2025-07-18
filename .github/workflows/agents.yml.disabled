@@ -1,0 +1,16 @@
+name: Codex-router
+on:
+  push:
+    branches: ["**"]
+
+jobs:
+  codex-router:
+    if: ${{ env.EXPERIMENTAL_CI == 'true' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Detect next agent & lock
+        run: ./scripts/next-agent.sh   # sets $NEXT_AGENT & acquires lock
+      - name: Trigger agent via Codex API
+        if: env.NEXT_AGENT != ''
+        run: codex run --agent "$NEXT_AGENT"
