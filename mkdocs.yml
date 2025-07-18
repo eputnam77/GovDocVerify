@@ -1,0 +1,10 @@
+site_name: Document Checker Tool
+nav:
+  - Home: index.md
+  - Getting Started: getting-started.md
+  - Developer Guide: developer-guide.md
+  - Scenarios: scenarios.md
+  - API Reference: api-reference.md
+  - Check Categories: checks.md
+theme:
+  name: material
