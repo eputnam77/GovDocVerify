@@ -10,6 +10,7 @@ extracts document metadata for display.
   displayed at the start of each report
 - React UI page allows users to upload a document, view the results on screen,
   and download a DOCX or PDF of those results
+- FastAPI backend exposes an API endpoint for document processing
 
 ## Non-Goals
 - Editing documents directly
