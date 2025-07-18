@@ -30,4 +30,4 @@
 
 ---
 
-ready-for:architect
+ready-for:scenario-gen
