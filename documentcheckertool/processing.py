@@ -1,5 +1,6 @@
 import logging
 import mimetypes
+from typing import Any, Dict
 
 from documentcheckertool.document_checker import FAADocumentChecker
 from documentcheckertool.models import DocumentCheckResult
@@ -40,7 +41,7 @@ def process_document(file_path: str, doc_type: str) -> DocumentCheckResult:
     return checker.run_all_document_checks(content, doc_type)
 
 
-def _check_results_have_issues(results_dict: dict) -> bool:
+def _check_results_have_issues(results_dict: Dict[str, Dict[str, Any]]) -> bool:
     """Return True if any issue exists in the results dictionary."""
     for checks in results_dict.values():
         for res in checks.values():
@@ -50,7 +51,7 @@ def _check_results_have_issues(results_dict: dict) -> bool:
     return False
 
 
-def _create_fallback_results_dict(results: DocumentCheckResult) -> dict:
+def _create_fallback_results_dict(results: DocumentCheckResult) -> Dict[str, Dict[str, Any]]:
     """Create fallback results dictionary when per_check_results is unavailable."""
     return {
         "all": {
@@ -63,7 +64,7 @@ def _create_fallback_results_dict(results: DocumentCheckResult) -> dict:
     }
 
 
-def build_results_dict(results: DocumentCheckResult) -> dict:
+def build_results_dict(results: DocumentCheckResult) -> Dict[str, Dict[str, Any]]:
     """Return a normalized results dictionary from a check result."""
     results_dict = getattr(results, "per_check_results", None)
     logger.debug("[DIAG] per_check_results present: %s", results_dict is not None)
