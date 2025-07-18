@@ -13,6 +13,10 @@ class Severity(IntEnum):
     WARNING = 1
     INFO = 2
 
+    def to_color(self) -> str:
+        """Return a color name for the severity."""
+        return ["red", "orange", "blue"][self]
+
     @property
     def value_str(self) -> str:
         return ["error", "warning", "info"][self]
@@ -117,7 +121,7 @@ class DocumentCheckResult:
         severity: "Severity",
         line_number: int | None = None,
         category: str | None = None,
-        **kwargs,
+        **kwargs: Any,
     ) -> None:
         """Add an issue to the result."""
         if category is None:
