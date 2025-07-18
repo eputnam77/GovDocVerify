@@ -1,4 +1,6 @@
 import logging
+from types import SimpleNamespace
+from typing import cast
 
 from docx import Document
 
@@ -111,21 +113,20 @@ class FAADocumentChecker:
                 success=False, issues=[{"error": f"Error running document checks: {str(e)}"}]
             )
 
-    def _load_document(self, document_path: str):
-        """Load document from path or create from string/list."""
+    def _load_document(self, document_path: str) -> SimpleNamespace:
+        """Load document from path or create a lightweight representation."""
         if isinstance(document_path, str) and (
             document_path.lower().endswith(".docx") or document_path.lower().endswith(".doc")
         ):
-            doc = Document(document_path)
-            doc.text = "\n".join([p.text for p in doc.paragraphs])
+            doc_obj = Document(document_path)
+            paragraphs = list(doc_obj.paragraphs)
+            text = "\n".join(p.text for p in paragraphs)
             logger.debug(
                 "Loaded document from file: %s, extracted text length: %d",
                 document_path,
-                len(doc.text),
+                len(text),
             )
-            return doc
-
-        doc = Document()
+            return SimpleNamespace(paragraphs=paragraphs, text=text)
 
         if isinstance(document_path, list):
             lines = document_path
@@ -134,10 +135,9 @@ class FAADocumentChecker:
             lines = str(document_path).splitlines()
             logger.debug(f"Creating document from raw string, line count: {len(lines)}")
 
-        for line in lines:
-            doc.add_paragraph(line)
-        doc.text = "\n".join(lines)
-        return doc
+        paragraphs = [SimpleNamespace(text=line) for line in lines]
+        text = "\n".join(lines)
+        return SimpleNamespace(paragraphs=paragraphs, text=text)
 
     def _get_check_modules(self):
         """Get all check modules with their category names."""
@@ -223,7 +223,7 @@ class FAADocumentChecker:
 
     def check_paragraph_length(
         self,
-        content,
+        content: str | list[str],
         max_sentences: int = 6,
         max_lines: int = 8,
     ) -> DocumentCheckResult:
@@ -250,7 +250,9 @@ class FAADocumentChecker:
         results.success = len(results.issues) == 0
         return results
 
-    def check_sentence_length(self, content, max_words: int = 30) -> DocumentCheckResult:
+    def check_sentence_length(
+        self, content: str | list[str], max_words: int = 30
+    ) -> DocumentCheckResult:
         """Check sentence length for given content."""
         logger.debug(f"Checking sentence length for {len(content)} items")
         results = DocumentCheckResult()
@@ -266,7 +268,7 @@ class FAADocumentChecker:
         results.success = len(results.issues) == 0
         return results
 
-    def check_readability(self, content) -> DocumentCheckResult:
+    def check_readability(self, content: str | list[str]) -> DocumentCheckResult:
         """Check readability for given content."""
         logger.debug(f"Checking readability for {len(content)} items")
 
@@ -288,7 +290,10 @@ class FAADocumentChecker:
             doc = self._load_document(doc_path)
 
             # Use accessibility checker for 508 compliance
-            return self.accessibility_checks.check_document(doc, "508_compliance")
+            return cast(
+                DocumentCheckResult,
+                self.accessibility_checks.check_document(doc, "508_compliance"),
+            )
 
         except Exception as e:
             logger.error(f"Error checking Section 508 compliance: {str(e)}")

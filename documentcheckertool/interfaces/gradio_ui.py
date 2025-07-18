@@ -3,6 +3,7 @@ import os
 import tempfile
 from importlib.metadata import PackageNotFoundError, version
 from pprint import pformat
+from typing import Any, Dict, Optional
 
 import gradio as gr
 
@@ -785,7 +786,7 @@ def _filter_results_for_export(results_dict, visibility_settings):
     return filtered_results
 
 
-def _count_export_issues(filtered_results):
+def _count_export_issues(filtered_results: Dict[str, Dict[str, Any]]) -> int:
     """Count total issues to be exported."""
     total_issues = sum(
         len(result["issues"])
@@ -800,7 +801,12 @@ def _count_export_issues(filtered_results):
 
 
 # Report generation functions moved to module level
-def _generate_docx_report(filepath, summary, filtered_results, total_issues):
+def _generate_docx_report(
+    filepath: str,
+    summary: Dict[str, Any],
+    filtered_results: Dict[str, Dict[str, Any]],
+    total_issues: int,
+) -> Optional[str]:
     """Generate DOCX format report."""
     try:
         from docx import Document
@@ -843,7 +849,7 @@ def _generate_docx_report(filepath, summary, filtered_results, total_issues):
         return None
 
 
-def _add_docx_detailed_results(doc, filtered_results):
+def _add_docx_detailed_results(doc: Any, filtered_results: Dict[str, Dict[str, Any]]) -> None:
     """Add detailed results to DOCX document."""
     for category, category_results in filtered_results.items():
         if category_results:
@@ -858,7 +864,9 @@ def _add_docx_detailed_results(doc, filtered_results):
                         p.add_run(issue["message"])
 
 
-def _generate_pdf_report(filepath, summary, filtered_results):
+def _generate_pdf_report(
+    filepath: str, summary: Dict[str, Any], filtered_results: Dict[str, Dict[str, Any]]
+) -> Optional[str]:
     """Generate PDF format report."""
     try:
         import pdfkit
@@ -876,7 +884,9 @@ def _generate_pdf_report(filepath, summary, filtered_results):
         return None
 
 
-def _build_pdf_html_content(summary, filtered_results):
+def _build_pdf_html_content(
+    summary: Dict[str, Any], filtered_results: Dict[str, Dict[str, Any]]
+) -> str:
     """Build HTML content for PDF generation."""
     html_content = f"""
     <html>
@@ -943,7 +953,11 @@ h2 {{
     return html_content
 
 
-def generate_report_file(results_data=None, doc_type_value=None, format="html"):
+def generate_report_file(
+    results_data: Optional[Dict[str, Any]] = None,
+    doc_type_value: Optional[str] = None,
+    format: str = "html",
+) -> Optional[str]:
     """Generate downloadable report file.
 
     Parameters
