@@ -1,3 +1,5 @@
+import pytest
+
 from documentcheckertool.models import DocumentCheckResult, Severity
 from documentcheckertool.utils.formatting import FormatStyle, ResultFormatter
 
@@ -127,3 +129,31 @@ def test_readability_section_position():
     fmt = ResultFormatter(style=FormatStyle.PLAIN)
     report = fmt.format_results(data, "AC")
     assert "Flesch Reading Ease" not in report
+
+
+def test_format_results_with_all_metadata_fields() -> None:
+    """Placeholder test ensuring formatter outputs all metadata fields."""
+    result = _make_result()
+    data = {"x": {"y": result}}
+    fmt = ResultFormatter(style=FormatStyle.PLAIN)
+    text = fmt.format_results(
+        data,
+        "AC",
+        metadata={
+            "title": "Doc",
+            "author": "A",
+            "last_modified_by": "B",
+            "created": "2024-01-01T00:00:00",
+            "modified": "2024-01-02T00:00:00",
+        },
+    )
+    expected_fields = [
+        "Title: Doc",
+        "Author: A",
+        "Last Modified By: B",
+        "Created: 2024-01-01",
+        "Modified: 2024-01-02",
+    ]
+    for field in expected_fields:
+        assert field in text
+    pytest.fail("Formatter does not yet handle all metadata fields")
