@@ -49,6 +49,26 @@
 - **Labels**: frontend
 - **Tests**: [tests/e2e/features/upload_results_page.feature](tests/e2e/features/upload_results_page.feature)
 
+## Epic 4: API Backend
+
+### Task 6: Document FastAPI endpoint
+- **Priority**: Medium
+- **Time Estimate**: 0.5d
+- **Acceptance Criteria**:
+  - README details parameters for the `/process` endpoint
+  - Example `curl` request demonstrates usage
+- **Labels**: documentation
+- **Tests**: [tests/test_backend_api.py](tests/test_backend_api.py)
+
+### Task 7: Start FastAPI service via CLI
+- **Priority**: Medium
+- **Time Estimate**: 0.5d
+- **Acceptance Criteria**:
+  - `run.py` launches the FastAPI app with uvicorn
+  - Unit test covers CLI invocation
+- **Labels**: backend
+- **Tests**: [tests/test_backend_api.py](tests/test_backend_api.py)
+
 ---
 
 ready-for:scenario-gen
