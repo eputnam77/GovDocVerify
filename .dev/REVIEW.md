@@ -31,3 +31,17 @@ Integration and Design Review - 2025-07-18
 - Add persistent or distributed rate limiting if deploying with multiple workers.  
 - Continue refactoring long functions into smaller units for clarity.
 
+### Review Update - 2025-07-18
+
+The latest merge adds scenario and property tests for metadata extraction. However, README still lists only Title, Author, and Last Modified By. The new tests expect Created and Modified fields as well and currently fail. `test_format_results_with_all_metadata_fields` remains marked as a failing placeholder.
+
+**Additional Integration Risks**
+- Installing dependencies via `requirements-dev.txt` successfully resolves missing modules, but the test suite still fails on new property tests and placeholder assertions.
+- Semgrep could not run due to network restrictions in the CI environment.
+
+**Mandatory Fixes**
+5. Update `README.md` to document all five metadata fields (Title, Author, Last Modified By, Created, Modified).
+6. Fix failing property tests by adjusting Hypothesis strategies for datetime generation and remove placeholder `pytest.fail` calls.
+
+**Optional Improvements**
+- Add CI instructions for local dependency installation to avoid missing modules during test runs.
