@@ -22,21 +22,26 @@ class ResultFormatter:
 
     def __init__(self, style: Union[str, FormatStyle] = FormatStyle.PLAIN):
         self._style = FormatStyle(style) if isinstance(style, str) else style
+        self.bullet_style: str = ""
+        self.indent: int = 0
+        self.suffix: str = ""
         self._setup_style()
 
         # Issue categories have been moved to README.md for documentation purposes
 
-    def _setup_style(self):
+    def _setup_style(self) -> None:
         """Configure formatting style."""
         style_configs = {
             FormatStyle.PLAIN: ("•", 4),
             FormatStyle.MARKDOWN: ("-", 2),
             FormatStyle.HTML: ("<li>", 0, "</li>"),
         }
-        self.bullet_style, self.indent, *self.suffix = style_configs.get(
+        bullet_style, indent, *suffix = style_configs.get(
             self._style, style_configs[FormatStyle.PLAIN]
         )
-        self.suffix = self.suffix[0] if self.suffix else ""
+        self.bullet_style = bullet_style
+        self.indent = indent
+        self.suffix = suffix[0] if suffix else ""
 
     def _format_colored_text(self, text: str, color: str) -> str:
         """Helper method to format colored text with reset.

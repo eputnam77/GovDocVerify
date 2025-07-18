@@ -66,7 +66,7 @@ LOGGING_CONFIG_INFO = {
 }
 
 
-def setup_logging(debug=False):
+def setup_logging(debug: bool = False) -> None:
     """Set up logging configuration.
 
     Args:

@@ -4,7 +4,7 @@ import re
 from dataclasses import dataclass
 from functools import lru_cache
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Set
+from typing import Any, Dict, List, Optional, Set, cast
 
 from ..models import DocumentCheckResult
 
@@ -24,7 +24,8 @@ class AcronymDefinition:
 class TerminologyManager:
     """Manages terminology, acronyms, and their definitions from a single source of truth."""
 
-    _instance = None
+    _instance: Optional["TerminologyManager"] = None
+    _initialized: bool
 
     def __new__(cls) -> "TerminologyManager":
         if cls._instance is None:
@@ -68,7 +69,8 @@ class TerminologyManager:
         """
         try:
             with open(self.terminology_file, "r") as f:
-                return json.load(f)
+                data: Dict[str, Any] = json.load(f)
+                return data
         except FileNotFoundError:
             raise FileNotFoundError(f"Terminology file not found at {self.terminology_file}")
         except json.JSONDecodeError:
@@ -265,7 +267,7 @@ class TerminologyManager:
         acronym: str,
         definition: str,
         full_text: str,
-        match,
+        match: re.Match[str],
         text: str,
         check_state: Dict[str, Any],
     ) -> None:
@@ -290,7 +292,7 @@ class TerminologyManager:
         acronym: str,
         definition: str,
         full_text: str,
-        match,
+        match: re.Match[str],
         text: str,
         check_state: Dict[str, Any],
     ) -> None:
@@ -313,7 +315,7 @@ class TerminologyManager:
             )
 
     def _handle_acronym_usage(
-        self, acronym: str, match, text: str, check_state: Dict[str, Any]
+        self, acronym: str, match: re.Match[str], text: str, check_state: Dict[str, Any]
     ) -> bool:
         """Handle processing of an acronym usage. Returns True if processing should continue."""
         # Skip if it's a valid word (case-insensitive)
@@ -371,7 +373,7 @@ class TerminologyManager:
         return False
 
     def _validate_acronym_usage(
-        self, acronym: str, match, text: str, check_state: Dict[str, Any]
+        self, acronym: str, match: re.Match[str], text: str, check_state: Dict[str, Any]
     ) -> None:
         """Validate that an acronym usage is properly defined."""
         if (
@@ -420,7 +422,7 @@ class TerminologyManager:
                 },
             )
 
-        return check_state["issues"]
+        return cast(List[Dict[str, Any]], check_state["issues"])
 
     def get_standard_acronyms(self) -> Dict[str, str]:
         """Get all standard acronym definitions.
@@ -428,7 +430,7 @@ class TerminologyManager:
         Returns:
             Dictionary of standard acronym definitions
         """
-        return self.terminology_data["acronyms"]["standard"]
+        return cast(Dict[str, str], self.terminology_data["acronyms"]["standard"])
 
     def get_custom_acronyms(self) -> Dict[str, str]:
         """Get all custom acronym definitions.
@@ -436,7 +438,7 @@ class TerminologyManager:
         Returns:
             Dictionary of custom acronym definitions
         """
-        return self.terminology_data["acronyms"]["custom"]
+        return cast(Dict[str, str], self.terminology_data["acronyms"]["custom"])
 
     def add_custom_acronym(self, acronym: str, definition: str) -> None:
         """Add a custom acronym definition.
@@ -476,8 +478,8 @@ class TerminologyManager:
         """
         patterns = self.terminology_data["patterns"]
         if category:
-            return {category: patterns.get(category, [])}
-        return patterns
+            return {category: cast(List[Dict[str, Any]], patterns.get(category, []))}
+        return cast(Dict[str, List[Dict[str, Any]]], patterns)
 
     def get_required_language(self, doc_type: str) -> List[str]:
         """Get required language for a specific document type.
@@ -488,7 +490,7 @@ class TerminologyManager:
         Returns:
             List of required language patterns
         """
-        return self.terminology_data["required_language"].get(doc_type, [])
+        return cast(List[str], self.terminology_data["required_language"].get(doc_type, []))
 
     def get_acronym_definition(self, acronym: str) -> Optional[str]:
         """Get the definition of an acronym.
@@ -524,7 +526,7 @@ class TerminologyManager:
         except Exception as e:
             raise IOError(f"Failed to save terminology data: {str(e)}")
 
-    def extract_acronyms(self, text: str) -> list:
+    def extract_acronyms(self, text: str) -> List[str]:
         """Extract all acronyms from the given text."""
         # Acronyms are defined as two or more uppercase letters
         return re.findall(r"\b[A-Z]{2,}\b", text)
@@ -546,7 +548,7 @@ class TerminologyManager:
             return m.group(1).strip()
         return None
 
-    def load_config(self):
+    def load_config(self) -> None:
         """Reload the configuration from the config file."""
         # Reload the config file
         self.terminology_data = self._load_terminology()
