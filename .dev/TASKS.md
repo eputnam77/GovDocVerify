@@ -30,6 +30,25 @@
   - Update or add tests if gaps are found.
 - **Labels**: maintenance
 
+## Epic 3: Document Upload UI
+
+### Task 4: Create upload and results page
+- **Priority**: High
+- **Time Estimate**: 1d
+- **Acceptance Criteria**:
+  - React page lets users select and upload a document file
+  - Results are displayed in the browser after processing
+- **Labels**: frontend
+- **Tests**: [tests/e2e/features/upload_results_page.feature](tests/e2e/features/upload_results_page.feature)
+
+### Task 5: Add download options for results
+- **Priority**: Medium
+- **Time Estimate**: 0.5d
+- **Acceptance Criteria**:
+  - Users can download the displayed results as DOCX or PDF
+- **Labels**: frontend
+- **Tests**: [tests/e2e/features/upload_results_page.feature](tests/e2e/features/upload_results_page.feature)
+
 ---
 
 ready-for:scenario-gen
