@@ -10,7 +10,7 @@ from .check_registry import CheckRegistry
 class BaseChecker:
     """Base class for all document checkers."""
 
-    def __init__(self, terminology_manager=None):
+    def __init__(self, terminology_manager: Any | None = None) -> None:
         self.name = self.__class__.__name__
         self.pattern_cache = None
         self._formatter = DocumentFormatter()
@@ -31,7 +31,7 @@ class BaseChecker:
         """Check text content and return results."""
         raise NotImplementedError("Subclasses must implement check_text")
 
-    def check_document(self, document: Any, doc_type: str = None) -> DocumentCheckResult:
+    def check_document(self, document: Any, doc_type: str | None = None) -> DocumentCheckResult:
         """Check a document and return results."""
         # If document is a file path string, read the file
         if isinstance(document, str):
@@ -45,13 +45,21 @@ class BaseChecker:
 
         # If document is already text content
         if isinstance(document, (str, list)):
-            return self.check_text(document)
+            if isinstance(document, list):
+                content = "\n".join(str(item) for item in document)
+            else:
+                content = document
+            return self.check_text(content)
 
         # Default fallback
         return self.check_text(str(document))
 
     def create_issue(
-        self, message: str, line_number: int = 0, severity: str = "warning", category: str = None
+        self,
+        message: str,
+        line_number: int = 0,
+        severity: str = "warning",
+        category: str | None = None,
     ) -> Dict[str, Any]:
         """Create a standardized issue dictionary."""
         return {
@@ -78,7 +86,7 @@ class BaseChecker:
         return CheckRegistry.get_category_mappings()
 
     @classmethod
-    def register_check(cls, category: str):
+    def register_check(cls, category: str) -> Any:
         """Decorator to register a check function.
 
         Args:
