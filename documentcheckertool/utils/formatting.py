@@ -1,6 +1,6 @@
 import logging
 from enum import Enum
-from typing import Any, Dict, List, Union
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 from colorama import Fore, Style
 
@@ -31,17 +31,17 @@ class ResultFormatter:
 
     def _setup_style(self) -> None:
         """Configure formatting style."""
-        style_configs = {
-            FormatStyle.PLAIN: ("•", 4),
-            FormatStyle.MARKDOWN: ("-", 2),
+        style_configs: Dict[FormatStyle, Tuple[str, int, Optional[str]]] = {
+            FormatStyle.PLAIN: ("•", 4, None),
+            FormatStyle.MARKDOWN: ("-", 2, None),
             FormatStyle.HTML: ("<li>", 0, "</li>"),
         }
-        bullet_style, indent, *suffix = style_configs.get(
+        bullet_style, indent, suffix = style_configs.get(
             self._style, style_configs[FormatStyle.PLAIN]
         )
         self.bullet_style = bullet_style
         self.indent = indent
-        self.suffix = suffix[0] if suffix else ""
+        self.suffix = suffix or ""
 
     def _format_colored_text(self, text: str, color: str) -> str:
         """Helper method to format colored text with reset.
@@ -114,7 +114,7 @@ class ResultFormatter:
 
         return output
 
-    def _format_standard_issue(self, issue: Dict[str, Any]) -> str:
+    def _format_standard_issue(self, issue: str | Dict[str, Any]) -> str:
         """Format standard issues consistently."""
         if isinstance(issue, str):
             return f"    • {issue}"
@@ -161,11 +161,11 @@ class ResultFormatter:
 
         return formatted_issues
 
-    def _format_alt_text_issues(self, issue: Dict) -> str:
+    def _format_alt_text_issues(self, issue: Dict[str, Any]) -> str:
         """Format image alt text issues."""
         return f"    • {issue.get('message', 'Missing alt text')}: {issue.get('context', '')}"
 
-    def _format_heading_structure_issues(self, issue: Dict) -> str:
+    def _format_heading_structure_issues(self, issue: Dict[str, Any]) -> str:
         """Format heading structure issues."""
         msg = issue.get("message", "")
         ctx = issue.get("context", "")
@@ -200,9 +200,9 @@ class ResultFormatter:
             output.append("=" * 80)
             output.append("")
 
-    def _collect_severity_buckets(self, results: Dict[str, Any]) -> Dict[str, List]:
+    def _collect_severity_buckets(self, results: Dict[str, Any]) -> Dict[str, List[Dict[str, Any]]]:
         """Collect and organize issues by severity."""
-        severity_buckets = {"error": [], "warning": [], "info": []}
+        severity_buckets: Dict[str, List[Dict[str, Any]]] = {"error": [], "warning": [], "info": []}
         for category_results in results.values():
             if isinstance(category_results, dict):
                 for result in category_results.values():
@@ -237,11 +237,11 @@ class ResultFormatter:
         self,
         output: List[str],
         sev: str,
-        issues: List,
-        severity_titles: Dict,
-        severity_colors_html: Dict,
-        severity_colors_cli: Dict,
-        severity_icons: Dict,
+        issues: List[Dict[str, Any]],
+        severity_titles: Dict[str, str],
+        severity_colors_html: Dict[str, str],
+        severity_colors_cli: Dict[str, str],
+        severity_icons: Dict[str, str],
     ) -> None:
         """Format a section for a specific severity level."""
         if self._style == FormatStyle.HTML:
@@ -319,16 +319,18 @@ class ResultFormatter:
             output.append("</div>")
         return "\n".join(output)
 
-    def _collect_categories_with_issues(self, results: Dict[str, Any]) -> tuple:
+    def _collect_categories_with_issues(
+        self, results: Dict[str, Any]
+    ) -> Tuple[int, List[Tuple[str, List[Tuple[Any, List[Dict[str, Any]]]], int]]]:
         """Collect categories that have issues."""
         total_issues = 0
-        categories_with_issues = []
+        categories_with_issues: List[Tuple[str, List[Tuple[Any, List[Dict[str, Any]]]], int]] = []
 
         for category, category_results in results.items():
             if not category_results:
                 continue
             cat_issues = 0
-            category_data = []
+            category_data: List[Tuple[Any, List[Dict[str, Any]]]] = []
             for result in category_results.values():
                 issues = (
                     getattr(result, "issues", [])
@@ -346,7 +348,11 @@ class ResultFormatter:
         return total_issues, categories_with_issues
 
     def _format_category_section(
-        self, output: List[str], category: str, category_data: List, cat_issues: int
+        self,
+        output: List[str],
+        category: str,
+        category_data: List[Tuple[Any, List[Dict[str, Any]]]],
+        cat_issues: int,
     ) -> None:
         """Format a section for a specific category."""
         category_title = category.replace("_", " ").title()
@@ -582,6 +588,6 @@ class DocumentFormatter:
         return text.strip().lower()
 
     @staticmethod
-    def format_message(template: str, **kwargs) -> str:
+    def format_message(template: str, **kwargs: Any) -> str:
         """Format error/warning messages."""
         return template.format(**kwargs)
