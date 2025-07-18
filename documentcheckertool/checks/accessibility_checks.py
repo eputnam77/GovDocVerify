@@ -1,6 +1,5 @@
 import logging
 import re
-from functools import wraps
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple, Union
 
@@ -10,19 +9,11 @@ from docx.document import Document as DocxDocument
 from documentcheckertool.checks.base_checker import BaseChecker
 from documentcheckertool.checks.check_registry import CheckRegistry
 from documentcheckertool.models import DocumentCheckResult, Severity
+from documentcheckertool.utils.decorators import profile_performance
 from documentcheckertool.utils.link_utils import deprecated_lookup, find_urls
 from documentcheckertool.utils.terminology_utils import TerminologyManager
 
 logger = logging.getLogger(__name__)
-
-
-def profile_performance(func):
-    @wraps(func)
-    def wrapper(*args, **kwargs):
-        # Add performance profiling logic here if needed
-        return func(*args, **kwargs)
-
-    return wrapper
 
 
 class AccessibilityChecks(BaseChecker):

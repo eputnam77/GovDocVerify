@@ -1,27 +1,18 @@
 import logging
 import re
-from functools import wraps
 from typing import Any, Dict, List, Optional
 
-from docx import Document
+from docx.document import Document as DocxDocument
 
 from documentcheckertool.checks.check_registry import CheckRegistry
 from documentcheckertool.models import DocumentCheckResult, Severity
+from documentcheckertool.utils.decorators import profile_performance
 from documentcheckertool.utils.terminology_utils import TerminologyManager
 from documentcheckertool.utils.text_utils import normalize_heading
 
 from .base_checker import BaseChecker
 
 logger = logging.getLogger(__name__)
-
-
-def profile_performance(func):
-    @wraps(func)
-    def wrapper(*args, **kwargs):
-        # Add performance profiling logic here if needed
-        return func(*args, **kwargs)
-
-    return wrapper
 
 
 class HeadingChecks(BaseChecker):
@@ -65,7 +56,7 @@ class HeadingChecks(BaseChecker):
         return normalized
 
     @CheckRegistry.register("heading")
-    def check_document(self, document: Document, doc_type: str) -> DocumentCheckResult:
+    def check_document(self, document: DocxDocument, doc_type: str) -> DocumentCheckResult:
         """Check document for heading issues."""
         doc_type_norm = self._normalize_doc_type(doc_type)
         results = DocumentCheckResult()
@@ -530,7 +521,12 @@ class HeadingChecks(BaseChecker):
             }
         )
 
-    def run_checks(self, document: Document, doc_type: str, results: DocumentCheckResult) -> None:
+    def run_checks(
+        self,
+        document: DocxDocument,
+        doc_type: str,
+        results: DocumentCheckResult,
+    ) -> None:
         """Run all heading-related checks."""
         logger.info(f"Running heading checks for document type: {doc_type}")
 

@@ -1,15 +1,16 @@
 import logging
 import re
 import xml.etree.ElementTree as ET
-from functools import wraps
 from typing import Any, Dict, List, Optional
 
 from docx import Document
+from docx.document import Document as DocxDocument
 from docx.opc.constants import RELATIONSHIP_TYPE as RT
 
 from documentcheckertool.checks.check_registry import CheckRegistry
 from documentcheckertool.config.boilerplate_texts import BOILERPLATE_PARAGRAPHS
 from documentcheckertool.models import DocumentCheckResult, Severity
+from documentcheckertool.utils.decorators import profile_performance
 
 from .base_checker import BaseChecker
 
@@ -111,15 +112,6 @@ class ValidationFormatting:
         return formatted_issues
 
 
-def profile_performance(func):
-    @wraps(func)
-    def wrapper(*args, **kwargs):
-        # Add performance profiling logic here if needed
-        return func(*args, **kwargs)
-
-    return wrapper
-
-
 class WatermarkRequirement:
     def __init__(self, text: str, doc_stage: str):
         self.text = text
@@ -171,7 +163,12 @@ class StructureChecks(BaseChecker):
         return " ".join(texts).strip()
 
     @CheckRegistry.register("structure")
-    def run_checks(self, document: Document, doc_type: str, results: DocumentCheckResult) -> None:
+    def run_checks(
+        self,
+        document: DocxDocument,
+        doc_type: str,
+        results: DocumentCheckResult,
+    ) -> None:
         """Run all structure-related checks."""
         logger.info(f"Running structure checks for document type: {doc_type}")
 
@@ -499,7 +496,7 @@ class StructureChecks(BaseChecker):
             )
             return
 
-    def _extract_watermark(self, doc: Document) -> Optional[str]:
+    def _extract_watermark(self, doc: DocxDocument) -> Optional[str]:
         """Extract watermark text from the document body, headers, and footers."""
 
         valid_marks = [self._normalize_watermark_text(w.text) for w in self.VALID_WATERMARKS]
@@ -589,7 +586,7 @@ class StructureChecks(BaseChecker):
                     line_number=None,
                 )
 
-    def _extract_paragraph_numbering(self, doc: Document) -> List[tuple]:
+    def _extract_paragraph_numbering(self, doc: DocxDocument) -> List[tuple]:
         """Extract paragraph numbering from headings."""
         heading_structure = []
         for para in doc.paragraphs:
@@ -798,7 +795,7 @@ class StructureChecks(BaseChecker):
                     }
                 )
 
-    def check_document(self, document: Document, doc_type: str) -> DocumentCheckResult:
+    def check_document(self, document: DocxDocument, doc_type: str) -> DocumentCheckResult:
         """Check document for structure issues. Accepts a python-docx Document object."""
         logger.info("[StructureChecks] check_document called")
         results = DocumentCheckResult()
