@@ -26,13 +26,13 @@ class TerminologyManager:
 
     _instance = None
 
-    def __new__(cls):
+    def __new__(cls) -> "TerminologyManager":
         if cls._instance is None:
             cls._instance = super(TerminologyManager, cls).__new__(cls)
             cls._instance._initialized = False
         return cls._instance
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize the terminology manager with data from terminology.json."""
         if self._initialized:
             return
@@ -52,7 +52,7 @@ class TerminologyManager:
         self.ignored_patterns = [re.compile(pattern) for pattern in ignore_patterns_raw]
         self._initialized = True
 
-    def _validate_config(self):
+    def _validate_config(self) -> None:
         """Validate terminology configuration."""
         required_sections = ["acronyms", "patterns", "heading_words"]
         for section in required_sections:
@@ -79,7 +79,7 @@ class TerminologyManager:
         """Cached check for valid words."""
         return word in self._load_valid_words()
 
-    def _load_valid_words(self) -> set:
+    def _load_valid_words(self) -> Set[str]:
         """Load valid words from a file (one word per line, both cases)."""
         valid_words_file = Path(__file__).parent.parent.parent / "valid_words.txt"
         try:
@@ -122,7 +122,7 @@ class TerminologyManager:
         return set(numerals)
 
     @staticmethod
-    def _add_issue(check_state: Dict, issue: Dict) -> None:
+    def _add_issue(check_state: Dict[str, Any], issue: Dict[str, Any]) -> None:
         """Add an issue if one with the same message hasn't been recorded."""
         key = (issue.get("type"), issue.get("message"))
         if key not in check_state["issue_keys"]:
@@ -161,7 +161,7 @@ class TerminologyManager:
                 return True
         return False
 
-    def _initialize_check_state(self) -> Dict:
+    def _initialize_check_state(self) -> Dict[str, Any]:
         """Initialize the state for acronym checking."""
         return {
             "issues": [],
@@ -174,7 +174,7 @@ class TerminologyManager:
             "unused_candidates": set(),
         }
 
-    def _process_definitions(self, text: str, check_state: Dict) -> None:
+    def _process_definitions(self, text: str, check_state: Dict[str, Any]) -> None:
         """Process acronym definitions in the text."""
         logger.debug("Processing definitions...")
 
@@ -198,7 +198,7 @@ class TerminologyManager:
             f"After definition processing - unused_candidates: {check_state['unused_candidates']}"
         )
 
-    def _process_usages(self, text: str, check_state: Dict) -> None:
+    def _process_usages(self, text: str, check_state: Dict[str, Any]) -> None:
         """Process acronym usages in the text."""
         logger.debug("Processing usages...")
 
@@ -261,7 +261,13 @@ class TerminologyManager:
         return False
 
     def _handle_acronym_definition(
-        self, acronym: str, definition: str, full_text: str, match, text: str, check_state: Dict
+        self,
+        acronym: str,
+        definition: str,
+        full_text: str,
+        match,
+        text: str,
+        check_state: Dict[str, Any],
     ) -> None:
         """Handle processing of an acronym definition."""
         all_known_acronyms = check_state["all_known_acronyms"]
@@ -280,7 +286,13 @@ class TerminologyManager:
         logger.debug(f"Added '{acronym}' to defined_acronyms and unused_candidates ({status})")
 
     def _validate_standard_definition(
-        self, acronym: str, definition: str, full_text: str, match, text: str, check_state: Dict
+        self,
+        acronym: str,
+        definition: str,
+        full_text: str,
+        match,
+        text: str,
+        check_state: Dict[str, Any],
     ) -> None:
         """Validate a standard acronym definition."""
         standard_def = check_state["all_known_acronyms"][acronym]
@@ -300,7 +312,9 @@ class TerminologyManager:
                 },
             )
 
-    def _handle_acronym_usage(self, acronym: str, match, text: str, check_state: Dict) -> bool:
+    def _handle_acronym_usage(
+        self, acronym: str, match, text: str, check_state: Dict[str, Any]
+    ) -> bool:
         """Handle processing of an acronym usage. Returns True if processing should continue."""
         # Skip if it's a valid word (case-insensitive)
         if acronym.lower() in check_state["valid_words"]:
@@ -326,7 +340,7 @@ class TerminologyManager:
         logger.debug(f"Added '{acronym}' to used_acronyms")
         return False
 
-    def _try_match_defined_acronym(self, acronym: str, check_state: Dict) -> bool:
+    def _try_match_defined_acronym(self, acronym: str, check_state: Dict[str, Any]) -> bool:
         """Try to match acronym with defined acronyms (case-insensitive)."""
         defined_lower = {a.lower(): a for a in check_state["defined_acronyms"]}
         logger.debug(
@@ -341,7 +355,7 @@ class TerminologyManager:
             return True
         return False
 
-    def _try_match_known_acronym(self, acronym: str, check_state: Dict) -> bool:
+    def _try_match_known_acronym(self, acronym: str, check_state: Dict[str, Any]) -> bool:
         """Try to match acronym with known acronyms (case-insensitive)."""
         known_lower = {a.lower(): a for a in check_state["all_known_acronyms"]}
         logger.debug(f"Case-insensitive match for {acronym} against known acronyms: {known_lower}")
@@ -356,7 +370,9 @@ class TerminologyManager:
             return True
         return False
 
-    def _validate_acronym_usage(self, acronym: str, match, text: str, check_state: Dict) -> None:
+    def _validate_acronym_usage(
+        self, acronym: str, match, text: str, check_state: Dict[str, Any]
+    ) -> None:
         """Validate that an acronym usage is properly defined."""
         if (
             acronym not in check_state["defined_acronyms"]
@@ -374,7 +390,7 @@ class TerminologyManager:
                 },
             )
 
-    def _check_unused_acronyms(self, check_state: Dict) -> List:
+    def _check_unused_acronyms(self, check_state: Dict[str, Any]) -> List[Dict[str, Any]]:
         """Check for unused acronyms and return all issues."""
         # Remove all used acronyms from unused_candidates
         check_state["unused_candidates"] -= check_state["used_acronyms"]

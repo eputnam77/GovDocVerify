@@ -11,7 +11,7 @@ class CheckRegistry:
     _checks: Dict[str, List[str]] = {}
 
     @classmethod
-    def register(cls, category: str) -> Callable:
+    def register(cls, category: str) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
         """Decorator to register a check function in a specific category.
 
         Args:
@@ -22,7 +22,7 @@ class CheckRegistry:
         """
         logger.debug(f"Registering check in category: {category}")
 
-        def decorator(func: Callable) -> Callable:
+        def decorator(func: Callable[..., Any]) -> Callable[..., Any]:
             @wraps(func)
             def wrapper(*args: Any, **kwargs: Any) -> Any:
                 logger.debug(f"Executing registered check: {func.__name__}")

@@ -1,7 +1,7 @@
 import json
 import logging
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import Enum, IntEnum
 from typing import Any, Dict, List, Optional
 
@@ -92,16 +92,14 @@ class DocumentCheckResult:
     """Result of a document check."""
 
     success: bool = True
-    issues: List[Dict[str, Any]] = None
+    issues: List[Dict[str, Any]] = field(default_factory=list)
     checker_name: Optional[str] = None
     score: float = 1.0
     severity: Optional["Severity"] = None
     details: Optional[Dict[str, Any]] = None
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         """Initialize default values and ensure all issues have a category."""
-        if self.issues is None:
-            self.issues = []
         # Defensive: ensure all issues have a category
         for issue in self.issues:
             if "category" not in issue or not issue["category"]:
@@ -117,10 +115,10 @@ class DocumentCheckResult:
         self,
         message: str,
         severity: "Severity",
-        line_number: int = None,
-        category: str = None,
+        line_number: int | None = None,
+        category: str | None = None,
         **kwargs,
-    ):
+    ) -> None:
         """Add an issue to the result."""
         if category is None:
             category = getattr(self, "checker_name", None) or "general"
@@ -147,7 +145,7 @@ class DocumentCheckResult:
         html = ["<div style='padding: 10px;'>"]
 
         # Group issues by severity
-        by_severity = {}
+        by_severity: Dict[Severity, List[Dict[str, Any]]] = {}
         for issue in self.issues:
             sev = issue["severity"]
             if sev not in by_severity:
