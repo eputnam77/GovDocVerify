@@ -4,6 +4,7 @@ import argparse
 import logging
 import os
 import sys
+from typing import Any, Optional
 
 from documentcheckertool.logging_config import setup_logging
 from documentcheckertool.models import (
@@ -39,9 +40,9 @@ def _safe_print(text: str) -> None:
 def process_document(  # noqa: C901 - function is complex but mirrors CLI logic
     file_path: str,
     doc_type: str,
-    visibility_settings: VisibilitySettings = None,
+    visibility_settings: Optional[VisibilitySettings] = None,
     group_by: str = "category",
-) -> dict:
+) -> dict[str, Any]:
     """Process a document and return results as a dictionary."""
     logger.debug("[PROOF] process_document called")
     logger.debug(

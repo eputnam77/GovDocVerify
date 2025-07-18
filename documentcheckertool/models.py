@@ -138,6 +138,8 @@ class VisibilitySettings:
     show_accessibility: bool = True
     show_document_status: bool = True
     show_acronym: bool = True
+    _show_only_set: set[str] | None = None
+    _hide_set: set[str] | None = None
 
     def to_dict(self) -> Dict[str, bool]:
         """Convert settings to dictionary format."""
