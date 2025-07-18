@@ -5,7 +5,7 @@ from gradio_ui import create_interface
 from documentcheckertool.logging_config import setup_logging
 
 
-def main():
+def main() -> None:
     parser = argparse.ArgumentParser(description="Document Checker Gradio UI")
     parser.add_argument("--debug", action="store_true", help="Enable debug mode")
     args = parser.parse_args()

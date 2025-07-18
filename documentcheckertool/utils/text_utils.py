@@ -1,9 +1,19 @@
 import logging
 import re
 import unicodedata
-from typing import Any, Dict, List, Optional, Set
+from typing import Dict, List, Optional, Set, Tuple, TypedDict
 
 from .terminology_utils import TerminologyManager
+
+
+class SentenceContext(TypedDict):
+    """Internal state used while splitting sentences."""
+
+    abbr_list: List[str]
+    non_term_abbr: Set[str]
+    start: int
+    i: int
+    text: str
 
 
 def split_sentences(text: str) -> List[str]:
@@ -29,7 +39,7 @@ def split_sentences(text: str) -> List[str]:
     return sentences or [""]
 
 
-def _initialize_sentence_context(text: str, logger: logging.Logger) -> Dict[str, Any]:
+def _initialize_sentence_context(text: str, logger: logging.Logger) -> SentenceContext:
     """Initialize context for sentence splitting."""
     terminology_manager = TerminologyManager()
     abbreviations = set(terminology_manager.get_standard_acronyms().keys())
@@ -84,7 +94,9 @@ def _initialize_sentence_context(text: str, logger: logging.Logger) -> Dict[str,
     }
 
 
-def _process_text_for_sentences(text: str, context: Dict, logger) -> List[str]:
+def _process_text_for_sentences(
+    text: str, context: SentenceContext, logger: logging.Logger
+) -> List[str]:
     """Process text character by character to identify sentence boundaries."""
     sentences = []
 
@@ -112,7 +124,7 @@ def _process_text_for_sentences(text: str, context: Dict, logger) -> List[str]:
     return sentences
 
 
-def _should_skip_multi_period_sequence(text: str, context: Dict) -> bool:
+def _should_skip_multi_period_sequence(text: str, context: SentenceContext) -> bool:
     """Check if we should skip the first dot in sequences like 'U.S.' or 'E.U.'"""
     i = context["i"]
     return (
@@ -137,7 +149,7 @@ def _is_sentence_end(text: str, punct_pos: int, boundary_pos: int) -> bool:
     return boundary_pos >= len(text) or text[boundary_pos].isupper() or text[boundary_pos].isdigit()
 
 
-def _should_split_sentence(text: str, context: Dict, logger) -> bool:
+def _should_split_sentence(text: str, context: SentenceContext, logger: logging.Logger) -> bool:
     """Determine if we should split the sentence at the current position."""
     is_abbrev, abbr_matched = _check_abbreviation_at_position(text, context, logger)
 
@@ -148,12 +160,14 @@ def _should_split_sentence(text: str, context: Dict, logger) -> bool:
 
     if is_abbrev:
         # Titles et al. never terminate sentences
-        return abbr_matched.lower() not in context["non_term_abbr"]
+        return abbr_matched is not None and abbr_matched.lower() not in context["non_term_abbr"]
     else:
         return True
 
 
-def _check_abbreviation_at_position(text: str, context: Dict, logger) -> tuple:
+def _check_abbreviation_at_position(
+    text: str, context: SentenceContext, logger: logging.Logger
+) -> Tuple[bool, Optional[str]]:
     """Check if the current position contains an abbreviation."""
     i = context["i"]
     start = context["start"]
@@ -169,7 +183,9 @@ def _check_abbreviation_at_position(text: str, context: Dict, logger) -> tuple:
     return False, None
 
 
-def _finalize_sentences(text: str, context: Dict, sentences: List[str], logger) -> List[str]:
+def _finalize_sentences(
+    text: str, context: SentenceContext, sentences: List[str], logger: logging.Logger
+) -> List[str]:
     """Add any remaining text as the final sentence."""
     if context["start"] < len(text):
         rest = text[context["start"] :].strip()
