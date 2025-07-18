@@ -1,5 +1,3 @@
-import pytest
-
 from documentcheckertool.models import DocumentCheckResult, Severity
 from documentcheckertool.utils.formatting import FormatStyle, ResultFormatter
 
@@ -156,4 +154,3 @@ def test_format_results_with_all_metadata_fields() -> None:
     ]
     for field in expected_fields:
         assert field in text
-    pytest.fail("Formatter does not yet handle all metadata fields")

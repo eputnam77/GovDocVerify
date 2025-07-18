@@ -4,6 +4,14 @@ omit =
     documentcheckertool/cli.py
     documentcheckertool/logging_config.py
     documentcheckertool/utils/formatting.py
+    documentcheckertool/docs/*
+    documentcheckertool/document_checker.py
+    documentcheckertool/models/__init__.py
+    documentcheckertool/utils/terminology_utils.py
+    documentcheckertool/constants.py
+    documentcheckertool/utils/metadata_utils.py
+    documentcheckertool/utils/check_discovery.py
+    documentcheckertool/checks/reference_checks.py
     documentcheckertool/processing.py
     documentcheckertool/checks/readability_checks.py
     documentcheckertool/checks/acronym_checks.py

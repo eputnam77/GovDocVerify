@@ -1,4 +1,5 @@
 import logging
+from datetime import date, datetime
 from enum import Enum
 from typing import Any, Dict, List, Optional, Tuple, Union
 
@@ -70,6 +71,20 @@ class ResultFormatter:
         else:
             return f"{color}{text}{Style.RESET_ALL}"
 
+    @staticmethod
+    def _simplify_metadata_value(value: Any) -> str:
+        """Return a compact string for metadata values."""
+        if isinstance(value, datetime):
+            return value.date().isoformat()
+        if isinstance(value, date):
+            return value.isoformat()
+        if isinstance(value, str):
+            try:
+                return datetime.fromisoformat(value).date().isoformat()
+            except ValueError:
+                return value
+        return str(value)
+
     def _format_example(self, example_fix: Dict[str, str]) -> List[str]:
         """Format example fixes consistently.
 
@@ -126,7 +141,7 @@ class ResultFormatter:
             return f"    • Replace '{issue['incorrect_term']}' with '{issue['correct_term']}'"
 
         if "sentence" in issue and "word_count" in issue:  # For sentence length check
-            return f"    • Review this sentence: \"{issue['sentence']}\""
+            return f'    • Review this sentence: "{issue["sentence"]}"'
 
         if "sentence" in issue:
             return f"    • {issue['sentence']}"
@@ -178,6 +193,7 @@ class ResultFormatter:
 
     def _add_header(self, output: List[str], metadata: Dict[str, Any] | None) -> None:
         """Add header and optional metadata to the output."""
+
         if self._style == FormatStyle.HTML:
             output.append('<div class="results-container">')
             output.append(
@@ -187,7 +203,8 @@ class ResultFormatter:
                 output.append('<div class="metadata">')
                 for key, value in metadata.items():
                     label = key.replace("_", " ").title()
-                    output.append(f"<p><strong>{label}:</strong> {value}</p>")
+                    out = self._simplify_metadata_value(value)
+                    output.append(f"<p><strong>{label}:</strong> {out}</p>")
                 output.append("</div>")
             output.append('<hr style="border: 1px solid #0056b3;">')
         else:
@@ -196,7 +213,8 @@ class ResultFormatter:
             if metadata:
                 for key, value in metadata.items():
                     label = key.replace("_", " ").title()
-                    output.append(f"{label}: {value}")
+                    out = self._simplify_metadata_value(value)
+                    output.append(f"{label}: {out}")
             output.append("=" * 80)
             output.append("")
 
@@ -246,8 +264,7 @@ class ResultFormatter:
         """Format a section for a specific severity level."""
         if self._style == FormatStyle.HTML:
             div_style = (
-                "margin-bottom: 40px; padding: 20px; "
-                "background-color: #f8f9fa; border-radius: 8px;"
+                "margin-bottom: 40px; padding: 20px; background-color: #f8f9fa; border-radius: 8px;"
             )
             output.append(f'<div class="category-section" style="{div_style}">')
             h2_style = (
@@ -359,8 +376,7 @@ class ResultFormatter:
 
         if self._style == FormatStyle.HTML:
             div_style = (
-                "margin-bottom: 40px; padding: 20px; "
-                "background-color: #f8f9fa; border-radius: 8px;"
+                "margin-bottom: 40px; padding: 20px; background-color: #f8f9fa; border-radius: 8px;"
             )
             output.append(f'<div class="category-section" style="{div_style}">')
             h2_style = (
@@ -427,7 +443,7 @@ class ResultFormatter:
             output.append(f'<p style="{html_style}">Found {total_issues} issues.</p>')
         else:
             message = (
-                f"Found {total_issues} issues across " f"{len(categories_with_issues)} categories:"
+                f"Found {total_issues} issues across {len(categories_with_issues)} categories:"
             )
             output.append(self._format_colored_text(message, Fore.YELLOW))
             output.append("")
@@ -525,7 +541,7 @@ class ResultFormatter:
                 "(Aim for 50+; higher is easier to read)"
             )
             formatted_issues.append(
-                f"Gunning Fog Index: {metrics['gunning_fog_index']} " "(Aim for 12 or lower)"
+                f"Gunning Fog Index: {metrics['gunning_fog_index']} (Aim for 12 or lower)"
             )
             formatted_issues.append(
                 f"Grade Level: {metrics['flesch_kincaid_grade']} "
@@ -533,8 +549,7 @@ class ResultFormatter:
             )
             if "passive_voice_percentage" in metrics:
                 formatted_issues.append(
-                    f"Passive Voice: {metrics['passive_voice_percentage']}% "
-                    "(Aim for 10% or lower)"
+                    f"Passive Voice: {metrics['passive_voice_percentage']}% (Aim for 10% or lower)"
                 )
             formatted_issues.append("")
 
@@ -545,7 +560,7 @@ class ResultFormatter:
                 if issue_type == "jargon":
                     formatted_issues.append(
                         f"Replace '{issue['word']}' with '{issue['suggestion']}' "
-                        f"in: \"{issue['sentence']}\""
+                        f'in: "{issue["sentence"]}"'
                     )
                 elif issue_type in ["readability_score", "passive_voice"]:
                     formatted_issues.append(issue["message"])

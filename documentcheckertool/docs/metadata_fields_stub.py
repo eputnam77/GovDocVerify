@@ -10,4 +10,4 @@ def update_metadata_documentation(readme_path: str) -> None:
     Raises:
         NotImplementedError: Always, since this is a stub.
     """
-    raise NotImplementedError("Documentation update not implemented yet")
+    raise NotImplementedError("Documentation update not implemented yet")  # pragma: no cover
