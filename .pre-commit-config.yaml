@@ -30,8 +30,8 @@ repos:
         args:
           [
             "-c", "pyproject.toml",        # load the TOML config
-            "--severity-level", "MEDIUM",
-            "--confidence-level", "MEDIUM",
+            "--severity-level", "medium",
+            "--confidence-level", "medium",
             "-r", "documentcheckertool/",  # scan only the package code
           ]
         additional_dependencies: ["bandit[toml]"]  # enables TOML parsing :contentReference[oaicite:0]{index=0}
