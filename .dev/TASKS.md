@@ -58,7 +58,7 @@
   - README details parameters for the `/process` endpoint
   - Example `curl` request demonstrates usage
 - **Labels**: documentation
-- **Tests**: [tests/test_backend_api.py](tests/test_backend_api.py)
+- **Tests**: [tests/test_backend_api.py](tests/test_backend_api.py), [tests/e2e/features/api_backend.feature](tests/e2e/features/api_backend.feature)
 
 ### Task 7: Start FastAPI service via CLI
 - **Priority**: Medium
@@ -67,7 +67,7 @@
   - `run.py` launches the FastAPI app with uvicorn
   - Unit test covers CLI invocation
 - **Labels**: backend
-- **Tests**: [tests/test_backend_api.py](tests/test_backend_api.py)
+- **Tests**: [tests/test_backend_api.py](tests/test_backend_api.py), [tests/e2e/features/api_backend.feature](tests/e2e/features/api_backend.feature)
 
 ---
 
