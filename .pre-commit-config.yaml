@@ -40,8 +40,8 @@ repos:
     rev: v2.7.2
     hooks:
       - id: pip-audit
-        # Audit dependencies listed in pyproject.toml
-        args: ["-r", "pyproject.toml"]
+        # Audit dependencies using requirements.txt for now
+        args: ["-r", "requirements.txt"]
 
   # ── Local test runner ───────────────────────────────────────────────────────
   - repo: local
