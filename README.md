@@ -17,6 +17,7 @@ Full documentation is available in the `docs/` directory and on the generated si
 
 ## Features
 - Automated checks for headings, formatting, terminology and more
+- Displays document metadata (Title, Author, Last Modified By, Created and Modified)
 - FastAPI endpoint for programmatic access
 - Modern React interface with live preview
 - Command line interface for local use
@@ -25,7 +26,9 @@ Full documentation is available in the `docs/` directory and on the generated si
 ```bash
 python -m venv venv
 source venv/bin/activate
+# Install either from requirements-dev.txt or using Poetry
 pip install -r requirements-dev.txt
+# poetry install --with dev
 python cli.py --file mydoc.docx --type "Advisory Circular"
 ```
 

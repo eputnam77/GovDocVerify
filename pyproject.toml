@@ -53,27 +53,27 @@ email = "contact@example.com"
 
 # ── Package discovery ─────────────────────────────────────────────────────────
 [tool.setuptools.packages.find]
-where = ["src"]
+where = ["."]
 exclude = ["tests*", ".dev*"]
 
 # ── Code style / linting ──────────────────────────────────────────────────────
 [tool.black]
 line-length    = 100
-target-version = ["py311"]
+target-version = ["py312"]
 
 [tool.isort]
 profile = "black"
 
 [tool.ruff]
 line-length    = 100
-target-version = "py311"
+target-version = "py312"
 
 [tool.ruff.lint]
 select = ["E", "F", "W", "C90", "I"]
 
 # ── Static typing ─────────────────────────────────────────────────────────────
 [tool.mypy]
-python_version            = "3.11"
+python_version            = "3.12"
 packages                  = ["documentcheckertool"]
 strict                    = true
 warn_return_any           = true

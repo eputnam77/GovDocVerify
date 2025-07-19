@@ -6,7 +6,7 @@ This project uses standard Python tooling with a React frontend.
 ```
 project-root/
 ├── backend/            # FastAPI backend
-├── documentcheckertool/ # Core package
+├── documentcheckertool/ # Core package (to be moved under src/)
 ├── frontend/           # React + Vite app
 ├── docs/               # MkDocs documentation
 ├── tests/              # Unit tests
@@ -25,7 +25,7 @@ pytest
 Lint and type-check:
 ```bash
 ruff check .
-mypy --strict src tests
+mypy --strict documentcheckertool tests
 ```
 
 ## Contributing
