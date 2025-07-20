@@ -33,3 +33,12 @@ python cli.py --file mydoc.docx --type "Advisory Circular"
 ```
 
 For additional scenarios, API details and developer info, browse the docs.
+
+## API Usage
+
+Interact with the FastAPI backend directly using `curl`:
+
+```bash
+curl -F "doc_file=@mydoc.docx" -F "doc_type=Advisory Circular" \
+  http://localhost:8000/process
+```
