@@ -6,16 +6,18 @@ spec = importlib.util.spec_from_file_location(
     "documentcheckertool_models_file",
     Path(__file__).resolve().parents[1] / "documentcheckertool" / "models.py",
 )
+assert spec is not None
 models = importlib.util.module_from_spec(spec)
+assert spec.loader is not None
 spec.loader.exec_module(models)
 
 
-def test_severity_helpers():
+def test_severity_helpers() -> None:
     assert models.Severity.ERROR.to_color() == "red"
     assert models.Severity.WARNING.value_str == "warning"
 
 
-def test_document_check_result_html():
+def test_document_check_result_html() -> None:
     res = models.DocumentCheckResult()
     assert "No issues" in res.to_html()
     res.add_issue("msg1", models.Severity.WARNING, line_number=1)
@@ -25,7 +27,7 @@ def test_document_check_result_html():
     assert "warning" in html and "error" in html
 
 
-def test_visibility_settings_roundtrip():
+def test_visibility_settings_roundtrip() -> None:
     vis = models.VisibilitySettings(
         show_readability=False,
         show_format=False,
@@ -42,7 +44,7 @@ def test_visibility_settings_roundtrip():
     assert vis2.show_acronym is False
 
 
-def test_issue_dataclass_and_pattern_config():
+def test_issue_dataclass_and_pattern_config() -> None:
     pc = models.PatternConfig(pattern="foo", description="desc", is_error=True)
     assert pc.pattern == "foo"
     issue = models.Issue(message="msg")
