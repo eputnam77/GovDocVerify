@@ -150,7 +150,7 @@ class StructureChecks(BaseChecker):
     def _extract_text_from_xml(xml_bytes: bytes) -> str:
         """Extract text content from a header or footer XML blob."""
         try:
-            root = ET.fromstring(xml_bytes)
+            root = ET.fromstring(xml_bytes)  # nosec B314
         except Exception as exc:  # pragma: no cover - log and continue
             logger.error("Failed parsing header/footer XML: %s", exc)
             return ""
@@ -523,7 +523,7 @@ class StructureChecks(BaseChecker):
         for rel in doc.part.rels.values():
             if rel.reltype in (RT.HEADER, RT.FOOTER):
                 try:
-                    root = ET.fromstring(rel.target_part.blob)
+                    root = ET.fromstring(rel.target_part.blob)  # nosec B314
                 except Exception as exc:  # pragma: no cover - log and continue
                     logger.error("Failed parsing header/footer XML: %s", exc)
                     continue

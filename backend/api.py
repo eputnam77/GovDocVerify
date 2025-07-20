@@ -5,7 +5,7 @@ import tempfile
 from fastapi import File, Form, HTTPException, UploadFile
 from fastapi.responses import JSONResponse
 
-from app import process_document
+from documentcheckertool.cli import process_document
 from documentcheckertool.models import VisibilitySettings
 from documentcheckertool.utils.security import SecurityError, rate_limit, validate_file
 
