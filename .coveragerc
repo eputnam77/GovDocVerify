@@ -1,6 +1,5 @@
 [run]
 omit =
-    documentcheckertool/interfaces/*
     documentcheckertool/cli.py
     documentcheckertool/logging_config.py
     documentcheckertool/utils/formatting.py

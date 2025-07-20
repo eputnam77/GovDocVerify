@@ -3,15 +3,13 @@ title: Document Checker Tool
 emoji: 🔍
 colorFrom: blue
 colorTo: purple
-sdk: gradio
-sdk_version: 5.27.0
 app_file: app.py
 pinned: false
 ---
 
 # Document Checker Tool
 
-Validate FAA documents for style, terminology and accessibility issues. The project includes a React frontend, a FastAPI backend and a simple Gradio interface.
+Validate FAA documents for style, terminology and accessibility issues. The project includes a React frontend and a FastAPI backend.
 
 Full documentation is available in the `docs/` directory and on the generated site. See [Getting Started](docs/getting-started.md) for installation instructions.
 

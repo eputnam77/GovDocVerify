@@ -6,7 +6,7 @@ This script provides a simple way to run the application from the command line.
 
 import sys
 
-from app import main
+from backend.cli import main
 
 if __name__ == "__main__":
     sys.exit(main())
