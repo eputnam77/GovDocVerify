@@ -3,7 +3,6 @@
 # For development/testing, see requirements-dev.txt or use Poetry (see pyproject.toml)
 
 # Main app dependencies
-gradio>=5.31.0
 fastapi>=0.109.1
 starlette>=0.40.0
 python-docx>=0.8.11

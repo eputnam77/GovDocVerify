@@ -5,11 +5,12 @@
 import argparse
 import logging
 import logging.config
-import os
 import sys
 import traceback
 
-from documentcheckertool.interfaces.gradio_ui import create_interface
+import uvicorn
+
+from backend.main import app as api_app
 from documentcheckertool.logging_config import setup_logging
 from documentcheckertool.models import (
     VisibilitySettings,
@@ -86,34 +87,23 @@ def process_document(
 
 
 def main() -> int:
-    """Main entry point for the application (web/Gradio only)."""
+    """Launch the FastAPI service via uvicorn."""
     try:
-        logger.info("Starting Document Checker Tool (web/Gradio mode)")
-        parser = argparse.ArgumentParser(description="FAA Document Checker (Web/Gradio)")
+        parser = argparse.ArgumentParser(description="FAA Document Checker API")
         parser.add_argument("--debug", action="store_true", help="Enable debug mode")
         parser.add_argument("--host", type=str, default="127.0.0.1", help="Server host")
-        parser.add_argument("--port", type=int, default=7860, help="Server port")
+        parser.add_argument("--port", type=int, default=8000, help="Server port")
+        parser.add_argument("--reload", action="store_true", help="Enable auto-reload")
         args = parser.parse_args()
 
-        # Set up logging based on debug flag
         setup_logging(debug=args.debug)
 
-        if args.debug:
-            logger.debug("Debug mode enabled")
-
-        logger.info("Starting Gradio interface")
-        interface = create_interface()
-
-        # Determine if we're running in Hugging Face Spaces
-        is_spaces = os.environ.get("SPACE_ID") is not None
-        logger.info(f"Running in Hugging Face Spaces: {is_spaces}")
-
-        interface.launch(
-            debug=args.debug,
-            server_name="0.0.0.0" if is_spaces else args.host,
-            server_port=args.port,
-            show_error=True,
-            share=not is_spaces,
+        uvicorn.run(
+            api_app,
+            host=args.host,
+            port=args.port,
+            reload=args.reload,
+            log_level="debug" if args.debug else "info",
         )
         return 0
 

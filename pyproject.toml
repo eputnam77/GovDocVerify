@@ -10,7 +10,6 @@ description     = "Tool for checking documents against Federal writing standards
 requires-python = ">=3.11"
 
 dependencies = [
-  "gradio>=5.31.0",          # ↩ if you really need a web UI
   "fastapi>=0.109.1",
   "starlette>=0.40.0",
   "python-docx>=0.8.11",
@@ -92,10 +91,6 @@ ignore_missing_imports    = true
 # missing annotation errors during the dev gate.
 [[tool.mypy.overrides]]
 module = ["tests.*"]
-ignore_errors = true
-
-[[tool.mypy.overrides]]
-module = ["documentcheckertool.interfaces.gradio_ui"]
 ignore_errors = true
 
 [[tool.mypy.overrides]]
