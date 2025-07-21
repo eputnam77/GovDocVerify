@@ -20,7 +20,8 @@ repos:
     rev: v1.10.0
     hooks:
       - id: mypy          # strict mode lives in [tool.mypy]; flag no longer needed
-        args: [--strict, "src", "tests"]
+        args: [--strict, "documentcheckertool", "tests"]
+        pass_filenames: false
 
   # ── Bandit: security scan, reads settings from pyproject.toml ───────────────
   - repo: https://github.com/PyCQA/bandit

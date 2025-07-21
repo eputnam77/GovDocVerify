@@ -52,6 +52,7 @@
   - Users can download the displayed results as DOCX or PDF
 - **Labels**: frontend
 - **Tests**: [tests/e2e/features/upload_results_page.feature](tests/e2e/features/upload_results_page.feature)
+- **Status**: DONE ([documentcheckertool/export.py](../documentcheckertool/export.py))
 
 ## Epic 4: API Backend
 
@@ -73,6 +74,7 @@
   - Unit test covers CLI invocation
 - **Labels**: backend
 - **Tests**: [tests/test_backend_api.py](tests/test_backend_api.py), [tests/e2e/features/api_backend.feature](tests/e2e/features/api_backend.feature)
+- **Status**: DONE ([backend/cli.py](../backend/cli.py))
 
 ---
 
