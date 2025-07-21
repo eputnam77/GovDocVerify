@@ -45,3 +45,25 @@ The latest merge adds scenario and property tests for metadata extraction. Howev
 
 **Optional Improvements**
 - Add CI instructions for local dependency installation to avoid missing modules during test runs.
+
+### Review Update - 2025-07-21
+
+**PRD Coverage**
+- Download options for DOCX and PDF are now implemented via `export.save_results_as_docx` and `export.save_results_as_pdf`.
+- The FastAPI service can be launched with `backend.cli.main`, satisfying Task 7.
+- README lists all five metadata fields, completing Task 1.
+
+**Integration Notes**
+- Unit and property tests for export functions and backend CLI pass when dependencies are installed.
+- `mypy` reports no issues with the updated codebase.
+
+**Performance**
+- PDF export uses `FPDF` if available; otherwise falls back to a minimal stub. No major performance impact observed.
+
+**Maintainability**
+- New CLI parsing logic is split into `_build_parser` for clarity.
+- Pre-commit configuration now disables filename passing to mypy, reducing false positives.
+
+**Mandatory Fixes**
+- None. Previous documentation and test issues are resolved.
+
