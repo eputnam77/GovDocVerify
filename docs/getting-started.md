@@ -27,6 +27,7 @@ pipx install uv poetry
 
   ```bash
   pip install -r requirements-dev.txt
+  pip install uvicorn
   pre-commit install  # optional git hooks
   ```
 
