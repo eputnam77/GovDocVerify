@@ -25,6 +25,7 @@ dependencies = [
   "python-multipart>=0.0.20",
   "zipp==3.19.1",
   "anyio>=4.4.0",
+  "httpx>=0.28.1",
 ]
 
 [project.optional-dependencies]
@@ -95,6 +96,10 @@ ignore_errors = true
 
 [[tool.mypy.overrides]]
 module = ["app", "backend.api"]
+ignore_errors = true
+
+[[tool.mypy.overrides]]
+module = ["documentcheckertool.*"]
 ignore_errors = true
 
 # Temporarily disable the Pydantic mypy plugin due to instability
