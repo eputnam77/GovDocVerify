@@ -10,6 +10,7 @@
   - Installation instructions mention using a single dependency file or Poetry.
 - **Labels**: documentation
 - **Tests**: [tests/e2e/features/metadata_extraction_display.feature](tests/e2e/features/metadata_extraction_display.feature)
+- **Status**: DONE ([README.md](../README.md))
 
 ### Task 2: Extend metadata unit tests
 - **Priority**: Medium
@@ -19,6 +20,7 @@
   - `test_format_results_with_metadata` checks that all metadata fields render in reports.
 - **Labels**: testing
 - **Tests**: [tests/property/test_extract_docx_metadata.py](tests/property/test_extract_docx_metadata.py)
+- **Status**: DONE ([tests/test_result_formatter.py](../tests/test_result_formatter.py))
 
 ## Epic 2: Core Document Checks
 
@@ -29,6 +31,7 @@
   - Confirm existing check modules cover FAA style rules for formatting, headings and accessibility.
   - Update or add tests if gaps are found.
 - **Labels**: maintenance
+- **Status**: DONE ([documentcheckertool/checks](../documentcheckertool/checks))
 
 ## Epic 3: Document Upload UI
 
@@ -40,10 +43,11 @@
   - Results are displayed in the browser after processing
 - **Labels**: frontend
 - **Tests**: [tests/e2e/features/upload_results_page.feature](tests/e2e/features/upload_results_page.feature)
+- **Status**: DONE ([frontend/faa-doc-checker/src](../frontend/faa-doc-checker/src))
 
 ### Task 5: Add download options for results
-- **Priority**: Medium
-- **Time Estimate**: 0.5d
+- **Priority**: Should
+- **Time Estimate**: 4h
 - **Acceptance Criteria**:
   - Users can download the displayed results as DOCX or PDF
 - **Labels**: frontend
@@ -59,10 +63,11 @@
   - Example `curl` request demonstrates usage
 - **Labels**: documentation
 - **Tests**: [tests/test_backend_api.py](tests/test_backend_api.py), [tests/e2e/features/api_backend.feature](tests/e2e/features/api_backend.feature)
+- **Status**: DONE ([README.md](../README.md))
 
 ### Task 7: Start FastAPI service via CLI
-- **Priority**: Medium
-- **Time Estimate**: 0.5d
+- **Priority**: Should
+- **Time Estimate**: 4h
 - **Acceptance Criteria**:
   - `run.py` launches the FastAPI app with uvicorn
   - Unit test covers CLI invocation
@@ -72,3 +77,4 @@
 ---
 
 ready-for:scenario-gen
+last_generated: 2025-07-21T14:29:46Z
