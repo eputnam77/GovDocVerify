@@ -2,4 +2,8 @@ Feature: Add download options for results
 
   @e2e
   Scenario: Download results as DOCX or PDF
-    # TODO: implement steps to verify download buttons
+    Given the results page is visible
+    When I click the DOCX download option
+    Then a DOCX file is downloaded
+    When I click the PDF download option
+    Then a PDF file is downloaded
