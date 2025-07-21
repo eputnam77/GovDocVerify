@@ -6,16 +6,32 @@ This guide walks you through installing dependencies and running the application
 - Python 3.11+
 - Node 18+ for the React frontend
 
-## Backend Setup
+## Prerequisites
+
+Install [`uv`](https://github.com/astral-sh/uv) and [`Poetry`](https://python-poetry.org/) with `pip` or `pipx`:
+
 ```bash
-python -m venv venv
-source venv/bin/activate
-pip install -r requirements-dev.txt
+pip install uv poetry
+# or
+pipx install uv poetry
 ```
-Or with Poetry:
-```bash
-poetry install --with dev
-```
+
+1. **Create and activate a virtual environment**
+
+  ```bash
+  python -m venv venv
+  source venv/bin/activate
+  ```
+
+2. **Install the backend and web server**
+
+  ```bash
+  poetry install --with dev
+  poetry sync --with dev
+  uv pip install -r pyproject.toml --extra dev
+  pre-commit install  # optional git hooks
+  ```
+
 
 ## Frontend Setup
 ```bash
