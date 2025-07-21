@@ -26,9 +26,7 @@ pipx install uv poetry
 2. **Install the backend and web server**
 
   ```bash
-  poetry install --with dev
-  poetry sync --with dev
-  uv pip install -r pyproject.toml --extra dev
+  pip install -r requirements-dev.txt
   pre-commit install  # optional git hooks
   ```
 
@@ -43,7 +41,7 @@ npm install
 Start the backend in one terminal:
 ```bash
 cd backend
-uvicorn backend.main:app --reload
+python -m uvicorn backend.main:app --reload
 ```
 Start the frontend in another terminal:
 ```bash
