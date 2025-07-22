@@ -69,7 +69,7 @@ export default function App() {
       <AppBar position="static" color="primary" elevation={2}>
         <Toolbar>
           <Typography variant="h5" component="div" sx={{ flexGrow: 1, textAlign: 'center', fontWeight: 600 }}>
-            Gov Doc Verify
+            GovDocVerify
           </Typography>
         </Toolbar>
       </AppBar>
