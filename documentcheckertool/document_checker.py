@@ -1,4 +1,5 @@
 import logging
+from functools import lru_cache
 from types import SimpleNamespace
 from typing import Any, cast
 
@@ -21,6 +22,13 @@ from documentcheckertool.utils.pattern_cache import PatternCache
 from documentcheckertool.utils.terminology_utils import TerminologyManager
 
 from .utils.check_discovery import validate_check_registration
+
+
+@lru_cache(maxsize=8)
+def _load_docx_cached(path: str) -> Document:
+    """Return a cached ``Document`` instance for the given path."""
+    return Document(path)
+
 
 logger = logging.getLogger(__name__)
 
@@ -118,7 +126,7 @@ class FAADocumentChecker:
         if isinstance(document_path, str) and (
             document_path.lower().endswith(".docx") or document_path.lower().endswith(".doc")
         ):
-            doc_obj = Document(document_path)
+            doc_obj = _load_docx_cached(document_path)
             paragraphs = list(doc_obj.paragraphs)
             text = "\n".join(p.text for p in paragraphs)
             logger.debug(
