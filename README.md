@@ -1,12 +1,3 @@
----
-title: Document Checker Tool
-emoji: 🔍
-colorFrom: blue
-colorTo: purple
-app_file: app.py
-pinned: false
----
-
 # Document Checker Tool
 
 Validate FAA documents for style, terminology and accessibility issues. The project includes a React frontend and a FastAPI backend.
