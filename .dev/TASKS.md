@@ -43,7 +43,7 @@
   - Results are displayed in the browser after processing
 - **Labels**: frontend
 - **Tests**: [tests/e2e/features/upload_results_page.feature](tests/e2e/features/upload_results_page.feature)
-- **Status**: DONE ([frontend/faa-doc-checker/src](../frontend/faa-doc-checker/src))
+- **Status**: DONE ([frontend/govdocverify/src](../frontend/govdocverify/src))
 
 ### Task 5: Add download options for results
 - **Priority**: Should

@@ -34,10 +34,10 @@ logger = logging.getLogger(__name__)
 
 
 class FAADocumentChecker:
-    """Main Gov Doc Verify checker class that coordinates various checks."""
+    """Main GovDocVerify checker class that coordinates various checks."""
 
     def __init__(self):
-        """Initialize the Gov Doc Verify checker with all check modules."""
+        """Initialize the GovDocVerify checker with all check modules."""
         logger.debug("Initializing FAADocumentChecker")
 
         # Initialize pattern cache for heading checks

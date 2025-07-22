@@ -1,4 +1,4 @@
-# Development and testing requirements for Gov Doc Verify
+# Development and testing requirements for GovDocVerify
 # Install with: pip install -r requirements-dev.txt
 # This includes all runtime requirements plus dev/test tools
 

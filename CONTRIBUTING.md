@@ -1,6 +1,6 @@
-# Contributing to Gov Doc Verify Sandbox
+# Contributing to GovDocVerify Sandbox
 
-Thank you for your interest in contributing to the Gov Doc Verify Sandbox! This guide will help you get started with the development process.
+Thank you for your interest in contributing to the GovDocVerify Sandbox! This guide will help you get started with the development process.
 
 ## Code Formatting
 

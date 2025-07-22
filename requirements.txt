@@ -1,4 +1,4 @@
-# Core runtime requirements for Gov Doc Verify
+# Core runtime requirements for GovDocVerify
 # Install with: pip install -r requirements.txt
 # For development/testing, see requirements-dev.txt or use Poetry (see pyproject.toml)
 

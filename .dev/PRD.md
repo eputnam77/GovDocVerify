@@ -1,4 +1,4 @@
-# Gov Doc Verify PRD
+# GovDocVerify PRD
 
 ## Overview
 This product validates Word documents against FAA style standards and now
@@ -19,7 +19,7 @@ and a React frontend. Core checking logic lives under
 
 - **CLI** – entry point `cli.py` lets users run checks locally.
 - **API** – `backend/` packages the FastAPI application and routes.
-- **Frontend** – `frontend/faa-doc-checker` provides the React interface.
+- **Frontend** – `frontend/govdocverify` provides the React interface.
 
 All interfaces call `process_document` which invokes the
 `FAADocumentChecker` to run category-specific checks. Export utilities

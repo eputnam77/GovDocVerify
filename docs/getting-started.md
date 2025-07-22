@@ -34,7 +34,7 @@ pipx install uv poetry
 
 ## Frontend Setup
 ```bash
-cd frontend/faa-doc-checker
+cd frontend/govdocverify
 npm install
 ```
 
@@ -46,7 +46,7 @@ python -m uvicorn backend.main:app --reload
 ```
 Start the frontend in another terminal:
 ```bash
-cd frontend/faa-doc-checker
+cd frontend/govdocverify
 npm run dev
 ```
 

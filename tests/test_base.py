@@ -14,7 +14,7 @@ from govdocverify.utils.terminology_utils import TerminologyManager
 
 
 class TestBase(unittest.TestCase):
-    """Base class for all Gov Doc Verify tests."""
+    """Base class for all GovDocVerify tests."""
 
     def setUp(self):
         """Set up test environment."""
