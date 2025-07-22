@@ -1,24 +1,24 @@
 [run]
 omit =
-    documentcheckertool/cli.py
-    documentcheckertool/logging_config.py
-    documentcheckertool/utils/formatting.py
-    documentcheckertool/docs/*
-    documentcheckertool/document_checker.py
-    documentcheckertool/models/__init__.py
-    documentcheckertool/utils/terminology_utils.py
-    documentcheckertool/constants.py
-    documentcheckertool/utils/metadata_utils.py
-    documentcheckertool/utils/check_discovery.py
-    documentcheckertool/checks/reference_checks.py
-    documentcheckertool/processing.py
-    documentcheckertool/checks/readability_checks.py
-    documentcheckertool/checks/acronym_checks.py
-    documentcheckertool/checks/base_checker.py
-    documentcheckertool/checks/format_checks.py
-    documentcheckertool/checks/heading_checks.py
-    documentcheckertool/checks/structure_checks.py
-    documentcheckertool/checks/accessibility_checks.py
+    govdocverify/cli.py
+    govdocverify/logging_config.py
+    govdocverify/utils/formatting.py
+    govdocverify/docs/*
+    govdocverify/document_checker.py
+    govdocverify/models/__init__.py
+    govdocverify/utils/terminology_utils.py
+    govdocverify/constants.py
+    govdocverify/utils/metadata_utils.py
+    govdocverify/utils/check_discovery.py
+    govdocverify/checks/reference_checks.py
+    govdocverify/processing.py
+    govdocverify/checks/readability_checks.py
+    govdocverify/checks/acronym_checks.py
+    govdocverify/checks/base_checker.py
+    govdocverify/checks/format_checks.py
+    govdocverify/checks/heading_checks.py
+    govdocverify/checks/structure_checks.py
+    govdocverify/checks/accessibility_checks.py
 
 [report]
 exclude_lines =

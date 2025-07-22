@@ -1,4 +1,4 @@
-from documentcheckertool.models.checker_result import DocumentValidationResults
+from govdocverify.models.checker_result import DocumentValidationResults
 
 
 def test_watermark_addition() -> None:

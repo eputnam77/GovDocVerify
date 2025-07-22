@@ -5,11 +5,11 @@ import logging
 import pytest
 from docx import Document
 
-from documentcheckertool.checks.reference_checks import (
+from govdocverify.checks.reference_checks import (
     DocumentTitleFormatCheck,
     TableFigureReferenceCheck,
 )
-from documentcheckertool.models import DocumentCheckResult
+from govdocverify.models import DocumentCheckResult
 
 # Configure logging for tests
 logging.basicConfig(level=logging.DEBUG)

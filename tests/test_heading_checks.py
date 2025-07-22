@@ -4,8 +4,8 @@
 import pytest
 from docx import Document
 
-from documentcheckertool.checks.heading_checks import HeadingChecks
-from documentcheckertool.utils.terminology_utils import TerminologyManager
+from govdocverify.checks.heading_checks import HeadingChecks
+from govdocverify.utils.terminology_utils import TerminologyManager
 
 
 class TestHeadingChecks:

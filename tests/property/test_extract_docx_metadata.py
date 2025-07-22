@@ -6,7 +6,7 @@ from docx import Document
 from hypothesis import HealthCheck, given, settings
 from hypothesis import strategies as st
 
-from documentcheckertool.utils import extract_docx_metadata
+from govdocverify.utils import extract_docx_metadata
 
 ascii_chars = st.characters(min_codepoint=32, max_codepoint=126)
 

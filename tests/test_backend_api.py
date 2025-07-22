@@ -3,7 +3,7 @@ from unittest import mock
 from fastapi.testclient import TestClient
 
 from backend.main import app
-from documentcheckertool.utils.security import RateLimiter
+from govdocverify.utils.security import RateLimiter
 
 
 def _mock_result():
@@ -13,7 +13,7 @@ def _mock_result():
 def test_invalid_file_type(monkeypatch):
     client = TestClient(app)
     monkeypatch.setattr("backend.api.process_document", lambda *args, **kwargs: _mock_result())
-    with mock.patch("documentcheckertool.utils.security.filetype.guess") as guess:
+    with mock.patch("govdocverify.utils.security.filetype.guess") as guess:
         guess.return_value = None
         resp = client.post(
             "/process",
@@ -28,10 +28,10 @@ def test_rate_limiting(monkeypatch):
     monkeypatch.setattr("backend.api.process_document", lambda *args, **kwargs: _mock_result())
     with (
         mock.patch(
-            "documentcheckertool.utils.security.rate_limiter",
+            "govdocverify.utils.security.rate_limiter",
             RateLimiter(max_requests=1, time_window=60),
         ) as rl,
-        mock.patch("documentcheckertool.utils.security.filetype.guess") as guess,
+        mock.patch("govdocverify.utils.security.filetype.guess") as guess,
     ):
         guess.return_value = mock.Mock(mime="application/msword")
         rl.requests.clear()

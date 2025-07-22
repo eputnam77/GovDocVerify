@@ -4,9 +4,9 @@
 
 import pytest
 
-from documentcheckertool.checks.readability_checks import ReadabilityChecks
-from documentcheckertool.checks.terminology_checks import TerminologyChecks
-from documentcheckertool.utils.terminology_utils import TerminologyManager
+from govdocverify.checks.readability_checks import ReadabilityChecks
+from govdocverify.checks.terminology_checks import TerminologyChecks
+from govdocverify.utils.terminology_utils import TerminologyManager
 
 # Mock or stub for testing purposes
 READABILITY_CONFIG = {"max_sentence_length": 20, "max_paragraph_length": 100}

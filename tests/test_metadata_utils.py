@@ -3,7 +3,7 @@ from pathlib import Path
 
 from docx import Document
 
-from documentcheckertool.utils import extract_docx_metadata
+from govdocverify.utils import extract_docx_metadata
 
 
 def test_extract_docx_metadata(tmp_path: Path) -> None:

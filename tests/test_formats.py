@@ -10,9 +10,9 @@ import tempfile
 import pytest
 from docx import Document
 
-from documentcheckertool.checks.format_checks import FormatChecks, FormattingChecker
-from documentcheckertool.models import DocumentCheckResult, Severity
-from documentcheckertool.utils.terminology_utils import TerminologyManager
+from govdocverify.checks.format_checks import FormatChecks, FormattingChecker
+from govdocverify.models import DocumentCheckResult, Severity
+from govdocverify.utils.terminology_utils import TerminologyManager
 
 logger = logging.getLogger(__name__)
 

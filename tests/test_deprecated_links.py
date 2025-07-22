@@ -1,7 +1,7 @@
 # pytest -v tests/test_deprecated_links.py --log-cli-level=DEBUG
 
-from documentcheckertool.checks.accessibility_checks import AccessibilityChecks
-from documentcheckertool.models import Severity
+from govdocverify.checks.accessibility_checks import AccessibilityChecks
+from govdocverify.models import Severity
 
 checker = AccessibilityChecks()
 

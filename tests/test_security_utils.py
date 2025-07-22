@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pytest
 
-from documentcheckertool.utils.security import SecurityError, sanitize_file_path
+from govdocverify.utils.security import SecurityError, sanitize_file_path
 
 
 def test_sanitize_allows_absolute_paths(tmp_path: Path) -> None:

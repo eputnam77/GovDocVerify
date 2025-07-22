@@ -1,6 +1,6 @@
 import logging
 
-from documentcheckertool.logging_config import setup_logging
+from govdocverify.logging_config import setup_logging
 
 
 def test_setup_logging_debug():

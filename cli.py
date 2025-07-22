@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
-"""Root-level entry point for the Document Checker CLI."""
+"""Root-level entry point for the GovDocVerify CLI."""
 
-from documentcheckertool import cli as package_cli
+from govdocverify import cli as package_cli
 
 
 def main() -> int:
-    """Delegate to :func:`documentcheckertool.cli.main`."""
+    """Delegate to :func:`govdocverify.cli.main`."""
     return package_cli.main()
 
 

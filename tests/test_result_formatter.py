@@ -1,5 +1,5 @@
-from documentcheckertool.models import DocumentCheckResult, Severity
-from documentcheckertool.utils.formatting import FormatStyle, ResultFormatter
+from govdocverify.models import DocumentCheckResult, Severity
+from govdocverify.utils.formatting import FormatStyle, ResultFormatter
 
 
 def _make_result(issues=None, details=None):

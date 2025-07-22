@@ -4,10 +4,10 @@ from unittest import mock
 
 import pytest
 
-from documentcheckertool.models import DocumentCheckResult, Severity
-from documentcheckertool.utils.formatting import FormatStyle, ResultFormatter
-from documentcheckertool.utils.pattern_cache import PatternCache
-from documentcheckertool.utils.security import (
+from govdocverify.models import DocumentCheckResult, Severity
+from govdocverify.utils.formatting import FormatStyle, ResultFormatter
+from govdocverify.utils.pattern_cache import PatternCache
+from govdocverify.utils.security import (
     RateLimiter,
     SecurityError,
     validate_file,
@@ -35,7 +35,7 @@ def test_pattern_cache_basic(tmp_path):
 def test_validate_file_and_rate_limiter(tmp_path):
     f = tmp_path / "x.docx"
     f.write_bytes(b"test")
-    with mock.patch("documentcheckertool.utils.security.filetype.guess") as g:
+    with mock.patch("govdocverify.utils.security.filetype.guess") as g:
         g.return_value = mock.Mock(mime="application/msword")
         validate_file(str(f))
         g.return_value = None

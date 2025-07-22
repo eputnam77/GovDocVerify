@@ -2,7 +2,7 @@ Integration and Design Review - 2025-07-18
 ==========================================
 
 ## PRD Coverage
-- **Automated checks** for formatting, headings and accessibility are implemented via dedicated modules in `documentcheckertool/checks`. Unit tests exist for each module.
+- **Automated checks** for formatting, headings and accessibility are implemented via dedicated modules in `govdocverify/checks`. Unit tests exist for each module.
 - **Metadata extraction** is handled by `extract_docx_metadata` and displayed in the report header (`ResultFormatter._add_header`). Tests `test_extract_docx_metadata` and `test_format_results_with_metadata` confirm behaviour.
 
 ## Integration Risks

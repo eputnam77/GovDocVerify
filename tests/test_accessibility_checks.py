@@ -9,9 +9,9 @@ from unittest.mock import Mock
 import pytest
 from docx import Document
 
-from documentcheckertool.checks.accessibility_checks import AccessibilityChecks
-from documentcheckertool.models import DocumentCheckResult, Severity
-from documentcheckertool.utils.terminology_utils import TerminologyManager
+from govdocverify.checks.accessibility_checks import AccessibilityChecks
+from govdocverify.models import DocumentCheckResult, Severity
+from govdocverify.utils.terminology_utils import TerminologyManager
 from tests.test_base import TestBase
 
 logger = logging.getLogger(__name__)

@@ -6,9 +6,9 @@ import unittest
 
 import pytest
 
-from documentcheckertool.checks.acronym_checks import AcronymChecker
-from documentcheckertool.models import DocumentCheckResult
-from documentcheckertool.utils.terminology_utils import TerminologyManager
+from govdocverify.checks.acronym_checks import AcronymChecker
+from govdocverify.models import DocumentCheckResult
+from govdocverify.utils.terminology_utils import TerminologyManager
 
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)

@@ -1,0 +1,391 @@
+{
+    "acronyms": {
+        "standard": {
+            "FAA": "Federal Aviation Administration",
+            "AC": "Advisory Circular",
+            "CFR": "Code of Federal Regulations",
+            "NPRM": "Notice of Proposed Rulemaking",
+            "FR": "Federal Register",
+            "TSO": "Technical Standard Order",
+            "PMA": "Parts Manufacturer Approval",
+            "U.S.": "United States",
+            "U.S.C.": "United States Code",
+            "DOT": "Department of Transportation",
+            "OST": "Office of the Secretary of Transportation",
+            "NTSB": "National Transportation Safety Board",
+            "NASA": "National Aeronautics and Space Administration",
+            "EASA": "European Union Aviation Safety Agency",
+            "CAA": "Civil Aviation Authority (UK)",
+            "TCCA": "Transport Canada Civil Aviation",
+            "ANAC": "Ag\u00c3\u00aancia Nacional de Avia\u00c3\u00a7\u00c3\u00a3o Civil (Brazil)",
+            "DGAC": "Direction G\u00c3\u00a9n\u00c3\u00a9rale de l'Aviation Civile (France)",
+            "CAAC": "Civil Aviation Administration of China",
+            "CASA": "Civil Aviation Safety Authority (Australia)",
+            "ICAO": "International Civil Aviation Organization",
+            "IATA": "International Air Transport Association",
+            "EU": "European Union",
+            "JAA": "Joint Aviation Authorities (Europe)",
+            "SAFO": "Safety Alert for Operators",
+            "AIM": "Aeronautical Information Manual",
+            "ATC": "Air Traffic Control",
+            "ATIS": "Automatic Terminal Information Service",
+            "NOTAM": "Notice to Airmen",
+            "FSDO": "Flight Standards District Office",
+            "AOC": "Air Operator Certificate",
+            "MEL": "Minimum Equipment List",
+            "LOA": "Letter of Authorization",
+            "POI": "Principal Operations Inspector",
+            "PMI": "Principal Maintenance Inspector",
+            "ASRS": "Aviation Safety Reporting System",
+            "FOQA": "Flight Operational Quality Assurance",
+            "SMS": "Safety Management System",
+            "RVSM": "Reduced Vertical Separation Minimum",
+            "ETOPS": "Extended-range Twin-engine Operational Performance Standards",
+            "AD": "Airworthiness Directive",
+            "STC": "Supplemental Type Certificate",
+            "TC": "Type Certificate",
+            "OEM": "Original Equipment Manufacturer",
+            "PIC": "Pilot in Command",
+            "SIC": "Second in Command",
+            "VFR": "Visual Flight Rules",
+            "IFR": "Instrument Flight Rules",
+            "FAR": "Federal Aviation Regulation",
+            "SFAR": "Special Federal Aviation Regulation",
+            "AOPA": "Aircraft Owners and Pilots Association",
+            "NBAA": "National Business Aviation Association",
+            "ALPA": "Air Line Pilots Association",
+            "RA": "Resolution Advisory",
+            "TA": "Traffic Advisory",
+            "TCAS": "Traffic Collision Avoidance System",
+            "ADS-B": "Automatic Dependent Surveillance\u00e2\u20ac\u201cBroadcast",
+            "VOR": "VHF Omnidirectional Range",
+            "ILS": "Instrument Landing System",
+            "RNAV": "Area Navigation",
+            "RNP": "Required Navigation Performance",
+            "SID": "Standard Instrument Departure",
+            "STAR": "Standard Terminal Arrival Route",
+            "METAR": "Meteorological Aerodrome Report",
+            "TAF": "Terminal Aerodrome Forecast",
+            "FAA-HQ": "Federal Aviation Administration Headquarters",
+            "RTCA": "Radio Technical Commission for Aeronautics",
+            "SC": "Special Conditions",
+            "RGL": "Regulatory and Guidance Library",
+            "EMI": "Electromagnetic Interference",
+            "FPI": "Flourescent Penetrant Inspection",
+            "ISO": "International Organization for Standards",
+            "ASNT": "American Society for Nondestruction Testing, Inc.",
+            "NDI": "Nondestructive Inspection",
+            "NDT": "Nondestructive Testing",
+            "NIST": "National Institute of Standards and Technology",
+            "ECI": "Eddy Current Inspection",
+            "SEE": "Single Event Upsets"
+        },
+        "custom": {
+            "API": "Application Programming Interface",
+            "REST": "Representational State Transfer",
+            "FOO": "Foo Object Oriented",
+            "BAR": "Bar Application Resource"
+        }
+    },
+    "patterns": {
+        "ignore_patterns": [
+            "FAA-\\d{4}-\\d+",
+            "\\d{2}-\\d{2}-\\d{2}-SC",
+            "AC\\s*\\d+(?:[-.]\\d+)*[A-Z]*",
+            "AD\\s*\\d{4}-\\d{2}-\\d{2}",
+            "\\d{2}-[A-Z]{2,}",
+            "[A-Z]+-\\d+",
+            "\u00c2\u00a7\\s*[A-Z]+\\.\\d+",
+            "Part\\s*[A-Z]+"
+        ],
+        "terminology": [
+            {
+                "pattern": "\\btitle (\\d+) of the United States Code \\((\\d+ U\\.S\\.C\\.)\\)\\b",
+                "description": "Ensure proper formatting for United States Code references",
+                "is_error": false
+            },
+            {
+                "pattern": "\\btitle (\\d+) of the Code of Federal Regulations \\((\\d+ CFR)\\)\\b",
+                "description": "Ensure proper formatting for Code of Federal Regulations references",
+                "is_error": false
+            }
+        ],
+        "pronouns": [
+            {
+                "pattern": "\\b(I|me|my|mine)\\b",
+                "description": "Replace first-person singular pronouns with specific entities",
+                "is_error": true,
+                "replacement": "The FAA"
+            },
+            {
+                "pattern": "\\b(we|us|our|ours)\\b",
+                "description": "Replace first-person plural pronouns with 'The FAA'",
+                "is_error": true,
+                "replacements": {
+                    "we": "The FAA",
+                    "us": "The FAA",
+                    "our": "The FAA's",
+                    "ours": "The FAA's"
+                }
+            }
+        ],
+        "citations": [
+            {
+                "pattern": "\\b(\\d+)\\s+(?:U\\.S\\.C\\.|CFR)\\s+(\u00c2\u00a7|\u00c2\u00a7\u00c2\u00a7)\\s+(\\d+(?:\\.\\d+)*)\\b",
+                "description": "Ensure proper formatting of legal citations",
+                "is_error": true,
+                "replacement": "$1 $2 \u00c2\u00a7$3 (per GPO Style Manual)"
+            }
+        ],
+        "section_symbol": [
+            {
+                "pattern": "\\b(section|subsection|paragraph|clause)\\b",
+                "description": "Ensure proper use of '\u00c2\u00a7' or '\u00c2\u00a7\u00c2\u00a7' instead of spelled-out 'section'",
+                "is_error": true
+            }
+        ],
+        "dates": [
+            {
+                "pattern": "(?<![\\w/-])(?!TSO-[A-Z]?\\d)(\\d{1,2}/\\d{1,2}/\\d{2,4}|\\d{1,2}-\\d{1,2}-\\d{2,4}|\\d{4}-\\d{1,2}-\\d{1,2})(?![\\w/-])",
+                "description": "Do not flag TSO references as date format issues",
+                "is_error": false
+            }
+        ],
+        "placeholders": [
+            {
+                "pattern": "\\bTBD\\b",
+                "description": "Remove TBD placeholder",
+                "is_error": true
+            },
+            {
+                "pattern": "\\bTo be determined\\b",
+                "description": "Remove 'To be determined' placeholder",
+                "is_error": true
+            }
+        ]
+    },
+    "acronym_rules": {
+        "max_length": 10,
+        "require_alphabetic": true,
+        "heading_detection": {
+            "require_all_uppercase": true,
+            "require_heading_word": true
+        }
+    },
+    "required_language": {
+        "ADVISORY_CIRCULAR": [
+            "This is a guidance document\\. Its content is not legally binding in its own right",
+            "The guidance provided in this AC is for manufacturers, modifiers, foreign regulatory authorities",
+            "The contents of this AC do not have the force and effect of law"
+        ],
+        "POLICY_STATEMENT": [
+            "The contents of this policy statement do not have the force and effect of law",
+            "This policy statement does not constitute a new regulation"
+        ],
+        "FEDERAL_REGISTER_NOTICE": [
+            "Except for Confidential Business Information \\(CBI\\) as described in the following paragraph",
+            "Confidential Business Information \\(CBI\\) is commercial or financial information"
+        ],
+        "ORDER": [
+            "This order establishes requirements for",
+            "This order is effective",
+            "This order is issued under the authority of"
+        ]
+    },
+    "valid_words": {
+        "standard": [
+            "the",
+            "and",
+            "of",
+            "to",
+            "in",
+            "is",
+            "for",
+            "with",
+            "on",
+            "by",
+            "at",
+            "from",
+            "as",
+            "that",
+            "this",
+            "it",
+            "an",
+            "be",
+            "are",
+            "was",
+            "or",
+            "not",
+            "have",
+            "has",
+            "but",
+            "can",
+            "will",
+            "if",
+            "do",
+            "all",
+            "any",
+            "each",
+            "which",
+            "their",
+            "more",
+            "other",
+            "new",
+            "some",
+            "such",
+            "no",
+            "only",
+            "see",
+            "use",
+            "used",
+            "using",
+            "may",
+            "should",
+            "must",
+            "shall",
+            "were",
+            "been",
+            "being",
+            "than",
+            "then",
+            "there",
+            "these",
+            "those",
+            "who",
+            "what",
+            "when",
+            "where",
+            "why",
+            "how",
+            "about",
+            "also",
+            "after",
+            "before",
+            "between",
+            "both",
+            "during",
+            "over",
+            "under",
+            "out",
+            "up",
+            "down",
+            "into",
+            "through",
+            "upon",
+            "without",
+            "within",
+            "would",
+            "could",
+            "might",
+            "like",
+            "just",
+            "now",
+            "so",
+            "very",
+            "well",
+            "even",
+            "most",
+            "many",
+            "much",
+            "every",
+            "same",
+            "own",
+            "our",
+            "your",
+            "his",
+            "her",
+            "its",
+            "their",
+            "them",
+            "he",
+            "she",
+            "we",
+            "they",
+            "you",
+            "I"
+        ],
+        "custom": []
+    },
+    "heading_words": [
+        "PURPOSE",
+        "BACKGROUND",
+        "DEFINITIONS",
+        "APPLICABILITY",
+        "REFERENCES",
+        "CANCELLATION",
+        "EFFECTIVE DATE",
+        "FOR FURTHER INFORMATION CONTACT"
+    ],
+    "heading_periods": {
+        "ADVISORY_CIRCULAR": true,
+        "POLICY_STATEMENT": true,
+        "FEDERAL_REGISTER_NOTICE": true,
+        "ORDER": true,
+        "TECHNICAL_STANDARD_ORDER": true,
+        "TSO": true
+    },
+    "document_types": {
+        "ADVISORY_CIRCULAR": {
+            "required_headings": [
+                "PURPOSE",
+                "BACKGROUND",
+                "DEFINITIONS",
+                "APPLICABILITY",
+                {
+                    "name": "CANCELLATION",
+                    "optional": true,
+                    "condition": "if_cancels_previous"
+                }
+            ],
+            "skip_title_check": false
+        },
+        "POLICY_STATEMENT": {
+            "required_headings": [
+                "PURPOSE",
+                "BACKGROUND",
+                "DEFINITIONS",
+                "APPLICABILITY"
+            ],
+            "skip_title_check": false
+        },
+        "FEDERAL_REGISTER_NOTICE": {
+            "required_headings": [
+                "PURPOSE",
+                "BACKGROUND",
+                "DEFINITIONS",
+                "APPLICABILITY"
+            ],
+            "skip_title_check": false
+        },
+        "ORDER": {
+            "required_headings": [
+                "PURPOSE",
+                "BACKGROUND",
+                "DEFINITIONS",
+                "APPLICABILITY"
+            ],
+            "skip_title_check": false
+        }
+    },
+    "accessibility": {
+        "required_alt_text": true,
+        "heading_structure": {
+            "sequential": true,
+            "max_depth": 6
+        },
+        "color_contrast": {
+            "minimum_ratio": 4.5,
+            "large_text_ratio": 3.0
+        }
+    },
+    "readability": {
+        "max_sentence_length": 20,
+        "max_paragraph_sentences": 5,
+        "passive_voice_patterns": [
+            "\\b(?:am|is|are|was|were|be|been|being)\\s+\\w+ed\\b",
+            "\\b(?:am|is|are|was|were|be|been|being)\\s+\\w+en\\b",
+            "\\b(?:has|have|had)\\s+been\\s+\\w+ed\\b",
+            "\\b(?:has|have|had)\\s+been\\s+\\w+en\\b"
+        ]
+    }
+}

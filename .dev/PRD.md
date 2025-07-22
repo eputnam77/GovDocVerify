@@ -1,4 +1,4 @@
-# Document Checker Tool PRD
+# Gov Doc Verify PRD
 
 ## Overview
 This product validates Word documents against FAA style standards and now
@@ -15,7 +15,7 @@ extracts document metadata for display.
 ## Architecture
 The project is composed of a reusable Python package, a FastAPI service,
 and a React frontend. Core checking logic lives under
-`documentcheckertool/` and is shared by all interfaces:
+`govdocverify/` and is shared by all interfaces:
 
 - **CLI** – entry point `cli.py` lets users run checks locally.
 - **API** – `backend/` packages the FastAPI application and routes.
@@ -45,7 +45,7 @@ Ruff, Black, MyPy and the Pytest suite on each commit.
 ## Repository Structure
 Key folders include:
 
-- `documentcheckertool/` – core package and checks
+- `govdocverify/` – core package and checks
 - `backend/` – FastAPI service
 - `frontend/` – React application
 - `docs/` – MkDocs site with guides and API reference

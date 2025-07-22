@@ -7,10 +7,10 @@ import zipfile
 import pytest
 from docx import Document
 
-from documentcheckertool.checks.structure_checks import StructureChecks
-from documentcheckertool.config.boilerplate_texts import BOILERPLATE_PARAGRAPHS
-from documentcheckertool.models import DocumentCheckResult
-from documentcheckertool.utils.terminology_utils import TerminologyManager
+from govdocverify.checks.structure_checks import StructureChecks
+from govdocverify.config.boilerplate_texts import BOILERPLATE_PARAGRAPHS
+from govdocverify.models import DocumentCheckResult
+from govdocverify.utils.terminology_utils import TerminologyManager
 
 logger = logging.getLogger(__name__)
 

@@ -29,4 +29,4 @@ ENV PYTHONUNBUFFERED=1
 EXPOSE 7860
 
 # Command to run the application
-CMD ["poetry", "run", "python", "-m", "documentcheckertool.app"] 
+CMD ["poetry", "run", "python", "-m", "govdocverify.app"] 

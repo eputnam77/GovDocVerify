@@ -5,7 +5,7 @@ import pytest
 from hypothesis import HealthCheck, given, settings
 from hypothesis import strategies as st
 
-from documentcheckertool import export
+from govdocverify import export
 
 
 @pytest.mark.property

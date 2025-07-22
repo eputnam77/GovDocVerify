@@ -11,14 +11,14 @@ import traceback
 import uvicorn
 
 from backend.main import app as api_app
-from documentcheckertool.logging_config import setup_logging
-from documentcheckertool.models import (
+from govdocverify.logging_config import setup_logging
+from govdocverify.models import (
     VisibilitySettings,
 )
-from documentcheckertool.processing import build_results_dict
-from documentcheckertool.processing import process_document as _run_checks
-from documentcheckertool.utils import extract_docx_metadata
-from documentcheckertool.utils.formatting import FormatStyle, ResultFormatter
+from govdocverify.processing import build_results_dict
+from govdocverify.processing import process_document as _run_checks
+from govdocverify.utils import extract_docx_metadata
+from govdocverify.utils.formatting import FormatStyle, ResultFormatter
 
 logger = logging.getLogger(__name__)
 
@@ -89,7 +89,7 @@ def process_document(
 def main() -> int:
     """Launch the FastAPI service via uvicorn."""
     try:
-        parser = argparse.ArgumentParser(description="FAA Document Checker API")
+        parser = argparse.ArgumentParser(description="GovDocVerify API")
         parser.add_argument("--debug", action="store_true", help="Enable debug mode")
         parser.add_argument("--host", type=str, default="127.0.0.1", help="Server host")
         parser.add_argument("--port", type=int, default=8000, help="Server port")

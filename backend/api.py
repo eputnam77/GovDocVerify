@@ -5,9 +5,9 @@ import tempfile
 from fastapi import File, Form, HTTPException, UploadFile
 from fastapi.responses import JSONResponse
 
-from documentcheckertool.cli import process_document
-from documentcheckertool.models import VisibilitySettings
-from documentcheckertool.utils.security import SecurityError, rate_limit, validate_file
+from govdocverify.cli import process_document
+from govdocverify.models import VisibilitySettings
+from govdocverify.utils.security import SecurityError, rate_limit, validate_file
 
 log = logging.getLogger(__name__)
 

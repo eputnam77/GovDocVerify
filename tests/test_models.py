@@ -7,7 +7,7 @@ import sys
 import time
 import unittest
 
-from documentcheckertool.models import DocumentType, DocumentTypeError
+from govdocverify.models import DocumentType, DocumentTypeError
 
 # Configure logging with more detailed format
 logging.basicConfig(

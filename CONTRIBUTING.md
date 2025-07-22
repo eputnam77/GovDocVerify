@@ -1,6 +1,6 @@
-# Contributing to Document Checker Tool Sandbox
+# Contributing to Gov Doc Verify Sandbox
 
-Thank you for your interest in contributing to the Document Checker Tool Sandbox! This guide will help you get started with the development process.
+Thank you for your interest in contributing to the Gov Doc Verify Sandbox! This guide will help you get started with the development process.
 
 ## Code Formatting
 
@@ -61,7 +61,7 @@ pytest
 
 For coverage reports:
 ```bash
-pytest --cov=documentcheckertool
+pytest --cov=govdocverify
 ```
 
 ## Submitting Changes
@@ -75,7 +75,7 @@ pytest --cov=documentcheckertool
 
 ## Project Structure
 
-- `documentcheckertool/`: Main package code
+- `govdocverify/`: Main package code
 - `tests/`: Test files
 - `frontend/`: React frontend application
 - `backend/`: Backend API code
