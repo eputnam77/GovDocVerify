@@ -1,1 +1,0 @@
-"""Document checker checks package."""

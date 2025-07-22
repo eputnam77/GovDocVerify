@@ -4,7 +4,7 @@ requires = ["setuptools>=61.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name            = "documentcheckertoolsandbox"
+name            = "govdocverifysandbox"
 version         = "0.1.0"
 description     = "Tool for checking documents against Federal writing standards."
 requires-python = ">=3.11,<4.0"
@@ -74,7 +74,7 @@ select = ["E", "F", "W", "C90", "I"]
 # ── Static typing ─────────────────────────────────────────────────────────────
 [tool.mypy]
 python_version            = "3.12"
-packages                  = ["documentcheckertool"]
+packages                  = ["govdocverify"]
 strict                    = true
 warn_return_any           = true
 warn_unused_configs       = true
@@ -99,7 +99,7 @@ module = ["app", "backend.api"]
 ignore_errors = true
 
 [[tool.mypy.overrides]]
-module = ["documentcheckertool.*"]
+module = ["govdocverify.*"]
 ignore_errors = true
 
 # Temporarily disable the Pydantic mypy plugin due to instability
@@ -108,7 +108,7 @@ ignore_errors = true
 
 # ── Security scanning ────────────────────────────────────────────────────────
 [tool.bandit]
-targets      = ["documentcheckertool"]
+targets      = ["govdocverify"]
 exclude_dirs = ["tests"]
 skips        = ["B101"]
 

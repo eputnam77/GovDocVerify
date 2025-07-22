@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pytest
 
-from documentcheckertool.docs import update_metadata_documentation
+from govdocverify.docs import update_metadata_documentation
 
 
 def test_readme_lists_all_metadata_fields() -> None:

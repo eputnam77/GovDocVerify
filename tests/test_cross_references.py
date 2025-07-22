@@ -2,8 +2,8 @@ import logging
 
 import pytest
 
-from documentcheckertool.checks.structure_checks import StructureChecks
-from documentcheckertool.utils.terminology_utils import TerminologyManager
+from govdocverify.checks.structure_checks import StructureChecks
+from govdocverify.utils.terminology_utils import TerminologyManager
 
 # Example for a long line split:
 expected = [

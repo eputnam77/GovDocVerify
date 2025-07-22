@@ -3,8 +3,8 @@ import json
 from pathlib import Path
 
 spec = importlib.util.spec_from_file_location(
-    "documentcheckertool_models_file",
-    Path(__file__).resolve().parents[1] / "documentcheckertool" / "models.py",
+    "govdocverify_models_file",
+    Path(__file__).resolve().parents[1] / "govdocverify" / "models.py",
 )
 assert spec is not None
 models = importlib.util.module_from_spec(spec)

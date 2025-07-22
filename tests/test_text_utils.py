@@ -1,9 +1,9 @@
-# python -m pytest tests/test_text_utils.py -v --cov=documentcheckertool.utils.text_utils
+# python -m pytest tests/test_text_utils.py -v --cov=govdocverify.utils.text_utils
 
 import pytest
 
-from documentcheckertool.utils.terminology_utils import TerminologyManager
-from documentcheckertool.utils.text_utils import (
+from govdocverify.utils.terminology_utils import TerminologyManager
+from govdocverify.utils.text_utils import (
     calculate_passive_voice_percentage,
     calculate_readability_metrics,
     count_syllables,

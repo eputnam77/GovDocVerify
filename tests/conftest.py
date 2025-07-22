@@ -12,11 +12,11 @@ sys.path.insert(0, str(tests_dir))
 
 @pytest.fixture
 def managers():
-    from documentcheckertool.checks.format_checks import (
+    from govdocverify.checks.format_checks import (
         FormatChecks,
         FormattingChecker,
     )
-    from documentcheckertool.utils.terminology_utils import TerminologyManager
+    from govdocverify.utils.terminology_utils import TerminologyManager
 
     tm = TerminologyManager()
     return FormatChecks(tm), FormattingChecker(tm)

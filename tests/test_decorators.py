@@ -1,7 +1,7 @@
 import logging
 import time
 
-from documentcheckertool.utils.decorators import profile_performance
+from govdocverify.utils.decorators import profile_performance
 
 
 def test_profile_performance(caplog):

@@ -1,4 +1,4 @@
-from documentcheckertool.formatting.document_formatter import DocumentFormatter
+from govdocverify.formatting.document_formatter import DocumentFormatter
 
 
 def test_format_text_basic():

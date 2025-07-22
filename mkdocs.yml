@@ -1,4 +1,4 @@
-site_name: Document Checker Tool
+site_name: Gov Doc Verify
 nav:
   - Home: index.md
   - Getting Started: getting-started.md

@@ -3,8 +3,8 @@
 # NOTE: Refactored to use FormatChecks, as formatting_checks.py does not exist.
 import pytest
 
-from documentcheckertool.checks.format_checks import FormatChecks
-from documentcheckertool.utils.terminology_utils import TerminologyManager
+from govdocverify.checks.format_checks import FormatChecks
+from govdocverify.utils.terminology_utils import TerminologyManager
 
 
 class TestFormattingChecks:

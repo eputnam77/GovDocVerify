@@ -1,8 +1,8 @@
-"""Tests for the :mod:`documentcheckertool.server_cli` module."""
+"""Tests for the :mod:`govdocverify.server_cli` module."""
 
 from unittest import mock
 
-from documentcheckertool import server_cli
+from govdocverify import server_cli
 
 
 def test_run_server_invokes_uvicorn() -> None:

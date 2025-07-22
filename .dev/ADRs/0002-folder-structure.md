@@ -13,7 +13,7 @@ the move is complete the build system locates packages from the repository root
 to keep wheels functional.
 
 ## Decision
-- Future development will migrate the Python package into `src/documentcheckertool/`.
+- Future development will migrate the Python package into `src/govdocverify/`.
 - Test modules remain in `tests/`.
 - User-facing documentation lives in `docs/` built with MkDocs.
 - Helper scripts live in `scripts/` and are excluded from wheels.

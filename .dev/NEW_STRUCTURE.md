@@ -1,6 +1,6 @@
 # Repository structure
 
-- `src/` and `documentcheckertool/` contain the application code.
+- `src/` and `govdocverify/` contain the application code.
 - `tests/` holds unit and integration tests.
 - `docs/` provides documentation built with MkDocs.
 - `scripts/` stores helper scripts such as `next-agent.sh`.

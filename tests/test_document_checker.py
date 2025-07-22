@@ -4,8 +4,8 @@ import logging
 import unittest
 from unittest.mock import ANY, MagicMock, Mock, patch
 
-from documentcheckertool.document_checker import FAADocumentChecker
-from documentcheckertool.models import DocumentCheckResult
+from govdocverify.document_checker import FAADocumentChecker
+from govdocverify.models import DocumentCheckResult
 
 # Configure logging
 logging.basicConfig(level=logging.DEBUG)
@@ -75,7 +75,7 @@ class TestFAADocumentChecker(unittest.TestCase):
 
         logger.debug("Completed test_all_check_modules_instantiated")
 
-    @patch("documentcheckertool.document_checker.Document")
+    @patch("govdocverify.document_checker.Document")
     def test_all_checks_run(self, mock_document):
         """Test that all check modules are run during document checking."""
         logger.debug("Starting test_all_checks_run")

@@ -2,7 +2,7 @@
 
 import unittest
 
-from documentcheckertool.checks.format_checks import FormattingChecker
+from govdocverify.checks.format_checks import FormattingChecker
 
 
 class TestFormattingChecker(unittest.TestCase):

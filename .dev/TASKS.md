@@ -31,7 +31,7 @@
   - Confirm existing check modules cover FAA style rules for formatting, headings and accessibility.
   - Update or add tests if gaps are found.
 - **Labels**: maintenance
-- **Status**: DONE ([documentcheckertool/checks](../documentcheckertool/checks))
+- **Status**: DONE ([govdocverify/checks](../govdocverify/checks))
 
 ## Epic 3: Document Upload UI
 
@@ -52,7 +52,7 @@
   - Users can download the displayed results as DOCX or PDF
 - **Labels**: frontend
 - **Tests**: [tests/e2e/features/upload_results_page.feature](tests/e2e/features/upload_results_page.feature)
-- **Status**: DONE ([documentcheckertool/export.py](../documentcheckertool/export.py))
+- **Status**: DONE ([govdocverify/export.py](../govdocverify/export.py))
 
 ## Epic 4: API Backend
 

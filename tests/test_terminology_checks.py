@@ -5,8 +5,8 @@ import unittest
 
 import pytest
 
-from documentcheckertool.checks.terminology_checks import TerminologyChecks
-from documentcheckertool.models import DocumentCheckResult
+from govdocverify.checks.terminology_checks import TerminologyChecks
+from govdocverify.models import DocumentCheckResult
 
 from .test_base import TestBase
 
@@ -159,7 +159,7 @@ class TestTerminologyChecks(TestBase):
     ],
 )
 def test_proposed_wording(doc_type, content, expect_flag):
-    from documentcheckertool.checks.terminology_checks import TerminologyChecks
+    from govdocverify.checks.terminology_checks import TerminologyChecks
 
     # Minimal TerminologyManager stub for test
     class DummyManager:

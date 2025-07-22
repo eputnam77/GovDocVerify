@@ -1,1 +1,1 @@
-"""Test package for document checker."""
+"""Test package for Gov Doc Verify."""

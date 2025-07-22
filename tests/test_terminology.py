@@ -2,8 +2,8 @@
 
 import pytest
 
-from documentcheckertool.checks.terminology_checks import TerminologyChecks
-from documentcheckertool.utils.terminology_utils import TerminologyManager
+from govdocverify.checks.terminology_checks import TerminologyChecks
+from govdocverify.utils.terminology_utils import TerminologyManager
 
 
 class TestTerminologyChecks:

@@ -1,4 +1,4 @@
-from documentcheckertool import export
+from govdocverify import export
 
 
 def test_save_results_as_docx(tmp_path) -> None:

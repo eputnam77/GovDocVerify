@@ -1,4 +1,4 @@
-# Document Checker Tool
+# Gov Doc Verify
 
 Validate FAA documents for style, terminology and accessibility issues. The project includes a React frontend and a FastAPI backend.
 
