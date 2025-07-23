@@ -1,33 +1,123 @@
 # GovDocVerify
 
-Validate FAA documents for style, terminology and accessibility issues. The project includes a React frontend and a FastAPI backend.
+FAA‑style validation for Word docs—CLI, FastAPI, and React UI in one toolkit.
 
-Full documentation is available in the `docs/` directory and on the generated site. See [Getting Started](docs/getting-started.md) for installation instructions.
+**GovDocVerify** scans Advisory Circulars, Orders, and other FAA artifacts for headings, formatting, terminology, and accessibility issues. It delivers:
 
-## Features
-- Automated checks for headings, formatting, terminology and more
-- Displays document metadata (Title, Author, Last Modified By, Created and Modified)
-- FastAPI endpoint for programmatic access
-- Modern React interface with live preview
-- Command line interface for local use
+* a **FastAPI** backend (live Swagger UI)
+* a modern **React/Next.js** frontend with real‑time preview
+* an easy **CLI** for local batch checks
 
-## Quickstart
+Full technical docs live under **`docs/`**; start with *docs/getting‑started.md* when you’re ready to dig deeper.
+
+---
+
+## ✨ Quick install (recommended)
+
+We follow the same pattern as the other CLI projects: **pipx** for global tool shims, **uv** for ultra‑fast Python/venv work, and **Poetry ≥ 1.8** for deterministic installs.
+
 ```bash
-python -m venv venv
-source venv/bin/activate
-# Install either from requirements-dev.txt or using Poetry
-pip install -r requirements-dev.txt
-# poetry install --with dev
-python cli.py --file mydoc.docx --type "Advisory Circular"
+# 0  One‑time per machine ───────────────────────────────────────────────
+python3 -m pip install --user pipx
+python3 -m pipx ensurepath                         # restart shell if PATH changed
+
+pipx install uv                                    # uv CLI & resolver :contentReference[oaicite:0]{index=0}
+pipx install poetry                                # Poetry ≥1.8 :contentReference[oaicite:1]{index=1}
+
+# 1  Per project ────────────────────────────────────────────────────────
+git clone https://github.com/eputnam77/GovDocVerify.git
+cd GovDocVerify
+
+# 2  Create & activate .venv (Python 3.13) ------------------------------
+uv python install 3.13.0                           # downloads if missing :contentReference[oaicite:2]{index=2}
+uv venv --python 3.13.0                            # writes .venv/ by default
+source .venv/bin/activate                          # Windows: .venv\Scripts\activate
+
+# 3  Install deps at uv speed ------------------------------------------------
+poetry config installer.executable uv              # once per machine
+poetry sync --with dev                             # mirrors poetry.lock + dev deps  :contentReference[oaicite:3]{index=3}
+
+pre-commit install                                 # Git hooks
 ```
 
-For additional scenarios, API details and developer info, browse the docs.
+---
 
-## API Usage
+## 🐍 Virtual‑env fallback (no uv)
 
-Interact with the FastAPI backend directly using `curl`:
+```bash
+python -m venv .venv
+source .venv/bin/activate           # Win: .venv\Scripts\activate
+pip install poetry
+poetry install --with dev --sync    # --sync flag still works but is deprecated :contentReference[oaicite:4]{index=4}
+```
+
+---
+
+## 🔑 Environment variables (optional)
+
+| Variable                  | Purpose                                 |
+| ------------------------- | --------------------------------------- |
+| `GOVDOCVERIFY_SECRET_KEY` | JWT signing key for the API             |
+| `NEXT_PUBLIC_API_BASE`    | Override API URL for the React frontend |
+
+Create a `.env` or export vars before running the backend.
+
+---
+
+## 🚀 Run the backend API
+
+```bash
+uvicorn govdocverify.api:app --reload --port 8000
+# Automatic interactive docs at http://localhost:8000/docs :contentReference[oaicite:5]{index=5}
+```
+
+---
+
+## 🖥️ Run the React frontend (Node 18+)
+
+```bash
+cd frontend
+npm install --legacy-peer-deps
+cp .env.example .env              # adjust NEXT_PUBLIC_API_BASE if backend separate
+npm run dev
+```
+
+Open [http://localhost:3000/](http://localhost:3000/) and start uploading `.docx` files.
+
+---
+
+## 🛠️ CLI usage
+
+```bash
+govdocverify check mydoc.docx --type "Advisory Circular"
+```
+
+or the bare Python entry point:
+
+```bash
+python -m govdocverify.cli check mydoc.docx --type "Order"
+```
+
+---
+
+## 🧪 Quality checks
+
+```bash
+pre-commit run --all-files
+pytest --cov=src
+```
+
+---
+
+## 📡 Direct API example
 
 ```bash
 curl -F "doc_file=@mydoc.docx" -F "doc_type=Advisory Circular" \
   http://localhost:8000/process
 ```
+
+---
+
+### About the requirement files
+
+`requirements.txt` & `requirements‑dev.txt` are generated for legacy tooling. `poetry sync` (or `pip install -e ".[dev]"`) remains the canonical path to an exact, up‑to‑date environment.
