@@ -75,7 +75,6 @@ semgrep --config p/ci                       # lightweight SAST
 pytest -q --cov=src --cov-branch --cov-fail-under=70
 pytest -q -m property                       # Hypothesis tests
 pytest -q -m e2e                            # Playwright (headless)
-mutmut run
 ```
 
 ### Release Gate (main)
@@ -89,7 +88,6 @@ semgrep --config p/default
 pip-audit -r requirements.txt
 pytest -q --cov=src --cov-branch --cov-fail-under=90
 pytest -q -m e2e
-mutmut run
 trivy fs --exit-code 1 --severity CRITICAL,HIGH .
 mkdocs build --strict
 ```
@@ -151,34 +149,7 @@ Any non‑zero exit hands control to **fixer**.
 
 ---
 
-## 5 · Automation Workflow (GitHub Actions – Experimental)
-
-Codex CLI currently requires an interactive TTY, so CI is **opt‑in**. Enable by setting the repo secret `EXPERIMENTAL_CI=true` **and** renaming `.github/workflows/agents.yml.disabled` → `agents.yml`.
-
-```yaml
-name: Codex‑router
-on:
-  push:
-    branches: ["**"]
-
-jobs:
-  codex-router:
-    if: ${{ env.EXPERIMENTAL_CI == 'true' }}
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: Detect next agent & lock
-        run: ./scripts/next-agent.sh   # sets $NEXT_AGENT & acquires lock
-      - name: Trigger agent via Codex API
-        if: env.NEXT_AGENT != ''
-        run: codex run --agent "$NEXT_AGENT"
-```
-
-`next-agent.sh` maps last‑agent / status pairs to the next hand‑off and manages the `agent-running` label.
-
----
-
-## 6 · Environment Setup
+## 5 · Environment Setup
 
 ```bash
 # create & activate virtual‑env
@@ -197,7 +168,7 @@ Codespaces / VS Code: the `devcontainer.json` automatically runs `pre‑commit`
 
 ---
 
-## 7 · Failure‑Recovery Matrix
+## 6 · Failure‑Recovery Matrix
 
 | Problem                                 | Responsible Agent | Remedy                                          |
 | --------------------------------------- | ----------------- | ----------------------------------------------- |
@@ -214,22 +185,7 @@ Codespaces / VS Code: the `devcontainer.json` automatically runs `pre‑commit`
 
 ---
 
-## 8 · References
-
-* [Ruff](https://docs.astral.sh/ruff/)
-* [Black](https://black.readthedocs.io/)
-* [Pytest](https://docs.pytest.org/)
-* [Hypothesis](https://hypothesis.readthedocs.io/)
-* [Playwright](https://playwright.dev/python/)
-* [Bandit](https://bandit.readthedocs.io/)
-* [Semgrep](https://semgrep.dev/docs/)
-* [Trivy](https://aquasecurity.github.io/trivy/)
-* [pip-audit](https://pypi.org/project/pip-audit/)
-* [MkDocs Material](https://squidfunk.github.io/mkdocs-material/)
-
----
-
-## 9 · Project Structure & File Organisation
+## 7 · Project Structure & File Organisation
 
 ### Recommended Repository Layout
 
@@ -241,8 +197,6 @@ your-project/
 ├── docs/                    # User‑facing docs (built by MkDocs)
 ├── scripts/                 # Dev / CI helper scripts
 ├── .github/
-│   └── workflows/
-│       └── agents.yml.disabled
 ├── .dev/                    # ⚠️  NOT packaged
 │   ├── AGENTS.md            # this playbook
 │   ├── TASKS.md             # task backlog
