@@ -1,0 +1,14 @@
+Fri Jul 25 15:27:02 2025    perf/artifacts/build_results_dict.pstats
+
+         7 function calls in 0.000 seconds
+
+   Ordered by: cumulative time
+
+   ncalls  tottime  percall  cumtime  percall filename:lineno(function)
+        1    0.000    0.000    0.000    0.000 {built-in method builtins.exec}
+        1    0.000    0.000    0.000    0.000 {method 'disable' of '_lsprof.Profiler' objects}
+        1    0.000    0.000    0.000    0.000 <string>:1(<module>)
+        1    0.000    0.000    0.000    0.000 /workspace/GovDocVerify/scripts/profile_build_results_dict.py:38(build_results_dict)
+        1    0.000    0.000    0.000    0.000 /workspace/GovDocVerify/scripts/profile_build_results_dict.py:26(_create_fallback_results_dict)
+        2    0.000    0.000    0.000    0.000 {built-in method builtins.getattr}
+
