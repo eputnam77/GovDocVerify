@@ -60,7 +60,7 @@ def validate_file(file_path: str) -> None:
         file_size = os.path.getsize(file_path)
         if file_size > MAX_FILE_SIZE:
             raise SecurityError(
-                f"File size exceeds maximum allowed size of {MAX_FILE_SIZE/1024/1024}MB"
+                f"File size exceeds maximum allowed size of {MAX_FILE_SIZE / 1024 / 1024}MB"
             )
 
         # Check file type using filetype
@@ -96,10 +96,7 @@ class RateLimiter:
             ]
 
         # Add new request
-        if client_id not in self.requests:
-            self.requests[client_id] = []
-
-        self.requests[client_id].append(current_time)
+        self.requests.setdefault(client_id, []).append(current_time)
 
         # Check if rate limit exceeded
         if len(self.requests[client_id]) > self.max_requests:
