@@ -39,6 +39,7 @@ dev = [
   "semgrep>=1.123.0",
   "pip-audit>=2.7",
   "pre-commit>=3.7",
+  "uvicorn>=0.30", 
 ]
 format   = ["ruff>=0.5"]
 lint     = ["ruff>=0.5"]
