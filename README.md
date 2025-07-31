@@ -21,21 +21,21 @@ We follow the same pattern as the other CLI projects: **pipx** for global tool s
 python3 -m pip install --user pipx                 # python -m pip install --user pipx
 python3 -m pipx ensurepath                         # python -m pipx ensurepath (restart shell if PATH changed)
 
-pipx install uv                                    # uv CLI & resolver :contentReference[oaicite:0]{index=0}
-pipx install poetry                                # Poetry ≥1.8 :contentReference[oaicite:1]{index=1}
+pipx install uv                                    # uv CLI & resolver
+pipx install poetry                                # Poetry ≥1.8
 
 # 1  Per project ────────────────────────────────────────────────────────
 git clone https://github.com/eputnam77/GovDocVerify.git
 cd GovDocVerify
 
 # 2  Create & activate .venv (Python 3.13) ------------------------------
-uv python install 3.13.0                           # downloads if missing :contentReference[oaicite:2]{index=2}
+uv python install 3.13.0                           # downloads if missing
 uv venv --python 3.13.0                            # writes .venv/ by default
 source .venv/bin/activate                          # Windows: .venv\Scripts\activate
 
 # 3  Install deps at uv speed ------------------------------------------------
 poetry config installer.executable uv              # once per machine
-poetry sync --with dev                             # mirrors poetry.lock + dev deps  :contentReference[oaicite:3]{index=3}
+poetry sync --with dev                             # mirrors poetry.lock + dev deps
 
 pre-commit install                                 # Git hooks
 ```
@@ -48,7 +48,7 @@ pre-commit install                                 # Git hooks
 python -m venv .venv
 source .venv/bin/activate           # Win: .venv\Scripts\activate
 pip install poetry
-poetry install --with dev --sync    # --sync flag still works but is deprecated :contentReference[oaicite:4]{index=4}
+poetry install --with dev --sync    # --sync flag still works but is deprecated
 ```
 
 ---
@@ -68,7 +68,7 @@ Create a `.env` or export vars before running the backend.
 
 ```bash
 uvicorn govdocverify.api:app --reload --port 8000
-# Automatic interactive docs at http://localhost:8000/docs :contentReference[oaicite:5]{index=5}
+# Automatic interactive docs at http://localhost:8000/docs
 ```
 
 ---
