@@ -3,7 +3,18 @@ from datetime import date, datetime
 from enum import Enum
 from typing import Any, Dict, List, Optional, Tuple, Union
 
-from colorama import Fore, Style
+try:
+    from colorama import Fore, Style  # type: ignore
+except Exception:  # pragma: no cover - optional dependency
+
+    class _DummyFore:
+        BLACK = RED = GREEN = YELLOW = BLUE = MAGENTA = CYAN = WHITE = ""
+
+    class _DummyStyle:
+        RESET_ALL = ""
+
+    Fore = _DummyFore()
+    Style = _DummyStyle()
 
 from govdocverify.models import DocumentCheckResult, Severity
 

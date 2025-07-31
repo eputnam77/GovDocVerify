@@ -2,7 +2,11 @@ import logging
 import re
 from typing import Any, Dict, List
 
-from docx import Document
+try:
+    from docx import Document  # type: ignore
+except Exception:  # pragma: no cover - optional dependency
+    from typing import Any as Document  # type: ignore
+
 
 from govdocverify.checks.check_registry import CheckRegistry
 from govdocverify.config.validation_patterns import (
@@ -574,28 +578,18 @@ class FormattingChecker(BaseChecker):
         )
 
     def _check_cfr_section_symbols(self, lines: List[str]) -> List[Dict]:
-        """Check for CFR-specific section symbol issues."""
-        issues = []
-        cfr_pattern = re.compile(r"\b14\s+CFR\s+§\s*(\d+\.\d+)\b")
+        """Skip 14 CFR citations.
 
-        for i, line in enumerate(lines, 1):
-            if match := cfr_pattern.search(line):
-                sect = match.group(1)
-                incorrect = match.group(0)
-                correct = f"14 CFR {sect}"
-                logger.debug(f"CFR-§ usage found on line {i}: {incorrect!r}")
-                issues.append(
-                    {
-                        "incorrect": incorrect,
-                        "correct": correct,
-                        "description": FormatMessages.SECTION_SYMBOL_CFR_ERROR,
-                        "severity": Severity.ERROR,
-                        "line_number": i,
-                        "checker": "FormattingChecker",
-                    }
-                )
+        Historically the checker attempted to enforce "14 CFR X" without a
+        section symbol (``§``). This proved overly aggressive because many FAA
+        documents legitimately cite sections using the symbol, e.g.
+        ``14 CFR § 25.1309``.  New guidance allows either form, so the
+        formatting checker no longer flags these references.
+        """
 
-        return issues
+        # Intentionally return an empty list to avoid flagging valid 14 CFR
+        # references that include the section symbol.
+        return []
 
     def _check_general_section_symbols(self, lines: List[str]) -> List[Dict]:
         """Check for general section symbol usage issues."""
