@@ -18,8 +18,8 @@ We follow the same pattern as the other CLI projects: **pipx** for global tool s
 
 ```bash
 # 0  One‑time per machine ───────────────────────────────────────────────
-python3 -m pip install --user pipx
-python3 -m pipx ensurepath                         # restart shell if PATH changed
+python3 -m pip install --user pipx                 # python -m pip install --user pipx
+python3 -m pipx ensurepath                         # python -m pipx ensurepath (restart shell if PATH changed)
 
 pipx install uv                                    # uv CLI & resolver :contentReference[oaicite:0]{index=0}
 pipx install poetry                                # Poetry ≥1.8 :contentReference[oaicite:1]{index=1}
