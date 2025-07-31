@@ -259,6 +259,28 @@ curl -F "doc_file=@mydoc.docx" -F "doc_type=Advisory Circular" \
   http://localhost:8000/process
 ```
 
+## POST `/process` endpoint
+
+Uploads a Word document and returns formatting results. The request must use
+`multipart/form-data` and accepts these fields:
+
+- `doc_file` – the `.docx` file to check.
+- `doc_type` – type of document (e.g. `Advisory Circular`).
+- `visibility_json` – optional JSON for per-check visibility.
+- `group_by` – optional grouping mode (`category` or `severity`).
+
+Example response:
+
+```json
+{
+  "has_errors": true,
+  "rendered": "<html>...",
+  "by_category": {"format": []}
+}
+```
+
+See [`docs/api-reference.md`](docs/api-reference.md) for the full reference.
+
 ---
 
 ### About the requirement files
