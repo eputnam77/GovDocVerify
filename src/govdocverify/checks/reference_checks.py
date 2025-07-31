@@ -25,7 +25,7 @@ class ReferenceMessages:
 
     # Numbering format messages
     TABLE_FIGURE_NUMBERING = (
-        "Use '{ref_type} X-Y' for ACs and Orders, " "or '{ref_type} X' for other document types."
+        "Use '{ref_type} X-Y' for ACs and Orders, or '{ref_type} X' for other document types."
     )
 
     # Document title format messages

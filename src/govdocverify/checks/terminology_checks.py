@@ -67,7 +67,7 @@ class TerminologyChecks(BaseChecker):
     def _check_consistency(self, paragraphs: list[str], results: DocumentCheckResult) -> None:
         """Check for consistent terminology usage."""
         for i, text in enumerate(paragraphs):
-            logger.debug(f"[Terminology] Checking line {i+1}: {text!r}")
+            logger.debug(f"[Terminology] Checking line {i + 1}: {text!r}")
             for standard, variants in TERMINOLOGY_VARIANTS.items():
                 for variant in variants:
                     pattern = rf"\b{re.escape(variant)}\b"
@@ -75,7 +75,7 @@ class TerminologyChecks(BaseChecker):
                     if re.search(pattern, text, flags):
                         logger.debug(
                             f"[Terminology] Matched variant '{variant}' (should use '{standard}') "
-                            f"in line {i+1}"
+                            f"in line {i + 1}"
                         )
                         results.add_issue(
                             message=TerminologyMessages.INCONSISTENT_TERMINOLOGY.format(
@@ -89,9 +89,9 @@ class TerminologyChecks(BaseChecker):
     def _check_forbidden_terms(self, paragraphs: list[str], results: DocumentCheckResult) -> None:
         """Check for forbidden or discouraged terms."""
         for i, text in enumerate(paragraphs):
-            logger.debug(f"[Terminology] Checking forbidden terms in line {i+1}: {text!r}")
+            logger.debug(f"[Terminology] Checking forbidden terms in line {i + 1}: {text!r}")
             if ABOVE_BELOW_REF_PATTERN.search(text):
-                logger.debug(f"[Terminology] Matched relative reference in line {i+1}")
+                logger.debug(f"[Terminology] Matched relative reference in line {i + 1}")
                 results.add_issue(
                     message=TerminologyMessages.ABOVE_BELOW_WARNING,
                     severity=Severity.WARNING,
@@ -101,7 +101,7 @@ class TerminologyChecks(BaseChecker):
             for term, message in FORBIDDEN_TERMS.items():
                 pattern = rf"\b{re.escape(term)}\b"
                 if re.search(pattern, text, re.IGNORECASE):
-                    logger.debug(f"[Terminology] Matched forbidden term '{term}' in line {i+1}")
+                    logger.debug(f"[Terminology] Matched forbidden term '{term}' in line {i + 1}")
                     results.add_issue(
                         message=message,
                         severity=Severity.WARNING,
@@ -115,7 +115,7 @@ class TerminologyChecks(BaseChecker):
         TERM_REPLACEMENTS.  Suggest the approved wording.
         """
         for i, text in enumerate(paragraphs):
-            logger.debug(f"[Terminology] Checking term replacements in line {i+1}: {text!r}")
+            logger.debug(f"[Terminology] Checking term replacements in line {i + 1}: {text!r}")
             for obsolete, approved in TERM_REPLACEMENTS.items():
                 # Handle special cases that need different regex patterns
                 if obsolete in [
@@ -144,7 +144,9 @@ class TerminologyChecks(BaseChecker):
                     pattern = rf"\b{re.escape(obsolete)}\b"
 
                 if re.search(pattern, text, re.IGNORECASE):
-                    logger.debug(f"[Terminology] Matched obsolete term '{obsolete}' in line {i+1}")
+                    logger.debug(
+                        f"[Terminology] Matched obsolete term '{obsolete}' in line {i + 1}"
+                    )
                     results.add_issue(
                         message=f'Change "{obsolete}" to "{approved}"',
                         severity=Severity.WARNING,

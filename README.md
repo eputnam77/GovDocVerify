@@ -142,7 +142,7 @@ pre-commit run --all-files   # Run all checks across the codebase
 Run the full test suite with code coverage reporting using pytest:
 
 ```bash
-pytest --cov=src
+pytest --cov=govdocverify
 ```
 
 * Replace `src` with your module's directory if different.
@@ -223,7 +223,7 @@ mutmut results
 
 ```bash
 pre-commit run --all-files        # Lint, format, type check, spellcheck, markdown, security
-pytest --cov=src                  # Unit tests with coverage
+pytest --cov=govdocverify         # Unit tests with coverage
 bandit -r src -lll --skip B101    # Security scan (code)
 pip-audit                         # Security scan (dependencies)
 codespell src tests docs          # Spell check (if not running in pre-commit)
@@ -247,7 +247,7 @@ mutmut results
 | mdformat     | Markdown formatting/linting | `pre-commit run --all-files`                  |
 | docformatter | Docstring style (optional)  | `docformatter -r src/`                        |
 | Mutmut       | Mutation test (optional)    | `mutmut run --paths-to-mutate src`            |
-| Pytest       | Unit tests/coverage         | `pytest --cov=src`                            |
+| Pytest       | Unit tests/coverage         | `pytest --cov=govdocverify`                            |
 | Safety       | Security (deps, optional)   | `safety check`                                |
 
 ---

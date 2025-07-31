@@ -122,7 +122,7 @@ class DocumentFormatter:
                 issues.append(
                     {
                         "type": "formatting",
-                        "message": f"Incorrect list indentation on line {i+1}",
+                        "message": f"Incorrect list indentation on line {i + 1}",
                         "suggestion": "Indent list items with 4 spaces",
                     }
                 )

@@ -174,8 +174,7 @@ class HeadingChecks(BaseChecker):
                     "type": "length_violation",
                     "line": line,
                     "message": (
-                        f"Heading exceeds maximum length of "
-                        f"{self.MAX_HEADING_LENGTH} characters."
+                        f"Heading exceeds maximum length of {self.MAX_HEADING_LENGTH} characters."
                     ),
                     "suggestion": (
                         f"Shorten heading to {self.MAX_HEADING_LENGTH} characters or less."
@@ -258,7 +257,7 @@ class HeadingChecks(BaseChecker):
                 {
                     "type": "missing_headings",
                     "missing": list(missing_headings),
-                    "message": f'Missing required headings: {", ".join(missing_headings)}',
+                    "message": f"Missing required headings: {', '.join(missing_headings)}",
                     "severity": Severity.ERROR,
                     "category": self.category,
                 }
@@ -468,8 +467,7 @@ class HeadingChecks(BaseChecker):
     ) -> None:
         """Add issue for level skipping."""
         logger.warning(
-            f"Invalid heading sequence in paragraph {paragraph_num}: "
-            f"skipped level {prev_level + 1}"
+            f"Invalid heading sequence in paragraph {paragraph_num}: skipped level {prev_level + 1}"
         )
         issues.append(
             {
@@ -510,13 +508,13 @@ class HeadingChecks(BaseChecker):
     ) -> None:
         """Add issue for incorrect sequence numbering."""
         logger.warning(
-            f"Invalid heading sequence in paragraph {paragraph_num}: " f"expected {prev_last + 1}"
+            f"Invalid heading sequence in paragraph {paragraph_num}: expected {prev_last + 1}"
         )
         issues.append(
             {
                 "text": text,
                 "message": f"Invalid heading sequence: expected {prev_last + 1}",
-                "suggestion": f'Use {".".join(numbers[:-1] + [str(prev_last + 1)])}',
+                "suggestion": f"Use {'.'.join(numbers[:-1] + [str(prev_last + 1)])}",
                 "category": self.category,
             }
         )

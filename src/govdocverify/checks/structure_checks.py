@@ -1016,7 +1016,7 @@ class StructureChecks(BaseChecker):
             if re.search(pattern, line, re.IGNORECASE):
                 result["warnings"].append({"message": message, "line_number": line_num})
                 logger.debug(
-                    f"Added capitalization warning for line {line_num}: " f"should be capitalized"
+                    f"Added capitalization warning for line {line_num}: should be capitalized"
                 )
 
     def _check_spacing_issues(self, line: str, line_num: int, result: Dict[str, Any]):

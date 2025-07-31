@@ -209,7 +209,7 @@ class FormatChecks(BaseChecker):
         for i, text in enumerate(paragraphs):
             for pattern in placeholder_patterns:
                 if re.search(pattern, text, re.IGNORECASE):
-                    logger.debug(f"Found placeholder in line {i+1}: {text}")
+                    logger.debug(f"Found placeholder in line {i + 1}: {text}")
                     try:
                         results.add_issue(
                             FormatMessages.PLACEHOLDER_ERROR,
@@ -217,7 +217,7 @@ class FormatChecks(BaseChecker):
                             i + 1,
                             category=getattr(self, "category", "format"),
                         )
-                        logger.debug(f"Successfully added issue for line {i+1}")
+                        logger.debug(f"Successfully added issue for line {i + 1}")
                         break  # Only add one issue per line
                     except Exception as e:
                         logger.error(f"Error adding issue: {str(e)}")
@@ -238,7 +238,7 @@ class FormatChecks(BaseChecker):
             for pattern, message in dash_patterns:
                 if matches := re.finditer(pattern, text):
                     for match in matches:
-                        logger.debug(f"Found dash spacing issue in line {i+1}: {text}")
+                        logger.debug(f"Found dash spacing issue in line {i + 1}: {text}")
                         try:
                             results.add_issue(
                                 message,
@@ -246,7 +246,7 @@ class FormatChecks(BaseChecker):
                                 i + 1,
                                 category=getattr(self, "category", "format"),
                             )
-                            logger.debug(f"Successfully added issue for line {i+1}")
+                            logger.debug(f"Successfully added issue for line {i + 1}")
                         except Exception as e:
                             logger.error(f"Error adding issue: {str(e)}")
                             logger.error(f"Error type: {type(e)}")
@@ -749,11 +749,11 @@ class FormattingChecker(BaseChecker):
         for i, text in enumerate(lines):
             # Skip if text matches any skip patterns
             if any(re.search(pattern, text) for pattern in DATE_PATTERNS["skip_patterns"]):
-                logger.debug(f"[Text] Skipping line {i+1} due to skip pattern: {text!r}")
+                logger.debug(f"[Text] Skipping line {i + 1} due to skip pattern: {text!r}")
                 continue
             # Check for incorrect date format (MM/DD/YYYY)
             if re.search(DATE_PATTERNS["incorrect"], text):
-                logger.debug(f"[Text] Found incorrect date format in line {i+1}: {text!r}")
+                logger.debug(f"[Text] Found incorrect date format in line {i + 1}: {text!r}")
                 issues.append(
                     {
                         "message": FormatMessages.DATE_FORMAT_ERROR,
