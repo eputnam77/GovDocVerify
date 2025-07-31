@@ -7,6 +7,7 @@ FAA‑style validation for Word docs—CLI, FastAPI, and React UI in one toolkit
 * a **FastAPI** backend (live Swagger UI)
 * a modern **React/Next.js** frontend with real‑time preview
 * an easy **CLI** for local batch checks
+* Displays document metadata (Title, Author, Last Modified By, Created, Modified)
 
 Full technical docs live under **`docs/`**; start with *docs/getting‑started.md* when you’re ready to dig deeper.
 
