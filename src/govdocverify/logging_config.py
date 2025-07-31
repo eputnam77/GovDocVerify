@@ -4,6 +4,18 @@ import os
 import sys
 from io import TextIOWrapper
 
+
+def _ensure_utf8(stream: TextIOWrapper) -> TextIOWrapper:
+    """Return a text stream guaranteed to use UTF-8 encoding."""
+    if hasattr(stream, "reconfigure"):
+        try:  # pragma: no cover - platform dependent
+            stream.reconfigure(encoding="utf-8", errors="replace")
+            return stream
+        except Exception:
+            pass
+    return TextIOWrapper(stream.buffer, encoding="utf-8", errors="replace")
+
+
 log_path = os.path.abspath("document_checker.log")
 
 LOGGING_CONFIG = {
@@ -75,13 +87,11 @@ def setup_logging(debug: bool = False) -> None:
     # Ensure stdio streams use UTF-8 and gracefully handle unsupported characters
     for stream_name in ("stdout", "stderr"):
         stream = getattr(sys, stream_name)
-        if hasattr(stream, "reconfigure"):
-            try:
-                stream.reconfigure(encoding="utf-8", errors="replace")
-                continue
-            except Exception:
-                pass
-        setattr(sys, stream_name, TextIOWrapper(stream.buffer, encoding="utf-8", errors="replace"))
+        new_stream = _ensure_utf8(stream)
+        setattr(sys, stream_name, new_stream)
+        # update __stdout__/__stderr__ as well so logging picks up the wrapper
+        if hasattr(sys, f"__{stream_name}__"):
+            setattr(sys, f"__{stream_name}__", new_stream)
 
     if debug:
         logging.config.dictConfig(LOGGING_CONFIG)
@@ -92,11 +102,4 @@ def setup_logging(debug: bool = False) -> None:
     root_logger = logging.getLogger()
     for handler in root_logger.handlers:
         if isinstance(handler, logging.StreamHandler):
-            stream = handler.stream
-            if hasattr(stream, "reconfigure"):
-                try:
-                    stream.reconfigure(encoding="utf-8", errors="replace")
-                    continue
-                except Exception:  # pragma: no cover - platform dependent
-                    pass
-            handler.stream = TextIOWrapper(stream.buffer, encoding="utf-8", errors="replace")
+            handler.stream = _ensure_utf8(handler.stream)
