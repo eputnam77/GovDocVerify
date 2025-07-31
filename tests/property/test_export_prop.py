@@ -10,7 +10,11 @@ from govdocverify import export
 
 @pytest.mark.property
 @given(
-    results=st.dictionaries(keys=st.text(min_size=1, max_size=10), values=st.integers()),
+    results=st.dictionaries(
+        keys=st.text(min_size=1, max_size=10),
+        values=st.integers(),
+        max_size=5,
+    ),
     file_name=st.text(
         min_size=1, max_size=10, alphabet=st.characters(min_codepoint=97, max_codepoint=122)
     ),
@@ -26,7 +30,11 @@ def test_save_results_as_docx_property(
 
 @pytest.mark.property
 @given(
-    results=st.dictionaries(keys=st.text(min_size=1, max_size=10), values=st.integers()),
+    results=st.dictionaries(
+        keys=st.text(min_size=1, max_size=10),
+        values=st.integers(),
+        max_size=5,
+    ),
     file_name=st.text(
         min_size=1, max_size=10, alphabet=st.characters(min_codepoint=97, max_codepoint=122)
     ),

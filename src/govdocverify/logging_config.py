@@ -87,3 +87,16 @@ def setup_logging(debug: bool = False) -> None:
         logging.config.dictConfig(LOGGING_CONFIG)
     else:
         logging.config.dictConfig(LOGGING_CONFIG_INFO)
+
+    # Ensure all StreamHandlers use UTF-8 after configuration
+    root_logger = logging.getLogger()
+    for handler in root_logger.handlers:
+        if isinstance(handler, logging.StreamHandler):
+            stream = handler.stream
+            if hasattr(stream, "reconfigure"):
+                try:
+                    stream.reconfigure(encoding="utf-8", errors="replace")
+                    continue
+                except Exception:  # pragma: no cover - platform dependent
+                    pass
+            handler.stream = TextIOWrapper(stream.buffer, encoding="utf-8", errors="replace")
