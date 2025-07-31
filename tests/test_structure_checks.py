@@ -267,7 +267,7 @@ class TestStructureChecks:
         # Add a list section
         doc.add_paragraph("SECTION 2. TEST CATEGORY DESCRIPTIONS.", style="Heading 1")
         for i in range(25):
-            doc.add_paragraph(f"• Test category {i+1}")
+            doc.add_paragraph(f"• Test category {i + 1}")
 
         # Add another regular section
         doc.add_paragraph("SECTION 3. BACKGROUND.", style="Heading 1")
@@ -295,7 +295,7 @@ class TestStructureChecks:
         for _ in range(2):
             doc.add_paragraph("Regular paragraph content")
         for i in range(20):
-            doc.add_paragraph(f"• List item {i+1}")
+            doc.add_paragraph(f"• List item {i + 1}")
 
         results = DocumentCheckResult(success=True, issues=[])
         self.structure_checks._check_section_balance([p.text for p in doc.paragraphs], results)
@@ -309,7 +309,7 @@ class TestStructureChecks:
         # Add a section with a list pattern in title
         doc.add_paragraph("SECTION 1. SHOULD INCLUDE THE FOLLOWING ITEMS.", style="Heading 1")
         for i in range(30):
-            doc.add_paragraph(f"• Item {i+1}")
+            doc.add_paragraph(f"• Item {i + 1}")
 
         # Add a regular section
         doc.add_paragraph("SECTION 2. BACKGROUND.", style="Heading 1")

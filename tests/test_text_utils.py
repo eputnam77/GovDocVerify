@@ -316,6 +316,6 @@ class TestTextUtils:
         assert len(valid_words) > 0
 
     def test_calculate_passive_voice_percentage(self):
-        text = "The process was completed by the team. " "The team completed the process."
+        text = "The process was completed by the team. The team completed the process."
         pct = calculate_passive_voice_percentage(text)
         assert pct == 50.0

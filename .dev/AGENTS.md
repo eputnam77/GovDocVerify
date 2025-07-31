@@ -72,7 +72,7 @@ black --check src tests
 mypy --strict src tests
 bandit -r src -lll --skip B101               # allow asserts early
 semgrep --config p/ci                       # lightweight SAST
-pytest -q --cov=src --cov-branch --cov-fail-under=70
+pytest -q --cov=govdocverify --cov-branch --cov-fail-under=70
 pytest -q -m property                       # Hypothesis tests
 pytest -q -m e2e                            # Playwright (headless)
 ```
@@ -86,7 +86,7 @@ mypy --strict src tests
 bandit -r src -lll
 semgrep --config p/default
 pip-audit -r requirements.txt
-pytest -q --cov=src --cov-branch --cov-fail-under=90
+pytest -q --cov=govdocverify --cov-branch --cov-fail-under=90
 pytest -q -m e2e
 trivy fs --exit-code 1 --severity CRITICAL,HIGH .
 mkdocs build --strict
