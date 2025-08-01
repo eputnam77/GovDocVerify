@@ -7,6 +7,7 @@ build-backend = "setuptools.build_meta"
 name            = "govdocverify"
 version         = "0.1.0"
 description     = "Tool for checking documents against Federal writing standards."
+license         = {text = "GPL-3.0-only"}
 requires-python = ">=3.11,<4.0"
 
 dependencies = [
