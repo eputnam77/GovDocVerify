@@ -30,3 +30,7 @@ mypy --strict govdocverify tests
 
 ## Contributing
 See `CONTRIBUTING.md` for full guidelines.
+
+## License
+
+Distributed under the [GNU General Public License v3.0](../LICENSE).

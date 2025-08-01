@@ -62,3 +62,7 @@ Use **one** of the following methods to install Python dependencies:
 
 Installing from multiple files is unnecessary.
 
+
+## License
+
+The project is released under the GNU General Public License v3.0.

@@ -286,3 +286,7 @@ See [`docs/api-reference.md`](docs/api-reference.md) for the full reference.
 ### About the requirement files
 
 `requirements.txt` & `requirements‑dev.txt` are generated for legacy tooling. `poetry sync` (or `pip install -e ".[dev]"`) remains the canonical path to an exact, up‑to‑date environment.
+
+## License
+
+This project is distributed under the [GNU General Public License v3.0](LICENSE).
