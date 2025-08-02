@@ -78,5 +78,5 @@
 
 ---
 
-ready-for:builder
-last_generated: 2025-08-02T10:40:02Z
+ready-for:verifier
+last_generated: 2025-08-02T10:59:35Z
