@@ -42,7 +42,7 @@
   - React page lets users select and upload a document file
   - Results are displayed in the browser after processing
 - **Labels**: frontend
-- **Tests**: [tests/e2e/features/upload_results_page.feature](tests/e2e/features/upload_results_page.feature)
+- **Tests**: [tests/e2e/features/document_upload_ui/upload_results_page.feature](tests/e2e/features/document_upload_ui/upload_results_page.feature)
 - **Status**: DONE ([frontend/govdocverify/src](../frontend/govdocverify/src))
 
 ### Task 5: Add download options for results
@@ -51,7 +51,7 @@
 - **Acceptance Criteria**:
   - Users can download the displayed results as DOCX or PDF
 - **Labels**: frontend
-- **Tests**: [tests/e2e/features/upload_results_page.feature](tests/e2e/features/upload_results_page.feature)
+- **Tests**: [tests/e2e/features/document_upload_ui/add_download_options.feature](tests/e2e/features/document_upload_ui/add_download_options.feature)
 - **Status**: DONE ([govdocverify/export.py](../govdocverify/export.py))
 
 ## Epic 4: API Backend
@@ -78,5 +78,5 @@
 
 ---
 
-ready-for:scenario-gen
-last_generated: 2025-07-21T14:29:46Z
+ready-for:builder
+last_generated: 2025-08-02T10:40:02Z

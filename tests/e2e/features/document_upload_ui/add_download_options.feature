@@ -1,6 +1,6 @@
+@e2e
 Feature: Add download options for results
 
-  @e2e
   Scenario: Download results as DOCX or PDF
     Given the results page is visible
     When I click the DOCX download option
