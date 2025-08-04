@@ -117,12 +117,54 @@ class TestCLI:
         ):
             assert main() == 0
 
-    @pytest.mark.skip("CL-03 batch mode not implemented")
-    def test_batch_mode_processes_multiple_files(self):
-        """Placeholder for CL-03."""
-        assert True
+    @patch("govdocverify.cli.process_document")
+    @pytest.mark.xfail(reason="CL-03 batch mode not implemented")
+    def test_batch_mode_processes_multiple_files(self, mock_process, tmp_path):
+        """CL-03: batch glob processing preserves order and continues on errors."""
+        file1 = tmp_path / "a.docx"
+        file2 = tmp_path / "b.docx"
+        file1.write_text("doc1")
+        file2.write_text("doc2")
 
-    @pytest.mark.skip("CL-04 report formats not implemented")
-    def test_report_formats_are_generated(self):
-        """Placeholder for CL-04."""
-        assert True
+        mock_process.side_effect = [
+            {"has_errors": False, "rendered": "", "by_category": {}},
+            RuntimeError("boom"),
+        ]
+        with patch(
+            "sys.argv",
+            ["script.py", "--file", str(tmp_path / "*.docx"), "--type", "ORDER"],
+        ):
+            assert main() == 1
+        processed = [c.args[0] for c in mock_process.call_args_list]
+        assert processed == [str(file1), str(file2)]
+
+    @patch("govdocverify.cli.process_document")
+    @pytest.mark.parametrize("fmt", ["html", "docx", "pdf"])
+    @pytest.mark.xfail(reason="CL-04 report formats not implemented")
+    def test_report_formats_are_generated(self, mock_process, tmp_path, fmt):
+        """CL-04: --out html/docx/pdf each produces a readable artifact."""
+        mock_process.return_value = {
+            "has_errors": False,
+            "rendered": "content",
+            "by_category": {},
+        }
+        out_dir = tmp_path / "out"
+        out_dir.mkdir()
+        with patch(
+            "sys.argv",
+            [
+                "script.py",
+                "--file",
+                "test.docx",
+                "--type",
+                "ORDER",
+                "--out",
+                fmt,
+                "--output-dir",
+                str(out_dir),
+            ],
+        ):
+            assert main() == 0
+        output_file = out_dir / f"test.{fmt}"
+        assert output_file.exists()
+        assert output_file.stat().st_size > 0

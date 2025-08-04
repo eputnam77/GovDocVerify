@@ -321,6 +321,8 @@ class TestHeadingChecks:
         assert any("missing required period" in issue["message"] for issue in result.issues)
 
     def test_run_checks_reports_skipped_heading_level_with_line_numbers(self):
+        """VR-01: jumping from H1 to H3 triggers a high-severity issue."""
+
         doc = Document()
         doc.add_paragraph("1. INTRODUCTION.", style="Heading 1")
         doc.add_paragraph("1.1. DETAILS.", style="Heading 3")
