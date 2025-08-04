@@ -662,6 +662,7 @@ class FormattingChecker(BaseChecker):
         issues = []
         last_number: int | None = None
         for i, line in enumerate(lines, 1):
+            # Numbered lists require a period and sequential numbering
             gap_match = re.match(r"^(\d+)\.\s", line)
             if gap_match:
                 current = int(gap_match.group(1))
@@ -697,6 +698,7 @@ class FormattingChecker(BaseChecker):
             else:
                 last_number = None
 
+            # Bullet list checks
             if line.startswith("•") and not line.startswith("• "):
                 logger.debug(f"Found inconsistent bullet spacing in line {i}")
                 issues.append(
