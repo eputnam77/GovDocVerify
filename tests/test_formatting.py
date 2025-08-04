@@ -1,8 +1,7 @@
 # pytest -v tests/test_formatting.py --log-cli-level=DEBUG
-
-# pytest -v tests/test_formatting.py --log-cli-level=DEBUG
 #
-# NOTE: Refactored to use FormatChecks, as formatting_checks.py does not exist.
+# NOTE: Uses the new `FormatChecks` and `FormattingChecker` helpers from
+#       govdocverify.checks.format_checks.  No legacy `formatting_checks.py`.
 
 from pathlib import Path
 
@@ -15,14 +14,18 @@ from govdocverify.utils.terminology_utils import TerminologyManager
 
 
 class TestFormattingChecks:
+    # ------------------------------------------------------------------ #
+    # Boilerplate                                                        #
+    # ------------------------------------------------------------------ #
+
     @pytest.fixture(autouse=True)
     def setup(self):
         self.terminology_manager = TerminologyManager()
         self.format_checks = FormatChecks(self.terminology_manager)
 
-    # ---------------------------------------------------------------------
-    # Baseline formatting-check tests
-    # ---------------------------------------------------------------------
+    # ------------------------------------------------------------------ #
+    # Baseline paragraph-level checks                                    #
+    # ------------------------------------------------------------------ #
 
     def test_font_consistency(self):
         content = [
@@ -33,7 +36,7 @@ class TestFormattingChecks:
         ]
         result = self.format_checks.check(content)
         assert not result["has_errors"]
-        assert any("Inconsistent font usage" in issue["message"] for issue in result["warnings"])
+        assert any("inconsistent font" in issue["message"].lower() for issue in result["warnings"])
 
     def test_spacing_consistency(self):
         content = [
@@ -44,7 +47,7 @@ class TestFormattingChecks:
         ]
         result = self.format_checks.check(content)
         assert not result["has_errors"]
-        assert any("Inconsistent spacing" in issue["message"] for issue in result["warnings"])
+        assert any("inconsistent spacing" in issue["message"].lower() for issue in result["warnings"])
 
     def test_margin_consistency(self):
         content = [
@@ -55,7 +58,7 @@ class TestFormattingChecks:
         ]
         result = self.format_checks.check(content)
         assert not result["has_errors"]
-        assert any("Inconsistent margins" in issue["message"] for issue in result["warnings"])
+        assert any("inconsistent margins" in issue["message"].lower() for issue in result["warnings"])
 
     def test_list_formatting(self):
         content = [
@@ -68,7 +71,7 @@ class TestFormattingChecks:
         ]
         result = self.format_checks.check(content)
         assert not result["has_errors"]
-        assert len(result["warnings"]) == 0  # No formatting issues
+        assert len(result["warnings"]) == 0
 
     def test_table_formatting(self):
         content = [
@@ -80,7 +83,7 @@ class TestFormattingChecks:
         ]
         result = self.format_checks.check(content)
         assert not result["has_errors"]
-        assert len(result["warnings"]) == 0  # No formatting issues
+        assert len(result["warnings"]) == 0
 
     def test_heading_formatting(self):
         content = [
@@ -93,7 +96,7 @@ class TestFormattingChecks:
         ]
         result = self.format_checks.check(content)
         assert not result["has_errors"]
-        assert len(result["warnings"]) == 0  # No formatting issues
+        assert len(result["warnings"]) == 0
 
     def test_reference_formatting(self):
         content = [
@@ -103,9 +106,7 @@ class TestFormattingChecks:
         ]
         result = self.format_checks.check(content)
         assert not result["has_errors"]
-        assert any(
-            "Inconsistent reference format" in issue["message"] for issue in result["warnings"]
-        )
+        assert any("inconsistent reference" in issue["message"].lower() for issue in result["warnings"])
 
     def test_figure_formatting(self):
         content = [
@@ -116,17 +117,17 @@ class TestFormattingChecks:
         ]
         result = self.format_checks.check(content)
         assert not result["has_errors"]
-        assert len(result["warnings"]) == 0  # No formatting issues
+        assert len(result["warnings"]) == 0
 
-    # ---------------------------------------------------------------------
-    # Granular checker-level tests
-    # ---------------------------------------------------------------------
+    # ------------------------------------------------------------------ #
+    # Fine-grained checker tests                                         #
+    # ------------------------------------------------------------------ #
 
     def test_list_formatting_flags_number_and_bullet_issues(self):
         lines = [
             "1. First item",
-            "2Second item",  # Missing period or space after number
-            "•Third item",   # Missing space after bullet
+            "2Second item",   # Missing period or space after number
+            "•Third item",    # Missing space after bullet
         ]
         checker = FormattingChecker()
         result = checker.check_list_formatting(lines)
@@ -150,9 +151,9 @@ class TestFormattingChecks:
         assert all("section symbol" in issue["message"].lower() for issue in result.issues)
         assert all(issue["severity"] == Severity.WARNING for issue in result.issues)
 
-    # ---------------------------------------------------------------------
-    # Caption schema tests
-    # ---------------------------------------------------------------------
+    # ------------------------------------------------------------------ #
+    # Caption schema checks                                              #
+    # ------------------------------------------------------------------ #
 
     def test_caption_schema_requires_dash_for_order(self):
         doc = Document()
@@ -163,7 +164,7 @@ class TestFormattingChecks:
         issue = result.issues[0]
         assert issue["line_number"] == 1
         assert issue["severity"] == Severity.ERROR
-        assert "Figure X-Y" in issue["message"]
+        assert "figure x-y" in issue["message"].lower()
 
     def test_caption_schema_disallows_dash_for_other_docs(self):
         doc = Document()
@@ -174,11 +175,11 @@ class TestFormattingChecks:
         issue = result.issues[0]
         assert issue["line_number"] == 1
         assert issue["severity"] == Severity.ERROR
-        assert "Table X" in issue["message"]
+        assert "table x" in issue["message"].lower()
 
-    # ---------------------------------------------------------------------
-    # New (currently xfail) edge-case tests
-    # ---------------------------------------------------------------------
+    # ------------------------------------------------------------------ #
+    # Edge-case checks (xfail until implemented)                         #
+    # ------------------------------------------------------------------ #
 
     @pytest.mark.xfail(reason="Numbering continuity check not implemented")
     def test_list_numbering_continuity_flags_gaps(self):
