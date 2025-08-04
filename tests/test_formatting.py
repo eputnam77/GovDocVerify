@@ -1,6 +1,11 @@
 # pytest -v tests/test_formatting.py --log-cli-level=DEBUG
 
+# pytest -v tests/test_formatting.py --log-cli-level=DEBUG
+#
 # NOTE: Refactored to use FormatChecks, as formatting_checks.py does not exist.
+
+from pathlib import Path
+
 import pytest
 from docx import Document
 
@@ -14,6 +19,10 @@ class TestFormattingChecks:
     def setup(self):
         self.terminology_manager = TerminologyManager()
         self.format_checks = FormatChecks(self.terminology_manager)
+
+    # ---------------------------------------------------------------------
+    # Baseline formatting-check tests
+    # ---------------------------------------------------------------------
 
     def test_font_consistency(self):
         content = [
@@ -109,11 +118,15 @@ class TestFormattingChecks:
         assert not result["has_errors"]
         assert len(result["warnings"]) == 0  # No formatting issues
 
+    # ---------------------------------------------------------------------
+    # Granular checker-level tests
+    # ---------------------------------------------------------------------
+
     def test_list_formatting_flags_number_and_bullet_issues(self):
         lines = [
             "1. First item",
             "2Second item",  # Missing period or space after number
-            "•Third item",  # Missing space after bullet
+            "•Third item",   # Missing space after bullet
         ]
         checker = FormattingChecker()
         result = checker.check_list_formatting(lines)
@@ -126,8 +139,8 @@ class TestFormattingChecks:
 
     def test_section_symbol_usage_detects_spacing(self):
         lines = [
-            "See §123 for details",  # Missing space after section symbol
-            "Refer to §§123-456 for more",  # Missing space after double symbol
+            "See §123 for details",        # Missing space after symbol
+            "Refer to §§123-456 for more", # Missing space after double symbol
         ]
         checker = FormattingChecker()
         result = checker.check_section_symbol_usage(lines)
@@ -136,6 +149,10 @@ class TestFormattingChecks:
         assert {issue["line_number"] for issue in result.issues} == {1, 2}
         assert all("section symbol" in issue["message"].lower() for issue in result.issues)
         assert all(issue["severity"] == Severity.WARNING for issue in result.issues)
+
+    # ---------------------------------------------------------------------
+    # Caption schema tests
+    # ---------------------------------------------------------------------
 
     def test_caption_schema_requires_dash_for_order(self):
         doc = Document()
@@ -159,9 +176,13 @@ class TestFormattingChecks:
         assert issue["severity"] == Severity.ERROR
         assert "Table X" in issue["message"]
 
+    # ---------------------------------------------------------------------
+    # New (currently xfail) edge-case tests
+    # ---------------------------------------------------------------------
+
     @pytest.mark.xfail(reason="Numbering continuity check not implemented")
     def test_list_numbering_continuity_flags_gaps(self):
-        """VR-03: numbering gaps are reported as formatting issues."""
+        """VR-03: numbering gaps should be reported as formatting issues."""
         lines = [
             "1. First",
             "3. Third",  # Skips 2
@@ -175,7 +196,7 @@ class TestFormattingChecks:
 
     @pytest.mark.xfail(reason="Orphan bullet detection not implemented")
     def test_orphaned_bullet_is_detected(self):
-        """VR-03: bullets without preceding list context are flagged."""
+        """VR-03: bullets without preceding list context should be flagged."""
         lines = [
             "Intro paragraph",
             "• Orphan bullet",
@@ -186,7 +207,7 @@ class TestFormattingChecks:
         assert any("bullet" in issue["message"].lower() for issue in result.issues)
 
     def test_section_symbol_usage_allows_proper_spacing(self):
-        """VR-06: correctly spaced section symbols pass the check."""
+        """VR-06: correctly spaced section symbols should pass the check."""
         lines = ["See § 123 for details", "Refer to §§ 123-456 for more"]
         checker = FormattingChecker()
         result = checker.check_section_symbol_usage(lines)
