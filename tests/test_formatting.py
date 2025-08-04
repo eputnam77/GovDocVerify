@@ -3,7 +3,8 @@
 # NOTE: Refactored to use FormatChecks, as formatting_checks.py does not exist.
 import pytest
 
-from govdocverify.checks.format_checks import FormatChecks
+from govdocverify.checks.format_checks import FormatChecks, FormattingChecker
+from govdocverify.models import Severity
 from govdocverify.utils.terminology_utils import TerminologyManager
 
 
@@ -106,3 +107,31 @@ class TestFormattingChecks:
         result = self.format_checks.check(content)
         assert not result["has_errors"]
         assert len(result["warnings"]) == 0  # No formatting issues
+
+    def test_list_formatting_flags_number_and_bullet_issues(self):
+        lines = [
+            "1. First item",
+            "2Second item",  # Missing period or space after number
+            "•Third item",  # Missing space after bullet
+        ]
+        checker = FormattingChecker()
+        result = checker.check_list_formatting(lines)
+        assert not result.success
+        messages = [issue["message"].lower() for issue in result.issues]
+        assert any("list formatting" in m for m in messages)
+        assert any("bullet spacing" in m for m in messages)
+        assert {issue["line_number"] for issue in result.issues} == {2, 3}
+        assert all(issue["severity"] == Severity.WARNING for issue in result.issues)
+
+    def test_section_symbol_usage_detects_spacing(self):
+        lines = [
+            "See §123 for details",  # Missing space after section symbol
+            "Refer to §§123-456 for more",  # Missing space after double symbol
+        ]
+        checker = FormattingChecker()
+        result = checker.check_section_symbol_usage(lines)
+        assert not result.success
+        assert len(result.issues) == 2
+        assert {issue["line_number"] for issue in result.issues} == {1, 2}
+        assert all("section symbol" in issue["message"].lower() for issue in result.issues)
+        assert all(issue["severity"] == Severity.WARNING for issue in result.issues)
