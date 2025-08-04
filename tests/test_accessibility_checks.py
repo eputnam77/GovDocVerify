@@ -8,6 +8,7 @@ from unittest.mock import Mock
 
 import pytest
 from docx import Document
+from docx.enum.style import WD_STYLE_TYPE
 
 from govdocverify.checks.accessibility_checks import AccessibilityChecks
 from govdocverify.models import DocumentCheckResult, Severity
@@ -573,6 +574,52 @@ class TestAccessibilityChecks(TestBase):
         self.assertEqual(len(mock_results.issues), 1)
         self.assertIn("Non-descriptive link text", mock_results.issues[0]["message"])
         self.assertEqual(mock_results.issues[0]["severity"], Severity.WARNING)
+
+    def test_unknown_paragraph_style_triggers_heading_issue(self):
+        """VR-02: paragraphs with non-whitelisted styles are flagged."""
+        doc = Document()
+        custom_style = doc.styles.add_style("Custom", WD_STYLE_TYPE.PARAGRAPH)
+        doc.add_paragraph("Some body text", style=custom_style)
+
+        result = self.accessibility_checks.check_heading_structure(doc)
+        assert not result.success
+        assert any("top-level heading" in issue["message"] for issue in result.issues)
+
+    def test_tables_without_headers_detected(self):
+        """VR-08: table accessibility issues surface in 508 check."""
+        checker = AccessibilityChecks()
+        content = "This document mentions tables without headers in the appendix."
+        result = checker.check_section_508_compliance(content)
+        assert not result.success
+        assert any("tables without headers" in issue["message"].lower() for issue in result.issues)
+
+    def test_heading_outline_exports_to_json_tree(self):
+        """VR-09: heading outline can be represented as a JSON tree."""
+        doc = Document()
+        doc.add_paragraph("1. INTRODUCTION.", style="Heading 1")
+        doc.add_paragraph("1.1. DETAILS.", style="Heading 2")
+        ac = AccessibilityChecks()
+        headings = ac._extract_docx_headings(doc)
+
+        def build_tree(headings):
+            tree = []
+            stack = []
+            for level, text in headings:
+                node = {"text": text, "children": []}
+                while len(stack) >= level:
+                    stack.pop()
+                if stack:
+                    stack[-1]["children"].append(node)
+                else:
+                    tree.append(node)
+                stack.append(node)
+            return tree
+
+        outline = build_tree(headings)
+        expected = [
+            {"text": "1. INTRODUCTION.", "children": [{"text": "1.1. DETAILS.", "children": []}]}
+        ]
+        assert outline == expected
 
     def test_check_hyperlinks_with_empty_content(self):
         """Test _check_hyperlinks with empty content."""

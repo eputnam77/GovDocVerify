@@ -2,6 +2,7 @@
 
 import logging
 import unittest
+from time import perf_counter
 from unittest.mock import ANY, MagicMock, Mock, patch
 
 from govdocverify.document_checker import FAADocumentChecker
@@ -269,6 +270,21 @@ class TestFAADocumentChecker(unittest.TestCase):
         # Verify the total number of check modules matches our expectations
         self.assertEqual(len(mock_checks), 8, "Expected 8 check modules to be run")
         logger.debug("Completed test_all_check_modules_are_run")
+
+    def test_stress_document_runs_fast_and_deterministic(self):
+        """VR-10: large document finishes quickly with stable issue count."""
+        lines = ["1. INTRODUCTION."] + [f"Paragraph {i}" for i in range(200)]
+        start = perf_counter()
+        result1 = self.checker.run_all_document_checks(lines)
+        duration1 = perf_counter() - start
+
+        start = perf_counter()
+        result2 = self.checker.run_all_document_checks(lines)
+        duration2 = perf_counter() - start
+
+        self.assertLess(duration1, 5)
+        self.assertLess(duration2, 5)
+        self.assertEqual(len(result1.issues), len(result2.issues))
 
 
 if __name__ == "__main__":

@@ -5,6 +5,7 @@ import pytest
 from docx import Document
 
 from govdocverify.checks.heading_checks import HeadingChecks
+from govdocverify.models import Severity
 from govdocverify.utils.terminology_utils import TerminologyManager
 
 
@@ -318,6 +319,18 @@ class TestHeadingChecks:
         result = self.heading_checks.check_heading_period(doc, "TSO")
         assert not result.success
         assert any("missing required period" in issue["message"] for issue in result.issues)
+
+    def test_run_checks_reports_skipped_heading_level_with_line_numbers(self):
+        doc = Document()
+        doc.add_paragraph("1. INTRODUCTION.", style="Heading 1")
+        doc.add_paragraph("1.1. DETAILS.", style="Heading 3")
+        result = self.heading_checks.check_document(doc, "ORDER")
+        assert not result.success
+        assert len(result.issues) == 1
+        issue = result.issues[0]
+        assert "Missing heading H2" in issue["message"]
+        assert issue["line_number"] == 2
+        assert issue["severity"] == Severity.ERROR
 
 
 if __name__ == "__main__":
