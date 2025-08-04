@@ -2,6 +2,7 @@
 
 # NOTE: Refactored to use FormatChecks, as formatting_checks.py does not exist.
 import pytest
+from docx import Document
 
 from govdocverify.checks.format_checks import FormatChecks, FormattingChecker
 from govdocverify.models import Severity
@@ -135,3 +136,25 @@ class TestFormattingChecks:
         assert {issue["line_number"] for issue in result.issues} == {1, 2}
         assert all("section symbol" in issue["message"].lower() for issue in result.issues)
         assert all(issue["severity"] == Severity.WARNING for issue in result.issues)
+
+    def test_caption_schema_requires_dash_for_order(self):
+        doc = Document()
+        doc.add_paragraph("Figure 1. Aircraft layout")
+        checker = FormatChecks(self.terminology_manager)
+        result = checker.check_document(doc, "Order")
+        assert not result.success
+        issue = result.issues[0]
+        assert issue["line_number"] == 1
+        assert issue["severity"] == Severity.ERROR
+        assert "Figure X-Y" in issue["message"]
+
+    def test_caption_schema_disallows_dash_for_other_docs(self):
+        doc = Document()
+        doc.add_paragraph("Table 1-1. Schedule")
+        checker = FormatChecks(self.terminology_manager)
+        result = checker.check_document(doc, "Memo")
+        assert not result.success
+        issue = result.issues[0]
+        assert issue["line_number"] == 1
+        assert issue["severity"] == Severity.ERROR
+        assert "Table X" in issue["message"]
