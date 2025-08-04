@@ -63,6 +63,10 @@ class FormatMessages:
     # List formatting messages
     LIST_FORMAT_WARNING = "Found inconsistent list formatting in line {line}"
     BULLET_SPACING_WARNING = "Found inconsistent bullet spacing in line {line}"
+    LIST_NUMBERING_GAP_WARNING = (
+        "List numbering expected {expected} but found {found} in line {line}"
+    )
+    ORPHAN_BULLET_WARNING = "Bullet in line {line} is not part of a list"
 
     # Quotation marks messages
     QUOTATION_MARKS_WARNING = "Found inconsistent quotation marks in line {line}"
@@ -656,9 +660,30 @@ class FormattingChecker(BaseChecker):
         """Check for consistent list formatting."""
         logger.debug("Checking list formatting")
         issues = []
+        last_number: int | None = None
         for i, line in enumerate(lines, 1):
-            # Check numbered lists
-            if re.match(r"^\d+[^.\s]", line):
+            gap_match = re.match(r"^(\d+)\.\s", line)
+            if gap_match:
+                current = int(gap_match.group(1))
+                if last_number is not None and current != last_number + 1:
+                    logger.debug(
+                        "List numbering gap: expected %s but found %s at line %s",
+                        last_number + 1,
+                        current,
+                        i,
+                    )
+                    issues.append(
+                        {
+                            "message": FormatMessages.LIST_NUMBERING_GAP_WARNING.format(
+                                expected=last_number + 1, found=current, line=i
+                            ),
+                            "severity": Severity.WARNING,
+                            "line_number": i,
+                            "checker": "FormattingChecker",
+                        }
+                    )
+                last_number = current
+            elif re.match(r"^\d+[^.\s]", line):
                 logger.debug(f"Found inconsistent list formatting in line {i}")
                 issues.append(
                     {
@@ -668,7 +693,10 @@ class FormattingChecker(BaseChecker):
                         "checker": "FormattingChecker",
                     }
                 )
-            # Check bullet lists
+                last_number = None
+            else:
+                last_number = None
+
             if line.startswith("•") and not line.startswith("• "):
                 logger.debug(f"Found inconsistent bullet spacing in line {i}")
                 issues.append(
@@ -679,8 +707,25 @@ class FormattingChecker(BaseChecker):
                         "checker": "FormattingChecker",
                     }
                 )
+
+            if line.startswith("• "):
+                prev = lines[i - 2] if i > 1 else ""
+                nxt = lines[i] if i < len(lines) else ""
+                if not prev.strip().startswith("•") and not nxt.strip().startswith("•"):
+                    logger.debug(f"Found orphan bullet in line {i}")
+                    issues.append(
+                        {
+                            "message": FormatMessages.ORPHAN_BULLET_WARNING.format(line=i),
+                            "severity": Severity.WARNING,
+                            "line_number": i,
+                            "checker": "FormattingChecker",
+                        }
+                    )
+
         return DocumentCheckResult(
-            success=len(issues) == 0, severity=Severity.WARNING if issues else None, issues=issues
+            success=len(issues) == 0,
+            severity=Severity.WARNING if issues else None,
+            issues=issues,
         )
 
     def check_quotation_marks(self, lines: List[str]) -> DocumentCheckResult:
