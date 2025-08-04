@@ -17,7 +17,7 @@ def save_results_as_docx(results: dict[str, Any], path: str) -> None:
     """Save results as a DOCX file."""
     doc = Document()
     doc.add_heading("Document Check Results", level=1)
-    doc.add_paragraph(json.dumps(results, indent=2))
+    doc.add_paragraph(json.dumps(results, indent=2, ensure_ascii=False))
     doc.save(path)
 
 
@@ -31,6 +31,6 @@ def save_results_as_pdf(results: dict[str, Any], path: str) -> None:
     pdf = FPDF()
     pdf.add_page()
     pdf.set_font("Helvetica", size=12)
-    for line in json.dumps(results, indent=2).splitlines():
+    for line in json.dumps(results, indent=2, ensure_ascii=False).splitlines():
         pdf.cell(0, 10, txt=line, ln=True)
     pdf.output(path)
