@@ -158,3 +158,36 @@ class TestFormattingChecks:
         assert issue["line_number"] == 1
         assert issue["severity"] == Severity.ERROR
         assert "Table X" in issue["message"]
+
+    @pytest.mark.xfail(reason="Numbering continuity check not implemented")
+    def test_list_numbering_continuity_flags_gaps(self):
+        """VR-03: numbering gaps are reported as formatting issues."""
+        lines = [
+            "1. First",
+            "3. Third",  # Skips 2
+        ]
+        checker = FormattingChecker()
+        result = checker.check_list_formatting(lines)
+        assert not result.success
+        messages = [issue["message"].lower() for issue in result.issues]
+        assert any("list formatting" in m for m in messages)
+        assert {issue["line_number"] for issue in result.issues} == {2}
+
+    @pytest.mark.xfail(reason="Orphan bullet detection not implemented")
+    def test_orphaned_bullet_is_detected(self):
+        """VR-03: bullets without preceding list context are flagged."""
+        lines = [
+            "Intro paragraph",
+            "• Orphan bullet",
+        ]
+        checker = FormattingChecker()
+        result = checker.check_list_formatting(lines)
+        assert not result.success
+        assert any("bullet" in issue["message"].lower() for issue in result.issues)
+
+    def test_section_symbol_usage_allows_proper_spacing(self):
+        """VR-06: correctly spaced section symbols pass the check."""
+        lines = ["See § 123 for details", "Refer to §§ 123-456 for more"]
+        checker = FormattingChecker()
+        result = checker.check_section_symbol_usage(lines)
+        assert result.success

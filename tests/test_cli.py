@@ -91,3 +91,38 @@ class TestCLI:
         with patch("sys.argv", ["script.py", "file.pdf", "ORDER"]):
             result = main()
         assert result == 1
+
+    @patch("govdocverify.cli.process_document")
+    def test_main_exit_codes_reflect_error_severity(self, mock_process):
+        """CL-02: exit code is non-zero when high-severity issues exist."""
+        mock_process.return_value = {
+            "has_errors": True,
+            "rendered": "",
+            "by_category": {},
+        }
+        with patch(
+            "sys.argv",
+            ["script.py", "--file", "test.docx", "--type", "ORDER"],
+        ):
+            assert main() == 1
+
+        mock_process.return_value = {
+            "has_errors": False,
+            "rendered": "",
+            "by_category": {},
+        }
+        with patch(
+            "sys.argv",
+            ["script.py", "--file", "test.docx", "--type", "ORDER"],
+        ):
+            assert main() == 0
+
+    @pytest.mark.skip("CL-03 batch mode not implemented")
+    def test_batch_mode_processes_multiple_files(self):
+        """Placeholder for CL-03."""
+        assert True
+
+    @pytest.mark.skip("CL-04 report formats not implemented")
+    def test_report_formats_are_generated(self):
+        """Placeholder for CL-04."""
+        assert True
