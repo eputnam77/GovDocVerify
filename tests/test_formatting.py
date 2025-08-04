@@ -3,7 +3,6 @@
 # NOTE: Uses the new `FormatChecks` and `FormattingChecker` helpers from
 #       govdocverify.checks.format_checks.  No legacy `formatting_checks.py`.
 
-from pathlib import Path
 
 import pytest
 from docx import Document
@@ -47,7 +46,9 @@ class TestFormattingChecks:
         ]
         result = self.format_checks.check(content)
         assert not result["has_errors"]
-        assert any("inconsistent spacing" in issue["message"].lower() for issue in result["warnings"])
+        assert any(
+            "inconsistent spacing" in issue["message"].lower() for issue in result["warnings"]
+        )
 
     def test_margin_consistency(self):
         content = [
@@ -58,7 +59,9 @@ class TestFormattingChecks:
         ]
         result = self.format_checks.check(content)
         assert not result["has_errors"]
-        assert any("inconsistent margins" in issue["message"].lower() for issue in result["warnings"])
+        assert any(
+            "inconsistent margins" in issue["message"].lower() for issue in result["warnings"]
+        )
 
     def test_list_formatting(self):
         content = [
@@ -106,7 +109,9 @@ class TestFormattingChecks:
         ]
         result = self.format_checks.check(content)
         assert not result["has_errors"]
-        assert any("inconsistent reference" in issue["message"].lower() for issue in result["warnings"])
+        assert any(
+            "inconsistent reference" in issue["message"].lower() for issue in result["warnings"]
+        )
 
     def test_figure_formatting(self):
         content = [
@@ -126,8 +131,8 @@ class TestFormattingChecks:
     def test_list_formatting_flags_number_and_bullet_issues(self):
         lines = [
             "1. First item",
-            "2Second item",   # Missing period or space after number
-            "•Third item",    # Missing space after bullet
+            "2Second item",  # Missing period or space after number
+            "•Third item",  # Missing space after bullet
         ]
         checker = FormattingChecker()
         result = checker.check_list_formatting(lines)
@@ -140,8 +145,8 @@ class TestFormattingChecks:
 
     def test_section_symbol_usage_detects_spacing(self):
         lines = [
-            "See §123 for details",        # Missing space after symbol
-            "Refer to §§123-456 for more", # Missing space after double symbol
+            "See §123 for details",  # Missing space after symbol
+            "Refer to §§123-456 for more",  # Missing space after double symbol
         ]
         checker = FormattingChecker()
         result = checker.check_section_symbol_usage(lines)
@@ -213,3 +218,12 @@ class TestFormattingChecks:
         checker = FormattingChecker()
         result = checker.check_section_symbol_usage(lines)
         assert result.success
+
+    @pytest.mark.xfail(reason="VR-06 appendix/SFAR replacements not implemented")
+    def test_section_symbol_usage_flags_improper_context(self):
+        """VR-06: improper use of section symbols suggests replacement."""
+        lines = ["Appendix §123", "SFAR § 91"]
+        checker = FormattingChecker()
+        result = checker.check_section_symbol_usage(lines)
+        assert not result.success
+        assert all("section symbol" in issue["message"].lower() for issue in result.issues)
