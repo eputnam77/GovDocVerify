@@ -154,3 +154,31 @@ def test_format_results_with_all_metadata_fields() -> None:
     ]
     for field in expected_fields:
         assert field in text
+
+
+def test_metadata_block_precedes_issues() -> None:
+    """MD-03: metadata appears at the start of reports."""
+    result = _make_result(issues=[{"message": "Problem", "severity": Severity.ERROR}])
+    data = {"section": {"check": result}}
+    metadata = {"title": "Doc", "author": "Alice"}
+
+    fmt = ResultFormatter(style=FormatStyle.PLAIN)
+    text = fmt.format_results(data, "AC", metadata=metadata)
+    lines = [line for line in text.splitlines() if line]
+    assert lines[2].startswith("Title: Doc")
+
+    fmt_html = ResultFormatter(style=FormatStyle.HTML)
+    html = fmt_html.format_results(data, "AC", metadata=metadata)
+    html_lines = [line for line in html.splitlines() if line]
+    assert "metadata" in html_lines[2].lower()
+
+
+def test_non_ascii_metadata_preserved_in_html() -> None:
+    """MD-05: non-ASCII metadata survives HTML rendering."""
+    result = _make_result()
+    data = {"x": {"y": result}}
+    metadata = {"title": "Résumé", "author": "Jörg"}
+    fmt = ResultFormatter(style=FormatStyle.HTML)
+    html = fmt.format_results(data, "AC", metadata=metadata)
+    assert "Résumé" in html
+    assert "Jörg" in html

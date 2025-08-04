@@ -5,6 +5,7 @@ from unittest.mock import patch
 import pytest
 
 from govdocverify.cli import main, process_document
+from govdocverify.utils.security import SecurityError
 from govdocverify.utils.terminology_utils import TerminologyManager
 
 
@@ -80,4 +81,13 @@ class TestCLI:
 
         with patch("sys.argv", ["script.py", "test.docx", "ADVISORY_CIRCULAR"]):
             result = main()
-            assert result == 1
+        assert result == 1
+
+    @patch("govdocverify.cli.process_document")
+    def test_main_unsupported_extension(self, mock_process):
+        """CL-01: unsupported file types exit with an error."""
+        mock_process.side_effect = SecurityError("Invalid file type")
+
+        with patch("sys.argv", ["script.py", "file.pdf", "ORDER"]):
+            result = main()
+        assert result == 1
