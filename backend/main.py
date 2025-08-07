@@ -4,7 +4,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
-from backend.api import process_doc_endpoint
+from backend.api import download_result, process_doc_endpoint
 
 app = FastAPI(title="FAA-Document-Checker API")
 
@@ -22,6 +22,7 @@ app.add_middleware(
 )
 
 app.post("/process")(process_doc_endpoint)
+app.get("/results/{result_id}.{fmt}")(download_result)
 
 # Optionally serve static files (for Docker deployment)
 STATIC_DIR = os.getenv("STATIC_DIR")
