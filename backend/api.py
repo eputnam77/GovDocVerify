@@ -1,15 +1,20 @@
 import logging
 import os
 import tempfile
+import uuid
+from typing import Any
 
-from fastapi import File, Form, HTTPException, UploadFile
-from fastapi.responses import JSONResponse
+from fastapi import BackgroundTasks, File, Form, HTTPException, UploadFile
+from fastapi.responses import FileResponse, JSONResponse
 
+from govdocverify import export
 from govdocverify.cli import process_document
 from govdocverify.models import VisibilitySettings
 from govdocverify.utils.security import SecurityError, rate_limit, validate_file
 
 log = logging.getLogger(__name__)
+
+_RESULTS: dict[str, dict[str, Any]] = {}
 
 
 @rate_limit
@@ -31,19 +36,22 @@ async def process_doc_endpoint(
             raise HTTPException(status_code=400, detail=str(se)) from se
 
         vis = VisibilitySettings.from_dict_json(visibility_json)
-        html_result = process_document(tmp_path, doc_type, vis, group_by=group_by)
+        result = process_document(tmp_path, doc_type, vis, group_by=group_by)
 
-        # If process_document returns a dict (new structure), unpack it
-        if isinstance(html_result, dict):
+        if isinstance(result, dict):
+            result_id = uuid.uuid4().hex
+            _RESULTS[result_id] = result.get("by_category", {})
             return JSONResponse(
                 {
-                    "has_errors": html_result.get("has_errors", False),
-                    "rendered": html_result.get("rendered", ""),
-                    "by_category": html_result.get("by_category", {}),
+                    "has_errors": result.get("has_errors", False),
+                    "rendered": result.get("rendered", ""),
+                    "by_category": result.get("by_category", {}),
+                    "result_id": result_id,
                 }
             )
-        # Fallback for legacy string output
-        return JSONResponse({"html": html_result})
+        result_id = uuid.uuid4().hex
+        _RESULTS[result_id] = {"html": result}
+        return JSONResponse({"html": result, "result_id": result_id})
 
     except HTTPException:
         raise
@@ -53,3 +61,22 @@ async def process_doc_endpoint(
     finally:
         if tmp_path and os.path.exists(tmp_path):
             os.unlink(tmp_path)
+
+
+async def download_result(result_id: str, fmt: str, background: BackgroundTasks) -> FileResponse:
+    data = _RESULTS.get(result_id)
+    if data is None:
+        raise HTTPException(status_code=404, detail="result not found")
+    suffix = f".{fmt}"
+    with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
+        path = tmp.name
+    if fmt == "docx":
+        export.save_results_as_docx(data, path)
+        media = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+    elif fmt == "pdf":
+        export.save_results_as_pdf(data, path)
+        media = "application/pdf"
+    else:
+        raise HTTPException(status_code=400, detail="unsupported format")
+    background.add_task(os.unlink, path)
+    return FileResponse(path, media_type=media, filename=f"results{suffix}", background=background)

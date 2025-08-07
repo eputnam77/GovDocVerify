@@ -4,6 +4,7 @@ import axios from "axios";
 import UploadPanel from "./components/UploadPanel";
 import VisibilityToggles from "./components/VisibilityToggles";
 import ResultsPane from "./components/ResultsPane";
+import DownloadButtons from "./components/DownloadButtons";
 import { ThemeProvider, createTheme } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
 import AppBar from '@mui/material/AppBar';
@@ -33,6 +34,7 @@ const theme = createTheme({
 
 export default function App() {
   const [html, setHtml] = useState<string>("");
+  const [resultId, setResultId] = useState<string | null>(null);
   const [visibility, setVisibility] = useState<Record<string, boolean>>({
     readability: true,
     analysis: true,
@@ -59,8 +61,8 @@ export default function App() {
     const { data: resp } = await axios.post(`${API_BASE}/process`, data, {
       headers: { "Content-Type": "multipart/form-data" },
     });
-    console.log(resp);
-    setHtml(DOMPurify.sanitize(resp.html));
+    setHtml(DOMPurify.sanitize(resp.rendered || resp.html || ""));
+    setResultId(resp.result_id);
   };
 
   return (
@@ -81,6 +83,7 @@ export default function App() {
           </Grid>
           <Grid item xs={12} md={8}>
             <ResultsPane html={html} />
+            {resultId && <DownloadButtons resultId={resultId} />}
           </Grid>
         </Grid>
       </Container>

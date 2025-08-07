@@ -61,7 +61,7 @@ def test_process_contract(monkeypatch):
     )
     assert resp.status_code == 200
     data = resp.json()
-    assert set(data) == {"has_errors", "rendered", "by_category"}
+    assert set(data) == {"has_errors", "rendered", "by_category", "result_id"}
     assert resp.headers["content-type"].startswith("application/json")
 
 
@@ -138,3 +138,30 @@ def test_process_concurrent_requests(monkeypatch):
         responses = list(ex.map(lambda _: send(), range(10)))
 
     assert all(r.status_code == 200 for r in responses)
+
+
+def test_download_results(monkeypatch):
+    """API-05: downloaded DOCX and PDF contain expected headers."""
+    client = TestClient(app)
+    monkeypatch.setattr("backend.api.validate_file", lambda *a, **k: None)
+
+    def proc(tmp_path, doc_type, *_, **__):
+        return {"has_errors": False, "rendered": "", "by_category": {"ok": 1}}
+
+    monkeypatch.setattr("backend.api.process_document", proc)
+    resp = client.post(
+        "/process",
+        files={"doc_file": ("x.docx", b"ok")},
+        data={"doc_type": "AC"},
+    )
+    result_id = resp.json()["result_id"]
+    d_resp = client.get(f"/results/{result_id}.docx")
+    assert d_resp.status_code == 200
+    assert d_resp.headers["content-type"].startswith(
+        "application/vnd.openxmlformats-officedocument"
+    )
+    assert d_resp.content.startswith(b"PK")
+    p_resp = client.get(f"/results/{result_id}.pdf")
+    assert p_resp.status_code == 200
+    assert p_resp.headers["content-type"].startswith("application/pdf")
+    assert p_resp.content.startswith(b"%PDF")
