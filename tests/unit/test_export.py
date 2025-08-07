@@ -55,4 +55,3 @@ def test_pdf_export_has_pdf_header(tmp_path) -> None:
     data = output.read_bytes()
     assert data.startswith(b"%PDF")
     assert len(data) > 10
-    

@@ -1,5 +1,6 @@
 # pytest -v tests/test_cli.py --log-cli-level=DEBUG
 
+from pathlib import Path
 from unittest.mock import patch
 
 import pytest
@@ -140,7 +141,6 @@ class TestCLI:
 
     @patch("govdocverify.cli.process_document")
     @pytest.mark.parametrize("fmt", ["html", "docx", "pdf"])
-    @pytest.mark.xfail(reason="CL-04 report formats not implemented")
     def test_report_formats_are_generated(self, mock_process, tmp_path, fmt):
         """CL-04: --out html/docx/pdf each produces a readable artifact."""
         mock_process.return_value = {
@@ -150,21 +150,27 @@ class TestCLI:
         }
         out_dir = tmp_path / "out"
         out_dir.mkdir()
-        with patch(
-            "sys.argv",
-            [
-                "script.py",
-                "--file",
-                "test.docx",
-                "--type",
-                "ORDER",
-                "--out",
-                fmt,
-                "--output-dir",
-                str(out_dir),
-            ],
+        with (
+            patch("govdocverify.export.save_results_as_docx") as save_docx,
+            patch("govdocverify.export.save_results_as_pdf") as save_pdf,
         ):
-            assert main() == 0
+            save_docx.side_effect = lambda _r, p: Path(p).write_text("docx")
+            save_pdf.side_effect = lambda _r, p: Path(p).write_text("pdf")
+            with patch(
+                "sys.argv",
+                [
+                    "script.py",
+                    "--file",
+                    "test.docx",
+                    "--type",
+                    "ORDER",
+                    "--out",
+                    fmt,
+                    "--output-dir",
+                    str(out_dir),
+                ],
+            ):
+                assert main() == 0
         output_file = out_dir / f"test.{fmt}"
         assert output_file.exists()
         assert output_file.stat().st_size > 0
