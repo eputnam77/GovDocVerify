@@ -203,6 +203,7 @@ def test_download_from_disk(monkeypatch):
     # Simulate another worker by clearing in-memory cache.
     from backend import api as bapi
 
-    bapi._RESULTS.clear()
+    with bapi._RESULTS_LOCK:
+        bapi._RESULTS.clear()
     resp2 = client.get(f"/results/{result_id}.pdf")
     assert resp2.status_code == 200
