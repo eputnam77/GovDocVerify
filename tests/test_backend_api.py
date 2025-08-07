@@ -165,3 +165,44 @@ def test_download_results(monkeypatch):
     assert p_resp.status_code == 200
     assert p_resp.headers["content-type"].startswith("application/pdf")
     assert p_resp.content.startswith(b"%PDF")
+
+
+def test_download_missing_result():
+    """API-06: requesting unknown result returns 404."""
+    client = TestClient(app)
+    resp = client.get("/results/does-not-exist.pdf")
+    assert resp.status_code == 404
+
+
+def test_download_unsupported_format(monkeypatch):
+    """API-07: unsupported formats return 400."""
+    client = TestClient(app)
+    monkeypatch.setattr("backend.api.validate_file", lambda *a, **k: None)
+    monkeypatch.setattr("backend.api.process_document", lambda *a, **k: _mock_result())
+    resp = client.post(
+        "/process",
+        files={"doc_file": ("x.docx", b"ok")},
+        data={"doc_type": "AC"},
+    )
+    result_id = resp.json()["result_id"]
+    bad = client.get(f"/results/{result_id}.txt")
+    assert bad.status_code == 400
+
+
+def test_download_from_disk(monkeypatch):
+    """API-08: downloads work even if in-memory cache is cleared."""
+    client = TestClient(app)
+    monkeypatch.setattr("backend.api.validate_file", lambda *a, **k: None)
+    monkeypatch.setattr("backend.api.process_document", lambda *a, **k: _mock_result())
+    resp = client.post(
+        "/process",
+        files={"doc_file": ("x.docx", b"ok")},
+        data={"doc_type": "AC"},
+    )
+    result_id = resp.json()["result_id"]
+    # Simulate another worker by clearing in-memory cache.
+    from backend import api as bapi
+
+    bapi._RESULTS.clear()
+    resp2 = client.get(f"/results/{result_id}.pdf")
+    assert resp2.status_code == 200

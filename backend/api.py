@@ -1,7 +1,10 @@
+import hashlib
+import json
 import logging
 import os
 import tempfile
-import uuid
+import time
+from pathlib import Path
 from typing import Any
 
 from fastapi import BackgroundTasks, File, Form, HTTPException, UploadFile
@@ -14,7 +17,48 @@ from govdocverify.utils.security import SecurityError, rate_limit, validate_file
 
 log = logging.getLogger(__name__)
 
-_RESULTS: dict[str, dict[str, Any]] = {}
+# Results are cached in memory for quick access but also written to disk so that
+# workers in a multi-process deployment can retrieve them. Each entry expires
+# after ``RESULT_TTL`` seconds to avoid unbounded growth.
+RESULT_TTL = 60 * 60  # one hour
+_RESULTS_DIR = Path(tempfile.gettempdir()) / "govdocverify_results"
+_RESULTS_DIR.mkdir(exist_ok=True)
+_RESULTS: dict[str, tuple[float, dict[str, Any]]] = {}
+
+
+def _cleanup_results() -> None:
+    """Remove expired cache entries and stray files on disk."""
+    now = time.time()
+    expired = [k for k, (ts, _) in _RESULTS.items() if now - ts > RESULT_TTL]
+    for key in expired:
+        _RESULTS.pop(key, None)
+        file = _RESULTS_DIR / f"{key}.json"
+        if file.exists():
+            file.unlink()
+    for file in _RESULTS_DIR.glob("*.json"):
+        if now - file.stat().st_mtime > RESULT_TTL:
+            file.unlink()
+
+
+def _save_result(result_id: str, data: dict[str, Any]) -> None:
+    _cleanup_results()
+    _RESULTS[result_id] = (time.time(), data)
+    path = _RESULTS_DIR / f"{result_id}.json"
+    path.write_text(json.dumps(data))
+
+
+def _load_result(result_id: str) -> dict[str, Any] | None:
+    _cleanup_results()
+    cached = _RESULTS.get(result_id)
+    if cached:
+        _RESULTS[result_id] = (time.time(), cached[1])
+        return cached[1]
+    path = _RESULTS_DIR / f"{result_id}.json"
+    if path.exists():
+        data = json.loads(path.read_text())
+        _RESULTS[result_id] = (time.time(), data)
+        return data
+    return None
 
 
 @rate_limit
@@ -39,18 +83,20 @@ async def process_doc_endpoint(
         result = process_document(tmp_path, doc_type, vis, group_by=group_by)
 
         if isinstance(result, dict):
-            result_id = uuid.uuid4().hex
-            _RESULTS[result_id] = result.get("by_category", {})
+            data = result.get("by_category", {})
+            result_id = hashlib.sha256(json.dumps(result, sort_keys=True).encode()).hexdigest()
+            _save_result(result_id, data)
             return JSONResponse(
                 {
                     "has_errors": result.get("has_errors", False),
                     "rendered": result.get("rendered", ""),
-                    "by_category": result.get("by_category", {}),
+                    "by_category": data,
                     "result_id": result_id,
                 }
             )
-        result_id = uuid.uuid4().hex
-        _RESULTS[result_id] = {"html": result}
+        data = {"html": result}
+        result_id = hashlib.sha256(result.encode()).hexdigest()
+        _save_result(result_id, data)
         return JSONResponse({"html": result, "result_id": result_id})
 
     except HTTPException:
@@ -64,7 +110,7 @@ async def process_doc_endpoint(
 
 
 async def download_result(result_id: str, fmt: str, background: BackgroundTasks) -> FileResponse:
-    data = _RESULTS.get(result_id)
+    data = _load_result(result_id)
     if data is None:
         raise HTTPException(status_code=404, detail="result not found")
     suffix = f".{fmt}"
