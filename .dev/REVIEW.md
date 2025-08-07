@@ -67,3 +67,18 @@ The latest merge adds scenario and property tests for metadata extraction. Howev
 **Mandatory Fixes**
 - None. Previous documentation and test issues are resolved.
 
+### Review Update - 2025-08-07
+
+#### PRD Coverage
+- New `/results/{result_id}.{fmt}` endpoint and `DownloadButtons` UI enable DOCX or PDF downloads.
+
+#### 🔴 Blocking
+- Document the download API and interface in README or the docs site.
+
+#### 🟢 Info
+- `_RESULTS` holds processed results indefinitely; add expiration or persistent storage to avoid memory growth.
+- The in-memory cache is not shared across workers, so downloads may fail in multi-process deployments.
+- Tests for missing results or unsupported formats would improve backend reliability.
+- Local test runs fail during collection due to missing dependencies; verify CI runs a green suite.
+
+Label: ready-for:builder
