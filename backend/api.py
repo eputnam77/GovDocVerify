@@ -3,6 +3,7 @@ import json
 import logging
 import os
 import tempfile
+import threading
 import time
 from pathlib import Path
 from typing import Any
@@ -19,22 +20,33 @@ log = logging.getLogger(__name__)
 
 # Results are cached in memory for quick access but also written to disk so that
 # workers in a multi-process deployment can retrieve them. Each entry expires
-# after ``RESULT_TTL`` seconds to avoid unbounded growth.
-RESULT_TTL = 60 * 60  # one hour
+# after ``RESULT_TTL`` seconds to avoid unbounded growth. ``RESULT_TTL`` and the
+# cleanup interval are configurable via environment variables to aid
+# maintainability.
+RESULT_TTL = int(os.getenv("RESULT_TTL", str(60 * 60)))  # default one hour
+_CLEANUP_INTERVAL = int(os.getenv("RESULT_CLEANUP_INTERVAL", "60"))
+_LAST_DISK_CLEANUP = 0.0
 _RESULTS_DIR = Path(tempfile.gettempdir()) / "govdocverify_results"
 _RESULTS_DIR.mkdir(exist_ok=True)
 _RESULTS: dict[str, tuple[float, dict[str, Any]]] = {}
+_RESULTS_LOCK = threading.Lock()
 
 
-def _cleanup_results() -> None:
-    """Remove expired cache entries and stray files on disk."""
+def _cleanup_results(force: bool = False) -> None:
+    """Remove expired cache entries and occasionally purge stale disk files."""
     now = time.time()
-    expired = [k for k, (ts, _) in _RESULTS.items() if now - ts > RESULT_TTL]
-    for key in expired:
-        _RESULTS.pop(key, None)
-        file = _RESULTS_DIR / f"{key}.json"
-        if file.exists():
-            file.unlink()
+    with _RESULTS_LOCK:
+        expired = [k for k, (ts, _) in _RESULTS.items() if now - ts > RESULT_TTL]
+        for key in expired:
+            _RESULTS.pop(key, None)
+            file = _RESULTS_DIR / f"{key}.json"
+            if file.exists():
+                file.unlink()
+
+    global _LAST_DISK_CLEANUP
+    if not force and now - _LAST_DISK_CLEANUP < _CLEANUP_INTERVAL:
+        return
+    _LAST_DISK_CLEANUP = now
     for file in _RESULTS_DIR.glob("*.json"):
         if now - file.stat().st_mtime > RESULT_TTL:
             file.unlink()
@@ -42,21 +54,24 @@ def _cleanup_results() -> None:
 
 def _save_result(result_id: str, data: dict[str, Any]) -> None:
     _cleanup_results()
-    _RESULTS[result_id] = (time.time(), data)
+    with _RESULTS_LOCK:
+        _RESULTS[result_id] = (time.time(), data)
     path = _RESULTS_DIR / f"{result_id}.json"
     path.write_text(json.dumps(data))
 
 
 def _load_result(result_id: str) -> dict[str, Any] | None:
     _cleanup_results()
-    cached = _RESULTS.get(result_id)
-    if cached:
-        _RESULTS[result_id] = (time.time(), cached[1])
-        return cached[1]
+    with _RESULTS_LOCK:
+        cached = _RESULTS.get(result_id)
+        if cached and time.time() - cached[0] <= RESULT_TTL:
+            _RESULTS[result_id] = (time.time(), cached[1])
+            return cached[1]
     path = _RESULTS_DIR / f"{result_id}.json"
-    if path.exists():
+    if path.exists() and time.time() - path.stat().st_mtime <= RESULT_TTL:
         data = json.loads(path.read_text())
-        _RESULTS[result_id] = (time.time(), data)
+        with _RESULTS_LOCK:
+            _RESULTS[result_id] = (time.time(), data)
         return data
     return None
 
