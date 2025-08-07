@@ -81,4 +81,18 @@ The latest merge adds scenario and property tests for metadata extraction. Howev
 - Tests for missing results or unsupported formats would improve backend reliability.
 - Local test runs fail during collection due to missing dependencies; verify CI runs a green suite.
 
+### Review Update - 2025-08-07 (result expiry)
+
+#### PRD Coverage
+- `_save_result` and `_load_result` persist results to a shared temp directory with hourly expiration, enabling downloads after processing.
+
+#### 🔴 Blocking
+- README and docs still do not mention the `/results/{result_id}.{fmt}` download endpoint or its expiration behavior.
+
+#### 🟢 Info
+- `_cleanup_results` walks the entire results directory on each request; many files could slow processing.
+- Global `_RESULTS` cache lacks locking, so concurrent requests on multi-threaded servers may race.
+- `RESULT_TTL` is hard-coded; making it configurable would aid maintainability.
+- Bandit and Semgrep are unavailable, and `pytest` fails to collect due to missing dependencies (`docx`, `fastapi`, `uvicorn`). Ensure CI installs required packages.
+
 Label: ready-for:builder
