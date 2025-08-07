@@ -4,8 +4,10 @@ import argparse
 import logging
 import os
 import sys
+from pathlib import Path
 from typing import Any, Optional
 
+from govdocverify import export
 from govdocverify.logging_config import setup_logging
 from govdocverify.models import (
     DocumentType,
@@ -201,6 +203,18 @@ def _create_argument_parser() -> argparse.ArgumentParser:
             "acronym, headings, structure, format, accessibility, document_status."
         ),
     )
+    parser.add_argument(
+        "--out",
+        choices=["html", "docx", "pdf"],
+        nargs="+",
+        help="Save results to one or more formats",
+    )
+    parser.add_argument(
+        "--output-dir",
+        type=str,
+        default=".",
+        help="Directory where output files will be saved",
+    )
     return parser
 
 
@@ -321,7 +335,7 @@ def _create_visibility_settings(args, parser: argparse.ArgumentParser) -> Visibi
     )
 
 
-def main() -> int:
+def main() -> int:  # noqa: C901 - command-line parsing is inherently complex
     """Main entry point for the CLI application."""
     try:
         # Handle positional argument usage: script.py <file> <doc_type>
@@ -366,6 +380,18 @@ def main() -> int:
             return 1
 
         result = process_document(args.file, doc_type, visibility_settings, group_by=args.group_by)
+        if args.out:
+            output_dir = Path(args.output_dir)
+            output_dir.mkdir(parents=True, exist_ok=True)
+            base = Path(args.file).stem
+            for fmt in args.out:
+                out_path = output_dir / f"{base}.{fmt}"
+                if fmt == "html":
+                    out_path.write_text(result["rendered"], encoding="utf-8")
+                elif fmt == "docx":
+                    export.save_results_as_docx(result, str(out_path))
+                elif fmt == "pdf":
+                    export.save_results_as_pdf(result, str(out_path))
         _safe_print(result["rendered"])
         return 1 if result.get("has_errors", False) else 0
 
