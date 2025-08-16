@@ -34,8 +34,8 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install uv poetry
-          poetry install --with dev
-          poetry lock --no-update
+          poetry lock
+          poetry install --extras "dev"
           uv pip sync pyproject.toml
 
       - name: Install project (editable)
