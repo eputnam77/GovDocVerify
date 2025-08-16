@@ -9,6 +9,7 @@ def test_result_expiration(monkeypatch, tmp_path):
     monkeypatch.setenv("RESULT_TTL", "1")
     monkeypatch.setenv("RESULT_CLEANUP_INTERVAL", "0")
     import backend.api as api
+
     importlib.reload(api)
     api._RESULTS_DIR = tmp_path
     api._save_result("rid", {"value": 1})
