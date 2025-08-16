@@ -2,18 +2,29 @@
 
 Thank you for your interest in contributing to the GovDocVerify Sandbox! This guide will help you get started with the development process.
 
-## Code Formatting
+## Code Formatting and Pre-commit
 
-We use [Black](https://black.readthedocs.io/) for code formatting.
-A pre-commit hook is set up to automatically format code before each commit.
+We use [Black](https://black.readthedocs.io/) for code formatting and
+[pre-commit](https://pre-commit.com/) to run formatting, linting, and security
+checks before each commit.
 
 **Setup:**
-1. Install pre-commit:
-   `pip install pre-commit`
-2. Install the hooks:
-   `pre-commit install`
 
-This ensures your code is formatted with Black before every commit.
+1. Install pre-commit:
+   ```bash
+   pip install pre-commit
+   ```
+2. Install the git hooks:
+   ```bash
+   pre-commit install
+   ```
+3. Run all checks (optional but recommended before committing):
+   ```bash
+   pre-commit run --all-files
+   ```
+
+Pre-commit will now run automatically on `git commit` and block the commit if
+any check fails. Re-run the commit after fixing the reported issues.
 
 ## Development Setup
 

@@ -39,6 +39,25 @@ repos:
           ]
         additional_dependencies: ["bandit[toml]"]  # enables TOML parsing :contentReference[oaicite:0]{index=0}
 
+  # ── Semgrep: lightweight SAST ──────────────────────────────────────────────
+  - repo: https://github.com/returntocorp/semgrep
+    rev: v1.81.0
+    hooks:
+      - id: semgrep
+        args: ["--config", "p/ci"]
+
+  # ── Markdown & spelling checks ─────────────────────────────────────────────
+  - repo: https://github.com/executablebooks/mdformat
+    rev: 0.7.17
+    hooks:
+      - id: mdformat
+        additional_dependencies: [mdformat-ruff, mdformat-gfm]
+
+  - repo: https://github.com/codespell-project/codespell
+    rev: v2.2.6
+    hooks:
+      - id: codespell
+
   - repo: https://github.com/trailofbits/pip-audit
     rev: v2.7.2
     hooks:
