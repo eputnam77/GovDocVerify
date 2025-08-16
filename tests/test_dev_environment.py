@@ -109,7 +109,21 @@ repos:
     assert "unstaged.txt" not in result.stdout
 
 
-@pytest.mark.skip("DEV-04: task runner integration not implemented")
-def test_task_runner_integration() -> None:
+def test_task_runner_integration(tmp_path: Path) -> None:
     """DEV-04: task runner executes defined development tasks."""
-    ...
+    repo_root = Path(__file__).resolve().parents[1]
+
+    lint_result = subprocess.run(["make", "lint"], cwd=repo_root, capture_output=True, text=True)
+    assert lint_result.returncode == 0
+
+    temp_repo = tmp_path / "repo"
+    shutil.copytree(repo_root, temp_repo)
+    fmt_result = subprocess.run(["make", "format"], cwd=temp_repo, capture_output=True, text=True)
+    assert fmt_result.returncode == 0
+
+    env = os.environ.copy()
+    env["PYTEST_ADDOPTS"] = '-k "test_dev_environment and not task_runner_integration"'
+    test_result = subprocess.run(
+        ["make", "test"], cwd=repo_root, env=env, capture_output=True, text=True
+    )
+    assert test_result.returncode == 0
