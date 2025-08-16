@@ -1,11 +1,14 @@
-"""Placeholder tests for developer environment and tooling."""
+"""Tests for developer environment and tooling."""
 
+import os
+import shutil
 import subprocess
 from pathlib import Path
 
 import pytest
 
 
+@pytest.mark.skipif(shutil.which("pre-commit") is None, reason="pre-commit not installed")
 def test_pre_commit_enforced(tmp_path: Path) -> None:
     """DEV-01: pre-commit hooks run before commits."""
     repo = tmp_path
@@ -36,10 +39,28 @@ repos:
     assert "trailing-whitespace" in result.stdout
 
 
-@pytest.mark.skip("DEV-02: environment setup script not implemented")
-def test_env_setup_script() -> None:
+@pytest.mark.skipif(shutil.which("pre-commit") is None, reason="pre-commit not installed")
+def test_env_setup_script(tmp_path: Path) -> None:
     """DEV-02: setup script provisions local environment."""
-    ...
+    repo = tmp_path
+    (repo / ".pre-commit-config.yaml").write_text(
+        """
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.6.0
+    hooks:
+      - id: trailing-whitespace
+"""
+    )
+    subprocess.run(["git", "init"], cwd=repo, check=True)
+    subprocess.run(["git", "config", "user.email", "test@example.com"], cwd=repo, check=True)
+    subprocess.run(["git", "config", "user.name", "Test"], cwd=repo, check=True)
+    script_path = Path(__file__).resolve().parents[1] / "scripts" / "setup_env.sh"
+    env = os.environ.copy()
+    env.update({"SKIP_POETRY": "1", "SKIP_FRONTEND": "1"})
+    subprocess.run([str(script_path)], cwd=repo, env=env, check=True)
+    assert (repo / ".venv").exists()
+    assert (repo / ".git" / "hooks" / "pre-commit").exists()
 
 
 @pytest.mark.skip("DEV-03: lint staged integration not implemented")

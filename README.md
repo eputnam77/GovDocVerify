@@ -15,7 +15,15 @@ Full technical docs live under **`docs/`**; start with *docs/getting‑started.m
 
 ## ✨ Quick install (recommended)
 
-We follow the same pattern as the other CLI projects: **pipx** for global tool shims, **uv** for ultra‑fast Python/venv work, and **Poetry ≥ 1.8** for deterministic installs.
+For a one-shot setup run the helper script:
+
+```bash
+./scripts/setup_env.sh
+```
+
+It creates a local `.venv`, installs locked dependencies, and enables pre-commit hooks.
+
+Prefer to do the steps manually? We follow the same pattern as the other CLI projects: **pipx** for global tool shims, **uv** for ultra‑fast Python/venv work, and **Poetry ≥ 1.8** for deterministic installs.
 
 ```bash
 # 0. One-time setup: Python & pipx -------------------------------------------------
