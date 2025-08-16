@@ -4,13 +4,13 @@
 Reads `lint-staged` config from `package.json` and applies commands to
 staged files matching the configured globs.
 """
+
 from __future__ import annotations
 
 import fnmatch
 import json
 import shlex
 import subprocess
-import sys
 from pathlib import Path
 
 
