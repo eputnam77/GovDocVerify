@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import importlib.util
+import subprocess
 from pathlib import Path
 from unittest.mock import patch
 
@@ -41,10 +42,38 @@ def test_batch_mode_processing(tmp_path):
     assert processed == [str(file1), str(file2)]
 
 
-@pytest.mark.skip("CI-02: incremental CI runs not implemented")
-def test_ci_incremental_runs_skip_unchanged() -> None:
+def test_ci_incremental_runs_skip_unchanged(tmp_path) -> None:
     """CI-02: CI run skips documents that have not changed."""
-    ...
+    module = _load_ci_batch()
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    subprocess.run(["git", "init"], cwd=repo, check=True)
+    subprocess.run(["git", "config", "user.email", "test@example.com"], cwd=repo, check=True)
+    subprocess.run(["git", "config", "user.name", "Tester"], cwd=repo, check=True)
+
+    file1 = repo / "a.docx"
+    file2 = repo / "b.docx"
+    file1.write_text("doc1")
+    file2.write_text("doc2")
+    subprocess.run(["git", "add", "a.docx", "b.docx"], cwd=repo, check=True)
+    subprocess.run(["git", "commit", "-m", "initial"], cwd=repo, check=True)
+
+    file1.write_text("doc1 updated")
+    subprocess.run(["git", "commit", "-am", "update a"], cwd=repo, check=True)
+
+    changed = module.get_changed_files("HEAD~1", ["*.docx"], repo)
+    assert [Path(p).name for p in changed] == ["a.docx"]
+
+    with patch.object(
+        module,
+        "process_document",
+        return_value={"has_errors": False},
+    ) as mock_process:
+        exit_code = module.run_batch(changed, "ORDER")
+
+    assert exit_code == 0
+    processed = [Path(call.args[0]).name for call in mock_process.call_args_list]
+    assert processed == ["a.docx"]
 
 
 @pytest.mark.skip("CI-03: parallel CI execution not implemented")
