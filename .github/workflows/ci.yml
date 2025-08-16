@@ -36,7 +36,7 @@ jobs:
           pip install uv poetry
           poetry lock
           poetry install --extras "dev"
-          uv pip sync pyproject.toml
+          uv pip sync --system pyproject.toml
 
       - name: Install project (editable)
         run: pip install -e .
