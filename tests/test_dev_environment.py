@@ -63,10 +63,50 @@ repos:
     assert (repo / ".git" / "hooks" / "pre-commit").exists()
 
 
-@pytest.mark.skip("DEV-03: lint staged integration not implemented")
-def test_lint_staged_integration() -> None:
+@pytest.mark.skipif(shutil.which("pre-commit") is None, reason="pre-commit not installed")
+def test_lint_staged_integration(tmp_path: Path) -> None:
     """DEV-03: lint-staged checks staged files during commit."""
-    ...
+    repo = tmp_path
+    script_path = Path(__file__).resolve().parents[1] / "scripts" / "lint_staged.py"
+
+    (repo / ".pre-commit-config.yaml").write_text(
+        f"""
+repos:
+  - repo: local
+    hooks:
+      - id: lint-staged
+        name: lint-staged
+        entry: python {script_path}
+        language: system
+        pass_filenames: false
+"""
+    )
+
+    (repo / "package.json").write_text(
+        """
+{
+  "lint-staged": {
+    "*.txt": "python -c \"import sys; print('linted', *sys.argv[1:])\""
+  }
+}
+"""
+    )
+
+    (repo / "staged.txt").write_text("data\n")
+    (repo / "unstaged.txt").write_text("other\n")
+
+    subprocess.run(["git", "init"], cwd=repo, check=True)
+    subprocess.run(["git", "config", "user.email", "test@example.com"], cwd=repo, check=True)
+    subprocess.run(["git", "config", "user.name", "Test"], cwd=repo, check=True)
+    subprocess.run(["pre-commit", "install"], cwd=repo, check=True)
+    subprocess.run(["git", "add", "staged.txt"], cwd=repo, check=True)
+    result = subprocess.run(
+        ["git", "commit", "-m", "test"], cwd=repo, capture_output=True, text=True
+    )
+
+    assert result.returncode == 0
+    assert "linted staged.txt" in result.stdout
+    assert "unstaged.txt" not in result.stdout
 
 
 @pytest.mark.skip("DEV-04: task runner integration not implemented")

@@ -8,5 +8,8 @@
   },
   "devDependencies": {
     "@types/axios": "^0.9.36"
+  },
+  "lint-staged": {
+    "*": "echo"
   }
 }
