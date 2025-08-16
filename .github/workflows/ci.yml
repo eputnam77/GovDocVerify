@@ -47,6 +47,13 @@ jobs:
         run: |
           pytest --cov=govdocverify --cov-report=xml
 
+      - name: Run batch document checks
+        run: |
+          python scripts/ci_batch.py --files \
+            "tests/test_data/valid_acronym_usage.docx" \
+            "tests/test_data/valid_headings.docx" \
+            --type ORDER
+
       - name: Check coverage >= 90%
         run: |
           python - <<'PY'
