@@ -174,17 +174,20 @@ class TestStructureChecks:
         doc_path = tmp_path / "wm.docx"
         doc.save(doc_path)
 
-        with zipfile.ZipFile(doc_path, "a") as z:
-            xml = z.read("word/header1.xml").decode("utf-8")
-            root = ET.fromstring(xml)
-            new = ET.fromstring(
-                '<w:p xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" '
-                'xmlns:v="urn:schemas-microsoft-com:vml"><w:r><w:pict><v:shape><v:textbox>'
-                "<w:txbxContent><w:p><w:r><w:t>draft for FAA review</w:t></w:r></w:p>"
-                "</w:txbxContent></v:textbox></v:shape></w:pict></w:r></w:p>"
-            )
-            root.append(new)
-            z.writestr("word/header1.xml", ET.tostring(root))
+        with zipfile.ZipFile(doc_path) as z:
+            files = {name: z.read(name) for name in z.namelist()}
+        root = ET.fromstring(files["word/header1.xml"].decode("utf-8"))
+        new = ET.fromstring(
+            '<w:p xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" '
+            'xmlns:v="urn:schemas-microsoft-com:vml"><w:r><w:pict><v:shape><v:textbox>'
+            "<w:txbxContent><w:p><w:r><w:t>draft for FAA review</w:t></w:r></w:p>"
+            "</w:txbxContent></v:textbox></v:shape></w:pict></w:r></w:p>"
+        )
+        root.append(new)
+        files["word/header1.xml"] = ET.tostring(root, encoding="utf-8")
+        with zipfile.ZipFile(doc_path, "w") as z:
+            for name, content in files.items():
+                z.writestr(name, content)
 
         doc2 = Document(doc_path)
         results = DocumentCheckResult(success=True, issues=[])
