@@ -68,6 +68,11 @@ repos:
   # ── Local test runner ───────────────────────────────────────────────────────
   - repo: local
     hooks:
+      - id: lint-staged
+        name: lint-staged
+        entry: python scripts/lint_staged.py
+        language: system
+        pass_filenames: false
       - id: pytest
         name: pytest
         entry: pytest
