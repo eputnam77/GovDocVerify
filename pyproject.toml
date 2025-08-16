@@ -123,6 +123,10 @@ shell    = ["os.system", "subprocess.Popen"]
 [tool.pytest.ini_options]
 testpaths     = ["tests"]
 python_files  = "test_*.py"
+markers       = [
+  "property: property-based tests",
+  "e2e: end-to-end tests",
+]
 
 # ── Dead-code detection (vulture) ─────────────────────────────────────────────
 [tool.vulture]
