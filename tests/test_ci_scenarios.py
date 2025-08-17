@@ -42,6 +42,24 @@ def test_batch_mode_processing(tmp_path):
     assert processed == [str(file1), str(file2)]
 
 
+def test_strict_mode_flag(tmp_path, monkeypatch):
+    """CI-04: STRICT_MODE=1 fails the batch on high severity issues."""
+    module = _load_ci_batch()
+    file1 = tmp_path / "a.docx"
+    file1.write_text("doc1")
+
+    def fake_process(_p, _t):
+        return {"has_errors": True, "severity": "ERROR"}
+
+    monkeypatch.setattr(module, "process_document", fake_process)
+
+    monkeypatch.delenv("STRICT_MODE", raising=False)
+    assert module.run_batch([str(file1)], "ORDER") == 0
+
+    monkeypatch.setenv("STRICT_MODE", "1")
+    assert module.run_batch([str(file1)], "ORDER") == 1
+
+
 def test_ci_incremental_runs_skip_unchanged(tmp_path) -> None:
     """CI-02: CI run skips documents that have not changed."""
     module = _load_ci_batch()

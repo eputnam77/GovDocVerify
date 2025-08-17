@@ -106,8 +106,12 @@ def process_document(  # noqa: C901 - function is complex but mirrors CLI logic
 
         # Return a dictionary with the expected structure for tests
         has_errors = not results.success if hasattr(results, "success") else False
+        severity_name = (
+            results.severity.name if getattr(results, "severity", None) is not None else None
+        )
         return {
             "has_errors": has_errors,
+            "severity": severity_name,
             "rendered": formatted_results,
             "by_category": filtered_results_dict,
             "metadata": metadata,
