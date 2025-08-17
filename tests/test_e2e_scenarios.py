@@ -5,10 +5,13 @@ import subprocess
 import sys
 from pathlib import Path
 
+import pytest
 from fastapi.testclient import TestClient
 
 from backend.main import app
 from govdocverify.utils.security import rate_limiter
+
+pytestmark = pytest.mark.e2e
 
 
 def test_cli_single_file_run(tmp_path: Path) -> None:
