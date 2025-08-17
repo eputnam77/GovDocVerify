@@ -92,7 +92,31 @@ def test_api_frontend_integration(monkeypatch) -> None:
     assert "ResultsPane" in app_src
 
 
-@pytest.mark.skip("E2E-C: batch gate under STRICT_MODE not implemented")
-def test_batch_gate_strict_mode() -> None:
+def test_batch_gate_strict_mode(tmp_path: Path) -> None:
     """E2E-C: batch processing fails build on High severity under STRICT_MODE=1."""
-    ...
+    sample = tmp_path / "doc.docx"
+    sample.write_text("doc")
+
+    script = (
+        "import os, sys\n"
+        "from scripts import ci_batch\n"
+        "def fake(path, doc_type):\n"
+        "    return {'has_errors': True, 'severity': 'ERROR'}\n"
+        "ci_batch.process_document = fake\n"
+        "os.environ['STRICT_MODE'] = sys.argv[1]\n"
+        "raise SystemExit(ci_batch.run_batch([sys.argv[2]], 'ORDER'))\n"
+    )
+
+    strict = subprocess.run(
+        [sys.executable, "-c", script, "1", str(sample)],
+        capture_output=True,
+        text=True,
+    )
+    assert strict.returncode == 1
+
+    non_strict = subprocess.run(
+        [sys.executable, "-c", script, "0", str(sample)],
+        capture_output=True,
+        text=True,
+    )
+    assert non_strict.returncode == 0

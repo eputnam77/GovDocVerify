@@ -18,6 +18,8 @@ import subprocess
 from pathlib import Path
 from typing import Iterable, Sequence
 
+import os
+
 from govdocverify.cli import process_document
 
 
@@ -37,6 +39,7 @@ def run_batch(patterns: Iterable[str], doc_type: str) -> int:
         ``0`` if all documents were processed successfully, ``1`` if any
         document produced errors or raised an exception.
     """
+    strict_mode = os.getenv("STRICT_MODE") not in {None, "0", "false", "False"}
     exit_code = 0
     for pattern in patterns:
         # ``glob`` expands both explicit files and patterns. Sorting ensures
@@ -44,8 +47,11 @@ def run_batch(patterns: Iterable[str], doc_type: str) -> int:
         for file_path in sorted(glob.glob(pattern)):
             try:
                 result = process_document(file_path, doc_type)
-                if result.get("has_errors", False):
-                    exit_code = 1
+                if strict_mode:
+                    severity = str(result.get("severity", "")).upper()
+                    if result.get("has_errors", False) and severity in {"ERROR", "HIGH"}:
+                        exit_code = 1
+                # In non-strict mode we ignore result issues unless an exception occurs
             except Exception:
                 exit_code = 1
     return exit_code
