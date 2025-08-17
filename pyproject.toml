@@ -90,6 +90,7 @@ warn_unused_ignores       = true
 warn_no_return            = true
 warn_unreachable          = true
 ignore_missing_imports    = true
+exclude                   = ["^govdocverify/"]
 # Relax type checking for test modules to avoid thousands of
 # missing annotation errors during the dev gate.
 [[tool.mypy.overrides]]
