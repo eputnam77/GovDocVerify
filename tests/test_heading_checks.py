@@ -93,6 +93,9 @@ class TestHeadingChecks:
         result = self.heading_checks.check_heading_title(doc, "ORDER")
         assert result.success is False
         assert any("should be uppercase" in issue["message"] for issue in result.issues)
+        assert all(
+            issue["severity"] == Severity.WARNING for issue in result.issues if issue["type"] == "case_violation"
+        )
 
     def test_heading_spacing(self):
         """Test spacing between headings and content."""
@@ -130,11 +133,17 @@ class TestHeadingChecks:
             "5. REQUIREMENTS.",
         ]
         result = self.heading_checks.check_heading_title(doc, "ORDER")
-        # Non-blocking issues: success is True, but issues are present
-        assert result.success is True
-        # Should have case violations and invalid word
-        assert any(issue["type"] == "case_violation" for issue in result.issues)
-        assert any(issue["type"] == "invalid_word" for issue in result.issues)
+        # Warnings should cause overall failure
+        assert result.success is False
+        # Should have case violations and invalid word with warning severity
+        assert any(
+            issue["type"] == "case_violation" and issue["severity"] == Severity.WARNING
+            for issue in result.issues
+        )
+        assert any(
+            issue["type"] == "invalid_word" and issue["severity"] == Severity.WARNING
+            for issue in result.issues
+        )
 
     def test_document_type_matching(self):
         """Test document type matching with different case variations."""
@@ -200,9 +209,12 @@ class TestHeadingChecks:
             "5. APPLICABILITY",
         ]
         result = self.heading_checks.check_heading_title(long_heading_doc, "ORDER")
-        # Length violation is non-blocking, so success is True
-        assert result.success is True
-        assert any(issue["type"] == "length_violation" for issue in result.issues)
+        # Length violations should trigger warnings, causing failure
+        assert result.success is False
+        assert any(
+            issue["type"] == "length_violation" and issue["severity"] == Severity.WARNING
+            for issue in result.issues
+        )
         assert any("Shorten heading" in issue["suggestion"] for issue in result.issues)
 
         # Test with headings that are within the limit
@@ -232,8 +244,11 @@ class TestHeadingChecks:
             "5. APPLICABILITY",
         ]
         result = self.heading_checks.check_heading_title(just_over_doc, "ORDER")
-        assert result.success is True
-        assert any(issue["type"] == "length_violation" for issue in result.issues)
+        assert result.success is False
+        assert any(
+            issue["type"] == "length_violation" and issue["severity"] == Severity.WARNING
+            for issue in result.issues
+        )
         assert any("Shorten heading" in issue["suggestion"] for issue in result.issues)
 
     def test_missing_cancellation_heading_info(self):
