@@ -4,8 +4,7 @@ from __future__ import annotations
 
 import argparse
 
-import uvicorn
-
+from backend.graceful import run
 from backend.main import app
 
 
@@ -23,5 +22,5 @@ def _build_parser() -> argparse.ArgumentParser:
 def main(argv: list[str] | None = None) -> int:
     """CLI entry point to launch the API server."""
     args = _build_parser().parse_args(argv)
-    uvicorn.run(app, host=args.host, port=args.port)
+    run(app, host=args.host, port=args.port)
     return 0
