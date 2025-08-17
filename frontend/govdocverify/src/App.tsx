@@ -2,6 +2,7 @@ import { useState } from "react";
 import axios from "axios";
 import UploadPanel from "./components/UploadPanel";
 import VisibilityToggles from "./components/VisibilityToggles";
+import SeverityToggles from "./components/SeverityToggles";
 import ResultsPane from "./components/ResultsPane";
 import DownloadButtons from "./components/DownloadButtons";
 import { ThemeProvider, createTheme } from '@mui/material/styles';
@@ -46,6 +47,11 @@ export default function App() {
     accessibility: true,
     document_status: true,
   });
+  const [severity, setSeverity] = useState<Record<string, boolean>>({
+    error: true,
+    warning: true,
+    info: true,
+  });
 
   const handleSubmit = async (
     file: File,
@@ -79,9 +85,10 @@ export default function App() {
           <Grid item xs={12} md={4}>
             <UploadPanel onSubmit={handleSubmit} visibility={visibility} />
             <VisibilityToggles visibility={visibility} setVisibility={setVisibility} />
+            <SeverityToggles severity={severity} setSeverity={setSeverity} />
           </Grid>
           <Grid item xs={12} md={8}>
-            <ResultsPane html={html} />
+            <ResultsPane html={html} severityFilters={severity} />
             {resultId && <DownloadButtons resultId={resultId} />}
           </Grid>
         </Grid>

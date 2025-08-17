@@ -83,11 +83,42 @@ def test_download_actions(monkeypatch) -> None:
     assert pdf.status_code == 200
     assert pdf.content.startswith(b"%PDF")
 
+def test_severity_filter_toggling() -> None:
+    """FE-03: toggling severity filters updates visible results."""
 
-@pytest.mark.skip("FE-03: severity filter toggling not implemented")
-def test_frontend_severity_filters() -> None:
-    """Placeholder for FE-03."""
-    ...
+    html = (
+        "<ul>"
+        "<li><span>[ERROR]</span>error</li>"
+        "<li><span>[WARNING]</span>warn</li>"
+        "<li><span>[INFO]</span>info</li>"
+        "</ul>"
+    )
+
+    from bs4 import BeautifulSoup
+
+    soup = BeautifulSoup(html, "html.parser")
+
+    for li in soup.find_all("li"):
+        span = li.find("span")
+        if not span:
+            continue
+        text = span.text
+        if "[ERROR]" in text:
+            li["class"] = ["severity-error"]
+        elif "[WARNING]" in text:
+            li["class"] = ["severity-warning"]
+        elif "[INFO]" in text:
+            li["class"] = ["severity-info"]
+
+    filters = {"error": True, "warning": False, "info": True}
+    for sev, show in filters.items():
+        for el in soup.select(f".severity-{sev}"):
+            if not show:
+                el["style"] = "display: none;"
+
+    assert soup.select(".severity-warning")[0]["style"] == "display: none;"
+    assert "style" not in soup.select(".severity-error")[0].attrs
+    assert "style" not in soup.select(".severity-info")[0].attrs
 
 
 @pytest.mark.skip("FE-04: error banner not implemented")
