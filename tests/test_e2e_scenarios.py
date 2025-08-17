@@ -6,6 +6,10 @@ import sys
 from pathlib import Path
 
 import pytest
+from fastapi.testclient import TestClient
+
+from backend.main import app
+from govdocverify.utils.security import rate_limiter
 
 
 def test_cli_single_file_run(tmp_path: Path) -> None:
@@ -38,10 +42,54 @@ def test_cli_single_file_run(tmp_path: Path) -> None:
     assert result["has_errors"] is True
 
 
-@pytest.mark.skip("E2E-B: API + frontend integration not implemented")
-def test_api_frontend_integration() -> None:
+def test_api_frontend_integration(monkeypatch) -> None:
     """E2E-B: API upload and frontend rendering with downloadable exports."""
-    ...
+
+    client = TestClient(app)
+    rate_limiter.requests.clear()
+
+    sample_html = "<p>Hello world</p>"
+
+    # Stub out the heavy document processing and file validation.
+    monkeypatch.setattr("backend.api.validate_file", lambda *a, **k: None)
+
+    def fake_process(tmp_path, doc_type, vis, group_by="category"):
+        return {"has_errors": False, "rendered": sample_html, "by_category": {}}
+
+    monkeypatch.setattr("backend.api.process_document", fake_process)
+
+    with open("tests/test_data/valid_readability.docx", "rb") as f:
+        resp = client.post(
+            "/process",
+            files={
+                "doc_file": (
+                    "doc.docx",
+                    f,
+                    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                )
+            },
+            data={"doc_type": "AC", "visibility_json": "{}"},
+        )
+
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["rendered"] == sample_html
+    assert "result_id" in data
+
+    rid = data["result_id"]
+
+    docx = client.get(f"/results/{rid}.docx")
+    assert docx.status_code == 200
+    assert docx.content.startswith(b"PK")
+
+    pdf = client.get(f"/results/{rid}.pdf")
+    assert pdf.status_code == 200
+    assert pdf.content.startswith(b"%PDF")
+
+    # Ensure the frontend wires the API response to the viewer
+    app_src = Path("frontend/govdocverify/src/App.tsx").read_text(encoding="utf-8")
+    assert "axios.post" in app_src
+    assert "ResultsPane" in app_src
 
 
 @pytest.mark.skip("E2E-C: batch gate under STRICT_MODE not implemented")
