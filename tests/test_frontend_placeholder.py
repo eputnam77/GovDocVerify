@@ -121,7 +121,17 @@ def test_severity_filter_toggling() -> None:
     assert "style" not in soup.select(".severity-info")[0].attrs
 
 
-@pytest.mark.skip("FE-04: error banner not implemented")
 def test_frontend_error_banner() -> None:
-    """Placeholder for FE-04."""
-    ...
+    """FE-04: API failures surface a global error banner."""
+
+    # ErrorBanner component exists with a test id for visibility
+    path = Path("frontend/govdocverify/src/components/ErrorBanner.tsx")
+    content = path.read_text(encoding="utf-8")
+    assert "Alert" in content
+    assert 'data-testid="error-banner"' in content
+
+    # App integrates the banner and sets errors from failed requests
+    app = Path("frontend/govdocverify/src/App.tsx").read_text(encoding="utf-8")
+    assert "ErrorBanner" in app
+    assert "message={error}" in app
+    assert "setError(" in app and "catch (err" in app
