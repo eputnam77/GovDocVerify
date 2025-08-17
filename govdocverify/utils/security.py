@@ -4,9 +4,15 @@ import time
 from functools import wraps
 from pathlib import Path
 from typing import Any, Callable, Dict
+from urllib.parse import urlparse
 
 import filetype
 from fastapi import HTTPException
+
+from govdocverify.config.document_config import (
+    ALLOWED_FILE_EXTENSIONS,
+    ALLOWED_SOURCE_DOMAINS,
+)
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -60,7 +66,7 @@ def validate_file(file_path: str) -> None:
         file_size = os.path.getsize(file_path)
         if file_size > MAX_FILE_SIZE:
             raise SecurityError(
-                f"File size exceeds maximum allowed size of {MAX_FILE_SIZE/1024/1024}MB"
+                f"File size exceeds maximum allowed size of {MAX_FILE_SIZE / 1024 / 1024}MB"
             )
 
         # Check file type using filetype
@@ -129,3 +135,21 @@ def rate_limit(func: Callable[..., Any]) -> Callable[..., Any]:
         return await func(*args, **kwargs)
 
     return wrapper
+
+
+def _is_allowed_domain(domain: str) -> bool:
+    """Return True if ``domain`` ends with an allowed suffix."""
+    domain = domain.lower()
+    return any(domain.endswith(allowed) for allowed in ALLOWED_SOURCE_DOMAINS)
+
+
+def validate_source(path: str) -> None:
+    """Validate that ``path`` is from an approved domain and format."""
+    _, ext = os.path.splitext(path.lower())
+    if ext and ext not in ALLOWED_FILE_EXTENSIONS:
+        raise SecurityError(f"Disallowed file format: {ext}")
+
+    if path.startswith("http://") or path.startswith("https://"):
+        domain = urlparse(path).hostname or ""
+        if not _is_allowed_domain(domain):
+            raise SecurityError(f"Non-government source domain: {domain}")

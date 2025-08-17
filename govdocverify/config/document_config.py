@@ -10,3 +10,7 @@ READABILITY_CONFIG = {
 }
 
 # Add other document configuration settings as needed
+
+# Acceptable source domains and file extensions
+ALLOWED_SOURCE_DOMAINS = [".gov", ".mil"]
+ALLOWED_FILE_EXTENSIONS = [".docx", ".doc"]

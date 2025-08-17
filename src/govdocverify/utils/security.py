@@ -4,9 +4,15 @@ import time
 from functools import wraps
 from pathlib import Path
 from typing import Any, Callable, Dict
+from urllib.parse import urlparse
 
 import filetype
 from fastapi import HTTPException
+
+from govdocverify.config.document_config import (
+    ALLOWED_FILE_EXTENSIONS,
+    ALLOWED_SOURCE_DOMAINS,
+)
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -126,3 +132,25 @@ def rate_limit(func: Callable[..., Any]) -> Callable[..., Any]:
         return await func(*args, **kwargs)
 
     return wrapper
+
+
+def _is_allowed_domain(domain: str) -> bool:
+    """Return True if ``domain`` ends with any allowed suffix."""
+    domain = domain.lower()
+    return any(domain.endswith(allowed) for allowed in ALLOWED_SOURCE_DOMAINS)
+
+
+def validate_source(path: str) -> None:
+    """Validate that ``path`` originates from an allowed domain and format.
+
+    Raises a :class:`SecurityError` if the source is not permitted.
+    """
+
+    _, ext = os.path.splitext(path.lower())
+    if ext and ext not in ALLOWED_FILE_EXTENSIONS:
+        raise SecurityError(f"Disallowed file format: {ext}")
+
+    if path.startswith("http://") or path.startswith("https://"):
+        domain = urlparse(path).hostname or ""
+        if not _is_allowed_domain(domain):
+            raise SecurityError(f"Non-government source domain: {domain}")
