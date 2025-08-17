@@ -38,12 +38,16 @@ def _create_fallback_results_dict(results: DocumentCheckResult) -> Dict[str, Dic
 
 
 def build_results_dict(results: DocumentCheckResult) -> Dict[str, Dict[str, Any]]:
-    results_dict = getattr(results, "per_check_results", None)
+    """Build a nested results dictionary from a ``DocumentCheckResult``."""
+
+    results_dict = results.per_check_results
     if not results_dict:
         return _create_fallback_results_dict(results)
+
     has_issues = _check_results_have_issues(results_dict)
     if not has_issues and results.issues:
         return _create_fallback_results_dict(results)
+
     return results_dict
 
 

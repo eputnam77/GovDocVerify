@@ -1,16 +1,23 @@
 # pytest -v tests/test_format_checks.py --log-cli-level=DEBUG
 
 import unittest
+from typing import List, TypedDict
 
 from govdocverify.checks.format_checks import FormattingChecker
 
 
+class _TestCase(TypedDict):
+    input: List[str]
+    should_flag: bool
+    description: str
+
+
 class TestFormattingChecker(unittest.TestCase):
-    def setUp(self):
+    def setUp(self) -> None:
         self.checker = FormattingChecker()
 
-    def test_section_symbol_usage(self):
-        test_cases = [
+    def test_section_symbol_usage(self) -> None:
+        test_cases: List[_TestCase] = [
             # Test case 1: Should flag multiple symbols without "or"
             {
                 "input": ["Also check §§ 33.87"],
