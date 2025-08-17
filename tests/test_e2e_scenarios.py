@@ -5,7 +5,6 @@ import subprocess
 import sys
 from pathlib import Path
 
-import pytest
 from fastapi.testclient import TestClient
 
 from backend.main import app
@@ -20,8 +19,14 @@ def test_cli_single_file_run(tmp_path: Path) -> None:
     script = (
         "import json, sys\n"
         "from govdocverify import cli\n"
-        "def stub_process_document(file_path, doc_type, visibility_settings=None, group_by='category'):\n"
-        "    return {'has_errors': True, 'rendered': 'stub', 'by_category': {}, 'metadata': {}}\n"
+        "def stub_process_document(file_path, doc_type,\n"
+        "    visibility_settings=None, group_by='category'):\n"
+        "    return {\n"
+        "        'has_errors': True,\n"
+        "        'rendered': 'stub',\n"
+        "        'by_category': {},\n"
+        "        'metadata': {}\n"
+        "    }\n"
         "cli.process_document = stub_process_document\n"
         "sys.argv = ['cli.py', '--file', sys.argv[1], '--type', 'ORDER', '--json']\n"
         "raise SystemExit(cli.main())\n"
