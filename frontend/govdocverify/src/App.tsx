@@ -12,6 +12,7 @@ import Toolbar from '@mui/material/Toolbar';
 import Typography from '@mui/material/Typography';
 import Container from '@mui/material/Container';
 import Grid from '@mui/material/Grid';
+import ErrorBanner from "./components/ErrorBanner";
 
 const API_BASE = import.meta.env.VITE_API_BASE || "http://127.0.0.1:8000";
 
@@ -35,6 +36,7 @@ const theme = createTheme({
 export default function App() {
   const [html, setHtml] = useState<string>("");
   const [resultId, setResultId] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const [visibility, setVisibility] = useState<Record<string, boolean>>({
     readability: true,
     analysis: true,
@@ -63,11 +65,19 @@ export default function App() {
     data.append("doc_type", docType);
     data.append("visibility_json", JSON.stringify(vis));
 
-    const { data: resp } = await axios.post(`${API_BASE}/process`, data, {
-      headers: { "Content-Type": "multipart/form-data" },
-    });
-    setHtml(resp.rendered || resp.html || "");
-    setResultId(resp.result_id);
+    try {
+      const { data: resp } = await axios.post(`${API_BASE}/process`, data, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+      setHtml(resp.rendered || resp.html || "");
+      setResultId(resp.result_id);
+      setError(null);
+    } catch (err: any) {
+      const message = err.response?.data?.detail || err.message || "An unexpected error occurred";
+      setError(message);
+      setHtml("");
+      setResultId(null);
+    }
   };
 
   return (
@@ -81,6 +91,7 @@ export default function App() {
         </Toolbar>
       </AppBar>
       <Container maxWidth="lg" sx={{ mt: 6, mb: 6 }}>
+        <ErrorBanner message={error} onClose={() => setError(null)} />
         <Grid container spacing={4} alignItems="flex-start">
           <Grid item xs={12} md={4}>
             <UploadPanel onSubmit={handleSubmit} visibility={visibility} />
