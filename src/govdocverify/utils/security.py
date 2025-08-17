@@ -12,6 +12,7 @@ from fastapi import HTTPException
 from govdocverify.config.document_config import (
     ALLOWED_FILE_EXTENSIONS,
     ALLOWED_SOURCE_DOMAINS,
+    LEGACY_FILE_EXTENSIONS,
 )
 
 # Configure logging
@@ -22,7 +23,12 @@ logger = logging.getLogger(__name__)
 MAX_FILE_SIZE = 5 * 1024 * 1024  # 5MB
 ALLOWED_MIME_TYPES = {
     "application/vnd.openxmlformats-officedocument.wordprocessingml.document": ".docx",
+}
+LEGACY_MIME_TYPES = {
     "application/msword": ".doc",
+    "application/pdf": ".pdf",
+    "text/rtf": ".rtf",
+    "text/plain": ".txt",
 }
 
 
@@ -71,6 +77,8 @@ def validate_file(file_path: str) -> None:
 
         # Check file type using filetype
         kind = filetype.guess(file_path)
+        if kind and kind.mime in LEGACY_MIME_TYPES:
+            raise SecurityError(f"Legacy file format: {LEGACY_MIME_TYPES[kind.mime]}")
         if not kind or kind.mime not in ALLOWED_MIME_TYPES:
             raise SecurityError(
                 f"Invalid file type. Allowed types: {', '.join(ALLOWED_MIME_TYPES.values())}"
@@ -147,6 +155,8 @@ def validate_source(path: str) -> None:
     """
 
     _, ext = os.path.splitext(path.lower())
+    if ext and ext in LEGACY_FILE_EXTENSIONS:
+        raise SecurityError(f"Legacy file format: {ext}")
     if ext and ext not in ALLOWED_FILE_EXTENSIONS:
         raise SecurityError(f"Disallowed file format: {ext}")
 

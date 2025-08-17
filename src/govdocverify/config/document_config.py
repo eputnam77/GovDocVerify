@@ -13,6 +13,9 @@ READABILITY_CONFIG = {
 ALLOWED_SOURCE_DOMAINS = [".gov", ".mil"]
 
 # Acceptable file extensions for uploaded or referenced documents
-ALLOWED_FILE_EXTENSIONS = [".docx", ".doc"]
+ALLOWED_FILE_EXTENSIONS = [".docx"]
+
+# Explicitly rejected legacy file extensions
+LEGACY_FILE_EXTENSIONS = [".doc", ".pdf", ".rtf", ".txt"]
 
 # Add other document configuration settings as needed

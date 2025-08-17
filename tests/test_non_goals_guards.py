@@ -1,5 +1,7 @@
 """Tests for non-goals guardrails to ensure irrelevant docs are rejected."""
 
+import pytest
+
 from govdocverify.document_checker import FAADocumentChecker
 
 
@@ -11,9 +13,10 @@ def test_rejects_non_government_docs() -> None:
     assert any("Non-government" in issue["message"] for issue in result.issues)
 
 
-def test_excludes_legacy_formats() -> None:
+@pytest.mark.parametrize("path", ["document.pdf", "document.doc"])
+def test_exclude_legacy_formats(path: str) -> None:
     """NG-02: legacy document formats are ignored."""
     checker = FAADocumentChecker()
-    result = checker.run_all_document_checks("document.pdf")
+    result = checker.run_all_document_checks(path)
     assert not result.success
-    assert any("Disallowed file format" in issue["message"] for issue in result.issues)
+    assert any("Legacy file format" in issue["message"] for issue in result.issues)
