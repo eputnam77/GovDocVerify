@@ -6,10 +6,12 @@ interface Props {
 
 export default function ResultsPane({ html }: Props) {
   const sanitizedHtml = DOMPurify.sanitize(html);
+  if (!sanitizedHtml) return null;
   return (
-    <div
-      className="bg-white rounded shadow p-4 overflow-auto"
-      dangerouslySetInnerHTML={{ __html: sanitizedHtml }}
+    <iframe
+      title="document-viewer"
+      className="bg-white rounded shadow w-full h-full"
+      srcDoc={sanitizedHtml}
     />
   );
 }
