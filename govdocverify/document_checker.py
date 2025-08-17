@@ -17,11 +17,12 @@ from govdocverify.checks.reference_checks import (
 )
 from govdocverify.checks.structure_checks import StructureChecks
 from govdocverify.checks.terminology_checks import TerminologyChecks
-from govdocverify.models import DocumentCheckResult
+from govdocverify.models import DocumentCheckResult, Severity
 from govdocverify.utils.pattern_cache import PatternCache
 from govdocverify.utils.terminology_utils import TerminologyManager
 
 from .utils.check_discovery import validate_check_registration
+from .utils.security import SecurityError, validate_source
 
 
 @lru_cache(maxsize=8)
@@ -95,6 +96,9 @@ class FAADocumentChecker:
     ) -> DocumentCheckResult:
         """Run all document checks."""
         try:
+            # Validate source before any processing
+            validate_source(document_path)
+
             combined_results = DocumentCheckResult()
             per_check_results = {}
 
@@ -115,6 +119,10 @@ class FAADocumentChecker:
             logger.info(f"Completed all checks. Found {len(combined_results.issues)} issues.")
             return combined_results
 
+        except SecurityError as e:
+            result = DocumentCheckResult(success=False)
+            result.add_issue(str(e), Severity.ERROR)
+            return result
         except Exception as e:
             logger.error(f"Error running document checks: {str(e)}")
             return DocumentCheckResult(

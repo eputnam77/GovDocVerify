@@ -9,4 +9,10 @@ READABILITY_CONFIG = {
     "max_passive_voice_percentage": 10,
 }
 
+# Acceptable source domains for document validation
+ALLOWED_SOURCE_DOMAINS = [".gov", ".mil"]
+
+# Acceptable file extensions for uploaded or referenced documents
+ALLOWED_FILE_EXTENSIONS = [".docx", ".doc"]
+
 # Add other document configuration settings as needed
