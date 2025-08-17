@@ -3,7 +3,7 @@ import logging
 import re
 from dataclasses import dataclass, field
 from enum import Enum, IntEnum
-from typing import Any, Dict, List, Optional
+from typing import Any, ClassVar, Dict, List, Optional
 
 
 class Severity(IntEnum):
@@ -95,6 +95,8 @@ class DocumentType(str, Enum):
 class DocumentCheckResult:
     """Result of a document check."""
 
+    SERIALIZATION_VERSION: ClassVar[int] = 1
+
     success: bool = True
     issues: List[Dict[str, Any]] = field(default_factory=list)
     checker_name: Optional[str] = None
@@ -171,10 +173,78 @@ class DocumentCheckResult:
         html.append("</div>")
         return "\n".join(html)
 
+    # ---- Serialization helpers -------------------------------------------------
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Serialize the result to a dictionary with version metadata."""
+        issues: List[Dict[str, Any]] = []
+        for issue in self.issues:
+            new_issue = issue.copy()
+            sev = new_issue.get("severity")
+            if isinstance(sev, Severity):
+                new_issue["severity"] = sev.value
+            issues.append(new_issue)
+
+        return {
+            "version": self.SERIALIZATION_VERSION,
+            "success": self.success,
+            "issues": issues,
+            "checker_name": self.checker_name,
+            "score": self.score,
+            "severity": self.severity.value if self.severity is not None else None,
+            "details": self.details,
+            "partial_failures": self.partial_failures,
+        }
+
+    def to_json(self) -> str:
+        """Serialize the result to a JSON string."""
+        return json.dumps(self.to_dict())
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "DocumentCheckResult":
+        """Deserialize a result from a dictionary.
+
+        Data without explicit version metadata is treated as version 0 for
+        backward compatibility.
+        """
+
+        version = int(data.get("version", 0))
+        if version > cls.SERIALIZATION_VERSION:
+            raise ValueError(f"Unsupported DocumentCheckResult version: {version}")
+
+        issues: List[Dict[str, Any]] = []
+        for issue in data.get("issues", []):
+            new_issue = issue.copy()
+            sev = new_issue.get("severity")
+            if isinstance(sev, int):
+                new_issue["severity"] = Severity(sev)
+            issues.append(new_issue)
+
+        severity = data.get("severity")
+        if isinstance(severity, int):
+            severity = Severity(severity)
+
+        return cls(
+            success=data.get("success", True),
+            issues=issues,
+            checker_name=data.get("checker_name"),
+            score=data.get("score", 1.0),
+            severity=severity,
+            details=data.get("details"),
+            partial_failures=data.get("partial_failures", []),
+        )
+
+    @classmethod
+    def from_json(cls, json_str: str) -> "DocumentCheckResult":
+        """Deserialize a result from a JSON string."""
+        return cls.from_dict(json.loads(json_str))
+
 
 @dataclass
 class VisibilitySettings:
     """Settings for controlling visibility of different check categories."""
+
+    SERIALIZATION_VERSION: ClassVar[int] = 1
 
     show_readability: bool = True
     show_analysis: bool = True
@@ -187,9 +257,9 @@ class VisibilitySettings:
     show_document_status: bool = True
     show_acronym: bool = True
 
-    def to_dict(self) -> Dict[str, bool]:
-        """Convert settings to dictionary format."""
-        return {
+    def to_dict(self) -> Dict[str, bool | int]:
+        """Convert settings to dictionary format with version metadata."""
+        data: Dict[str, bool | int] = {
             "readability": self.show_readability,
             "analysis": self.show_analysis,
             "paragraph_length": self.show_paragraph_length,
@@ -201,10 +271,21 @@ class VisibilitySettings:
             "document_status": self.show_document_status,
             "acronym": self.show_acronym,
         }
+        data["version"] = self.SERIALIZATION_VERSION
+        return data
 
     @classmethod
-    def from_dict(cls, settings: Dict[str, bool]) -> "VisibilitySettings":
-        """Create settings from dictionary format."""
+    def from_dict(cls, settings: Dict[str, Any]) -> "VisibilitySettings":
+        """Create settings from dictionary format.
+
+        Data without explicit version metadata is treated as version 0 for
+        backward compatibility.
+        """
+
+        version = int(settings.get("version", 0))
+        if version > cls.SERIALIZATION_VERSION:
+            raise ValueError(f"Unsupported VisibilitySettings version: {version}")
+
         return cls(
             show_readability=settings.get("readability", True),
             show_analysis=settings.get("analysis", True),

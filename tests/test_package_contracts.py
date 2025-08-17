@@ -3,8 +3,6 @@
 import importlib
 import sys
 
-import pytest
-
 
 def test_public_api_contract() -> None:
     """Ensure only the intended names are exported from :mod:`govdocverify`."""
@@ -62,7 +60,10 @@ def test_plugin_interface_contract() -> None:
     assert plugin.name == "sample"
 
 
-@pytest.mark.skip("PK-03: serialization versioning not implemented")
 def test_serialization_versioning() -> None:
     """PK-03: serialized data includes version metadata."""
-    ...
+    from govdocverify.models import DocumentCheckResult
+
+    res = DocumentCheckResult(success=True)
+    data = res.to_dict()
+    assert data["version"] == DocumentCheckResult.SERIALIZATION_VERSION
