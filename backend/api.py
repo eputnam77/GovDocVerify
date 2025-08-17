@@ -1,3 +1,4 @@
+import asyncio
 import hashlib
 import json
 import logging
@@ -5,6 +6,7 @@ import os
 import tempfile
 import threading
 import time
+from contextlib import contextmanager
 from pathlib import Path
 from typing import Any
 
@@ -30,6 +32,9 @@ _RESULTS_DIR = Path(tempfile.gettempdir()) / "govdocverify_results"
 _RESULTS_DIR.mkdir(exist_ok=True)
 _RESULTS: dict[str, tuple[float, dict[str, Any]]] = {}
 _RESULTS_LOCK = threading.Lock()
+_ACTIVE_REQUESTS = 0
+_ACTIVE_LOCK = threading.Lock()
+_PROCESS_DELAY = float(os.getenv("PROCESS_DELAY", "0"))
 
 
 def _cleanup_results(force: bool = False) -> None:
@@ -76,6 +81,31 @@ def _load_result(result_id: str) -> dict[str, Any] | None:
     return None
 
 
+@contextmanager
+def _track_request() -> Any:
+    """Track the number of active requests."""
+    global _ACTIVE_REQUESTS
+    with _ACTIVE_LOCK:
+        _ACTIVE_REQUESTS += 1
+    try:
+        yield
+    finally:
+        with _ACTIVE_LOCK:
+            _ACTIVE_REQUESTS -= 1
+
+
+def wait_for_active_requests(timeout: float = 30.0) -> None:
+    """Block until all active requests complete or timeout elapses."""
+    start = time.time()
+    while True:
+        with _ACTIVE_LOCK:
+            if _ACTIVE_REQUESTS == 0:
+                return
+        if time.time() - start > timeout:
+            return
+        time.sleep(0.05)
+
+
 @rate_limit
 async def process_doc_endpoint(
     doc_file: UploadFile = File(...),
@@ -84,44 +114,50 @@ async def process_doc_endpoint(
     group_by: str = Form("category"),
 ):
     tmp_path = None
-    try:
-        with tempfile.NamedTemporaryFile(delete=False, suffix=".docx") as tmp:
-            tmp.write(await doc_file.read())
-            tmp_path = tmp.name
-
+    with _track_request():
         try:
-            validate_file(tmp_path)
-        except SecurityError as se:
-            raise HTTPException(status_code=400, detail=str(se)) from se
+            with tempfile.NamedTemporaryFile(delete=False, suffix=".docx") as tmp:
+                tmp.write(await doc_file.read())
+                tmp_path = tmp.name
 
-        vis = VisibilitySettings.from_dict_json(visibility_json)
-        result = process_document(tmp_path, doc_type, vis, group_by=group_by)
+            try:
+                validate_file(tmp_path)
+            except SecurityError as se:
+                raise HTTPException(status_code=400, detail=str(se)) from se
 
-        if isinstance(result, dict):
-            data = result.get("by_category", {})
-            result_id = hashlib.sha256(json.dumps(result, sort_keys=True).encode()).hexdigest()
+            if _PROCESS_DELAY:
+                await asyncio.sleep(_PROCESS_DELAY)
+
+            vis = VisibilitySettings.from_dict_json(visibility_json)
+            result = process_document(tmp_path, doc_type, vis, group_by=group_by)
+
+            if isinstance(result, dict):
+                data = result.get("by_category", {})
+                result_id = hashlib.sha256(
+                    json.dumps(result, sort_keys=True).encode()
+                ).hexdigest()
+                _save_result(result_id, data)
+                return JSONResponse(
+                    {
+                        "has_errors": result.get("has_errors", False),
+                        "rendered": result.get("rendered", ""),
+                        "by_category": data,
+                        "result_id": result_id,
+                    }
+                )
+            data = {"html": result}
+            result_id = hashlib.sha256(result.encode()).hexdigest()
             _save_result(result_id, data)
-            return JSONResponse(
-                {
-                    "has_errors": result.get("has_errors", False),
-                    "rendered": result.get("rendered", ""),
-                    "by_category": data,
-                    "result_id": result_id,
-                }
-            )
-        data = {"html": result}
-        result_id = hashlib.sha256(result.encode()).hexdigest()
-        _save_result(result_id, data)
-        return JSONResponse({"html": result, "result_id": result_id})
+            return JSONResponse({"html": result, "result_id": result_id})
 
-    except HTTPException:
-        raise
-    except Exception as e:
-        log.exception("processing failed")
-        raise HTTPException(500, str(e))
-    finally:
-        if tmp_path and os.path.exists(tmp_path):
-            os.unlink(tmp_path)
+        except HTTPException:
+            raise
+        except Exception as e:
+            log.exception("processing failed")
+            raise HTTPException(500, str(e))
+        finally:
+            if tmp_path and os.path.exists(tmp_path):
+                os.unlink(tmp_path)
 
 
 async def download_result(result_id: str, fmt: str, background: BackgroundTasks) -> FileResponse:

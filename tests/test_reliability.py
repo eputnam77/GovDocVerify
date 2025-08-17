@@ -1,5 +1,12 @@
 """Tests for reliability and error resilience."""
 
+import asyncio
+import multiprocessing
+import os
+import signal
+import time
+from pathlib import Path
+
 import httpx
 import pytest
 
@@ -47,8 +54,51 @@ def test_partial_failure_reporting(monkeypatch: pytest.MonkeyPatch) -> None:
     out = build_results_dict(result)
     assert out["partial_failures"][0]["category"] == "readability"
 
-
-@pytest.mark.skip("RE-03: graceful shutdown under load not implemented")
-def test_graceful_shutdown_under_load() -> None:
+def test_graceful_shutdown_under_load(tmp_path: Path) -> None:
     """RE-03: system shuts down gracefully during high load."""
-    ...
+
+    port = 8765
+
+    def _run_server() -> None:
+        from fastapi import FastAPI  # noqa: E402,I001
+        from backend.graceful import run  # noqa: E402
+
+        app = FastAPI()
+
+        @app.get("/slow")
+        async def slow() -> dict[str, str]:
+            await asyncio.sleep(0.5)
+            return {"status": "ok"}
+
+        @app.get("/health")
+        async def health() -> dict[str, str]:
+            return {"status": "ok"}
+
+        run(app, host="127.0.0.1", port=port)
+
+    proc = multiprocessing.Process(target=_run_server)
+    proc.start()
+
+    base_url = f"http://127.0.0.1:{port}"
+    for _ in range(50):
+        try:
+            httpx.get(f"{base_url}/health", timeout=0.2)
+            break
+        except Exception:
+            time.sleep(0.1)
+    else:
+        proc.terminate()
+        pytest.fail("server failed to start")
+
+    async def _hammer() -> list[httpx.Response]:
+        async with httpx.AsyncClient() as client:
+            tasks = [client.get(f"{base_url}/slow") for _ in range(5)]
+            await asyncio.sleep(0.1)
+            os.kill(proc.pid, signal.SIGTERM)
+            return await asyncio.gather(*tasks)
+
+    responses = asyncio.run(_hammer())
+
+    proc.join(timeout=30)
+    assert proc.exitcode == 0
+    assert all(r.status_code == 200 for r in responses)
