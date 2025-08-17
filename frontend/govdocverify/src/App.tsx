@@ -1,5 +1,4 @@
 import { useState } from "react";
-import DOMPurify from 'dompurify';
 import axios from "axios";
 import UploadPanel from "./components/UploadPanel";
 import VisibilityToggles from "./components/VisibilityToggles";
@@ -61,7 +60,7 @@ export default function App() {
     const { data: resp } = await axios.post(`${API_BASE}/process`, data, {
       headers: { "Content-Type": "multipart/form-data" },
     });
-    setHtml(DOMPurify.sanitize(resp.rendered || resp.html || ""));
+    setHtml(resp.rendered || resp.html || "");
     setResultId(resp.result_id);
   };
 
