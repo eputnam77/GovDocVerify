@@ -9,7 +9,7 @@ from govdocverify.checks.reference_checks import (
     DocumentTitleFormatCheck,
     TableFigureReferenceCheck,
 )
-from govdocverify.models import DocumentCheckResult
+from govdocverify.models import DocumentCheckResult, Severity
 
 # Configure logging for tests
 logging.basicConfig(level=logging.DEBUG)
@@ -94,6 +94,7 @@ class TestTableFigureReferenceCheck:
         logger.debug(f"Parentheses references result: {result}")
         assert not result.success
         assert len(result.issues) == 2
+        assert result.severity == Severity.WARNING
         assert any("should be lowercase" in issue["issue"] for issue in result.issues)
 
     def test_reference_in_quotes(self):
@@ -108,6 +109,7 @@ class TestTableFigureReferenceCheck:
         logger.debug(f"Quoted references result: {result}")
         assert not result.success
         assert len(result.issues) == 2
+        assert result.severity == Severity.WARNING
         assert any("should be lowercase" in issue["issue"] for issue in result.issues)
 
     def test_reference_in_list(self):
@@ -268,6 +270,7 @@ class TestTableFigureReferenceCheck:
         logger.debug(f"Inline lowercase result: {result}")
         assert not result.success
         assert len(result.issues) == 2
+        assert result.severity == Severity.WARNING
         assert any(
             "Table reference within sentence should be lowercase" in i["issue"]
             for i in result.issues
@@ -393,6 +396,7 @@ class TestTableFigureReferenceCheck:
 
         assert not result.success
         assert len(result.issues) == 2
+        assert result.severity == Severity.WARNING
         assert any("should be capitalized" in issue["issue"] for issue in result.issues)
         assert any("should be lowercase" in issue["issue"] for issue in result.issues)
 
