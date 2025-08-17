@@ -54,6 +54,7 @@ def test_partial_failure_reporting(monkeypatch: pytest.MonkeyPatch) -> None:
     out = build_results_dict(result)
     assert out["partial_failures"][0]["category"] == "readability"
 
+
 def test_graceful_shutdown_under_load(tmp_path: Path) -> None:
     """RE-03: system shuts down gracefully during high load."""
 

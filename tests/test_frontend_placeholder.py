@@ -2,10 +2,10 @@
 
 from pathlib import Path
 
-import pytest
 from fastapi.testclient import TestClient
 
 from backend.main import app
+from govdocverify.utils.security import rate_limiter
 
 
 def test_frontend_upload_and_render(monkeypatch) -> None:
@@ -21,9 +21,10 @@ def test_frontend_upload_and_render(monkeypatch) -> None:
     monkeypatch.setattr("backend.api.process_document", fake_process)
 
     with open("tests/test_data/valid_readability.docx", "rb") as f:
+        mime = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
         resp = client.post(
             "/process",
-            files={"doc_file": ("doc.docx", f, "application/vnd.openxmlformats-officedocument.wordprocessingml.document")},
+            files={"doc_file": ("doc.docx", f, mime)},
             data={"doc_type": "AC", "visibility_json": "{}"},
         )
 
@@ -53,6 +54,7 @@ def test_download_actions(monkeypatch) -> None:
 
     # Simulate a processing request and verify downloads
     client = TestClient(app)
+    rate_limiter.requests.clear()
     monkeypatch.setattr("backend.api.validate_file", lambda *a, **k: None)
     monkeypatch.setattr(
         "backend.api.process_document",
@@ -82,6 +84,7 @@ def test_download_actions(monkeypatch) -> None:
     pdf = client.get(f"/results/{rid}.pdf")
     assert pdf.status_code == 200
     assert pdf.content.startswith(b"%PDF")
+
 
 def test_severity_filter_toggling() -> None:
     """FE-03: toggling severity filters updates visible results."""
