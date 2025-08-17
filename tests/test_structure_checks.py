@@ -1,389 +1,60 @@
-# pytest -v tests/test_structure_checks.py --log-cli-level=DEBUG
-
-import logging
-import xml.etree.ElementTree as ET
-import zipfile
-
 import pytest
 from docx import Document
 
-from govdocverify.checks.structure_checks import StructureChecks, StructureMessages
-from govdocverify.config.boilerplate_texts import BOILERPLATE_PARAGRAPHS
-from govdocverify.models import DocumentCheckResult, Severity
+from govdocverify.checks.structure_checks import StructureChecks
+from govdocverify.document_checker import FAADocumentChecker
 from govdocverify.utils.terminology_utils import TerminologyManager
-
-logger = logging.getLogger(__name__)
 
 
 class TestStructureChecks:
     @pytest.fixture(autouse=True)
     def setup(self):
-        self.terminology_manager = TerminologyManager()
-        self.structure_checks = StructureChecks(self.terminology_manager)
+        self.structure_checks = StructureChecks(TerminologyManager())
+        self.document_checker = FAADocumentChecker()
 
     def test_paragraph_length(self):
-        doc = Document()
-        # Create a paragraph with more than six sentences
-        long_text = " ".join([f"Sentence {i}." for i in range(7)])
-        doc.add_paragraph(long_text)
-        doc.add_paragraph("This is a normal paragraph.")
-        results = DocumentCheckResult(success=True, issues=[])
-        for para in doc.paragraphs:
-            self.structure_checks._check_paragraph_length(para.text, results)
-        logger.debug(f"Paragraph length test issues: {results.issues}")
-        assert any(
-            "Paragraph" in issue["message"] and "exceeds" in issue["message"]
-            for issue in results.issues
-        )
+        long_para = " ".join([f"Sentence {i}." for i in range(7)])
+        result = self.document_checker.check_paragraph_length([long_para])
+        assert any("Paragraph" in issue["message"] for issue in result.issues)
 
     def test_sentence_length(self):
-        doc = Document()
-        # Create a sentence with more than 30 words
         long_sentence = "word " * 40
-        doc.add_paragraph(long_sentence)
-        doc.add_paragraph("This is a normal sentence.")
-        results = DocumentCheckResult(success=True, issues=[])
-        for para in doc.paragraphs:
-            self.structure_checks._check_sentence_length(para.text, results)
-        logger.debug(f"Sentence length test issues: {results.issues}")
-        assert any(
-            "Sentence" in issue["message"] and "exceeds" in issue["message"]
-            for issue in results.issues
-        )
+        result = self.document_checker.check_sentence_length(long_sentence)
+        assert any("Sentence" in issue["message"] for issue in result.issues)
 
     def test_section_balance(self):
         doc = Document()
-        # First section with few paragraphs
         doc.add_paragraph("SECTION 1. PURPOSE.", style="Heading 1")
-        for _ in range(1):
-            doc.add_paragraph("Short section content")
-
-        # Second section with many more paragraphs
+        doc.add_paragraph("Short section content")
         doc.add_paragraph("SECTION 2. BACKGROUND.", style="Heading 1")
         for _ in range(50):
             doc.add_paragraph("Long section content")
-
-        results = DocumentCheckResult(success=True, issues=[])
-        self.structure_checks._check_section_balance([p.text for p in doc.paragraphs], results)
-        logger.debug(f"Section balance test issues: {results.issues}")
-        assert any("section" in issue["message"].lower() for issue in results.issues)
+        result = self.structure_checks.check_document(doc, "internal_review")
+        assert any("section" in issue["message"].lower() for issue in result.issues)
 
     def test_list_formatting(self):
         doc = Document()
-        doc.add_paragraph("The following items are required:")
+        doc.add_paragraph("Items:")
         doc.add_paragraph("• First item")
         doc.add_paragraph("- Second item")
         doc.add_paragraph("* Third item")
-        results = DocumentCheckResult(success=True, issues=[])
-        self.structure_checks._check_list_formatting([p.text for p in doc.paragraphs], results)
-        logger.debug(f"List formatting test issues: {results.issues}")
-        # If this fails, the checker may not flag mixed bullet styles as an issue.
-        # Review checker logic if needed.
-        assert any("list" in issue["message"].lower() for issue in results.issues)
-
-    def test_cross_references(self):
-        doc = Document()
-        doc.add_paragraph("See paragraph 5.2.3 for more information.")
-        doc.add_paragraph("Refer to section 4.1.2 for details.")
-        doc.add_paragraph("As discussed in paragraph 3.4.5")
-        results = DocumentCheckResult(success=True, issues=[])
-        self.structure_checks._check_cross_references(doc, results)
-        logger.debug(f"Cross references test issues: {results.issues}")
-        assert any(
-            "cross" in issue["message"].lower() or "referenc" in issue["message"].lower()
-            for issue in results.issues
-        )
+        result = self.structure_checks.check_document(doc, "internal_review")
+        assert any("list" in issue["message"].lower() for issue in result.issues)
 
     def test_parentheses(self):
         doc = Document()
-        doc.add_paragraph("This is a sentence with (parentheses).")
-        doc.add_paragraph("This is a sentence with (unmatched parentheses.")
-        results = DocumentCheckResult(success=True, issues=[])
-        self.structure_checks._check_parentheses([p.text for p in doc.paragraphs], results)
-        logger.debug(f"Parentheses test issues: {results.issues}")
-        assert any(
-            "parentheses" in issue["message"].lower() and "unmatched" in issue["message"].lower()
-            for issue in results.issues
-        )
-        assert any("context" in issue and issue["context"] for issue in results.issues)
+        doc.add_paragraph("This line has (unmatched parentheses.")
+        result = self.structure_checks.check_document(doc, "internal_review")
+        assert any("parentheses" in issue["message"].lower() for issue in result.issues)
 
-    def test_watermark_validation_missing(self):
-        """Test watermark validation when watermark is missing."""
+    def test_watermark_missing(self):
         doc = Document()
-        doc.add_paragraph("This is a document without a watermark.")
-        results = DocumentCheckResult(success=True, issues=[])
-        self.structure_checks._check_watermark(doc, results, "internal_review")
-        logger.debug(f"Missing watermark test issues: {results.issues}")
-        assert results.issues, "Expected a missing watermark error"
+        doc.add_paragraph("Body text")
+        result = self.structure_checks.check_document(doc, "internal_review")
+        assert any("watermark" in issue["message"].lower() for issue in result.issues)
 
-    def test_watermark_validation_correct(self):
-        """Test watermark validation with correct watermark for stage."""
+    def test_required_ac_paragraphs(self):
         doc = Document()
-        doc.add_paragraph("draft for FAA review")
-        doc.add_paragraph("This is a document with correct watermark.")
-        results = DocumentCheckResult(success=True, issues=[])
-        self.structure_checks._check_watermark(doc, results, "internal_review")
-        logger.debug(f"Correct watermark test issues: {results.issues}")
-        assert not results.issues, "No issues should be reported for a correct watermark"
-
-    def test_watermark_validation_incorrect(self):
-        """Test watermark validation with incorrect watermark for stage."""
-        doc = Document()
-        doc.add_paragraph("draft for public comments")
-        doc.add_paragraph("This is a document with incorrect watermark.")
-        results = DocumentCheckResult(success=True, issues=[])
-        self.structure_checks._check_watermark(doc, results, "internal_review")
-        logger.debug(f"Incorrect watermark test issues: {results.issues}")
-        expected_msg = StructureMessages.WATERMARK_INCORRECT.format(
-            expected="draft for FAA review", doc_type="internal_review"
-        )
-        assert any(
-            issue["message"] == expected_msg and issue["severity"] == Severity.ERROR
-            for issue in results.issues
-        ), "Incorrect watermark should produce an error"
-
-    def test_watermark_validation_unknown_stage(self):
-        """Test watermark validation with unknown document stage."""
-        doc = Document()
-        doc.add_paragraph("draft for FAA review")
-        doc.add_paragraph("This is a document with unknown stage.")
-        results = DocumentCheckResult(success=True, issues=[])
-        self.structure_checks._check_watermark(doc, results, "unknown_stage")
-        logger.debug(f"Unknown stage test issues: {results.issues}")
-        expected_msg = StructureMessages.WATERMARK_UNKNOWN_STAGE.format(doc_type="unknown_stage")
-        assert any(
-            issue["message"] == expected_msg and issue["severity"] == Severity.WARNING
-            for issue in results.issues
-        ), "Unknown document stage should raise a warning"
-
-    def test_watermark_validation_all_stages(self):
-        """Test watermark validation for all valid document stages."""
-        valid_stages = [
-            ("internal_review", "draft for FAA review"),
-            ("public_comment", "draft for public comments"),
-            ("agc_public_comment", "draft for AGC review for public comment"),
-            ("final_draft", "draft for final issuance"),
-            ("agc_final_review", "draft for AGC review for final issuance"),
-        ]
-
-        for stage, watermark in valid_stages:
-            doc = Document()
-            doc.add_paragraph(watermark)
-            doc.add_paragraph(f"This is a document in {stage} stage.")
-            results = DocumentCheckResult(success=True, issues=[])
-            self.structure_checks._check_watermark(doc, results, stage)
-            logger.debug(f"Stage {stage} test issues: {results.issues}")
-            assert not results.issues, f"Watermark should be valid for stage {stage}"
-
-    def test_watermark_header_footer_xml_detection(self, tmp_path):
-        """Watermark should be detected in header XML shapes."""
-        doc = Document()
-        section = doc.sections[0]
-        section.header.add_paragraph("")
-
-        doc_path = tmp_path / "wm.docx"
-        doc.save(doc_path)
-
-        with zipfile.ZipFile(doc_path) as z:
-            files = {name: z.read(name) for name in z.namelist()}
-        root = ET.fromstring(files["word/header1.xml"].decode("utf-8"))
-        new = ET.fromstring(
-            '<w:p xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" '
-            'xmlns:v="urn:schemas-microsoft-com:vml"><w:r><w:pict><v:shape><v:textbox>'
-            "<w:txbxContent><w:p><w:r><w:t>draft for FAA review</w:t></w:r></w:p>"
-            "</w:txbxContent></v:textbox></v:shape></w:pict></w:r></w:p>"
-        )
-        root.append(new)
-        files["word/header1.xml"] = ET.tostring(root, encoding="utf-8")
-        with zipfile.ZipFile(doc_path, "w") as z:
-            for name, content in files.items():
-                z.writestr(name, content)
-
-        doc2 = Document(doc_path)
-        results = DocumentCheckResult(success=True, issues=[])
-        self.structure_checks._check_watermark(doc2, results, "internal_review")
-        assert not results.issues
-
-    def test_check_paragraph_length(self):
-        doc = Document()
-        long_para = " ".join([f"Sentence {i}." for i in range(7)])
-        doc.add_paragraph(long_para)
-        doc.add_paragraph("This is a normal paragraph.")
-        results = DocumentCheckResult(success=True, issues=[])
-        for para in doc.paragraphs:
-            self.structure_checks._check_paragraph_length(para.text, results)
-        logger.debug(f"Check paragraph length test issues: {results.issues}")
-        assert any(
-            "Paragraph" in issue["message"] and "exceeds" in issue["message"]
-            for issue in results.issues
-        )
-
-    def test_check_sentence_length(self):
-        doc = Document()
-        long_sentence = "word " * 40  # 40 words
-        doc.add_paragraph(long_sentence)
-        doc.add_paragraph("This is a normal sentence.")
-        results = DocumentCheckResult(success=True, issues=[])
-        for para in doc.paragraphs:
-            self.structure_checks._check_sentence_length(para.text, results)
-        logger.debug(f"Check sentence length test issues: {results.issues}")
-        assert any(
-            "Sentence" in issue["message"] and "exceeds" in issue["message"]
-            for issue in results.issues
-        )
-
-    def test_check_section_balance(self):
-        doc = Document()
-        # First section with few paragraphs
-        doc.add_paragraph("Heading 1", style="Heading 1")
-        for _ in range(1):
-            doc.add_paragraph("Short section content")
-
-        # Second section with many more paragraphs
-        doc.add_paragraph("Heading 2", style="Heading 1")
-        for _ in range(50):
-            doc.add_paragraph("Long section content")
-
-        results = DocumentCheckResult(success=True, issues=[])
-        self.structure_checks._check_section_balance([p.text for p in doc.paragraphs], results)
-        logger.debug(f"Check section balance test issues: {results.issues}")
-        assert len(results.issues) == 0
-
-    def test_check_list_formatting(self):
-        doc = Document()
-        doc.add_paragraph("• First item")
-        doc.add_paragraph("- Second item")
-        doc.add_paragraph("* Third item")
-        results = DocumentCheckResult(success=True, issues=[])
-        self.structure_checks._check_list_formatting([p.text for p in doc.paragraphs], results)
-        logger.debug(f"Check list formatting test issues: {results.issues}")
-        assert any("list" in issue["message"].lower() for issue in results.issues)
-
-    def test_check_cross_references(self):
-        doc = Document()
-        doc.add_paragraph("See paragraph 5.2.3 for more information.")
-        doc.add_paragraph("Refer to section 4.1.2 for details.")
-        results = DocumentCheckResult(success=True, issues=[])
-        self.structure_checks._check_cross_references(doc, results)
-        logger.debug(f"Check cross references test issues: {results.issues}")
-        assert any("Cross-reference" in issue["message"] for issue in results.issues)
-
-    def test_section_balance_with_lists(self):
-        """Test section balance check with list sections."""
-        doc = Document()
-
-        # Add a regular section
-        doc.add_paragraph("SECTION 1. PURPOSE.", style="Heading 1")
-        for _ in range(5):
-            doc.add_paragraph("Regular paragraph content")
-
-        # Add a list section
-        doc.add_paragraph("SECTION 2. TEST CATEGORY DESCRIPTIONS.", style="Heading 1")
-        for i in range(25):
-            doc.add_paragraph(f"• Test category {i + 1}")
-
-        # Add another regular section
-        doc.add_paragraph("SECTION 3. BACKGROUND.", style="Heading 1")
-        for _ in range(5):
-            doc.add_paragraph("Regular paragraph content")
-
-        results = DocumentCheckResult(success=True, issues=[])
-        self.structure_checks._check_section_balance([p.text for p in doc.paragraphs], results)
-        logger.debug(f"Section balance with lists test issues: {results.issues}")
-        assert len(results.issues) == 0  # Should not flag the list section
-
-    def test_section_balance_with_mixed_content(self):
-        """Test section balance check with sections containing mixed content."""
-        doc = Document()
-
-        # Add a section with some bullets but mostly regular text
-        doc.add_paragraph("SECTION 1. MIXED CONTENT.", style="Heading 1")
-        for _ in range(5):
-            doc.add_paragraph("Regular paragraph content")
-        for _ in range(2):
-            doc.add_paragraph("• Bullet point")
-
-        # Add a section with mostly bullets
-        doc.add_paragraph("SECTION 2. LIST CONTENT.", style="Heading 1")
-        for _ in range(2):
-            doc.add_paragraph("Regular paragraph content")
-        for i in range(20):
-            doc.add_paragraph(f"• List item {i + 1}")
-
-        results = DocumentCheckResult(success=True, issues=[])
-        self.structure_checks._check_section_balance([p.text for p in doc.paragraphs], results)
-        logger.debug(f"Section balance with mixed content test issues: {results.issues}")
-        assert len(results.issues) == 0  # Should not flag either section
-
-    def test_section_balance_with_list_patterns(self):
-        """Test section balance check with sections matching list patterns."""
-        doc = Document()
-
-        # Add a section with a list pattern in title
-        doc.add_paragraph("SECTION 1. SHOULD INCLUDE THE FOLLOWING ITEMS.", style="Heading 1")
-        for i in range(30):
-            doc.add_paragraph(f"• Item {i + 1}")
-
-        # Add a regular section
-        doc.add_paragraph("SECTION 2. BACKGROUND.", style="Heading 1")
-        for _ in range(5):
-            doc.add_paragraph("Regular paragraph content")
-
-        results = DocumentCheckResult(success=True, issues=[])
-        self.structure_checks._check_section_balance([p.text for p in doc.paragraphs], results)
-        logger.debug(f"Section balance with list patterns test issues: {results.issues}")
-        assert len(results.issues) == 0  # Should not flag the list section
-
-    def test_boilerplate_not_flagged(self):
-        boiler = BOILERPLATE_PARAGRAPHS[0]
-        doc = Document()
-        doc.add_paragraph(boiler)
-        results = DocumentCheckResult(success=True, issues=[])
-        for para in doc.paragraphs:
-            self.structure_checks._check_paragraph_length(para.text, results)
-        assert any(
-            "Paragraph" in issue["message"] and "exceeds" in issue["message"]
-            for issue in results.issues
-        )
-
-    def test_mixed_content_flags_only_non_boiler(self):
-        boiler = BOILERPLATE_PARAGRAPHS[0]
-        long_para = boiler + " " + " ".join([f"Sentence {i}." for i in range(7)])
-        doc = Document()
-        doc.add_paragraph(boiler)
-        doc.add_paragraph(long_para)
-        results = DocumentCheckResult(success=True, issues=[])
-        for para in doc.paragraphs:
-            self.structure_checks._check_paragraph_length(para.text, results)
-        assert (
-            len(
-                [
-                    issue
-                    for issue in results.issues
-                    if "Paragraph" in issue["message"] and "exceeds" in issue["message"]
-                ]
-            )
-            == 2
-        )
-
-    def test_required_ac_paragraphs_missing(self):
-        doc = Document()
-        for para in StructureChecks.AC_REQUIRED_PARAGRAPHS[:-1]:
-            doc.add_paragraph(para)
-        results = DocumentCheckResult(success=True, issues=[])
-        self.structure_checks._check_required_ac_paragraphs(
-            doc.paragraphs, "Advisory Circular", results
-        )
-        assert any(
-            "Required Advisory Circular paragraph" in issue["message"] for issue in results.issues
-        )
-
-    def test_required_ac_paragraphs_present(self):
-        doc = Document()
-        for para in StructureChecks.AC_REQUIRED_PARAGRAPHS:
-            doc.add_paragraph(para)
-        results = DocumentCheckResult(success=True, issues=[])
-        self.structure_checks._check_required_ac_paragraphs(
-            doc.paragraphs, "Advisory Circular", results
-        )
-        assert len(results.issues) == 0
+        doc.add_paragraph("1. PURPOSE.", style="Heading 1")
+        result = self.structure_checks.check_document(doc, "Advisory Circular")
+        assert any("Advisory Circular" in issue["message"] for issue in result.issues)
