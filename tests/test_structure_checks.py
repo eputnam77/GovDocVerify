@@ -7,9 +7,9 @@ import zipfile
 import pytest
 from docx import Document
 
-from govdocverify.checks.structure_checks import StructureChecks
+from govdocverify.checks.structure_checks import StructureChecks, StructureMessages
 from govdocverify.config.boilerplate_texts import BOILERPLATE_PARAGRAPHS
-from govdocverify.models import DocumentCheckResult
+from govdocverify.models import DocumentCheckResult, Severity
 from govdocverify.utils.terminology_utils import TerminologyManager
 
 logger = logging.getLogger(__name__)
@@ -134,7 +134,13 @@ class TestStructureChecks:
         results = DocumentCheckResult(success=True, issues=[])
         self.structure_checks._check_watermark(doc, results, "internal_review")
         logger.debug(f"Incorrect watermark test issues: {results.issues}")
-        assert not results.issues, "Incorrect watermark should still satisfy presence requirement"
+        expected_msg = StructureMessages.WATERMARK_INCORRECT.format(
+            expected="draft for FAA review", doc_type="internal_review"
+        )
+        assert any(
+            issue["message"] == expected_msg and issue["severity"] == Severity.ERROR
+            for issue in results.issues
+        ), "Incorrect watermark should produce an error"
 
     def test_watermark_validation_unknown_stage(self):
         """Test watermark validation with unknown document stage."""
@@ -144,7 +150,11 @@ class TestStructureChecks:
         results = DocumentCheckResult(success=True, issues=[])
         self.structure_checks._check_watermark(doc, results, "unknown_stage")
         logger.debug(f"Unknown stage test issues: {results.issues}")
-        assert not results.issues, "Stage is ignored when checking for watermark presence"
+        expected_msg = StructureMessages.WATERMARK_UNKNOWN_STAGE.format(doc_type="unknown_stage")
+        assert any(
+            issue["message"] == expected_msg and issue["severity"] == Severity.WARNING
+            for issue in results.issues
+        ), "Unknown document stage should raise a warning"
 
     def test_watermark_validation_all_stages(self):
         """Test watermark validation for all valid document stages."""

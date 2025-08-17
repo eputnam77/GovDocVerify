@@ -515,6 +515,27 @@ class StructureChecks(BaseChecker):
             )
             return
 
+        normalized_found = self._normalize_watermark_text(watermark_text)
+        requirement = next((w for w in self.VALID_WATERMARKS if w.doc_stage == doc_type), None)
+
+        if requirement:
+            expected_normalized = self._normalize_watermark_text(requirement.text)
+            if normalized_found != expected_normalized:
+                results.add_issue(
+                    message=StructureMessages.WATERMARK_INCORRECT.format(
+                        expected=requirement.text, doc_type=doc_type
+                    ),
+                    severity=Severity.ERROR,
+                    line_number=1,
+                    found=watermark_text,
+                )
+        else:
+            results.add_issue(
+                message=StructureMessages.WATERMARK_UNKNOWN_STAGE.format(doc_type=doc_type),
+                severity=Severity.WARNING,
+                line_number=1,
+            )
+
     def _extract_watermark(self, doc: DocxDocument) -> Optional[str]:
         """Extract watermark text from the document body, headers, and footers."""
 
