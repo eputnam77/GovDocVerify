@@ -36,7 +36,9 @@ def test_validate_file_and_rate_limiter(tmp_path):
     f = tmp_path / "x.docx"
     f.write_bytes(b"test")
     with mock.patch("govdocverify.utils.security.filetype.guess") as g:
-        g.return_value = mock.Mock(mime="application/msword")
+        g.return_value = mock.Mock(
+            mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+        )
         validate_file(str(f))
         g.return_value = None
         with pytest.raises(SecurityError):

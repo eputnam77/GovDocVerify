@@ -33,7 +33,9 @@ def test_rate_limiting(monkeypatch):
         ) as rl,
         mock.patch("govdocverify.utils.security.filetype.guess") as guess,
     ):
-        guess.return_value = mock.Mock(mime="application/msword")
+        guess.return_value = mock.Mock(
+            mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+        )
         rl.requests.clear()
         resp1 = client.post(
             "/process",
