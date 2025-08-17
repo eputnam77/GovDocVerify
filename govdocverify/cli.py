@@ -1,6 +1,7 @@
 """CLI module for GovDocVerify."""
 
 import argparse
+import json
 import logging
 import os
 import sys
@@ -143,6 +144,11 @@ def _create_argument_parser() -> argparse.ArgumentParser:
         help="Group results by category or severity",
     )
     parser.add_argument("--debug", action="store_true", help="Enable debug mode")
+    parser.add_argument(
+        "--json",
+        action="store_true",
+        help="Output results as JSON instead of formatted text",
+    )
 
     # Add visibility control flags
     visibility_group = parser.add_argument_group("Visibility Controls")
@@ -392,7 +398,10 @@ def main() -> int:  # noqa: C901 - command-line parsing is inherently complex
                     export.save_results_as_docx(result, str(out_path))
                 elif fmt == "pdf":
                     export.save_results_as_pdf(result, str(out_path))
-        _safe_print(result["rendered"])
+        if args.json:
+            _safe_print(json.dumps(result))
+        else:
+            _safe_print(result["rendered"])
         return 1 if result.get("has_errors", False) else 0
 
     except FileNotFoundError:
