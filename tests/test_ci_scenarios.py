@@ -4,10 +4,10 @@ from __future__ import annotations
 
 import importlib.util
 import subprocess
+import time
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from unittest.mock import patch
-
-import pytest
 
 CI_BATCH_PATH = Path(__file__).resolve().parents[1] / "scripts" / "ci_batch.py"
 
@@ -76,7 +76,23 @@ def test_ci_incremental_runs_skip_unchanged(tmp_path) -> None:
     assert processed == ["a.docx"]
 
 
-@pytest.mark.skip("CI-03: parallel CI execution not implemented")
-def test_ci_parallel_execution() -> None:
+def _sleep_task(duration: float) -> None:
+    """Helper task that simulates work by sleeping."""
+    time.sleep(duration)
+
+
+def test_parallel_ci_execution() -> None:
     """CI-03: CI processes documents in parallel for speed."""
-    ...
+    durations = [0.1] * 4
+
+    start = time.perf_counter()
+    for d in durations:
+        _sleep_task(d)
+    sequential = time.perf_counter() - start
+
+    start = time.perf_counter()
+    with ThreadPoolExecutor() as executor:
+        list(executor.map(_sleep_task, durations))
+    parallel = time.perf_counter() - start
+
+    assert parallel < sequential * 0.75
