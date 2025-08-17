@@ -73,8 +73,9 @@ class TestHeadingChecks:
         doc.add_paragraph("2.2. Current Status.")
         doc.add_paragraph("3. DEFINITIONS.")
 
-        issues = self.heading_checks.check_heading_structure(doc)
-        assert len(issues) == 0
+        result = self.heading_checks.check_heading_structure(doc)
+        assert result.success is True
+        assert len(result.issues) == 0
 
     def test_invalid_heading_structure(self):
         doc = Document()
@@ -83,9 +84,12 @@ class TestHeadingChecks:
         doc.add_paragraph("2.1. History.")
         doc.add_paragraph("2.3. Current Status.")  # Skipped 2.2
 
-        issues = self.heading_checks.check_heading_structure(doc)
-        assert len(issues) > 0
-        assert any("expected" in issue["message"] for issue in issues)
+        result = self.heading_checks.check_heading_structure(doc)
+        assert result.success is False
+        assert len(result.issues) > 0
+        assert any("expected" in issue["message"] for issue in result.issues)
+        assert all(issue["severity"] == Severity.ERROR for issue in result.issues)
+        assert result.issues[0]["line_number"] == 4
 
     def test_heading_case(self):
         """Test that headings are properly capitalized."""
@@ -109,8 +113,9 @@ class TestHeadingChecks:
         doc.add_paragraph("3. DEFINITIONS.")
         doc.add_paragraph("Even more content.")
 
-        issues = self.heading_checks.check_heading_structure(doc)
-        assert len(issues) == 0  # No spacing issues
+        result = self.heading_checks.check_heading_structure(doc)
+        assert result.success is True
+        assert len(result.issues) == 0  # No spacing issues
 
     def test_heading_with_content(self):
         """Test headings in context with actual content."""
@@ -122,8 +127,9 @@ class TestHeadingChecks:
         doc.add_paragraph("3. DEFINITIONS.")
         doc.add_paragraph("For the purpose of this document...")
 
-        issues = self.heading_checks.check_heading_structure(doc)
-        assert len(issues) == 0  # No issues with headings and content
+        result = self.heading_checks.check_heading_structure(doc)
+        assert result.success is True
+        assert len(result.issues) == 0  # No issues with headings and content
 
     def test_mixed_case_headings(self):
         """Test mixed case scenarios in headings."""

@@ -411,9 +411,9 @@ class HeadingChecks(BaseChecker):
             success=len(issues) == 0, issues=issues, details={"document_type": doc_type_norm}
         )
 
-    def check_heading_structure(self, doc) -> List[Dict[str, Any]]:
+    def check_heading_structure(self, doc) -> DocumentCheckResult:
         """Check heading sequence structure."""
-        issues = []
+        results = DocumentCheckResult()
         logger.info("Starting heading structure check")
         prev_numbers = None
 
@@ -430,12 +430,12 @@ class HeadingChecks(BaseChecker):
             logger.debug(f"Found heading level {current_level} with numbers: {numbers}")
 
             if prev_numbers is not None:
-                self._check_heading_sequence_issues(numbers, prev_numbers, text, i, issues)
+                self._check_heading_sequence_issues(numbers, prev_numbers, text, i, results)
 
             prev_numbers = numbers
 
-        logger.info(f"Heading structure check completed. Found {len(issues)} issues")
-        return issues
+        logger.info(f"Heading structure check completed. Found {len(results.issues)} issues")
+        return results
 
     def _extract_heading_numbers(self, text: str, paragraph_num: int) -> Optional[List[str]]:
         """Extract heading numbers from text. Returns None if not a numbered heading."""
@@ -454,34 +454,38 @@ class HeadingChecks(BaseChecker):
         prev_numbers: List[str],
         text: str,
         paragraph_num: int,
-        issues: List[Dict[str, Any]],
+        results: DocumentCheckResult,
     ) -> None:
-        """Check for heading sequence issues and add to issues list."""
+        """Check for heading sequence issues and add to results."""
         current_level = len(numbers)
         prev_level = len(prev_numbers)
 
         # Check level skipping
         if current_level > prev_level + 1:
-            self._add_level_skipping_issue(text, paragraph_num, prev_level, issues)
+            self._add_level_skipping_issue(text, paragraph_num, prev_level, results)
         # Check sequence within same level
         elif current_level == prev_level:
-            self._check_same_level_sequence(numbers, prev_numbers, text, paragraph_num, issues)
+            self._check_same_level_sequence(numbers, prev_numbers, text, paragraph_num, results)
 
     def _add_level_skipping_issue(
-        self, text: str, paragraph_num: int, prev_level: int, issues: List[Dict[str, Any]]
+        self,
+        text: str,
+        paragraph_num: int,
+        prev_level: int,
+        results: DocumentCheckResult,
     ) -> None:
         """Add issue for level skipping."""
         logger.warning(
             f"Invalid heading sequence in paragraph {paragraph_num}: "
             f"skipped level {prev_level + 1}"
         )
-        issues.append(
-            {
-                "text": text,
-                "message": f"Invalid heading sequence: skipped level {prev_level + 1}",
-                "suggestion": "Ensure heading levels are sequential",
-                "category": self.category,
-            }
+        results.add_issue(
+            message=f"Invalid heading sequence: skipped level {prev_level + 1}",
+            severity=Severity.ERROR,
+            line_number=paragraph_num,
+            category=self.category,
+            text=text,
+            suggestion="Ensure heading levels are sequential",
         )
 
     def _check_same_level_sequence(
@@ -490,7 +494,7 @@ class HeadingChecks(BaseChecker):
         prev_numbers: List[str],
         text: str,
         paragraph_num: int,
-        issues: List[Dict[str, Any]],
+        results: DocumentCheckResult,
     ) -> None:
         """Check sequence within the same heading level."""
         # Compare all but the last number
@@ -500,7 +504,7 @@ class HeadingChecks(BaseChecker):
                 prev_last = int(prev_numbers[-1])
                 curr_last = int(numbers[-1])
                 if curr_last != prev_last + 1:
-                    self._add_sequence_issue(text, paragraph_num, prev_last, numbers, issues)
+                    self._add_sequence_issue(text, paragraph_num, prev_last, numbers, results)
             except ValueError:
                 logger.error(f"Invalid number format in paragraph {paragraph_num}: {numbers[-1]}")
 
@@ -510,19 +514,19 @@ class HeadingChecks(BaseChecker):
         paragraph_num: int,
         prev_last: int,
         numbers: List[str],
-        issues: List[Dict[str, Any]],
+        results: DocumentCheckResult,
     ) -> None:
         """Add issue for incorrect sequence numbering."""
         logger.warning(
-            f"Invalid heading sequence in paragraph {paragraph_num}: " f"expected {prev_last + 1}"
+            f"Invalid heading sequence in paragraph {paragraph_num}: expected {prev_last + 1}"
         )
-        issues.append(
-            {
-                "text": text,
-                "message": f"Invalid heading sequence: expected {prev_last + 1}",
-                "suggestion": f'Use {".".join(numbers[:-1] + [str(prev_last + 1)])}',
-                "category": self.category,
-            }
+        results.add_issue(
+            message=f"Invalid heading sequence: expected {prev_last + 1}",
+            severity=Severity.ERROR,
+            line_number=paragraph_num,
+            category=self.category,
+            text=text,
+            suggestion=f'Use {".".join(numbers[:-1] + [str(prev_last + 1)])}',
         )
 
     def run_checks(
