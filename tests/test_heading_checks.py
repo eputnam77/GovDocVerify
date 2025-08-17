@@ -94,7 +94,9 @@ class TestHeadingChecks:
         assert result.success is False
         assert any("should be uppercase" in issue["message"] for issue in result.issues)
         assert all(
-            issue["severity"] == Severity.WARNING for issue in result.issues if issue["type"] == "case_violation"
+            issue["severity"] == Severity.WARNING
+            for issue in result.issues
+            if issue["type"] == "case_violation"
         )
 
     def test_heading_spacing(self):

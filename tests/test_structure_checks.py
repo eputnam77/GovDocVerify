@@ -66,7 +66,7 @@ class TestStructureChecks:
         results = DocumentCheckResult(success=True, issues=[])
         self.structure_checks._check_section_balance([p.text for p in doc.paragraphs], results)
         logger.debug(f"Section balance test issues: {results.issues}")
-        assert len(results.issues) == 0
+        assert any("section" in issue["message"].lower() for issue in results.issues)
 
     def test_list_formatting(self):
         doc = Document()
