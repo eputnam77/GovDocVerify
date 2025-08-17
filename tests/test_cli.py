@@ -24,6 +24,7 @@ class TestCLI:
             {
                 "success": True,
                 "issues": [],
+                "partial_failures": [],
                 "per_check_results": {
                     "test_category": {"test_check": {"success": True, "issues": [], "details": {}}}
                 },

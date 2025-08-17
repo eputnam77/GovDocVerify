@@ -101,6 +101,7 @@ class DocumentCheckResult:
     score: float = 1.0
     severity: Optional["Severity"] = None
     details: Optional[Dict[str, Any]] = None
+    partial_failures: List[Dict[str, Any]] = field(default_factory=list)
 
     def __post_init__(self) -> None:
         """Initialize default values and ensure all issues have a category."""

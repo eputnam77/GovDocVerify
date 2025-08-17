@@ -66,11 +66,14 @@ class DocumentCheckResult:
     score: float = 1.0
     severity: Optional["Severity"] = None
     details: Optional[Dict[str, Any]] = None
+    partial_failures: List[Dict[str, Any]] | None = None
 
     def __post_init__(self):
         """Initialize default values."""
         if self.issues is None:
             self.issues = []
+        if self.partial_failures is None:
+            self.partial_failures = []
         self.severity = None  # Will be set on first issue
 
     def add_issue(

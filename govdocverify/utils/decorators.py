@@ -27,7 +27,9 @@ def profile_performance(func: F) -> F:
     return cast(F, wrapper)
 
 
-def retry_transient(max_attempts: int | None = None, backoff: float | None = None) -> Callable[[F], F]:
+def retry_transient(
+    max_attempts: int | None = None, backoff: float | None = None
+) -> Callable[[F], F]:
     """Retry decorated function on transient errors with exponential backoff.
 
     Defaults are configured via ``GOVDOCVERIFY_MAX_RETRIES`` and

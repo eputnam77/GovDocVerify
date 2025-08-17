@@ -115,7 +115,9 @@ class FAADocumentChecker:
             self._populate_check_results(combined_results, per_check_results)
 
             combined_results.per_check_results = per_check_results
-            combined_results.success = len(combined_results.issues) == 0
+            combined_results.success = (
+                len(combined_results.issues) == 0 and not combined_results.partial_failures
+            )
             logger.info(f"Completed all checks. Found {len(combined_results.issues)} issues.")
             return combined_results
 
@@ -205,9 +207,10 @@ class FAADocumentChecker:
                 issues=[{"error": f"Error in {category} checks: {str(error)}"}],
             )
             per_check_results[category][check_func] = dcr
-        combined_results.issues.append(
+        combined_results.partial_failures.append(
             {"error": f"Error in {category} checks: {str(error)}", "category": category}
         )
+        combined_results.success = False
 
     def _populate_check_results(
         self,

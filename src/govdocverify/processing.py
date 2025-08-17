@@ -51,9 +51,9 @@ def _check_results_have_issues(results_dict: Dict[str, Dict[str, Any]]) -> bool:
     return False
 
 
-def _create_fallback_results_dict(results: DocumentCheckResult) -> Dict[str, Dict[str, Any]]:
+def _create_fallback_results_dict(results: DocumentCheckResult) -> Dict[str, Any]:
     """Create fallback results dictionary when per_check_results is unavailable."""
-    return {
+    fallback = {
         "all": {
             "all": {
                 "success": results.success,
@@ -62,9 +62,12 @@ def _create_fallback_results_dict(results: DocumentCheckResult) -> Dict[str, Dic
             }
         }
     }
+    if results.partial_failures:
+        fallback["partial_failures"] = results.partial_failures
+    return fallback
 
 
-def build_results_dict(results: DocumentCheckResult) -> Dict[str, Dict[str, Any]]:
+def build_results_dict(results: DocumentCheckResult) -> Dict[str, Any]:
     """Return a normalized results dictionary from a check result."""
     results_dict = getattr(results, "per_check_results", None)
     logger.debug("[DIAG] per_check_results present: %s", results_dict is not None)
@@ -90,5 +93,8 @@ def build_results_dict(results: DocumentCheckResult) -> Dict[str, Dict[str, Any]
         )
         logger.debug("[DIAG] per_check_results content: %s", results_dict)
         return _create_fallback_results_dict(results)
+
+    if results.partial_failures:
+        results_dict["partial_failures"] = results.partial_failures
 
     return results_dict
