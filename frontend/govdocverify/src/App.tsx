@@ -14,7 +14,11 @@ import Container from '@mui/material/Container';
 import Grid from '@mui/material/Grid';
 import ErrorBanner from "./components/ErrorBanner";
 
-const API_BASE = import.meta.env.VITE_API_BASE || "http://127.0.0.1:8000";
+// Allow the API base to be configured at build time via Vite but fall back to
+// the current origin so that the frontend can talk to a co-hosted backend
+// without additional configuration.
+const API_BASE =
+  import.meta.env.VITE_API_BASE || window.location.origin || "http://127.0.0.1:8000";
 
 const theme = createTheme({
   palette: {
@@ -64,16 +68,23 @@ export default function App() {
     data.append("doc_file", file);
     data.append("doc_type", docType);
     data.append("visibility_json", JSON.stringify(vis));
+    // Explicitly request category grouping so that downloads work consistently
+    // with the backend's default behaviour.
+    data.append("group_by", "category");
 
     try {
       const { data: resp } = await axios.post(`${API_BASE}/process`, data, {
         headers: { "Content-Type": "multipart/form-data" },
       });
+      // The backend may return either ``rendered`` or ``html`` depending on the
+      // processing path. Prefer the fully rendered HTML but fall back to raw
+      // content when necessary.
       setHtml(resp.rendered || resp.html || "");
       setResultId(resp.result_id);
       setError(null);
     } catch (err: any) {
-      const message = err.response?.data?.detail || err.message || "An unexpected error occurred";
+      const message =
+        err.response?.data?.detail || err.message || "An unexpected error occurred";
       setError(message);
       setHtml("");
       setResultId(null);
