@@ -718,9 +718,9 @@ class TableFigureReferenceCheck(BaseChecker):
             if "category" not in issue:
                 issue["category"] = getattr(self, "category", "formatting")
 
-        return DocumentCheckResult(
+        severity = Severity.WARNING if issues else Severity.INFO
+        result = DocumentCheckResult(
             success=len(issues) == 0,
-            severity=Severity.ERROR if issues else Severity.INFO,
             issues=issues,
             details={
                 "total_issues": len(issues),
@@ -730,13 +730,17 @@ class TableFigureReferenceCheck(BaseChecker):
                 },
             },
         )
+        result.severity = severity
+        return result
 
     def run_checks(self, document, doc_type, results: DocumentCheckResult) -> None:
         lines = self._extract_lines_from_document(document)
         check_result = self._check_core(lines)
 
+        severity = check_result.severity or Severity.INFO
+
         # Only mark as failed if there are actual errors
-        if not check_result.success:
+        if severity == Severity.ERROR:
             results.success = False
 
         # Add formatted issues to results using static messages
@@ -744,10 +748,14 @@ class TableFigureReferenceCheck(BaseChecker):
             message = self._create_reference_issue_message(issue)
             results.add_issue(
                 message=message,
-                severity=Severity.WARNING,
+                severity=severity,
                 line_number=0,  # Line numbers aren't tracked in the current issue format
                 category=getattr(self, "category", "reference"),
             )
+
+        # Restore success for non-error severities
+        if severity != Severity.ERROR:
+            results.success = True
 
     def _extract_lines_from_document(self, document) -> List[str]:
         """Extract lines from various document formats."""
