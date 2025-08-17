@@ -131,6 +131,12 @@ class StructureChecks(BaseChecker):
         WatermarkRequirement("draft for AGC review for final issuance", "agc_final_review"),
     ]
 
+    # Section balance thresholds
+    NON_LIST_RATIO_THRESHOLD = 1.5
+    LIST_RATIO_THRESHOLD = 2.0
+    NON_LIST_ABS_THRESHOLD = 10
+    LIST_ABS_THRESHOLD = 20
+
     def __init__(self, terminology_manager=None):
         super().__init__(terminology_manager)
         self.category = "structure"
@@ -251,7 +257,7 @@ class StructureChecks(BaseChecker):
             return " ".join(preview_words) + "..."
 
     def _check_section_balance(self, paragraphs, results):
-        """Check for balanced section lengths."""
+        """Check for balanced section lengths using ratio and difference thresholds."""
         list_pattern, bullet_pattern = self._compile_section_patterns()
         sections_data = self._extract_sections(paragraphs, list_pattern, bullet_pattern)
 
@@ -409,8 +415,16 @@ class StructureChecks(BaseChecker):
         logger.debug(f"Non-list section lengths: {non_list_sections}")
         logger.debug(f"List section average: {list_avg}")
         logger.debug(f"Non-list section average: {non_list_avg}")
-        logger.debug(f"List section threshold: {list_avg * 3}")
-        logger.debug(f"Non-list section threshold: {non_list_avg * 2}")
+        logger.debug(
+            "List section ratio threshold: %.1f, abs threshold: %d",
+            self.LIST_RATIO_THRESHOLD,
+            self.LIST_ABS_THRESHOLD,
+        )
+        logger.debug(
+            "Non-list section ratio threshold: %.1f, abs threshold: %d",
+            self.NON_LIST_RATIO_THRESHOLD,
+            self.NON_LIST_ABS_THRESHOLD,
+        )
 
     def _check_individual_section_balance(
         self, section, list_avg, non_list_avg, sections_data, results
@@ -421,22 +435,27 @@ class StructureChecks(BaseChecker):
         name = section["name"]
 
         avg_length = list_avg if is_list else non_list_avg
-        threshold = avg_length * 3 if is_list else avg_length * 2
+        if avg_length == 0:
+            return
+
+        ratio = length / avg_length
+        ratio_threshold = self.LIST_RATIO_THRESHOLD if is_list else self.NON_LIST_RATIO_THRESHOLD
+        diff_threshold = self.LIST_ABS_THRESHOLD if is_list else self.NON_LIST_ABS_THRESHOLD
 
         logger.debug(
-            "Checking section '%s': length=%d, is_list=%s, avg=%.1f, threshold=%.1f",
+            "Checking section '%s': length=%d, is_list=%s, avg=%.1f, ratio=%.2f",
             name,
             length,
             is_list,
             avg_length,
-            threshold,
+            ratio,
         )
 
-        if length > threshold:
+        if ratio > ratio_threshold or (length - avg_length) > diff_threshold:
             message = StructureMessages.SECTION_BALANCE_INFO.format(
                 name=name, length=length, avg=avg_length
             )
-            logger.debug(f"Adding issue: {message}")
+            logger.debug("Adding issue: %s", message)
             section_index = next(i for i, s in enumerate(sections_data) if s["name"] == name)
             results.add_issue(
                 message=message,
@@ -445,7 +464,7 @@ class StructureChecks(BaseChecker):
             )
             logger.debug(f"Current issues: {results.issues}")
         else:
-            logger.debug(f"Section '{name}' is within acceptable length range")
+            logger.debug("Section '%s' is within acceptable length range", name)
 
     def _check_list_formatting(self, paragraphs, results):
         """Check for consistent list formatting."""
