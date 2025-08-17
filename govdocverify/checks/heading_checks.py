@@ -181,6 +181,7 @@ class HeadingChecks(BaseChecker):
                         f"Shorten heading to {self.MAX_HEADING_LENGTH} characters or less."
                     ),
                     "category": self.category,
+                    "severity": Severity.WARNING,
                 }
             )
             return False
@@ -202,6 +203,7 @@ class HeadingChecks(BaseChecker):
                         f"{', '.join(sorted(heading_words))}"
                     ),
                     "category": self.category,
+                    "severity": Severity.WARNING,
                 }
             )
             return False
@@ -220,6 +222,7 @@ class HeadingChecks(BaseChecker):
                     "message": "Heading should be uppercase",
                     "suggestion": line.split(".", 1)[0] + ". " + heading_text.upper(),
                     "category": self.category,
+                    "severity": Severity.WARNING,
                 }
             )
         else:
@@ -235,6 +238,7 @@ class HeadingChecks(BaseChecker):
                         "message": "Heading formatting issue",
                         "suggestion": normalized,
                         "category": self.category,
+                        "severity": Severity.WARNING,
                     }
                 )
 
