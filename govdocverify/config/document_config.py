@@ -13,4 +13,7 @@ READABILITY_CONFIG = {
 
 # Acceptable source domains and file extensions
 ALLOWED_SOURCE_DOMAINS = [".gov", ".mil"]
-ALLOWED_FILE_EXTENSIONS = [".docx", ".doc"]
+ALLOWED_FILE_EXTENSIONS = [".docx"]
+
+# File extensions that are explicitly rejected as legacy formats
+LEGACY_FILE_EXTENSIONS = [".doc", ".pdf", ".rtf", ".txt"]

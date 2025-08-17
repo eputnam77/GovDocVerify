@@ -2,7 +2,11 @@ from pathlib import Path
 
 import pytest
 
-from govdocverify.utils.security import SecurityError, sanitize_file_path
+from govdocverify.utils.security import (
+    SecurityError,
+    sanitize_file_path,
+    validate_source,
+)
 
 
 def test_sanitize_allows_absolute_paths(tmp_path: Path) -> None:
@@ -24,3 +28,9 @@ def test_sanitize_base_dir_enforced(tmp_path: Path) -> None:
     outside.write_text("test")
     with pytest.raises(SecurityError):
         sanitize_file_path(str(outside), base_dir=str(base))
+
+
+@pytest.mark.parametrize("path", ["file.doc", "file.pdf", "file.rtf"])
+def test_validate_source_rejects_legacy_formats(path: str) -> None:
+    with pytest.raises(SecurityError, match="Legacy file format"):
+        validate_source(path)
