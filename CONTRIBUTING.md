@@ -29,7 +29,7 @@ any check fails. Re-run the commit after fixing the reported issues.
 ## Development Setup
 
 1. Clone the repository
-2. Set up Python 3.11+ environment (recommended: use virtual environment)
+2. Set up a Python 3.11–3.13 environment (3.12 recommended)
    ```bash
    python -m venv venv
    source venv/bin/activate  # On Windows: venv\Scripts\activate
