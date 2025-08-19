@@ -27,7 +27,7 @@ For a one-shot setup run the helper script:
 
 It creates a local `.venv`, installs locked dependencies, and enables pre-commit hooks.
 
-Prefer to do the steps manually? We follow the same pattern as the other CLI projects: **pipx** for global tool shims, **uv** for ultra‑fast Python/venv work, and **Poetry ≥ 1.8** for deterministic installs.
+Prefer to do the steps manually? We follow the same pattern as the other CLI projects: **pipx** for global tool shims and **uv** for ultra‑fast Python/venv work with standard `setuptools` packaging.
 
 ```bash
 # 0. One-time setup: Python & pipx -------------------------------------------------
@@ -68,8 +68,8 @@ pre-commit install
 ```bash
 python -m venv .venv
 source .venv/bin/activate           # Win: .venv\Scripts\activate
-pip install poetry
-poetry install --with dev --sync    # --sync flag still works but is deprecated
+pip install --upgrade pip
+pip install -e ".[dev,test,security]"
 ```
 
 ---
@@ -297,7 +297,7 @@ See [`docs/api-reference.md`](docs/api-reference.md) for the full reference.
 
 ### About the requirement files
 
-`requirements.txt` & `requirements‑dev.txt` are generated for legacy tooling. `poetry sync` (or `pip install -e ".[dev]"`) remains the canonical path to an exact, up‑to‑date environment.
+`requirements.txt` & `requirements‑dev.txt` are generated for legacy tooling. `uv pip sync requirements-dev.txt` (or `pip install -e ".[dev]"`) remains the canonical path to an exact, up‑to‑date environment.
 
 ## License
 
