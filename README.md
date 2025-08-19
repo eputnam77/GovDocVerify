@@ -11,6 +11,8 @@ FAA‑style validation for Word docs—CLI, FastAPI, and React UI in one toolkit
 
 Full technical docs live under **`docs/`**; start with *docs/getting‑started.md* when you’re ready to dig deeper.
 
+After cloning, change into the `GovDocVerify` directory. All commands in this README assume you’re in the repository root—not inside `src`.
+
 ## 📄 Supported document formats
 
 GovDocVerify accepts only modern `.docx` files. Legacy formats—such as `.doc`, `.pdf`, `.rtf`, and `.txt`—are rejected during validation.
