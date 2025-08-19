@@ -3,7 +3,7 @@
 This guide walks you through installing dependencies and running the application.
 
 ## Requirements
-- Python 3.11+
+- Python 3.11–3.13 (3.12 recommended)
 - Node 18+ for the React frontend
 
 ## Prerequisites

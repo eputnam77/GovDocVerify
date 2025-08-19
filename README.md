@@ -31,7 +31,7 @@ Prefer to do the steps manually? We follow the same pattern as the other CLI pro
 
 ```bash
 # 0. One-time setup: Python & pipx -------------------------------------------------
-python --version                # confirm Python ≥3.13
+python --version                # confirm Python 3.11–3.13
 python -m pip install --user pipx
 python -m pipx ensurepath       # restart shell if PATH changes
 pipx install uv                 # fast resolver, venv mgr, lockfile, tool runner
@@ -40,9 +40,9 @@ pipx install uv                 # fast resolver, venv mgr, lockfile, tool runner
 git clone https://github.com/eputnam77/GovDocVerify.git
 cd GovDocVerify
 
-# 2. Create and activate venv (Python 3.13) --------------------------------------
-uv python install 3.13.0        # Download if not present
-uv venv --python 3.13.0
+# 2. Create and activate venv (Python 3.12) --------------------------------------
+uv python install 3.12          # Download if not present
+uv venv --python 3.12
 # Activate the venv:
 #   On Windows:
 .venv\Scripts\activate
