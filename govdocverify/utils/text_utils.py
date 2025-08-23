@@ -381,10 +381,8 @@ def calculate_passive_voice_percentage(text: str) -> float:
         return 0.0
 
     passive_patterns = [
-        r"\b(?:am|is|are|was|were|be|been|being)\s+\w+ed\b",
-        r"\b(?:am|is|are|was|were|be|been|being)\s+\w+en\b",
-        r"\b(?:has|have|had)\s+been\s+\w+ed\b",
-        r"\b(?:has|have|had)\s+been\s+\w+en\b",
+        r"\b(?:am|is|are|was|were|be|been|being)\s+\w+(?:ed|en|wn)\s+by\b",
+        r"\b(?:has|have|had)\s+been\s+\w+(?:ed|en|wn)\b",
     ]
     passive_regex = re.compile("|".join(passive_patterns), re.IGNORECASE)
     passive_count = sum(1 for sentence in sentences if passive_regex.search(sentence))

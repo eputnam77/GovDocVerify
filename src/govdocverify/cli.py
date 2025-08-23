@@ -4,6 +4,7 @@ import argparse
 import logging
 import os
 import sys
+from glob import glob
 from typing import Any, Optional
 
 from govdocverify.logging_config import setup_logging
@@ -325,6 +326,26 @@ def _create_visibility_settings(args, parser: argparse.ArgumentParser) -> Visibi
     )
 
 
+def _process_files(
+    files: list[str],
+    doc_type: str,
+    visibility_settings: VisibilitySettings,
+    group_by: str,
+) -> int:
+    """Process one or more files and return an exit code."""
+    exit_code = 0
+    for file_path in files:
+        try:
+            result = process_document(file_path, doc_type, visibility_settings, group_by=group_by)
+            _safe_print(result["rendered"])
+            if result.get("has_errors", False):
+                exit_code = 1
+        except Exception as exc:  # pragma: no cover - logging path
+            logger.error(f"Error processing {file_path}: {exc}")
+            exit_code = 1
+    return exit_code
+
+
 def main() -> int:
     """Main entry point for the CLI application."""
     try:
@@ -369,9 +390,9 @@ def main() -> int:
             logger.error(f"Invalid document type: {args.type}")
             return 1
 
-        result = process_document(args.file, doc_type, visibility_settings, group_by=args.group_by)
-        _safe_print(result["rendered"])
-        return 1 if result.get("has_errors", False) else 0
+        # Expand glob patterns to support batch processing
+        files = sorted(glob(args.file)) or [args.file]
+        return _process_files(files, doc_type, visibility_settings, args.group_by)
 
     except FileNotFoundError:
         logger.error("File not found")

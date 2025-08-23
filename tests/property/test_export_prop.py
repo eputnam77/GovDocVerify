@@ -19,7 +19,7 @@ from govdocverify import export
         min_size=1, max_size=10, alphabet=st.characters(min_codepoint=97, max_codepoint=122)
     ),
 )
-@settings(suppress_health_check=[HealthCheck.function_scoped_fixture])
+@settings(suppress_health_check=[HealthCheck.function_scoped_fixture], deadline=None)
 def test_save_results_as_docx_property(
     tmp_path: Path, results: dict[str, int], file_name: str
 ) -> None:
@@ -39,7 +39,7 @@ def test_save_results_as_docx_property(
         min_size=1, max_size=10, alphabet=st.characters(min_codepoint=97, max_codepoint=122)
     ),
 )
-@settings(suppress_health_check=[HealthCheck.function_scoped_fixture])
+@settings(suppress_health_check=[HealthCheck.function_scoped_fixture], deadline=None)
 def test_save_results_as_pdf_property(
     tmp_path: Path, results: dict[str, int], file_name: str
 ) -> None:

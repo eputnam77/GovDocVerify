@@ -120,7 +120,6 @@ class TestCLI:
             assert main() == 0
 
     @patch("govdocverify.cli.process_document")
-    @pytest.mark.xfail(reason="CL-03 batch mode not implemented")
     def test_batch_mode_processes_multiple_files(self, mock_process, tmp_path):
         """CL-03: batch glob processing preserves order and continues on errors."""
         file1 = tmp_path / "a.docx"

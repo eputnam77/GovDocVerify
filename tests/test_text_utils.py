@@ -163,6 +163,15 @@ class TestTextUtils:
         # No punctuation
         assert split_into_sentences("Just text") == ["Just text"]
 
+    def test_calculate_passive_voice_percentage_detects_passive(self):
+        """Passive voice is reported when present."""
+        text = "The ball was thrown by the boy. The boy ate lunch."
+        assert calculate_passive_voice_percentage(text) == 50.0
+
+    def test_calculate_passive_voice_percentage_ignores_adjectives(self):
+        """Simple "is" + adjective should not be flagged."""
+        assert calculate_passive_voice_percentage("The car is red.") == 0.0
+
     def test_extract_acronyms(self):
         """Test acronym extraction."""
         # Empty text
