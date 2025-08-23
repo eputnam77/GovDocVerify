@@ -122,7 +122,9 @@ def test_task_runner_integration(tmp_path: Path) -> None:
     assert fmt_result.returncode == 0
 
     env = os.environ.copy()
-    env["PYTEST_ADDOPTS"] = '-k "test_dev_environment and not task_runner_integration"'
+    env["PYTEST_ADDOPTS"] = (
+        '--override-ini addopts= -k "test_dev_environment and not task_runner_integration"'
+    )
     test_result = subprocess.run(
         ["make", "test"], cwd=repo_root, env=env, capture_output=True, text=True
     )

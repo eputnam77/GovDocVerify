@@ -6,6 +6,10 @@ import subprocess
 import sys
 from textwrap import dedent
 
+import pytest
+
+pytest.importorskip("pytest_cov")
+
 
 def _run_pytest(tmp_path, threshold: int, source: str) -> subprocess.CompletedProcess[str]:
     """Run pytest in *tmp_path* with the given coverage *threshold*."""

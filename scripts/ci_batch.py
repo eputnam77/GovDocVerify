@@ -14,11 +14,10 @@ from __future__ import annotations
 import argparse
 import fnmatch
 import glob
+import os
 import subprocess
 from pathlib import Path
 from typing import Iterable, Sequence
-
-import os
 
 from govdocverify.cli import process_document
 
