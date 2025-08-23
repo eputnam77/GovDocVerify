@@ -34,3 +34,12 @@ def test_sanitize_base_dir_enforced(tmp_path: Path) -> None:
 def test_validate_source_rejects_legacy_formats(path: str) -> None:
     with pytest.raises(SecurityError, match="Legacy file format"):
         validate_source(path)
+
+
+@pytest.mark.parametrize(
+    "url",
+    ["HTTPS://example.com/file.docx", "HTTP://example.com/file.docx"],
+)
+def test_validate_source_handles_uppercase_schemes(url: str) -> None:
+    with pytest.raises(SecurityError, match="Non-government"):
+        validate_source(url)

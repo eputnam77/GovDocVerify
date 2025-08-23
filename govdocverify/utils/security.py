@@ -153,13 +153,14 @@ def _is_allowed_domain(domain: str) -> bool:
 
 def validate_source(path: str) -> None:
     """Validate that ``path`` is from an approved domain and format."""
-    _, ext = os.path.splitext(path.lower())
+    lowered = path.lower()
+    _, ext = os.path.splitext(lowered)
     if ext and ext in LEGACY_FILE_EXTENSIONS:
         raise SecurityError(f"Legacy file format: {ext}")
     if ext and ext not in ALLOWED_FILE_EXTENSIONS:
         raise SecurityError(f"Disallowed file format: {ext}")
 
-    if path.startswith("http://") or path.startswith("https://"):
+    if lowered.startswith("http://") or lowered.startswith("https://"):
         domain = urlparse(path).hostname or ""
         if not _is_allowed_domain(domain):
             raise SecurityError(f"Non-government source domain: {domain}")
