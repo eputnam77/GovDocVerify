@@ -5,6 +5,7 @@ import json
 import logging
 import os
 import sys
+from glob import glob
 from pathlib import Path
 from typing import Any, Optional
 
@@ -389,24 +390,35 @@ def main() -> int:  # noqa: C901 - command-line parsing is inherently complex
             logger.error(f"Invalid document type: {args.type}")
             return 1
 
-        result = process_document(args.file, doc_type, visibility_settings, group_by=args.group_by)
-        if args.out:
-            output_dir = Path(args.output_dir)
-            output_dir.mkdir(parents=True, exist_ok=True)
-            base = Path(args.file).stem
-            for fmt in args.out:
-                out_path = output_dir / f"{base}.{fmt}"
-                if fmt == "html":
-                    out_path.write_text(result["rendered"], encoding="utf-8")
-                elif fmt == "docx":
-                    export.save_results_as_docx(result, str(out_path))
-                elif fmt == "pdf":
-                    export.save_results_as_pdf(result, str(out_path))
-        if args.json:
-            _safe_print(json.dumps(result))
-        else:
-            _safe_print(result["rendered"])
-        return 1 if result.get("has_errors", False) else 0
+        files = sorted(glob(args.file)) or [args.file]
+        exit_code = 0
+        for file_path in files:
+            try:
+                result = process_document(
+                    file_path, doc_type, visibility_settings, group_by=args.group_by
+                )
+                if args.out:
+                    output_dir = Path(args.output_dir)
+                    output_dir.mkdir(parents=True, exist_ok=True)
+                    base = Path(file_path).stem
+                    for fmt in args.out:
+                        out_path = output_dir / f"{base}.{fmt}"
+                        if fmt == "html":
+                            out_path.write_text(result["rendered"], encoding="utf-8")
+                        elif fmt == "docx":
+                            export.save_results_as_docx(result, str(out_path))
+                        elif fmt == "pdf":
+                            export.save_results_as_pdf(result, str(out_path))
+                if args.json:
+                    _safe_print(json.dumps(result))
+                else:
+                    _safe_print(result["rendered"])
+                if result.get("has_errors", False):
+                    exit_code = 1
+            except Exception as exc:  # pragma: no cover - logging path
+                logger.error(f"Error processing {file_path}: {exc}")
+                exit_code = 1
+        return exit_code
 
     except FileNotFoundError:
         logger.error("File not found")
