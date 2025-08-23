@@ -51,10 +51,20 @@ def test_normalise_strips_whitespace() -> None:
     assert normalise("  HTTPS://Example.GOV/Path/  ") == "example.gov/Path"
 
 
+def test_normalise_strips_trailing_dot_from_hostname() -> None:
+    assert normalise("HTTP://Example.GOV./Path/") == "example.gov/Path"
+
+
 def test_find_urls_strips_trailing_punctuation() -> None:
     text = "See https://example.gov/test, and https://example.gov/again."
     urls = [u for u, _ in find_urls(text)]
     assert urls == ["https://example.gov/test", "https://example.gov/again"]
+
+
+def test_find_urls_handles_root_and_query_only_urls() -> None:
+    text = "Links: https://example.gov/ and https://example.gov?foo=bar"
+    urls = [u for u, _ in find_urls(text)]
+    assert urls == ["https://example.gov/", "https://example.gov?foo=bar"]
 
 
 def test_retry_transient_respects_zero_values(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -69,3 +79,18 @@ def test_retry_transient_respects_zero_values(monkeypatch: pytest.MonkeyPatch) -
     with pytest.raises(ValueError):
         boom()
     assert calls["count"] == 1
+
+
+@pytest.mark.parametrize(
+    "url",
+    [
+        "https://agency.gov/file.docx?download=1",
+        "https://agency.gov/file.docx#section",
+    ],
+)
+def test_validate_source_allows_query_and_fragment(url: str) -> None:
+    validate_source(url)
+
+
+def test_validate_source_allows_trailing_dot_domain() -> None:
+    validate_source("https://agency.gov./file.docx")
