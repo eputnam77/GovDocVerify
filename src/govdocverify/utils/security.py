@@ -143,9 +143,13 @@ def rate_limit(func: Callable[..., Any]) -> Callable[..., Any]:
 
 
 def _is_allowed_domain(domain: str) -> bool:
-    """Return True if ``domain`` ends with any allowed suffix."""
+    """Return ``True`` if *domain* matches an allowed suffix exactly."""
     domain = domain.lower()
-    return any(domain.endswith(allowed) for allowed in ALLOWED_SOURCE_DOMAINS)
+    for allowed in ALLOWED_SOURCE_DOMAINS:
+        suffix = allowed.lower().lstrip(".")
+        if domain == suffix or domain.endswith("." + suffix):
+            return True
+    return False
 
 
 def validate_source(path: str) -> None:
@@ -156,9 +160,13 @@ def validate_source(path: str) -> None:
 
     lowered = path.lower()
     _, ext = os.path.splitext(lowered)
-    if ext and ext in LEGACY_FILE_EXTENSIONS:
+    if "://" not in lowered and not ext:
+        return
+    if not ext:
+        raise SecurityError("Missing file extension")
+    if ext in LEGACY_FILE_EXTENSIONS:
         raise SecurityError(f"Legacy file format: {ext}")
-    if ext and ext not in ALLOWED_FILE_EXTENSIONS:
+    if ext not in ALLOWED_FILE_EXTENSIONS:
         raise SecurityError(f"Disallowed file format: {ext}")
 
     if lowered.startswith("http://") or lowered.startswith("https://"):

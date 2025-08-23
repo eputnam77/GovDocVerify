@@ -2,6 +2,8 @@
 
 import logging
 
+import pytest
+
 from govdocverify.checks.check_registry import CheckRegistry
 from govdocverify.utils.check_discovery import (
     discover_checks,
@@ -9,6 +11,14 @@ from govdocverify.utils.check_discovery import (
 )
 
 logger = logging.getLogger(__name__)
+
+
+@pytest.fixture(autouse=True)
+def clear_registry() -> None:
+    """Ensure registry state does not leak between tests."""
+    CheckRegistry.clear_registry()
+    yield
+    CheckRegistry.clear_registry()
 
 
 def test_check_registration():
