@@ -1,6 +1,12 @@
 import importlib
+import sys
+from pathlib import Path
 
 import pytest
+
+# Ensure tests exercise the packaged code under ``src`` rather than the legacy
+# top-level module.  This mirrors how users will import the project.
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
 from govdocverify.utils.decorators import profile_performance, retry_transient
 from govdocverify.utils.link_utils import find_urls, normalise
@@ -65,6 +71,12 @@ def test_find_urls_handles_root_and_query_only_urls() -> None:
     text = "Links: https://example.gov/ and https://example.gov?foo=bar"
     urls = [u for u, _ in find_urls(text)]
     assert urls == ["https://example.gov/", "https://example.gov?foo=bar"]
+
+
+def test_find_urls_strips_closing_brackets() -> None:
+    text = "Links: [https://example.gov/test] and (https://example.gov/again)"
+    urls = [u for u, _ in find_urls(text)]
+    assert urls == ["https://example.gov/test", "https://example.gov/again"]
 
 
 def test_retry_transient_respects_zero_values(monkeypatch: pytest.MonkeyPatch) -> None:
