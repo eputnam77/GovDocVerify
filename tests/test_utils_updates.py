@@ -45,3 +45,7 @@ def test_formatting_import() -> None:
 
 def test_normalise_handles_uppercase_scheme() -> None:
     assert normalise("HTTP://Example.GOV/Path/") == "example.gov/Path"
+
+
+def test_normalise_strips_whitespace() -> None:
+    assert normalise("  HTTPS://Example.GOV/Path/  ") == "example.gov/Path"
