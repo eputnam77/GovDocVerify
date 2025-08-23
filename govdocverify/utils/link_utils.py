@@ -14,6 +14,7 @@ def find_urls(text: str) -> Iterator[Tuple[str, Tuple[int, int]]]:
 
 
 def normalise(url: str) -> str:
+    url = url.strip()
     scheme_url = url if url.lower().startswith("http") else f"//{url}"
     parsed = urllib.parse.urlparse(scheme_url, scheme="https")
     host = parsed.hostname.lower() if parsed.hostname else ""

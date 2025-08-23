@@ -21,8 +21,8 @@ def split_sentences(text: str) -> List[str]:
     Split text into sentences while handling common abbreviations,
     including multi-period ones like 'U.S.'
     """
-    if not text:
-        return [""]
+    if not text.strip():
+        return []
 
     logger = logging.getLogger(__name__)
 
@@ -36,7 +36,7 @@ def split_sentences(text: str) -> List[str]:
     sentences = _finalize_sentences(text, context, sentences, logger)
 
     logger.debug(f"split_sentences: FINAL sentences={sentences}")
-    return sentences or [""]
+    return sentences
 
 
 def _initialize_sentence_context(text: str, logger: logging.Logger) -> SentenceContext:

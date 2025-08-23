@@ -28,7 +28,7 @@ class TestTextUtils:
     def test_split_sentences_basic(self):
         """Test basic sentence splitting."""
         # Empty text
-        assert split_sentences("") == [""]
+        assert split_sentences("") == []
 
         # Single sentence
         assert split_sentences("This is a test.") == ["This is a test."]

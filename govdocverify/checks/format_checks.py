@@ -171,9 +171,13 @@ class FormatChecks(BaseChecker):
 
     def _categorise_phone_number_in_paragraph(self, num: str) -> str:
         """Categorize a phone number into its style."""
-        # Normalize whitespace and separators for consistent categorization
-        normalized = re.sub(r"\s+", " ", num)  # Replace multiple spaces with single space
-        normalized = re.sub(r"[-.]+", "-", normalized)  # Normalize separators to single dash
+        # Normalize whitespace for consistent categorization but preserve
+        # the original separator style.  Previously both dots and dashes
+        # were collapsed to ``-``, causing ``123.456.7890`` to be
+        # misclassified as a dash-style number.
+        normalized = re.sub(r"\s+", " ", num)  # Collapse internal spaces
+        normalized = re.sub(r"-+", "-", normalized)  # Collapse repeated dashes
+        normalized = re.sub(r"\.+", ".", normalized)  # Collapse repeated dots
 
         if re.fullmatch(r"\(\d{3}\)\s*\d{3}-\d{4}", normalized):
             return "paren"
@@ -842,9 +846,11 @@ class FormattingChecker(BaseChecker):
 
     def _categorise_phone_number_text(self, num: str) -> str:
         """Categorize a phone number into its style for text checking."""
-        # Normalize whitespace and separators for consistent categorization
+        # Normalize whitespace while preserving separator style so dotted
+        # numbers aren't mistaken for dashed ones.
         normalized = re.sub(r"\s+", " ", num)
-        normalized = re.sub(r"[-.]+", "-", normalized)
+        normalized = re.sub(r"-+", "-", normalized)
+        normalized = re.sub(r"\.+", ".", normalized)
 
         if re.fullmatch(r"\(\d{3}\)\s*\d{3}-\d{4}", normalized):
             return "paren"

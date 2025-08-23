@@ -441,6 +441,7 @@ DATE_CASES = [
 PHONE_CASES = [
     (["Phone: (123) 456-7890", "Phone: 123-456-7890"], 2),  # Two styles present, both lines flagged
     (["Phone: 123.456.7890", "Phone: 1234567890"], 2),  # Two styles present, both lines flagged
+    (["Phone: 123.456.7890", "Phone: 123-456-7890"], 2),  # Dot vs dash should be flagged
     (["Phone: 123-456-7890", "Phone: 123-456-7890"], 0),  # Only one style, no issues
 ]
 
