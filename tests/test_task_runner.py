@@ -24,7 +24,7 @@ def test_make_format_runs_successfully(tmp_path: Path) -> None:
 
 def test_make_test_runs_subset() -> None:
     env = os.environ.copy()
-    env["PYTEST_ADDOPTS"] = "-k test_task_runner_dummy"
+    env["PYTEST_ADDOPTS"] = "--override-ini addopts= -k test_task_runner_dummy"
     result = subprocess.run(
         ["make", "test"], cwd=REPO_ROOT, env=env, capture_output=True, text=True
     )
