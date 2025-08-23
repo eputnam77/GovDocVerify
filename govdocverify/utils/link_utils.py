@@ -14,7 +14,8 @@ def find_urls(text: str) -> Iterator[Tuple[str, Tuple[int, int]]]:
     ``"https://example.gov?query=1"`` (no path, only a query string) were
     returned without those trailing components.  Hidden tests exercise these
     forms, so the regular expression now allows an empty path and optional
-    query/fragment parts to ensure the full URL is reported.
+    query/fragment parts to ensure the full URL is reported.  Trailing brackets
+    are also stripped to avoid including surrounding punctuation in the result.
     """
 
     _URL_RE = re.compile(
@@ -25,7 +26,7 @@ def find_urls(text: str) -> Iterator[Tuple[str, Tuple[int, int]]]:
         for m in _URL_RE.finditer(line):
             # Strip common trailing punctuation so callers don't need to handle
             # cases like ``"https://example.gov/test."`` themselves.
-            url = m.group("url").rstrip(".,;:!?")
+            url = m.group("url").rstrip(".,;:!?)[]}'\"")
             yield url, (line_no, m.start())
 
 
