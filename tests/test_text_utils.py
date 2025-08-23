@@ -41,6 +41,11 @@ class TestTextUtils:
         text = "What? This is amazing! Really?"
         assert split_sentences(text) == ["What?", "This is amazing!", "Really?"]
 
+    def test_split_sentences_handles_closing_parentheses(self):
+        """Punctuation followed by a closing bracket should still end the sentence."""
+        text = "First sentence.) Second one."
+        assert split_sentences(text) == ["First sentence.", "Second one."]
+
     def test_split_sentences_abbreviations(self):
         """Test sentence splitting with abbreviations."""
         # Common abbreviations

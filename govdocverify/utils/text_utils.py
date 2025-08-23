@@ -111,7 +111,7 @@ def _process_text_for_sentences(
 
             if _is_sentence_end(text, context["i"], j):
                 if _should_split_sentence(text, context, logger):
-                    sentence = text[context["start"] : j].strip()
+                    sentence = text[context["start"] : j].strip().rstrip(")[]{}")
                     if sentence:
                         sentences.append(sentence)
                     context["start"] = j
@@ -139,7 +139,12 @@ def _should_skip_multi_period_sequence(text: str, context: SentenceContext) -> b
 def _find_sentence_boundary(text: str, start_pos: int) -> int:
     """Find the potential sentence boundary after punctuation."""
     j = start_pos + 1
-    while j < len(text) and text[j] in ' \n\r\t"\'"""':
+    # Skip over common closing characters following punctuation like quotes
+    # or brackets.  Previously only whitespace and quotes were handled which
+    # meant patterns such as ``"Hello world.) Next"`` were treated as a single
+    # sentence.  The additional characters ensure we advance past closing
+    # punctuation before inspecting the next token.
+    while j < len(text) and text[j] in " \n\r\t'\"()[]{}":
         j += 1
     return j
 

@@ -10,7 +10,8 @@ def find_urls(text: str) -> Iterator[Tuple[str, Tuple[int, int]]]:
     _URL_RE = re.compile(r"(?P<url>(?:https?://)?[A-Za-z0-9.-]+\.[A-Za-z]{2,}(?:/[^\s)]+)?)")
     for line_no, line in enumerate(text.splitlines(), 1):
         for m in _URL_RE.finditer(line):
-            yield m.group("url"), (line_no, m.start())
+            url = m.group("url").rstrip(".,;:!?")
+            yield url, (line_no, m.start())
 
 
 def normalise(url: str) -> str:
