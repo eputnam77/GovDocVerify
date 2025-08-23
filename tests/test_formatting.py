@@ -186,7 +186,6 @@ class TestFormattingChecks:
     # Edge-case checks (xfail until implemented)                         #
     # ------------------------------------------------------------------ #
 
-    @pytest.mark.xfail(reason="Numbering continuity check not implemented")
     def test_list_numbering_continuity_flags_gaps(self):
         """VR-03: numbering gaps should be reported as formatting issues."""
         lines = [
@@ -197,10 +196,9 @@ class TestFormattingChecks:
         result = checker.check_list_formatting(lines)
         assert not result.success
         messages = [issue["message"].lower() for issue in result.issues]
-        assert any("list formatting" in m for m in messages)
+        assert any("list numbering" in m for m in messages)
         assert {issue["line_number"] for issue in result.issues} == {2}
 
-    @pytest.mark.xfail(reason="Orphan bullet detection not implemented")
     def test_orphaned_bullet_is_detected(self):
         """VR-03: bullets without preceding list context should be flagged."""
         lines = [
@@ -219,7 +217,6 @@ class TestFormattingChecks:
         result = checker.check_section_symbol_usage(lines)
         assert result.success
 
-    @pytest.mark.xfail(reason="VR-06 appendix/SFAR replacements not implemented")
     def test_section_symbol_usage_flags_improper_context(self):
         """VR-06: improper use of section symbols suggests replacement."""
         lines = ["Appendix §123", "SFAR § 91"]
