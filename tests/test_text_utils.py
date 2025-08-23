@@ -82,6 +82,11 @@ class TestTextUtils:
         # Multiple spaces
         assert count_words("  multiple   spaces  ") == 2
 
+    def test_count_words_contractions(self):
+        """Contractions should count as single words."""
+        assert count_words("Don't stop") == 2
+        assert count_words("We're testing") == 2
+
     def test_normalize_reference(self):
         """Test reference normalization."""
         # Empty text
@@ -303,6 +308,8 @@ class TestTextUtils:
     def test_normalize_document_type(self):
         assert normalize_document_type("advisory circular") == "Advisory Circular"
         assert normalize_document_type("POLICY STATEMENT") == "Policy Statement"
+        assert normalize_document_type("policy-statement") == "Policy Statement"
+        assert normalize_document_type("policy_statement") == "Policy Statement"
 
     def test_calculate_readability_metrics(self):
         metrics = calculate_readability_metrics(100, 10, 150)
