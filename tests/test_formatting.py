@@ -37,6 +37,19 @@ class TestFormattingChecks:
         assert not result["has_errors"]
         assert any("inconsistent font" in issue["message"].lower() for issue in result["warnings"])
 
+    def test_font_consistency_case_insensitive(self):
+        """Detect lowercase 'bold' markers as special formatting."""
+        content = [
+            "Normal text.",
+            "This line contains bold text.",
+            "Back to normal.",
+        ]
+        result = self.format_checks.check(content)
+        assert any(
+            "inconsistent font" in issue["message"].lower()
+            for issue in result["warnings"]
+        )
+
     def test_spacing_consistency(self):
         content = [
             "This is a paragraph with single spacing.",
@@ -62,6 +75,23 @@ class TestFormattingChecks:
         assert any(
             "inconsistent margins" in issue["message"].lower() for issue in result["warnings"]
         )
+
+    def test_margin_consistency_no_duplicate_warnings(self):
+        """Only flag new indentation levels, not repeated ones."""
+        content = [
+            "Paragraph one.",
+            "    Indent four.",
+            "    Still indent four.",
+            "        Indent eight.",
+            "        Still indent eight.",
+        ]
+        result = self.format_checks.check(content)
+        warnings = [
+            issue["line_number"]
+            for issue in result["warnings"]
+            if "inconsistent margins" in issue["message"].lower()
+        ]
+        assert warnings == [4]
 
     def test_list_formatting(self):
         content = [
