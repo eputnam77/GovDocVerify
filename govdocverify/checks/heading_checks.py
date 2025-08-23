@@ -65,11 +65,25 @@ class HeadingChecks(BaseChecker):
 
     def check_text(self, text: str) -> DocumentCheckResult:
         """Check text for heading issues."""
-        results = DocumentCheckResult()
         lines = text.split("\n")
-        self.check_heading_title(lines, "GENERAL")
-        self.check_heading_period(lines, "GENERAL")
-        return results
+
+        # Collect results from the individual checks instead of discarding
+        # them.  Previously this method always returned an empty
+        # ``DocumentCheckResult`` which hid any problems found.
+        title_result = self.check_heading_title(lines, "GENERAL")
+        period_result = self.check_heading_period(lines, "GENERAL")
+
+        combined = DocumentCheckResult()
+        for issue in title_result.issues + period_result.issues:
+            combined.issues.append(issue)
+            combined.success = False
+            sev = issue.get("severity")
+            if isinstance(sev, Severity) and (
+                combined.severity is None or sev < combined.severity
+            ):
+                combined.severity = sev
+
+        return combined
 
     def _get_doc_type_config(self, doc_type: str) -> Dict[str, Any]:
         """Get configuration for document type."""

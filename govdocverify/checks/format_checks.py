@@ -380,7 +380,12 @@ class FormatChecks(BaseChecker):
 
     def _get_font_type(self, line: str) -> str:
         """Determine font type of a line."""
-        if "BOLD" in line or "italic" in line.lower():
+        # Be case-insensitive when looking for formatting markers.  The
+        # previous implementation only matched an uppercase ``BOLD`` token,
+        # causing lines containing "bold" in lowercase to be treated as normal
+        # text and escaping the font consistency check.
+        text = line.lower()
+        if "bold" in text or "italic" in text:
             return "special"
         return "normal"
 
@@ -405,7 +410,7 @@ class FormatChecks(BaseChecker):
     def _check_margin_consistency(self, content: List[str]) -> List[Dict]:
         """Check margin consistency."""
         warnings = []
-        margin_patterns = set()
+        margin_patterns: set[int] = set()
 
         for i, line in enumerate(content, 1):
             if not line.strip():
@@ -413,11 +418,15 @@ class FormatChecks(BaseChecker):
 
             leading_ws = len(line) - len(line.lstrip())
             if leading_ws > 0:
-                margin_patterns.add(leading_ws)
-                if len(margin_patterns) > 1:
+                if margin_patterns and leading_ws not in margin_patterns:
                     warnings.append(
-                        {"line_number": i, "message": "Inconsistent margins", "severity": "warning"}
+                        {
+                            "line_number": i,
+                            "message": "Inconsistent margins",
+                            "severity": "warning",
+                        }
                     )
+                margin_patterns.add(leading_ws)
 
         return warnings
 

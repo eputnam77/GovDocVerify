@@ -383,7 +383,13 @@ class FormatChecks(BaseChecker):
 
     def _get_font_type(self, line: str) -> str:
         """Determine font type of a line."""
-        if "BOLD" in line or "italic" in line.lower():
+        # ``line`` may contain font hints in any case.  The previous
+        # implementation only looked for an all‑caps ``BOLD`` token which meant
+        # strings like "This is bold text" slipped through as "normal" font
+        # usage and no inconsistency was reported.  Normalize case so both
+        # "BOLD" and "bold" (and variants) are treated as special formatting.
+        text = line.lower()
+        if "bold" in text or "italic" in text:
             return "special"
         return "normal"
 
@@ -408,7 +414,7 @@ class FormatChecks(BaseChecker):
     def _check_margin_consistency(self, content: List[str]) -> List[Dict]:
         """Check margin consistency."""
         warnings = []
-        margin_patterns = set()
+        margin_patterns: set[int] = set()
 
         for i, line in enumerate(content, 1):
             if not line.strip():
@@ -416,11 +422,20 @@ class FormatChecks(BaseChecker):
 
             leading_ws = len(line) - len(line.lstrip())
             if leading_ws > 0:
-                margin_patterns.add(leading_ws)
-                if len(margin_patterns) > 1:
+                # Only flag the line if it introduces a new indentation level
+                # beyond those already seen.  The previous implementation
+                # emitted a warning for *every* indented line once more than
+                # one margin was present, resulting in duplicate warnings for
+                # consistently indented blocks.
+                if margin_patterns and leading_ws not in margin_patterns:
                     warnings.append(
-                        {"line_number": i, "message": "Inconsistent margins", "severity": "warning"}
+                        {
+                            "line_number": i,
+                            "message": "Inconsistent margins",
+                            "severity": "warning",
+                        }
                     )
+                margin_patterns.add(leading_ws)
 
         return warnings
 
