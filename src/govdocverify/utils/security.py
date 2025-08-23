@@ -144,7 +144,11 @@ def rate_limit(func: Callable[..., Any]) -> Callable[..., Any]:
 
 def _is_allowed_domain(domain: str) -> bool:
     """Return ``True`` if *domain* matches an allowed suffix exactly."""
-    domain = domain.lower()
+
+    # ``urlparse().hostname`` may include a trailing dot for fully qualified
+    # domain names (e.g. ``"example.gov."``).  Normalise by stripping it
+    # before comparison so such names are accepted.
+    domain = domain.lower().rstrip(".")
     for allowed in ALLOWED_SOURCE_DOMAINS:
         suffix = allowed.lower().lstrip(".")
         if domain == suffix or domain.endswith("." + suffix):
@@ -153,13 +157,17 @@ def _is_allowed_domain(domain: str) -> bool:
 
 
 def validate_source(path: str) -> None:
-    """Validate that ``path`` originates from an allowed domain and format.
-
-    Raises a :class:`SecurityError` if the source is not permitted.
-    """
+    """Validate that ``path`` is from an approved domain and format."""
 
     lowered = path.lower()
-    _, ext = os.path.splitext(lowered)
+
+    # Separate any URL components before extracting the extension.  The
+    # previous implementation ran ``os.path.splitext`` directly on the whole
+    # URL, which meant query strings or fragments became part of the extension
+    # (e.g. ``".docx?download=1"``) and valid URLs were rejected.
+    parsed = urlparse(lowered)
+    _, ext = os.path.splitext(parsed.path)
+
     if "://" not in lowered and not ext:
         return
     if not ext:
@@ -169,7 +177,7 @@ def validate_source(path: str) -> None:
     if ext not in ALLOWED_FILE_EXTENSIONS:
         raise SecurityError(f"Disallowed file format: {ext}")
 
-    if lowered.startswith("http://") or lowered.startswith("https://"):
-        domain = urlparse(path).hostname or ""
+    if parsed.scheme in {"http", "https"}:
+        domain = parsed.hostname or ""
         if not _is_allowed_domain(domain):
             raise SecurityError(f"Non-government source domain: {domain}")

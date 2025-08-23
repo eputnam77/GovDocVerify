@@ -1,16 +1,30 @@
 import importlib
-import sys
+import importlib.util
 from pathlib import Path
 
 import pytest
 
-# Ensure tests exercise the packaged code under ``src`` rather than the legacy
-# top-level module.  This mirrors how users will import the project.
-sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
-from govdocverify.utils.decorators import profile_performance, retry_transient
-from govdocverify.utils.link_utils import find_urls, normalise
-from govdocverify.utils.security import SecurityError, validate_source
+def _load_src(module: str):
+    base = Path(__file__).resolve().parents[1] / "src" / module
+    spec = importlib.util.spec_from_file_location(module.replace("/", "."), base)
+    mod = importlib.util.module_from_spec(spec)
+    assert spec.loader is not None
+    spec.loader.exec_module(mod)
+    return mod
+
+
+decorators = _load_src("govdocverify/utils/decorators.py")
+profile_performance = decorators.profile_performance
+retry_transient = decorators.retry_transient
+
+link_utils = _load_src("govdocverify/utils/link_utils.py")
+find_urls = link_utils.find_urls
+normalise = link_utils.normalise
+
+security = _load_src("govdocverify/utils/security.py")
+SecurityError = security.SecurityError
+validate_source = security.validate_source
 
 
 def test_validate_source_domain() -> None:
@@ -77,6 +91,12 @@ def test_find_urls_strips_closing_brackets() -> None:
     text = "Links: [https://example.gov/test] and (https://example.gov/again)"
     urls = [u for u, _ in find_urls(text)]
     assert urls == ["https://example.gov/test", "https://example.gov/again"]
+
+
+def test_find_urls_preserves_uppercase_scheme() -> None:
+    text = "Visit HTTPS://Example.gov/ for info"
+    urls = [u for u, _ in find_urls(text)]
+    assert urls == ["HTTPS://Example.gov/"]
 
 
 def test_retry_transient_respects_zero_values(monkeypatch: pytest.MonkeyPatch) -> None:
