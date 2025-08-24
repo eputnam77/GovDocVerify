@@ -45,16 +45,20 @@ def sanitize_file_path(file_path: str, base_dir: str | None = None) -> str:
     within that directory; otherwise a :class:`SecurityError` is raised. When
     ``base_dir`` is ``None`` (the default), the path is simply normalized.
     """
-    normalized_path = Path(file_path).expanduser().resolve()
+    path_obj = Path(file_path).expanduser()
 
     if base_dir is not None:
-        base_path = Path(base_dir).resolve()
+        base_path = Path(base_dir).expanduser().resolve()
+        if not path_obj.is_absolute():
+            path_obj = base_path / path_obj
+        normalized_path = path_obj.resolve()
         try:
             normalized_path.relative_to(base_path)
         except ValueError as exc:
             raise SecurityError("Path traversal detected") from exc
+        return str(normalized_path)
 
-    return str(normalized_path)
+    return str(path_obj.resolve())
 
 
 def validate_file(file_path: str) -> None:

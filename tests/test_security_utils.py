@@ -30,6 +30,15 @@ def test_sanitize_base_dir_enforced(tmp_path: Path) -> None:
         sanitize_file_path(str(outside), base_dir=str(base))
 
 
+def test_sanitize_handles_relative_paths(tmp_path: Path) -> None:
+    base = tmp_path / "base"
+    base.mkdir()
+    (base / "sub").mkdir()
+    rel_path = Path("sub/file.docx")
+    abs_path = (base / rel_path).resolve()
+    assert Path(sanitize_file_path(str(rel_path), base_dir=str(base))) == abs_path
+
+
 @pytest.mark.parametrize("path", ["file.doc", "file.pdf", "file.rtf"])
 def test_validate_source_rejects_legacy_formats(path: str) -> None:
     with pytest.raises(SecurityError, match="Legacy file format"):

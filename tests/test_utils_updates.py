@@ -99,6 +99,12 @@ def test_find_urls_preserves_uppercase_scheme() -> None:
     assert urls == ["HTTPS://Example.gov/"]
 
 
+def test_find_urls_handles_port_numbers() -> None:
+    text = "See http://example.gov:8080/path for details"
+    urls = [u for u, _ in find_urls(text)]
+    assert urls == ["http://example.gov:8080/path"]
+
+
 def test_retry_transient_respects_zero_values(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("GOVDOCVERIFY_MAX_RETRIES", "5")
     calls = {"count": 0}

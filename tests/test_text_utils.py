@@ -87,6 +87,11 @@ class TestTextUtils:
         # Multiple spaces
         assert count_words("  multiple   spaces  ") == 2
 
+    def test_count_words_numbers_with_decimals_and_signs(self):
+        """Decimals and signed numbers count as single words."""
+        text = "pi is about 3.14 and temp is -4.5"
+        assert count_words(text) == 8
+
     def test_count_words_contractions(self):
         """Contractions should count as single words."""
         assert count_words("Don't stop") == 2
