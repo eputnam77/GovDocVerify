@@ -52,3 +52,8 @@ def test_validate_source_rejects_legacy_formats(path: str) -> None:
 def test_validate_source_handles_uppercase_schemes(url: str) -> None:
     with pytest.raises(SecurityError, match="Non-government"):
         validate_source(url)
+
+
+def test_validate_source_requires_extension_with_query() -> None:
+    with pytest.raises(SecurityError, match="Missing file extension"):
+        validate_source("file?download=1")

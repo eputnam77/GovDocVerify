@@ -19,14 +19,32 @@ def find_urls(text: str) -> Iterator[Tuple[str, Tuple[int, int]]]:
 
     _URL_RE = re.compile(
         r"(?P<url>(?:https?://)?[A-Za-z0-9.-]+\.[A-Za-z]{2,}(?::\d+)?"
-        r"(?:/[^\s)]*)?(?:\?[^\s)#]*)?(?:#[^\s)]*)?)",
+        r"(?:/[^\s]*)?(?:\?[^\s]*)?(?:#[^\s]*)?)",
         re.IGNORECASE,
     )
+
+    def _strip_trailing(url: str) -> str:
+        punctuation = ".,;:!?"
+        brackets = {")": "(", "]": "[", "}": "{", "'": "'", '"': '"'}
+        while url:
+            last = url[-1]
+            if last in punctuation:
+                url = url[:-1]
+                continue
+            if last in brackets:
+                opener = brackets[last]
+                if url.count(last) > url.count(opener):
+                    url = url[:-1]
+                    continue
+            break
+        return url
+
     for line_no, line in enumerate(text.splitlines(), 1):
         for m in _URL_RE.finditer(line):
-            # Strip common trailing punctuation so callers don't need to handle
-            # cases like ``"https://example.gov/test."`` themselves.
-            url = m.group("url").rstrip(".,;:!?)[]}'\"")
+            # Strip trailing punctuation or unmatched closing brackets so
+            # callers don't need to handle cases like
+            # ``"https://example.gov/test)."`` themselves.
+            url = _strip_trailing(m.group("url"))
             yield url, (line_no, m.start())
 
 
@@ -35,8 +53,9 @@ def normalise(url: str) -> str:
     scheme_url = url if url.lower().startswith("http") else f"//{url}"
     parsed = urllib.parse.urlparse(scheme_url, scheme="https")
     host = parsed.hostname.lower().rstrip(".") if parsed.hostname else ""
+    port = f":{parsed.port}" if parsed.port else ""
     path = parsed.path.rstrip("/").rstrip(".,;:!?")
-    return f"{host}{path}" if path else host
+    return f"{host}{port}{path}" if path else f"{host}{port}"
 
 
 def deprecated_lookup(url: str) -> Optional[str]:
