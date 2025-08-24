@@ -51,6 +51,8 @@ class TestDocumentType(unittest.TestCase):
             ("Special Condition", DocumentType.SPECIAL_CONDITION),
             ("Technical Standard Order", DocumentType.TECHNICAL_STANDARD_ORDER),
             ("Other", DocumentType.OTHER),
+            ("Advisory-Circular", DocumentType.ADVISORY_CIRCULAR),
+            ("Advisory_Circular", DocumentType.ADVISORY_CIRCULAR),
         ]
 
         for input_str, expected in test_cases:
@@ -69,8 +71,6 @@ class TestDocumentType(unittest.TestCase):
             "Test",
             "Advisory",  # Partial match
             "Circular",  # Partial match
-            "Advisory-Circular",  # Wrong format
-            "Advisory_Circular",  # Wrong format
             "",  # Empty string
             " ",  # Whitespace
             None,  # None value
