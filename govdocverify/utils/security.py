@@ -187,6 +187,9 @@ def validate_source(path: str) -> None:
     if ext not in ALLOWED_FILE_EXTENSIONS:
         raise SecurityError(f"Disallowed file format: {ext}")
 
+    if parsed.scheme and parsed.scheme not in {"http", "https"}:
+        raise SecurityError(f"Unsupported URL scheme: {parsed.scheme}")
+
     if parsed.scheme in {"http", "https"}:
         domain = parsed.hostname or ""
         if not _is_allowed_domain(domain):

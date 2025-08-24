@@ -202,11 +202,15 @@ def count_words(text: str) -> int:
     if not text:
         logger.debug("count_words: empty input -> 0")
         return 0
+    # Treat underscores as spaces so ``snake_case`` counts as two words.
+    text = text.replace("_", " ")
     email_pattern = r"[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}"
     emails = list(re.finditer(email_pattern, text))
     email_count = len(emails)
     STOPWORDS = {"to", "or"}
-    word_pattern = r"\b(?:-?\d+(?:\.\d+)?|[\w]+(?:['-][\w]+)*)\b"
+    # Use an explicit character class that excludes underscores to split tokens
+    # like ``snake_case`` into separate words.
+    word_pattern = r"\b(?:-?\d+(?:\.\d+)?|[A-Za-z0-9]+(?:['-][A-Za-z0-9]+)*)\b"
 
     if email_count == 0:
         words = [
