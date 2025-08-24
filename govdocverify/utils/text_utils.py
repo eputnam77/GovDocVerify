@@ -210,22 +210,18 @@ def count_words(text: str) -> int:
     email_pattern = r"[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}"
     emails = list(re.finditer(email_pattern, text))
     email_count = len(emails)
-    STOPWORDS = {"to", "or"}
     word_pattern = r"\b(?:-?\d+(?:\.\d+)?|[A-Za-z0-9]+(?:['-][A-Za-z0-9]+)*)\b"
+
     if email_count == 0:
-        words = [
-            w
-            for w in re.findall(word_pattern, text)
-            if re.search(r"[a-zA-Z0-9]", w) and w.lower() not in STOPWORDS
-        ]
-        logger.debug(f"count_words: input='{text}' emails=0 words={words} total={len(words)}")
+        words = [w for w in re.findall(word_pattern, text) if re.search(r"[a-zA-Z0-9]", w)]
+        logger.debug(
+            f"count_words: input='{text}' emails=0 words={words} total={len(words)}"
+        )
         return len(words)
-    # Strip e‑mails, count remaining words on both sides, but drop tiny stop‑words
+
     text_wo_emails = re.sub(email_pattern, " ", text)
     words = [
-        w
-        for w in re.findall(word_pattern, text_wo_emails)
-        if re.search(r"[a-zA-Z0-9]", w) and w.lower() not in STOPWORDS
+        w for w in re.findall(word_pattern, text_wo_emails) if re.search(r"[a-zA-Z0-9]", w)
     ]
     logger.debug(
         f"count_words: input='{text}', "

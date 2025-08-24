@@ -20,3 +20,11 @@ def test_check_formatting_issues():
     assert any("Mixed quotation marks" in m for m in msgs)
     assert any("section symbol" in m for m in msgs)
     assert len(msgs) == 2
+
+
+def test_check_formatting_ignores_apostrophes():
+    formatter = DocumentFormatter()
+    text = "It's a \"quote\""
+    result = formatter.check_formatting(text)
+    assert result.success
+    assert all("Mixed quotation" not in i["message"] for i in result.issues)

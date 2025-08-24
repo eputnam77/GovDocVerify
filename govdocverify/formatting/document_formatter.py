@@ -96,8 +96,11 @@ class DocumentFormatter:
         """
         issues = []
 
-        # Check for inconsistent quotation marks
-        if "'" in text and '"' in text:
+        # Check for inconsistent quotation marks.  A single quote can also be
+        # used as an apostrophe (e.g. "it's"), so only flag a mixture when a
+        # standalone single-quoted string is present alongside double quotes.
+        single_quoted = re.search(r"(^|\W)'[^']+'", text)
+        if single_quoted and '"' in text:
             issues.append(
                 {
                     "type": "formatting",
