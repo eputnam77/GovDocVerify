@@ -4,8 +4,8 @@ from enum import Enum
 from typing import Any, Dict, List, Optional, Tuple, Union
 
 try:
-    from colorama import Fore, Style  # type: ignore
-except Exception:  # pragma: no cover - optional dependency
+    from colorama import Fore, Style
+except ImportError:  # pragma: no cover - optional dependency
 
     class _DummyFore:
         BLACK = RED = GREEN = YELLOW = BLUE = MAGENTA = CYAN = WHITE = ""

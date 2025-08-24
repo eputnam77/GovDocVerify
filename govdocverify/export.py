@@ -8,8 +8,8 @@ from typing import Any
 from docx import Document
 
 try:  # Optional dependency for PDF export
-    from fpdf import FPDF  # type: ignore
-except Exception:  # pragma: no cover - dependency might be missing
+    from fpdf import FPDF
+except ImportError:  # pragma: no cover - dependency might be missing
     FPDF = None
 
 

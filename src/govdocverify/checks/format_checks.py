@@ -3,9 +3,9 @@ import re
 from typing import Any, Dict, List
 
 try:
-    from docx import Document  # type: ignore
-except Exception:  # pragma: no cover - optional dependency
-    from typing import Any as Document  # type: ignore
+    from docx import Document
+except ImportError:  # pragma: no cover - optional dependency
+    Document = Any
 
 
 from govdocverify.checks.check_registry import CheckRegistry
