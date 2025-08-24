@@ -128,20 +128,29 @@ async def process_doc_endpoint(
             if _PROCESS_DELAY:
                 await asyncio.sleep(_PROCESS_DELAY)
 
+            try:
+                json.loads(visibility_json)
+            except json.JSONDecodeError as exc:  # invalid JSON should return 400
+                raise HTTPException(status_code=400, detail="invalid visibility_json") from exc
+
+            if group_by not in {"category", "severity"}:
+                raise HTTPException(status_code=400, detail="invalid group_by")
+
             vis = VisibilitySettings.from_dict_json(visibility_json)
             result = process_document(tmp_path, doc_type, vis, group_by=group_by)
 
             if isinstance(result, dict):
-                data = result.get("by_category", {})
                 result_id = hashlib.sha256(
                     json.dumps(result, sort_keys=True).encode()
                 ).hexdigest()
-                _save_result(result_id, data)
+                _save_result(result_id, result)
                 return JSONResponse(
                     {
                         "has_errors": result.get("has_errors", False),
+                        "severity": result.get("severity"),
                         "rendered": result.get("rendered", ""),
-                        "by_category": data,
+                        "metadata": result.get("metadata", {}),
+                        "by_category": result.get("by_category", {}),
                         "result_id": result_id,
                     }
                 )

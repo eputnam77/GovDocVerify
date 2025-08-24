@@ -1,13 +1,27 @@
 from unittest import mock
 
+import pytest
 from fastapi.testclient import TestClient
 
 from backend.main import app
-from govdocverify.utils.security import RateLimiter
+from govdocverify.utils.security import RateLimiter, rate_limiter
 
 
 def _mock_result():
-    return {"has_errors": False, "rendered": "", "by_category": {}}
+    return {
+        "has_errors": False,
+        "rendered": "",
+        "by_category": {},
+        "severity": "LOW",
+        "metadata": {},
+    }
+
+
+@pytest.fixture(autouse=True)
+def _reset_rate_limiter():
+    rate_limiter.requests.clear()
+    yield
+    rate_limiter.requests.clear()
 
 
 def test_invalid_file_type(monkeypatch):
@@ -63,7 +77,14 @@ def test_process_contract(monkeypatch):
     )
     assert resp.status_code == 200
     data = resp.json()
-    assert set(data) == {"has_errors", "rendered", "by_category", "result_id"}
+    assert set(data) == {
+        "has_errors",
+        "rendered",
+        "by_category",
+        "result_id",
+        "severity",
+        "metadata",
+    }
     assert resp.headers["content-type"].startswith("application/json")
 
 
@@ -93,6 +114,30 @@ def test_process_validation_errors(monkeypatch):
         data={"doc_type": "AC"},
     )
     assert resp.status_code == 415
+
+
+def test_invalid_visibility_json(monkeypatch):
+    client = TestClient(app)
+    monkeypatch.setattr("backend.api.validate_file", lambda *a, **k: None)
+    monkeypatch.setattr("backend.api.process_document", lambda *a, **k: _mock_result())
+    resp = client.post(
+        "/process",
+        files={"doc_file": ("x.docx", b"ok")},
+        data={"doc_type": "AC", "visibility_json": "{bad json"},
+    )
+    assert resp.status_code == 400
+
+
+def test_invalid_group_by(monkeypatch):
+    client = TestClient(app)
+    monkeypatch.setattr("backend.api.validate_file", lambda *a, **k: None)
+    monkeypatch.setattr("backend.api.process_document", lambda *a, **k: _mock_result())
+    resp = client.post(
+        "/process",
+        files={"doc_file": ("x.docx", b"ok")},
+        data={"doc_type": "AC", "group_by": "unknown"},
+    )
+    assert resp.status_code == 400
 
 
 def test_process_idempotent(monkeypatch):
