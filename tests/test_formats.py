@@ -10,7 +10,7 @@ import tempfile
 import pytest
 from docx import Document
 
-from govdocverify.checks.format_checks import FormatChecks, FormattingChecker
+from govdocverify.checks.format_checks import FormatChecks, FormatMessages, FormattingChecker
 from govdocverify.models import DocumentCheckResult, Severity
 from govdocverify.utils.terminology_utils import TerminologyManager
 
@@ -171,6 +171,25 @@ class TestFormatChecks:
         assert result.severity == Severity.WARNING
         assert len(result.issues) > 0
         assert all(issue["severity"] == Severity.WARNING for issue in result.issues)
+
+    def test_phone_number_inconsistent_same_line(self):
+        """Detect inconsistent phone formats appearing on the same line."""
+        content = ["Reach us at 123-456-7890 or 123.456.7890."]
+        doc_path = self.create_test_docx(content, "phone_number_same_line_inconsistent.docx")
+        result = DocumentCheckResult()
+        self.format_checks.run_checks(Document(doc_path), "ORDER", result)
+        assert any(
+            issue["message"] == FormatMessages.PHONE_FORMAT_WARNING for issue in result.issues
+        )
+
+    def test_font_type_word_boundaries(self):
+        """Ensure formatting hints are matched using word boundaries."""
+        lines = [
+            "This line mentions boldness but not formatting.",
+            "Another normal line.",
+        ]
+        warnings = self.format_checks._check_font_consistency(lines)
+        assert warnings == []
 
     def test_date_format_check_valid(self):
         """Test date format check with valid formats."""
