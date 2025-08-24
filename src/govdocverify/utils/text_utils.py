@@ -206,8 +206,9 @@ def count_words(text: str) -> int:
     emails = list(re.finditer(email_pattern, text))
     email_count = len(emails)
     STOPWORDS = {"to", "or"}
+    word_pattern = r"\b(?:-?\d+(?:\.\d+)?|[\w]+(?:['-][\w]+)*)\b"
+
     if email_count == 0:
-        word_pattern = r"\b[\w]+(?:['-][\w]+)*\b"
         words = [
             w
             for w in re.findall(word_pattern, text)
@@ -217,7 +218,6 @@ def count_words(text: str) -> int:
         return len(words)
     # Strip e‑mails, count remaining words on both sides, but drop tiny stop‑words
     text_wo_emails = re.sub(email_pattern, " ", text)
-    word_pattern = r"\b[\w]+(?:['-][\w]+)*\b"
     words = [
         w
         for w in re.findall(word_pattern, text_wo_emails)
