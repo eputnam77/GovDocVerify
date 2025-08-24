@@ -65,9 +65,9 @@ class DocumentType(str, Enum):
 
         # Normalize the input string:
         # 1. Strip leading/trailing whitespace
-        # 2. Replace multiple spaces/newlines/tabs with single space
+        # 2. Replace underscores/hyphens/whitespace with single space
         # 3. Title case the string
-        normalized = re.sub(r"\s+", " ", doc_type.strip()).title()
+        normalized = re.sub(r"[\s_-]+", " ", doc_type.strip()).title()
 
         # Try direct value match first
         for member in cls:
@@ -213,17 +213,25 @@ class DocumentCheckResult:
         if version > cls.SERIALIZATION_VERSION:
             raise ValueError(f"Unsupported DocumentCheckResult version: {version}")
 
+        def _parse_severity(value: Any) -> Any:
+            if isinstance(value, Severity):
+                return value
+            if isinstance(value, int):
+                return Severity(value)
+            if isinstance(value, str):
+                try:
+                    return Severity[value.strip().replace(" ", "_").upper()]
+                except KeyError:
+                    pass
+            return value
+
         issues: List[Dict[str, Any]] = []
         for issue in data.get("issues", []):
             new_issue = issue.copy()
-            sev = new_issue.get("severity")
-            if isinstance(sev, int):
-                new_issue["severity"] = Severity(sev)
+            new_issue["severity"] = _parse_severity(new_issue.get("severity"))
             issues.append(new_issue)
 
-        severity = data.get("severity")
-        if isinstance(severity, int):
-            severity = Severity(severity)
+        severity = _parse_severity(data.get("severity"))
 
         return cls(
             success=data.get("success", True),
@@ -287,17 +295,29 @@ class VisibilitySettings:
         if version > cls.SERIALIZATION_VERSION:
             raise ValueError(f"Unsupported VisibilitySettings version: {version}")
 
+        def _bool(key: str, default: bool) -> bool:
+            val = settings.get(key, default)
+            if isinstance(val, bool):
+                return val
+            if isinstance(val, str):
+                lowered = val.strip().lower()
+                if lowered in {"true", "1", "yes", "y"}:
+                    return True
+                if lowered in {"false", "0", "no", "n"}:
+                    return False
+            return bool(val) if isinstance(val, (int, float)) else default
+
         return cls(
-            show_readability=settings.get("readability", True),
-            show_analysis=settings.get("analysis", True),
-            show_paragraph_length=settings.get("paragraph_length", True),
-            show_terminology=settings.get("terminology", True),
-            show_headings=settings.get("headings", True),
-            show_structure=settings.get("structure", True),
-            show_format=settings.get("format", True),
-            show_accessibility=settings.get("accessibility", True),
-            show_document_status=settings.get("document_status", True),
-            show_acronym=settings.get("acronym", True),
+            show_readability=_bool("readability", True),
+            show_analysis=_bool("analysis", True),
+            show_paragraph_length=_bool("paragraph_length", True),
+            show_terminology=_bool("terminology", True),
+            show_headings=_bool("headings", True),
+            show_structure=_bool("structure", True),
+            show_format=_bool("format", True),
+            show_accessibility=_bool("accessibility", True),
+            show_document_status=_bool("document_status", True),
+            show_acronym=_bool("acronym", True),
         )
 
     @classmethod

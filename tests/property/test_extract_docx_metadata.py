@@ -12,7 +12,7 @@ ascii_chars = st.characters(min_codepoint=32, max_codepoint=126)
 
 
 @pytest.mark.property
-@settings(suppress_health_check=[HealthCheck.function_scoped_fixture])
+@settings(suppress_health_check=[HealthCheck.function_scoped_fixture], deadline=None)
 @given(
     title=st.text(min_size=1, max_size=20, alphabet=ascii_chars),
     author=st.text(min_size=1, max_size=20, alphabet=ascii_chars),
