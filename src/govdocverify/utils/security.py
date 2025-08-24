@@ -172,7 +172,9 @@ def validate_source(path: str) -> None:
     parsed = urlparse(lowered)
     _, ext = os.path.splitext(parsed.path)
 
-    if "://" not in lowered and not ext:
+    # Permit bare local paths without extension or URL components.  All other
+    # forms must include an extension for validation.
+    if not parsed.scheme and not ext and not parsed.query and not parsed.fragment:
         return
     if not ext:
         raise SecurityError("Missing file extension")

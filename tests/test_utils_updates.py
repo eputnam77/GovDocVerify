@@ -105,6 +105,12 @@ def test_find_urls_handles_port_numbers() -> None:
     assert urls == ["http://example.gov:8080/path"]
 
 
+def test_find_urls_handles_parentheses_in_url() -> None:
+    text = "More info at https://example.gov/path_(test)."
+    urls = [u for u, _ in find_urls(text)]
+    assert urls == ["https://example.gov/path_(test)"]
+
+
 def test_retry_transient_respects_zero_values(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("GOVDOCVERIFY_MAX_RETRIES", "5")
     calls = {"count": 0}
@@ -132,3 +138,7 @@ def test_validate_source_allows_query_and_fragment(url: str) -> None:
 
 def test_validate_source_allows_trailing_dot_domain() -> None:
     validate_source("https://agency.gov./file.docx")
+
+
+def test_normalise_preserves_port() -> None:
+    assert normalise("https://Example.gov:8000/path/") == "example.gov:8000/path"
