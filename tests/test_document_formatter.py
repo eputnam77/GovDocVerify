@@ -7,7 +7,8 @@ def test_format_text_basic():
     formatted = formatter.format_text(text)
     assert '"hello"' in formatted
     assert "\u00a7 1" in formatted
-    assert formatted.splitlines()[1] == "item"
+    # List items should retain indentation after formatting
+    assert formatted.splitlines()[1] == "    item"
 
 
 def test_check_formatting_issues():

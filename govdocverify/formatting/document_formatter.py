@@ -31,11 +31,12 @@ class DocumentFormatter:
             # Format section symbols
             line = self._format_section_symbols(line)
 
+            # Remove extra spaces before applying list formatting so added
+            # indentation isn't stripped away
+            line = re.sub(r"\s+", " ", line).strip()
+
             # Format lists
             line = self._format_lists(line)
-
-            # Remove extra spaces
-            line = re.sub(r"\s+", " ", line).strip()
 
             formatted_lines.append(line)
 

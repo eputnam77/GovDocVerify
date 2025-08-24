@@ -57,3 +57,9 @@ def test_validate_source_handles_uppercase_schemes(url: str) -> None:
 def test_validate_source_requires_extension_with_query() -> None:
     with pytest.raises(SecurityError, match="Missing file extension"):
         validate_source("file?download=1")
+
+
+def test_validate_source_rejects_unsupported_scheme() -> None:
+    """Non-HTTP schemes like FTP should be rejected explicitly."""
+    with pytest.raises(SecurityError, match="Unsupported URL scheme"):
+        validate_source("ftp://example.gov/file.docx")

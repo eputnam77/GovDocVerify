@@ -97,6 +97,11 @@ class TestTextUtils:
         assert count_words("Don't stop") == 2
         assert count_words("We're testing") == 2
 
+    def test_count_words_splits_on_underscores(self):
+        """Underscores should act as word separators."""
+        assert count_words("snake_case") == 2
+        assert count_words("mixed_snake_case example") == 4
+
     def test_normalize_reference(self):
         """Test reference normalization."""
         # Empty text
