@@ -45,10 +45,7 @@ class TestFormattingChecks:
             "Back to normal.",
         ]
         result = self.format_checks.check(content)
-        assert any(
-            "inconsistent font" in issue["message"].lower()
-            for issue in result["warnings"]
-        )
+        assert any("inconsistent font" in issue["message"].lower() for issue in result["warnings"])
 
     def test_spacing_consistency(self):
         content = [
