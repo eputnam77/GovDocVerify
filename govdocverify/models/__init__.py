@@ -116,7 +116,10 @@ class DocumentCheckResult:
                     f"Assigned category: '{issue['category']}'. "
                     f"Issue details: {issue}"
                 )
-        self.severity = None  # Will be set on first issue
+        # ``severity`` might be provided by callers that already know the
+        # overall state.  The previous implementation unconditionally reset it
+        # to ``None`` here, discarding that information.  Preserve the supplied
+        # value and leave it unchanged until issues are added.
 
     def add_issue(
         self,

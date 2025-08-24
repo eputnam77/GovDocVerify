@@ -74,7 +74,10 @@ class DocumentCheckResult:
             self.issues = []
         if self.partial_failures is None:
             self.partial_failures = []
-        self.severity = None  # Will be set on first issue
+        # ``severity`` may be supplied by the caller.  The previous
+        # implementation always reset it to ``None`` here, discarding any
+        # pre‑set value.  Only leave it as ``None`` when it wasn't provided.
+        # It will still be updated when issues are added.
 
     def add_issue(
         self,

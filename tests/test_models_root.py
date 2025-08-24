@@ -49,3 +49,10 @@ def test_issue_dataclass_and_pattern_config() -> None:
     assert pc.pattern == "foo"
     issue = models.Issue(message="msg")
     assert issue.message == "msg"
+
+
+def test_document_check_result_preserves_initial_severity() -> None:
+    from govdocverify.models import DocumentCheckResult, Severity
+
+    res = DocumentCheckResult(success=True, severity=Severity.WARNING)
+    assert res.severity == Severity.WARNING

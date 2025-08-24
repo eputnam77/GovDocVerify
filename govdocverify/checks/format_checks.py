@@ -155,18 +155,20 @@ class FormatChecks(BaseChecker):
 
     def _collect_phone_numbers_from_paragraphs(self, paragraphs: list) -> list:
         """Collect all phone numbers and their styles from paragraphs."""
-        found = []  # (line_number, style)
-
+        found: list[tuple[int, str]] = []
         for idx, line in enumerate(paragraphs, start=1):
+            seen_spans: set[tuple[int, int]] = set()
             for pattern in PHONE_PATTERNS:
-                if match := re.search(pattern, line):
+                for match in re.finditer(pattern, line):
+                    span = match.span()
+                    if span in seen_spans:
+                        continue
+                    seen_spans.add(span)
                     style = self._categorise_phone_number_in_paragraph(match.group(0))
                     logger.debug(
                         f"Found phone number in line {idx}: {match.group(0)} (style={style})"
                     )
                     found.append((idx, style))
-                    break  # Only add each number once
-
         return found
 
     def _categorise_phone_number_in_paragraph(self, num: str) -> str:
@@ -380,12 +382,12 @@ class FormatChecks(BaseChecker):
 
     def _get_font_type(self, line: str) -> str:
         """Determine font type of a line."""
-        # Be case-insensitive when looking for formatting markers.  The
-        # previous implementation only matched an uppercase ``BOLD`` token,
-        # causing lines containing "bold" in lowercase to be treated as normal
-        # text and escaping the font consistency check.
+        # Be case-insensitive when looking for formatting markers and ensure
+        # we only match them as standalone words.  The previous implementation
+        # used substring checks which misclassified words like "boldness" as
+        # special formatting.
         text = line.lower()
-        if "bold" in text or "italic" in text:
+        if re.search(r"\b(bold|italic)\b", text):
             return "special"
         return "normal"
 
