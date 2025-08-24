@@ -82,7 +82,7 @@ class TestTextUtils:
 
         # Email addresses
         assert count_words("test@example.com") == 1
-        assert count_words("Send to test@example.com today") == 3
+        assert count_words("Send to test@example.com today") == 4
 
         # Multiple spaces
         assert count_words("  multiple   spaces  ") == 2
@@ -101,6 +101,10 @@ class TestTextUtils:
         """Underscores should act as word separators."""
         assert count_words("snake_case") == 2
         assert count_words("mixed_snake_case example") == 4
+
+    def test_count_words_includes_common_stopwords(self):
+        """Previously excluded words like 'to' and 'or' should be counted."""
+        assert count_words("to be or not to be") == 6
 
     def test_normalize_reference(self):
         """Test reference normalization."""
@@ -260,7 +264,7 @@ class TestTextUtils:
         """Test word counting with complex email scenarios."""
         # Multiple email addresses
         text = "Contact user@example.com or admin@test.com today"
-        assert count_words(text) == 4  # 2 emails + 'or' + 'today'
+        assert count_words(text) == 5  # Contact + 2 emails + 'or' + 'today'
 
         # Email with hyphenation
         text = "my-email@example.com is well-known"

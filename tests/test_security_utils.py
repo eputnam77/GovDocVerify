@@ -63,3 +63,8 @@ def test_validate_source_rejects_unsupported_scheme() -> None:
     """Non-HTTP schemes like FTP should be rejected explicitly."""
     with pytest.raises(SecurityError, match="Unsupported URL scheme"):
         validate_source("ftp://example.gov/file.docx")
+
+
+def test_validate_source_accepts_windows_paths() -> None:
+    """Windows-style absolute paths should be treated as local files."""
+    validate_source("C:\\gov\\docs\\file.docx")

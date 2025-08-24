@@ -1,5 +1,6 @@
 import logging
 import os
+import re
 import time
 from functools import wraps
 from pathlib import Path
@@ -164,10 +165,27 @@ def _is_allowed_domain(domain: str) -> bool:
     return False
 
 
+def _validate_extension(ext: str) -> None:
+    """Validate a file extension against allowed and legacy lists."""
+    if not ext:
+        raise SecurityError("Missing file extension")
+    if ext in LEGACY_FILE_EXTENSIONS:
+        raise SecurityError(f"Legacy file format: {ext}")
+    if ext not in ALLOWED_FILE_EXTENSIONS:
+        raise SecurityError(f"Disallowed file format: {ext}")
+
+
 def validate_source(path: str) -> None:
     """Validate that ``path`` is from an approved domain and format."""
 
     lowered = path.lower()
+
+    # Handle Windows drive paths like ``C:\\path\\file.docx`` which ``urlparse``
+    # interprets as having a scheme of "c".  Treat these as local paths.
+    if re.match(r"^[a-z]:[\\/]", lowered):
+        _, ext = os.path.splitext(lowered)
+        _validate_extension(ext)
+        return
 
     # Separate any URL components before extracting the extension.  The
     # previous implementation ran ``os.path.splitext`` directly on the whole
@@ -180,12 +198,7 @@ def validate_source(path: str) -> None:
     # URL components.  Anything else must include a file extension.
     if not parsed.scheme and not ext and not parsed.query and not parsed.fragment:
         return
-    if not ext:
-        raise SecurityError("Missing file extension")
-    if ext in LEGACY_FILE_EXTENSIONS:
-        raise SecurityError(f"Legacy file format: {ext}")
-    if ext not in ALLOWED_FILE_EXTENSIONS:
-        raise SecurityError(f"Disallowed file format: {ext}")
+    _validate_extension(ext)
 
     if parsed.scheme and parsed.scheme not in {"http", "https"}:
         raise SecurityError(f"Unsupported URL scheme: {parsed.scheme}")
