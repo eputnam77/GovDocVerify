@@ -79,9 +79,7 @@ class HeadingChecks(BaseChecker):
             combined.issues.append(issue)
             combined.success = False
             sev = issue.get("severity")
-            if isinstance(sev, Severity) and (
-                combined.severity is None or sev < combined.severity
-            ):
+            if isinstance(sev, Severity) and (combined.severity is None or sev < combined.severity):
                 combined.severity = sev
 
         return combined

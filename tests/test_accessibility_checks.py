@@ -4,6 +4,7 @@
 import logging
 import unittest
 from pathlib import Path
+from types import SimpleNamespace
 from unittest.mock import Mock
 
 import pytest
@@ -171,6 +172,13 @@ class TestAccessibilityChecks(TestBase):
         ]
         result = self.accessibility_checks.check_section_508_compliance(content)
         self.assertTrue(result.success)
+
+    def test_section_508_compliance_rejects_non_string_items(self):
+        """Non-string list items should raise an error."""
+        content = ["Valid", 123]
+        result = self.accessibility_checks.check_section_508_compliance(content)
+        self.assertFalse(result.success)
+        self.assert_issue_contains(result, "All items must be strings")
 
     def test_complex_sentences(self):
         """Test handling of complex sentences."""
@@ -352,6 +360,13 @@ class TestAccessibilityChecks(TestBase):
         self.assertTrue(mock_results.success)
         self.assertEqual(len(mock_results.issues), 0)
 
+    def test_check_markdown_alt_text_handles_non_string_lines(self):
+        """Markdown alt text check should handle non-string lines gracefully."""
+        mock_results = DocumentCheckResult()
+        self.accessibility_checks._check_markdown_alt_text([123], mock_results)
+        self.assertTrue(mock_results.success)
+        self.assertEqual(len(mock_results.issues), 0)
+
     def test_check_alt_text_with_invalid_shape(self):
         """Test _check_alt_text with invalid shape object."""
         mock_shape = Mock()
@@ -448,6 +463,14 @@ class TestAccessibilityChecks(TestBase):
         self.assertEqual(len(mock_results.issues), 1)
         self.assertIn("Invalid content type", mock_results.issues[0]["message"])
         self.assertEqual(mock_results.issues[0]["severity"], Severity.ERROR)
+
+    def test_check_color_contrast_handles_non_string_paragraphs(self):
+        """Color contrast check tolerates paragraphs with non-string text."""
+        doc = SimpleNamespace(paragraphs=[SimpleNamespace(text=None)])
+        mock_results = DocumentCheckResult()
+        self.accessibility_checks._check_color_contrast(doc, mock_results)
+        self.assertTrue(mock_results.success)
+        self.assertEqual(len(mock_results.issues), 0)
 
     def test_check_heading_hierarchy_with_empty_content(self):
         """Test _check_heading_hierarchy with empty content."""

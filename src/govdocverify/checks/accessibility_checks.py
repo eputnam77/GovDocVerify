@@ -265,7 +265,7 @@ class AccessibilityChecks(BaseChecker):
         results = DocumentCheckResult()
         logger.debug("Starting Section 508 compliance check")
 
-        # Convert string input to list
+        # Convert string input to list and validate types
         if isinstance(content, str):
             content = content.split("\n")
         elif not isinstance(content, list):
@@ -274,11 +274,13 @@ class AccessibilityChecks(BaseChecker):
             )
             logger.error(error_msg)
             results.add_issue(message=error_msg, severity=Severity.ERROR)
-            results.success = False
             return results
 
-        # Remove the problematic early return that bypasses actual checks
-        # All content should be properly validated regardless of length
+        if not all(isinstance(line, str) for line in content):
+            error_msg = "All items must be strings for Section 508 compliance check"
+            logger.error(error_msg)
+            results.add_issue(message=error_msg, severity=Severity.ERROR)
+            return results
 
         # Run all accessibility checks
         self._check_alt_text(content, results)
@@ -667,8 +669,9 @@ class AccessibilityChecks(BaseChecker):
         """Check alt text in markdown images."""
         logger.debug("Processing text content for alt text")
 
-        for i, line in enumerate(content, 1):
+        for i, raw_line in enumerate(content, 1):
             try:
+                line = str(raw_line)
                 # Check for markdown image syntax
                 match = re.search(r"!\[(.*?)\]\((.*?)\)", line)
                 if match:
@@ -713,7 +716,14 @@ class AccessibilityChecks(BaseChecker):
             logger.debug("Processing Document-like object")
             logger.debug(f"Paragraphs attribute: {content.paragraphs}")
             try:
-                lines = [paragraph.text for paragraph in content.paragraphs]
+                lines = [
+                    (
+                        paragraph.text
+                        if isinstance(paragraph.text, str)
+                        else str(paragraph.text) if paragraph.text is not None else ""
+                    )
+                    for paragraph in content.paragraphs
+                ]
                 logger.debug(f"Extracted lines from paragraphs: {lines}")
             except Exception as e:
                 logger.error(f"Error extracting text from paragraphs: {e}")

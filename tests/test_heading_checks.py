@@ -158,10 +158,7 @@ class TestHeadingChecks:
         text = "1. Introduction\nSome content."
         result = self.heading_checks.check_text(text)
         assert not result.success
-        assert any(
-            "approved heading word" in issue["message"].lower()
-            for issue in result.issues
-        )
+        assert any("approved heading word" in issue["message"].lower() for issue in result.issues)
 
     def test_document_type_matching(self):
         """Test document type matching with different case variations."""
