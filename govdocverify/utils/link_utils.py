@@ -25,11 +25,19 @@ def find_urls(text: str) -> Iterator[Tuple[str, Tuple[int, int]]]:
     )
 
     def _strip_trailing(url: str) -> str:
-        punctuation = ".,;:!?"
+        punctuation = ".,;:!?"  # characters always stripped
         brackets = {")": "(", "]": "[", "}": "{", "'": "'", '"': '"'}
+
         while url:
             last = url[-1]
             if last in punctuation:
+                url = url[:-1]
+                continue
+            if last in {"'", '"'}:
+                # URLs surrounded by quotes (e.g. "'https://example.gov/'")
+                # previously retained the closing quote because the counts of
+                # opening and closing quotes were balanced.  Quotes are rarely
+                # part of a valid URL, so always strip a trailing quote.
                 url = url[:-1]
                 continue
             if last in brackets:
