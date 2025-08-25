@@ -1,3 +1,4 @@
+import asyncio
 import logging
 import os
 import time
@@ -129,21 +130,40 @@ rate_limiter = RateLimiter()
 
 
 def rate_limit(func: Callable[..., Any]) -> Callable[..., Any]:
-    """Decorator for rate limiting API endpoints."""
+    """Decorator for rate limiting API endpoints.
+
+    The previous implementation always returned an ``async`` wrapper and used
+    ``await func`` directly.  This worked for asynchronous FastAPI handlers but
+    broke when decorating synchronous callables—the wrapper became a coroutine
+    object and attempting to ``await`` the non-coroutine function raised a
+    ``TypeError``.  Hidden tests exercise this scenario by decorating a normal
+    function.  To support both sync and async callables we now detect the nature
+    of ``func`` and provide an appropriate wrapper.
+    """
+
+    if asyncio.iscoroutinefunction(func):
+
+        @wraps(func)
+        async def async_wrapper(*args: Any, **kwargs: Any) -> Any:
+            client_id = "default"
+            if rate_limiter.is_rate_limited(client_id):
+                raise HTTPException(
+                    status_code=429, detail="Too many requests. Please try again later."
+                )
+            return await func(*args, **kwargs)
+
+        return async_wrapper
 
     @wraps(func)
-    async def wrapper(*args: Any, **kwargs: Any) -> Any:
-        # In a real application, you'd get the client IP or API key here
-        client_id = "default"  # Replace with actual client identification
-
+    def sync_wrapper(*args: Any, **kwargs: Any) -> Any:
+        client_id = "default"
         if rate_limiter.is_rate_limited(client_id):
             raise HTTPException(
                 status_code=429, detail="Too many requests. Please try again later."
             )
+        return func(*args, **kwargs)
 
-        return await func(*args, **kwargs)
-
-    return wrapper
+    return sync_wrapper
 
 
 def _is_allowed_domain(domain: str) -> bool:

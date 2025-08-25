@@ -1,3 +1,4 @@
+import asyncio
 import logging
 import os
 import re
@@ -133,21 +134,37 @@ rate_limiter = RateLimiter()
 
 
 def rate_limit(func: Callable[..., Any]) -> Callable[..., Any]:
-    """Decorator for rate limiting API endpoints."""
+    """Decorator for rate limiting API endpoints.
+
+    The original version always produced an ``async`` wrapper and ``await``ed the
+    wrapped function.  Decorating a synchronous callable therefore returned a
+    coroutine object and failed when executed.  Support both sync and async
+    functions by detecting ``func``'s type and creating an appropriate wrapper.
+    """
+
+    if asyncio.iscoroutinefunction(func):
+
+        @wraps(func)
+        async def async_wrapper(*args: Any, **kwargs: Any) -> Any:
+            client_id = "default"
+            if rate_limiter.is_rate_limited(client_id):
+                raise HTTPException(
+                    status_code=429, detail="Too many requests. Please try again later."
+                )
+            return await func(*args, **kwargs)
+
+        return async_wrapper
 
     @wraps(func)
-    async def wrapper(*args: Any, **kwargs: Any) -> Any:
-        # In a real application, you'd get the client IP or API key here
-        client_id = "default"  # Replace with actual client identification
-
+    def sync_wrapper(*args: Any, **kwargs: Any) -> Any:
+        client_id = "default"
         if rate_limiter.is_rate_limited(client_id):
             raise HTTPException(
                 status_code=429, detail="Too many requests. Please try again later."
             )
+        return func(*args, **kwargs)
 
-        return await func(*args, **kwargs)
-
-    return wrapper
+    return sync_wrapper
 
 
 def _is_allowed_domain(domain: str) -> bool:

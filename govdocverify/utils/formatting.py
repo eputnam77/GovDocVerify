@@ -596,7 +596,10 @@ def format_results_to_html(results: DocumentCheckResult) -> str:
 
 def format_results_to_text(results: Dict[str, Any], doc_type: str) -> str:
     """Format results as plain text."""
-    formatter = ResultFormatter(style=FormatStyle.HTML)
+    # Use ``FormatStyle.PLAIN`` to ensure plain text output.  The previous
+    # implementation mistakenly used HTML style which inserted tags into the
+    # result string.
+    formatter = ResultFormatter(style=FormatStyle.PLAIN)
     return formatter.format_results(results, doc_type)
 
 
