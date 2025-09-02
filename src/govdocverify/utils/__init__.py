@@ -11,7 +11,7 @@ from typing import TYPE_CHECKING, Any
 
 __all__: list[str] = ["extract_docx_metadata"]
 
-# Static analysers / IDEs see the symbol without importing heavy deps
+# Static analyzers / IDEs see the symbol without importing heavy deps
 if TYPE_CHECKING:  # pragma: no cover
     from .metadata_utils import extract_docx_metadata
 
