@@ -16,7 +16,7 @@ class GoodPlugin(Plugin):
     def name(self) -> str:
         return "good"
 
-    def register(self) -> None:  # pragma: no cover - no behaviour
+    def register(self) -> None:  # pragma: no cover - no behavior
         pass
 
 
