@@ -69,7 +69,7 @@ export default function App() {
     data.append("doc_type", docType);
     data.append("visibility_json", JSON.stringify(vis));
     // Explicitly request category grouping so that downloads work consistently
-    // with the backend's default behaviour.
+    // with the backend's default behavior.
     data.append("group_by", "category");
 
     try {
