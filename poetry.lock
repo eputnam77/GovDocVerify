@@ -58,7 +58,7 @@ tests-mypy = ["mypy (>=1.11.1) ; platform_python_implementation == \"CPython\" a
 [[package]]
 name = "bandit"
 version = "1.8.6"
-description = "Security oriented static analyser for python code."
+description = "Security oriented static analyzer for python code."
 optional = true
 python-versions = ">=3.9"
 groups = ["main"]
