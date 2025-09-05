@@ -63,7 +63,12 @@ def normalise(url: str) -> str:
     scheme_url = url if url.lower().startswith("http") else f"//{url}"
     parsed = urllib.parse.urlparse(scheme_url, scheme="https")
     host = parsed.hostname.lower().rstrip(".") if parsed.hostname else ""
-    port = f":{parsed.port}" if parsed.port else ""
+    port = ""
+    if parsed.port and not (
+        (parsed.scheme == "http" and parsed.port == 80)
+        or (parsed.scheme == "https" and parsed.port == 443)
+    ):
+        port = f":{parsed.port}"
     path = parsed.path.rstrip("/").rstrip(".,;:!?")
     return f"{host}{port}{path}" if path else f"{host}{port}"
 
