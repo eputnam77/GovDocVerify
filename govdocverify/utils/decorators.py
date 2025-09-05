@@ -37,9 +37,15 @@ def retry_transient(
     """
 
     if max_attempts is None:
-        max_attempts = int(os.getenv("GOVDOCVERIFY_MAX_RETRIES", "3"))
+        try:
+            max_attempts = int(os.getenv("GOVDOCVERIFY_MAX_RETRIES", "3"))
+        except ValueError:
+            max_attempts = 3
     if backoff is None:
-        backoff = float(os.getenv("GOVDOCVERIFY_BACKOFF", "0.1"))
+        try:
+            backoff = float(os.getenv("GOVDOCVERIFY_BACKOFF", "0.1"))
+        except ValueError:
+            backoff = 0.1
 
     def decorator(func: F) -> F:
         return cast(

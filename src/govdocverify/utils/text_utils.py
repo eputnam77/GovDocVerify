@@ -248,8 +248,8 @@ def normalize_reference(text: str) -> str:
     # Convert to lowercase
     text = text.lower()
 
-    # Replace special characters with spaces
-    text = re.sub(r"[^\w\s]", " ", text)
+    # Replace special characters (including underscores) with spaces
+    text = re.sub(r"[\W_]+", " ", text)
 
     # Normalize whitespace
     text = re.sub(r"\s+", " ", text)

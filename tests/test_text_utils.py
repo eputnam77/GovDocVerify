@@ -118,6 +118,10 @@ class TestTextUtils:
         # Special characters
         assert normalize_reference("Test-Reference!") == "test reference"
         assert normalize_reference("Test & Reference") == "test reference"
+
+    def test_normalize_reference_replaces_underscores(self):
+        """Underscores should be treated as word separators."""
+        assert normalize_reference("Example_With_Underscores") == "example with underscores"
         assert normalize_reference("Test/Reference\\Path") == "test reference path"
 
     def test_count_syllables(self):

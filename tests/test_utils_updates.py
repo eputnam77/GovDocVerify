@@ -142,3 +142,9 @@ def test_validate_source_allows_trailing_dot_domain() -> None:
 
 def test_normalise_preserves_port() -> None:
     assert normalise("https://Example.gov:8000/path/") == "example.gov:8000/path"
+
+
+def test_normalise_strips_default_ports() -> None:
+    """Default HTTP/HTTPS ports should not appear in normalised output."""
+    assert normalise("http://Example.gov:80/path/") == "example.gov/path"
+    assert normalise("https://Example.gov:443/path/") == "example.gov/path"
