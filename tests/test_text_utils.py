@@ -92,6 +92,10 @@ class TestTextUtils:
         text = "pi is about 3.14 and temp is -4.5"
         assert count_words(text) == 8
 
+    def test_count_words_handles_commas_in_numbers(self):
+        """Numbers containing thousands separators count as one word."""
+        assert count_words("The value is 1,234 and 5,678.9") == 6
+
     def test_count_words_contractions(self):
         """Contractions should count as single words."""
         assert count_words("Don't stop") == 2
@@ -194,6 +198,11 @@ class TestTextUtils:
     def test_calculate_passive_voice_percentage_ignores_adjectives(self):
         """Simple "is" + adjective should not be flagged."""
         assert calculate_passive_voice_percentage("The car is red.") == 0.0
+
+    def test_calculate_passive_voice_percentage_without_by(self):
+        """Sentences in passive voice without an explicit agent are detected."""
+        text = "The report was completed. The team reviewed it."
+        assert calculate_passive_voice_percentage(text) == 50.0
 
     def test_extract_acronyms(self):
         """Test acronym extraction."""
@@ -322,6 +331,11 @@ class TestTextUtils:
         # Technical terms
         assert count_syllables("API") == 3
         assert count_syllables("GUI") == 2
+
+    def test_count_syllables_numbers_with_punctuation(self):
+        """Digits with commas or decimals should count each digit."""
+        assert count_syllables("1,234") == 4
+        assert count_syllables("123.45") == 5
 
     def test_normalize_heading_edge_cases(self):
         """Test heading normalization with edge cases."""
