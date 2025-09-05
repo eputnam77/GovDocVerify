@@ -210,7 +210,7 @@ def count_words(text: str) -> int:
     STOPWORDS = {"to", "or"}
     # Use an explicit character class that excludes underscores to split tokens
     # like ``snake_case`` into separate words.
-    word_pattern = r"\b(?:-?\d+(?:\.\d+)?|[A-Za-z0-9]+(?:['-][A-Za-z0-9]+)*)\b"
+    word_pattern = r"\b(?:-?\d{1,3}(?:,\d{3})*(?:\.\d+)?|[A-Za-z0-9]+(?:['-][A-Za-z0-9]+)*)\b"
 
     if email_count == 0:
         words = [
@@ -264,9 +264,10 @@ def count_syllables(word: str) -> int:
     if not word:
         logger.debug("count_syllables: empty input -> 0")
         return 0
-    if word.isdigit():
-        logger.debug(f"count_syllables: digits '{word}' -> {len(word)}")
-        return len(word)
+    if any(ch.isdigit() for ch in word) and re.fullmatch(r"[\d,\.]+", word):
+        digits = re.sub(r"\D", "", word)
+        logger.debug(f"count_syllables: digits '{word}' -> {len(digits)}")
+        return len(digits)
     # Special-case known acronyms with non-standard syllable counts
     acronym_special = {"GUI": 2}
     if len(word) <= 3 and word.isupper():
@@ -389,6 +390,7 @@ def calculate_passive_voice_percentage(text: str) -> float:
     passive_patterns = [
         r"\b(?:am|is|are|was|were|be|been|being)\s+\w+(?:ed|en|wn)\s+by\b",
         r"\b(?:has|have|had)\s+been\s+\w+(?:ed|en|wn)\b",
+        r"\b(?:am|is|are|was|were|be|been|being)\s+\w{4,}(?:ed|en|wn)\b",
     ]
     passive_regex = re.compile("|".join(passive_patterns), re.IGNORECASE)
     passive_count = sum(1 for sentence in sentences if passive_regex.search(sentence))
