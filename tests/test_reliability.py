@@ -20,7 +20,7 @@ def test_retry_transient_failures(monkeypatch: pytest.MonkeyPatch) -> None:
 
     attempts = {"count": 0}
 
-    def flaky_get(url: str) -> httpx.Response:
+    def flaky_get(url: str, **_: object) -> httpx.Response:
         attempts["count"] += 1
         raise httpx.RequestError("boom", request=httpx.Request("GET", url))
 
@@ -93,7 +93,7 @@ def test_graceful_shutdown_under_load(tmp_path: Path) -> None:
 
     async def _hammer() -> list[httpx.Response]:
         async with httpx.AsyncClient() as client:
-            tasks = [client.get(f"{base_url}/slow") for _ in range(5)]
+            tasks = [asyncio.create_task(client.get(f"{base_url}/slow")) for _ in range(5)]
             await asyncio.sleep(0.1)
             os.kill(proc.pid, signal.SIGTERM)
             return await asyncio.gather(*tasks)
