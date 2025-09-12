@@ -215,10 +215,10 @@ def validate_source(path: str) -> None:
         return
     _validate_extension(ext)
 
-    if parsed.scheme and parsed.scheme not in {"http", "https"}:
+    if parsed.scheme and parsed.netloc and parsed.scheme not in {"http", "https"}:
         raise SecurityError(f"Unsupported URL scheme: {parsed.scheme}")
 
-    if parsed.scheme in {"http", "https"}:
+    if parsed.scheme in {"http", "https"} and parsed.netloc:
         domain = parsed.hostname or ""
         if not _is_allowed_domain(domain):
             raise SecurityError(f"Non-government source domain: {domain}")

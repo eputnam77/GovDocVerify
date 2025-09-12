@@ -150,8 +150,18 @@ def _find_sentence_boundary(text: str, start_pos: int) -> int:
 
 
 def _is_sentence_end(text: str, punct_pos: int, boundary_pos: int) -> bool:
-    """Check if this punctuation marks the end of a sentence."""
-    return boundary_pos >= len(text) or text[boundary_pos].isupper() or text[boundary_pos].isdigit()
+    """Check if this punctuation marks the end of a sentence.
+
+    A newline immediately after the punctuation should terminate the sentence
+    even if the following word starts with a lowercase letter.
+    """
+    intervening = text[punct_pos + 1 : boundary_pos]
+    return (
+        boundary_pos >= len(text)
+        or text[boundary_pos].isupper()
+        or text[boundary_pos].isdigit()
+        or "\n" in intervening
+    )
 
 
 def _should_split_sentence(text: str, context: SentenceContext, logger: logging.Logger) -> bool:
