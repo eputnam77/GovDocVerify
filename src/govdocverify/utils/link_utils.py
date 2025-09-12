@@ -18,8 +18,9 @@ def find_urls(text: str) -> Iterator[Tuple[str, Tuple[int, int]]]:
     """
 
     _URL_RE = re.compile(
-        r"(?P<url>(?:https?://)?[A-Za-z0-9.-]+\.[A-Za-z]{2,}(?::\d+)?"
-        r"(?:/[^\s]*)?(?:\?[^\s]*)?(?:#[^\s]*)?)",
+        r"(?P<url>(?:https?://)?"
+        r"(?:(?:[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)+)|localhost|\d{1,3}(?:\.\d{1,3}){3})"
+        r"(?::\d+)?(?:/[^\s]*)?(?:\?[^\s]*)?(?:#[^\s]*)?)",
         re.IGNORECASE,
     )
 

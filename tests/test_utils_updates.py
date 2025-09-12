@@ -111,6 +111,13 @@ def test_find_urls_handles_parentheses_in_url() -> None:
     assert urls == ["https://example.gov/path_(test)"]
 
 
+def test_find_urls_handles_local_addresses() -> None:
+    text = "Local http://localhost/test and http://127.0.0.1/test should both be found"
+    urls = [u for u, _ in find_urls(text)]
+    assert "http://localhost/test" in urls
+    assert "http://127.0.0.1/test" in urls
+
+
 def test_retry_transient_respects_zero_values(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("GOVDOCVERIFY_MAX_RETRIES", "5")
     calls = {"count": 0}

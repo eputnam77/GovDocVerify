@@ -1,8 +1,10 @@
+import time
 from pathlib import Path
 
 import pytest
 
 from govdocverify.utils.security import (
+    RateLimiter,
     SecurityError,
     sanitize_file_path,
     validate_source,
@@ -39,6 +41,15 @@ def test_sanitize_handles_relative_paths(tmp_path: Path) -> None:
     assert Path(sanitize_file_path(str(rel_path), base_dir=str(base))) == abs_path
 
 
+def test_sanitize_handles_nonexistent_paths(tmp_path: Path) -> None:
+    base = tmp_path / "base"
+    base.mkdir()
+    missing = base / "missing.docx"
+    # Should not raise even though the target doesn't exist
+    result = sanitize_file_path(str(missing), base_dir=str(base))
+    assert Path(result) == missing.resolve()
+
+
 @pytest.mark.parametrize("path", ["file.doc", "file.pdf", "file.rtf"])
 def test_validate_source_rejects_legacy_formats(path: str) -> None:
     with pytest.raises(SecurityError, match="Legacy file format"):
@@ -68,3 +79,10 @@ def test_validate_source_rejects_unsupported_scheme() -> None:
 def test_validate_source_accepts_windows_paths() -> None:
     """Windows-style absolute paths should be treated as local files."""
     validate_source("C:\\gov\\docs\\file.docx")
+
+
+def test_rate_limiter_prunes_stale_clients() -> None:
+    limiter = RateLimiter(max_requests=1, time_window=1)
+    limiter.requests["old"] = [time.time() - 2]
+    limiter.is_rate_limited("new")
+    assert "old" not in limiter.requests

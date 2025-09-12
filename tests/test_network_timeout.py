@@ -1,3 +1,6 @@
+import importlib
+import sys
+
 from govdocverify.utils import network
 
 
@@ -15,3 +18,10 @@ def test_fetch_url_uses_timeout(monkeypatch):
     monkeypatch.setattr(network.httpx, 'get', fake_get)
     assert network.fetch_url('http://example.com') == 'ok'
     assert called['timeout'] == network.DEFAULT_TIMEOUT
+
+
+def test_invalid_timeout_env_uses_default(monkeypatch):
+    monkeypatch.setenv("GOVDOCVERIFY_HTTP_TIMEOUT", "invalid")
+    sys.modules.pop("govdocverify.utils.network", None)
+    module = importlib.import_module("govdocverify.utils.network")
+    assert module.DEFAULT_TIMEOUT == 5.0
