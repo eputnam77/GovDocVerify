@@ -81,6 +81,11 @@ def test_validate_source_accepts_windows_paths() -> None:
     validate_source("C:\\gov\\docs\\file.docx")
 
 
+def test_validate_source_allows_scheme_less_domain() -> None:
+    """Bare domains without an explicit scheme should be treated as paths."""
+    validate_source("agency.gov/file.docx")
+
+
 def test_rate_limiter_prunes_stale_clients() -> None:
     limiter = RateLimiter(max_requests=1, time_window=1)
     limiter.requests["old"] = [time.time() - 2]

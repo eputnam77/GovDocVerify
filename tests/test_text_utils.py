@@ -46,6 +46,11 @@ class TestTextUtils:
         text = "First sentence.) Second one."
         assert split_sentences(text) == ["First sentence.", "Second one."]
 
+    def test_split_sentences_newline_after_punctuation(self):
+        """A newline after sentence-ending punctuation should split sentences."""
+        text = "First line.\nnext line."
+        assert split_sentences(text) == ["First line.", "next line."]
+
     def test_split_sentences_abbreviations(self):
         """Test sentence splitting with abbreviations."""
         # Common abbreviations

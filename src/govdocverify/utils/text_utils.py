@@ -139,16 +139,29 @@ def _should_skip_multi_period_sequence(text: str, context: SentenceContext) -> b
 def _find_sentence_boundary(text: str, start_pos: int) -> int:
     """Find the potential sentence boundary after punctuation."""
     j = start_pos + 1
-    # Skip whitespace, quotes and various closing brackets that may appear
-    # immediately after sentence punctuation (e.g. "Hello world.) Next").
+    # Skip over common closing characters following punctuation like quotes
+    # or brackets.  Previously only whitespace and quotes were handled which
+    # meant patterns such as ``"Hello world.) Next"`` were treated as a single
+    # sentence.  The additional characters ensure we advance past closing
+    # punctuation before inspecting the next token.
     while j < len(text) and text[j] in " \n\r\t'\"()[]{}":
         j += 1
     return j
 
 
 def _is_sentence_end(text: str, punct_pos: int, boundary_pos: int) -> bool:
-    """Check if this punctuation marks the end of a sentence."""
-    return boundary_pos >= len(text) or text[boundary_pos].isupper() or text[boundary_pos].isdigit()
+    """Check if this punctuation marks the end of a sentence.
+
+    A newline immediately after the punctuation should also terminate the
+    sentence even if the following word starts with a lowercase letter.
+    """
+    intervening = text[punct_pos + 1 : boundary_pos]
+    return (
+        boundary_pos >= len(text)
+        or text[boundary_pos].isupper()
+        or text[boundary_pos].isdigit()
+        or "\n" in intervening
+    )
 
 
 def _should_split_sentence(text: str, context: SentenceContext, logger: logging.Logger) -> bool:
@@ -207,25 +220,20 @@ def count_words(text: str) -> int:
     email_pattern = r"[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}"
     emails = list(re.finditer(email_pattern, text))
     email_count = len(emails)
-    STOPWORDS = {"to", "or"}
     # Use an explicit character class that excludes underscores to split tokens
     # like ``snake_case`` into separate words.
     word_pattern = r"\b(?:-?\d{1,3}(?:,\d{3})*(?:\.\d+)?|[A-Za-z0-9]+(?:['-][A-Za-z0-9]+)*)\b"
 
     if email_count == 0:
-        words = [
-            w
-            for w in re.findall(word_pattern, text)
-            if re.search(r"[a-zA-Z0-9]", w) and w.lower() not in STOPWORDS
-        ]
-        logger.debug(f"count_words: input='{text}' emails=0 words={words} total={len(words)}")
+        words = [w for w in re.findall(word_pattern, text) if re.search(r"[a-zA-Z0-9]", w)]
+        logger.debug(
+            f"count_words: input='{text}' emails=0 words={words} total={len(words)}"
+        )
         return len(words)
-    # Strip e‑mails, count remaining words on both sides, but drop tiny stop‑words
+    # Strip e‑mails and count remaining words.
     text_wo_emails = re.sub(email_pattern, " ", text)
     words = [
-        w
-        for w in re.findall(word_pattern, text_wo_emails)
-        if re.search(r"[a-zA-Z0-9]", w) and w.lower() not in STOPWORDS
+        w for w in re.findall(word_pattern, text_wo_emails) if re.search(r"[a-zA-Z0-9]", w)
     ]
     logger.debug(
         f"count_words: input='{text}', "
