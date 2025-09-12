@@ -7,7 +7,10 @@ import httpx
 
 from govdocverify.utils.decorators import retry_transient
 
-DEFAULT_TIMEOUT = float(os.getenv("GOVDOCVERIFY_HTTP_TIMEOUT", "5"))
+try:
+    DEFAULT_TIMEOUT = float(os.getenv("GOVDOCVERIFY_HTTP_TIMEOUT", "5"))
+except ValueError:
+    DEFAULT_TIMEOUT = 5.0
 
 
 @retry_transient()

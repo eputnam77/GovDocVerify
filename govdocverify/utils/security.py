@@ -109,17 +109,15 @@ class RateLimiter:
         """Check if a client has exceeded the rate limit."""
         current_time = time.time()
 
-        # Clean up old requests
-        if client_id in self.requests:
-            self.requests[client_id] = [
-                t for t in self.requests[client_id] if current_time - t < self.time_window
-            ]
+        cutoff = current_time - self.time_window
+        # Clean up old requests for all clients to prevent unbounded growth
+        for cid, times in list(self.requests.items()):
+            self.requests[cid] = [t for t in times if t > cutoff]
+            if not self.requests[cid]:
+                del self.requests[cid]
 
-        # Add new request
-        if client_id not in self.requests:
-            self.requests[client_id] = []
-
-        self.requests[client_id].append(current_time)
+        # Add new request for this client
+        self.requests.setdefault(client_id, []).append(current_time)
 
         # Check if rate limit exceeded
         if len(self.requests[client_id]) > self.max_requests:
