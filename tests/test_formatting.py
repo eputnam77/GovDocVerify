@@ -90,6 +90,25 @@ class TestFormattingChecks:
         ]
         assert warnings == [4]
 
+    def test_missing_space_in_regulatory_references(self):
+        """VR-02: missing spaces in references should be detected."""
+        lines = ["Refer to AC25.1309 for details", "Proper AC 25.1309 usage"]
+        checker = FormattingChecker()
+        result = checker.check_spacing(lines)
+        assert {issue["line_number"] for issue in result.issues} == {1}
+        assert any("ac" in issue["message"].lower() for issue in result.issues)
+
+    def test_reference_formatting_only_flags_incorrect_cases(self):
+        """VR-07: only lowercase references are flagged."""
+        content = [
+            "See Section 1 for details.",
+            "refer to section 2 for more.",
+            "Refer to Section 3 for context.",
+        ]
+        result = self.format_checks.check(content)
+        warnings = [w for w in result["warnings"] if "reference format" in w["message"].lower()]
+        assert {w["line_number"] for w in warnings} == {2}
+
     def test_list_formatting(self):
         content = [
             "The following items are required:",
@@ -136,9 +155,12 @@ class TestFormattingChecks:
         ]
         result = self.format_checks.check(content)
         assert not result["has_errors"]
-        assert any(
-            "inconsistent reference" in issue["message"].lower() for issue in result["warnings"]
-        )
+        warnings = [
+            w["line_number"]
+            for w in result["warnings"]
+            if "reference format" in w["message"].lower()
+        ]
+        assert warnings == [1, 2]
 
     def test_figure_formatting(self):
         content = [

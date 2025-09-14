@@ -93,6 +93,12 @@ def test_find_urls_strips_closing_brackets() -> None:
     assert urls == ["https://example.gov/test", "https://example.gov/again"]
 
 
+def test_find_urls_strips_opening_brackets() -> None:
+    text = "See https://example.gov/test( for details"
+    urls = [u for u, _ in find_urls(text)]
+    assert urls == ["https://example.gov/test"]
+
+
 def test_find_urls_preserves_uppercase_scheme() -> None:
     text = "Visit HTTPS://Example.gov/ for info"
     urls = [u for u, _ in find_urls(text)]

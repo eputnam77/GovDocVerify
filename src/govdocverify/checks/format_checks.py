@@ -446,12 +446,14 @@ class FormatChecks(BaseChecker):
     def _check_reference_formatting(self, content: List[str]) -> List[Dict]:
         """Check reference formatting."""
         warnings = []
-        reference_pattern = (
-            r"(?i)(see|refer to|under)\s+(section|paragraph|subsection)\s+\d+(\.\d+)*"
+        pattern = re.compile(
+            r"(see|refer to|under)\s+(section|paragraph|subsection)\s+\d+(?:\.\d+)*",
+            re.IGNORECASE,
         )
 
         for i, line in enumerate(content, 1):
-            if re.search(reference_pattern, line):
+            m = pattern.search(line)
+            if m and (m.group(1).islower() or m.group(2).islower()):
                 warnings.append(
                     {
                         "line_number": i,
@@ -469,7 +471,8 @@ class FormattingChecker(BaseChecker):
     # ── spacing helpers ──────────────────────────────────────────────────────
     _DOUBLE_SPACE_RE = re.compile(r" {2,}")
     _MISSING_SPACE_REF_RE = re.compile(
-        r"(?<!\s)(?P<prefix>(AC|AD|CFR|FAA|N|SFAR|Part))" r"(?P<number>\d+(?:[-]\d+)?[A-Z]?)"
+        r"\b(?P<prefix>(AC|AD|CFR|FAA|N|SFAR|Part))"
+        r"(?P<number>\d+(?:[-.]\d+)*(?:[A-Z])?)"
     )
 
     def check_text(self, content: str) -> DocumentCheckResult:
