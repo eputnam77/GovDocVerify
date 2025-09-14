@@ -27,6 +27,7 @@ def find_urls(text: str) -> Iterator[Tuple[str, Tuple[int, int]]]:
     def _strip_trailing(url: str) -> str:
         punctuation = ".,;:!?"  # characters always stripped
         brackets = {")": "(", "]": "[", "}": "{", "'": "'", '"': '"'}
+        openers = set(brackets.values())
 
         while url:
             last = url[-1]
@@ -47,6 +48,9 @@ def find_urls(text: str) -> Iterator[Tuple[str, Tuple[int, int]]]:
                 if url.count(last) > url.count(opener):
                     url = url[:-1]
                     continue
+            if last in openers:
+                url = url[:-1]
+                continue
             break
         return url
 
