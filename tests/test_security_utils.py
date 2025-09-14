@@ -91,3 +91,10 @@ def test_rate_limiter_prunes_stale_clients() -> None:
     limiter.requests["old"] = [time.time() - 2]
     limiter.is_rate_limited("new")
     assert "old" not in limiter.requests
+
+
+def test_rate_limiter_zero_disables() -> None:
+    """A max_requests value of 0 should disable limiting."""
+    limiter = RateLimiter(max_requests=0, time_window=1)
+    assert not limiter.is_rate_limited("a")
+    assert not limiter.is_rate_limited("a")
