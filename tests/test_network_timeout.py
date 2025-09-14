@@ -25,3 +25,11 @@ def test_invalid_timeout_env_uses_default(monkeypatch):
     sys.modules.pop("govdocverify.utils.network", None)
     module = importlib.import_module("govdocverify.utils.network")
     assert module.DEFAULT_TIMEOUT == 5.0
+
+
+def test_negative_timeout_env_uses_default(monkeypatch):
+    """Negative timeout values should fall back to the default."""
+    monkeypatch.setenv("GOVDOCVERIFY_HTTP_TIMEOUT", "-10")
+    sys.modules.pop("govdocverify.utils.network", None)
+    module = importlib.import_module("govdocverify.utils.network")
+    assert module.DEFAULT_TIMEOUT == 5.0

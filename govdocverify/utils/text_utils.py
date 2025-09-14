@@ -215,29 +215,26 @@ def count_words(text: str) -> int:
     if not text:
         logger.debug("count_words: empty input -> 0")
         return 0
-    # Treat underscores as spaces so ``snake_case`` counts as two words.
-    text = text.replace("_", " ")
     email_pattern = r"[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}"
     emails = list(re.finditer(email_pattern, text))
     email_count = len(emails)
+
+    # Remove e‑mail addresses before normalising underscores so addresses like
+    # ``first_last@example.com`` remain intact and are counted once.
+    text_wo_emails = re.sub(email_pattern, " ", text)
+    text_normalised = text_wo_emails.replace("_", " ")
+
     word_pattern = r"\b(?:-?\d{1,3}(?:,\d{3})*(?:\.\d+)?|[A-Za-z0-9]+(?:['-][A-Za-z0-9]+)*)\b"
 
-    if email_count == 0:
-        words = [w for w in re.findall(word_pattern, text) if re.search(r"[a-zA-Z0-9]", w)]
-        logger.debug(
-            f"count_words: input='{text}' emails=0 words={words} total={len(words)}"
-        )
-        return len(words)
-
-    text_wo_emails = re.sub(email_pattern, " ", text)
     words = [
-        w for w in re.findall(word_pattern, text_wo_emails) if re.search(r"[a-zA-Z0-9]", w)
+        w for w in re.findall(word_pattern, text_normalised) if re.search(r"[a-zA-Z0-9]", w)
     ]
     logger.debug(
-        f"count_words: input='{text}', "
-        f"emails found={[m.group(0) for m in emails]}, "
-        f"words without emails={words}, "
-        f"total count={email_count + len(words)}"
+        "count_words: input='%s', emails found=%s, words without emails=%s, total=%d",
+        text,
+        [m.group(0) for m in emails],
+        words,
+        email_count + len(words),
     )
     return email_count + len(words)
 
@@ -339,8 +336,12 @@ def split_into_sentences(text: str) -> List[str]:
     return [s.strip() for s in sentences if s.strip()]
 
 
-def normalize_document_type(doc_type: str) -> str:
-    """Normalize document type string."""
+def normalize_document_type(doc_type: str | None) -> str:
+    """Normalize document type string.
+
+    ``None`` or empty inputs return an empty string instead of raising."""
+    if not doc_type:
+        return ""
     cleaned = doc_type.replace("_", " ").replace("-", " ")
     return " ".join(word.capitalize() for word in cleaned.lower().split())
 

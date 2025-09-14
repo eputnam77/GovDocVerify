@@ -9,6 +9,8 @@ from govdocverify.utils.decorators import retry_transient
 
 try:
     DEFAULT_TIMEOUT = float(os.getenv("GOVDOCVERIFY_HTTP_TIMEOUT", "5"))
+    if DEFAULT_TIMEOUT <= 0:
+        raise ValueError
 except ValueError:
     DEFAULT_TIMEOUT = 5.0
 

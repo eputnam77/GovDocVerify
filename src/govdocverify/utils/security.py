@@ -115,6 +115,11 @@ class RateLimiter:
             if not self.requests[cid]:
                 del self.requests[cid]
 
+        # A ``max_requests`` value of 0 or less disables rate limiting while still
+        # performing the cleanup above.
+        if self.max_requests <= 0:
+            return False
+
         # Add new request for this client
         self.requests.setdefault(client_id, []).append(current_time)
 

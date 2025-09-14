@@ -111,6 +111,12 @@ class TestTextUtils:
         assert count_words("snake_case") == 2
         assert count_words("mixed_snake_case example") == 4
 
+    def test_count_words_email_with_underscore(self):
+        """Emails containing underscores should count as a single word."""
+        text = "Contact first_last@example.com for info"
+        # Expected words: Contact, first_last@example.com, for, info -> 4
+        assert count_words(text) == 4
+
     def test_count_words_includes_common_stopwords(self):
         """Previously excluded words like 'to' and 'or' should be counted."""
         assert count_words("to be or not to be") == 6
@@ -132,6 +138,10 @@ class TestTextUtils:
         """Underscores should be treated as word separators."""
         assert normalize_reference("Example_With_Underscores") == "example with underscores"
         assert normalize_reference("Test/Reference\\Path") == "test reference path"
+
+    def test_normalize_document_type_none(self):
+        """None input should produce empty string instead of raising."""
+        assert normalize_document_type(None) == ""
 
     def test_count_syllables(self):
         """Test syllable counting."""
