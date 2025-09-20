@@ -101,6 +101,18 @@ def test_format_results_unknown_group():
     assert "Internal error" in text
 
 
+def test_format_results_includes_checker_name_labels():
+    """Checker names should appear in category output instead of 'General'."""
+    result = DocumentCheckResult(success=False, checker_name="heading_checks")
+    result.add_issue("Heading issue", Severity.ERROR)
+    data = {"headings": {"heading_checks": result}}
+
+    fmt = ResultFormatter(style=FormatStyle.PLAIN)
+    text = fmt.format_results(data, "AC")
+
+    assert "Heading Checks" in text
+
+
 def test_format_results_with_metadata():
     result = _make_result()
     data = {"x": {"y": result}}
