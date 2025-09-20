@@ -143,6 +143,11 @@ class TestTextUtils:
         """None input should produce empty string instead of raising."""
         assert normalize_document_type(None) == ""
 
+    def test_normalize_document_type_preserves_acronyms(self):
+        """Uppercase acronyms should remain uppercase when normalised."""
+        assert normalize_document_type("FAA ORDER") == "FAA Order"
+        assert normalize_document_type("NASA memorandum") == "NASA Memorandum"
+
     def test_count_syllables(self):
         """Test syllable counting."""
         # Basic words
@@ -217,6 +222,11 @@ class TestTextUtils:
     def test_calculate_passive_voice_percentage_without_by(self):
         """Sentences in passive voice without an explicit agent are detected."""
         text = "The report was completed. The team reviewed it."
+        assert calculate_passive_voice_percentage(text) == 50.0
+
+    def test_calculate_passive_voice_percentage_handles_common_participles(self):
+        """Past participles like 'done' should register as passive voice."""
+        text = "The work was done. The team celebrated."
         assert calculate_passive_voice_percentage(text) == 50.0
 
     def test_extract_acronyms(self):

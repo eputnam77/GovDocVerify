@@ -166,6 +166,18 @@ class ResultFormatter:
         # Fallback for other issue formats
         return f"    • {str(issue)}"
 
+    def _resolve_check_name(self, result: Any) -> str:
+        """Return a friendly check name for display purposes."""
+        if hasattr(result, "checker_name") and getattr(result, "checker_name"):
+            return str(getattr(result, "checker_name"))
+        if hasattr(result, "check_name") and getattr(result, "check_name"):
+            return str(getattr(result, "check_name"))
+        if isinstance(result, dict):
+            name = result.get("checker_name") or result.get("check_name")
+            if name:
+                return str(name)
+        return "General"
+
     def _format_accessibility_issues(self, result: DocumentCheckResult) -> List[str]:
         """Format accessibility-specific issues."""
         formatted_issues = []
@@ -400,7 +412,7 @@ class ResultFormatter:
             for result, issues in category_data:
                 for issue in issues:
                     message = issue.get("message") or issue.get("error", str(issue))
-                    check_name = getattr(result, "check_name", "General")
+                    check_name = self._resolve_check_name(result)
                     span_style = "color: #721c24; font-weight: bold;"
                     check_display = check_name.replace("_", " ").title()
                     li_content = (
@@ -424,7 +436,7 @@ class ResultFormatter:
             for result, issues in category_data:
                 for issue in issues:
                     message = issue.get("message") or issue.get("error", str(issue))
-                    check_name = getattr(result, "check_name", "General")
+                    check_name = self._resolve_check_name(result)
                     check_label = self._format_colored_text(
                         f"[{check_name.replace('_', ' ').title()}]", Fore.RED
                     )

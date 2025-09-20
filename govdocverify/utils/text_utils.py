@@ -16,6 +16,20 @@ class SentenceContext(TypedDict):
     text: str
 
 
+_KNOWN_ACRONYMS: Set[str] | None = None
+
+
+def _get_known_acronyms() -> Set[str]:
+    """Return cached set of standard and custom acronyms."""
+    global _KNOWN_ACRONYMS
+    if _KNOWN_ACRONYMS is None:
+        manager = TerminologyManager()
+        acronyms = set(manager.get_standard_acronyms().keys())
+        acronyms.update(manager.get_custom_acronyms().keys())
+        _KNOWN_ACRONYMS = acronyms
+    return _KNOWN_ACRONYMS
+
+
 def split_sentences(text: str) -> List[str]:
     """
     Split text into sentences while handling common abbreviations,
@@ -342,8 +356,17 @@ def normalize_document_type(doc_type: str | None) -> str:
     ``None`` or empty inputs return an empty string instead of raising."""
     if not doc_type:
         return ""
-    cleaned = doc_type.replace("_", " ").replace("-", " ")
-    return " ".join(word.capitalize() for word in cleaned.lower().split())
+    tokens = re.split(r"[\s_-]+", doc_type.strip())
+    known_acronyms = _get_known_acronyms()
+    words: List[str] = []
+    for token in tokens:
+        if not token:
+            continue
+        if token.isupper() and (len(token) <= 3 or token in known_acronyms):
+            words.append(token)
+        else:
+            words.append(token.lower().capitalize())
+    return " ".join(words)
 
 
 def calculate_readability_metrics(
@@ -395,9 +418,9 @@ def calculate_passive_voice_percentage(text: str) -> float:
         return 0.0
 
     passive_patterns = [
-        r"\b(?:am|is|are|was|were|be|been|being)\s+\w+(?:ed|en|wn)\s+by\b",
-        r"\b(?:has|have|had)\s+been\s+\w+(?:ed|en|wn)\b",
-        r"\b(?:am|is|are|was|were|be|been|being)\s+\w{4,}(?:ed|en|wn)\b",
+        r"\b(?:am|is|are|was|were|be|been|being)\s+(?=\w{4,}\b)\w*(?:ed|en|wn|ne)\s+by\b",
+        r"\b(?:has|have|had)\s+been\s+(?=\w{4,}\b)\w*(?:ed|en|wn|ne)\b",
+        r"\b(?:am|is|are|was|were|be|been|being)\s+(?=\w{4,}\b)\w*(?:ed|en|wn|ne)\b",
     ]
     passive_regex = re.compile("|".join(passive_patterns), re.IGNORECASE)
     passive_count = sum(1 for sentence in sentences if passive_regex.search(sentence))
