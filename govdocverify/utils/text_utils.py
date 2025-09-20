@@ -356,16 +356,28 @@ def normalize_document_type(doc_type: str | None) -> str:
     ``None`` or empty inputs return an empty string instead of raising."""
     if not doc_type:
         return ""
-    tokens = re.split(r"[\s_-]+", doc_type.strip())
+    cleaned = re.sub(r"[\\/]+", " ", doc_type.strip())
+    tokens = re.split(r"[\s_-]+", cleaned)
     known_acronyms = _get_known_acronyms()
     words: List[str] = []
     for token in tokens:
         if not token:
             continue
-        if token.isupper() and (len(token) <= 3 or token in known_acronyms):
-            words.append(token)
-        else:
-            words.append(token.lower().capitalize())
+        parts = [token]
+        if "." in token:
+            dotted_acronym = re.fullmatch(r"[A-Za-z](?:\.[A-Za-z]+)+\.?", token)
+            numeric_sequence = re.fullmatch(r"\d+(?:\.\d+)+", token)
+            if not dotted_acronym and not numeric_sequence:
+                parts = [p for p in token.split(".") if p]
+        for part in parts:
+            if not part:
+                continue
+            if part.isupper():
+                vowel_count = sum(1 for ch in part if ch in "AEIOU")
+                if len(part) <= 3 or part in known_acronyms or vowel_count <= 1:
+                    words.append(part)
+                    continue
+            words.append(part.lower().capitalize())
     return " ".join(words)
 
 

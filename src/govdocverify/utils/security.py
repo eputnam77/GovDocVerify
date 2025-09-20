@@ -189,6 +189,7 @@ def _is_allowed_domain(domain: str) -> bool:
 def validate_source(path: str) -> None:
     """Validate that ``path`` is from an approved domain and format."""
 
+    path = path.strip()
     lowered = path.lower()
 
     # Separate any URL components before extracting the extension.  The
@@ -197,6 +198,11 @@ def validate_source(path: str) -> None:
     # (e.g. ``".docx?download=1"``) and valid URLs were rejected.
     parsed = urlparse(lowered)
     _, ext = os.path.splitext(parsed.path)
+    ext = ext.strip()
+    normalized_ext = ext.lower()
+
+    allowed_exts = {value.lower() for value in ALLOWED_FILE_EXTENSIONS}
+    legacy_exts = {value.lower() for value in LEGACY_FILE_EXTENSIONS}
 
     # Permit bare local paths without extension or URL components.  All other
     # forms must include an extension for validation.
@@ -204,9 +210,9 @@ def validate_source(path: str) -> None:
         return
     if not ext:
         raise SecurityError("Missing file extension")
-    if ext in LEGACY_FILE_EXTENSIONS:
+    if normalized_ext in legacy_exts:
         raise SecurityError(f"Legacy file format: {ext}")
-    if ext not in ALLOWED_FILE_EXTENSIONS:
+    if normalized_ext not in allowed_exts:
         raise SecurityError(f"Disallowed file format: {ext}")
 
     if parsed.scheme and parsed.netloc and parsed.scheme not in {"http", "https"}:

@@ -20,6 +20,16 @@ def test_extract_docx_metadata(tmp_path: Path) -> None:
     assert meta["last_modified_by"] == "Bob"
 
 
+def test_extract_docx_metadata_ignores_surrounding_whitespace(tmp_path: Path) -> None:
+    doc = Document()
+    doc.core_properties.title = "Whitespace"
+    file_path = tmp_path / "meta.docx"
+    doc.save(file_path)
+
+    meta = extract_docx_metadata(f"  {file_path}  ")
+    assert meta["title"] == "Whitespace"
+
+
 def test_extract_docx_metadata_created_modified(tmp_path: Path) -> None:
     """Verify `created` and `modified` metadata are extracted."""
     doc = Document()

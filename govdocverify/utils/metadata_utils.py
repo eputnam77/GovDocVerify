@@ -20,6 +20,8 @@ def extract_docx_metadata(file_path: str) -> Dict[str, Any]:
         Dictionary containing metadata fields such as title, author, and
         last modified by. Empty values are omitted.
     """
+    file_path = file_path.strip()
+
     if not file_path.lower().endswith(".docx"):
         return {}
     try:
