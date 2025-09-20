@@ -382,6 +382,11 @@ class TestTextUtils:
         assert normalize_document_type("policy-statement") == "Policy Statement"
         assert normalize_document_type("policy_statement") == "Policy Statement"
 
+    def test_normalize_document_type_with_embedded_punctuation(self):
+        """Embedded punctuation should behave like separators."""
+        assert normalize_document_type("policy.statement") == "Policy Statement"
+        assert normalize_document_type("FAA/ASTM standard") == "FAA ASTM Standard"
+
     def test_calculate_readability_metrics(self):
         metrics = calculate_readability_metrics(100, 10, 150)
         assert "flesch_reading_ease" in metrics

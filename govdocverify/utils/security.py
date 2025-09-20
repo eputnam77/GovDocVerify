@@ -187,17 +187,22 @@ def _is_allowed_domain(domain: str) -> bool:
 
 def _validate_extension(ext: str) -> None:
     """Validate a file extension against allowed and legacy lists."""
+    ext = ext.strip()
     if not ext:
         raise SecurityError("Missing file extension")
-    if ext in LEGACY_FILE_EXTENSIONS:
+    normalized = ext.lower()
+    allowed_exts = {value.lower() for value in ALLOWED_FILE_EXTENSIONS}
+    legacy_exts = {value.lower() for value in LEGACY_FILE_EXTENSIONS}
+    if normalized in legacy_exts:
         raise SecurityError(f"Legacy file format: {ext}")
-    if ext not in ALLOWED_FILE_EXTENSIONS:
+    if normalized not in allowed_exts:
         raise SecurityError(f"Disallowed file format: {ext}")
 
 
 def validate_source(path: str) -> None:
     """Validate that ``path`` is from an approved domain and format."""
 
+    path = path.strip()
     lowered = path.lower()
 
     # Handle Windows drive paths like ``C:\\path\\file.docx`` which ``urlparse``
