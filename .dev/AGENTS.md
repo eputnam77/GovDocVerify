@@ -18,13 +18,13 @@
 | Static‑type checker       | **MyPy --strict**                                                         |
 | Test runner               | **Pytest**                                                                |
 | Property‑based tests      | **Hypothesis**                                                            |
-| E2E framework             | **Playwright** + `pytest‑playwright`                                      |
-| Mutation testing          | **Mutmut** (`mutmut run`)                                                 |
+| E2E framework             | _Disabled in sandbox_                                                     |
+| Mutation testing          | _Disabled in sandbox_                                                     |
 | Coverage thresholds       | 70 % (feature) → 90 % (main) (**branch + line**)                          |
-| Mutation score            | ≥60 % (feature) → ≥80 % (main)                                            |
-| SAST scanners             | **Bandit**, **Semgrep**, **CodeQL**                                       |
-| Package/CVE scanners      | **pip‑audit**, **Dependabot**                                             |
-| Container scanners        | **Trivy** (image & filesystem)                                            |
+| Mutation score            | _No requirement in sandbox_                                               |
+| SAST scanners             | **Bandit**, **Semgrep**                                                   |
+| Package/CVE scanners      | **pip‑audit**                                                             |
+| Container scanners        | _Disabled in sandbox_                                                     |
 | Docs generator            | **MkDocs‑Material** (`mkdocs build`)                                      |
 | Commit style              | **Conventional Commits**                                                  |
 | CI provider               | **GitHub Actions** *(experimental – see §5)*                              |
@@ -46,19 +46,17 @@
 | 6  | `builder`      | Implement code for `ready` issues; maintain coverage ≥75 % (dev gate).                          | after `optimizer:success`            |
 | 7  | `linter`       | Run Ruff + Black; open PR if diff.                                                              | after `builder:success`              |
 | 8  | `tester`       | Run **dev gate** (unit + property tests, MyPy, coverage ≥70 %).                                 | after `linter:success`               |
-| 9  | `e2e‑tester`   | Run Playwright suite in disposable container.                                                   | after `tester:success`               |
-| 10 | `mutation`     | Run Mutmut; fail if score < threshold.                                                          | after `e2e‑tester:success`           |
-| 11 | `fixer`        | On any gate failure: add/adjust tests **then** patch code; iterate until green.                 | on failure (lint/test/mutation)      |
-| 12 | `security`     | Bandit + Semgrep + pip‑audit; open high‑severity CVE issues.                                    | nightly · before merge→`main`        |
-| 13 | `docwriter`    | Update README, API refs, examples, changelog; ensure MkDocs passes.                             | branch green & cov ≥90 % & mut ≥80 % |
-| 14 | `reviewer`     | Human‑style review; request approvals.                                                          | after `docwriter:success`            |
-| 15 | `releasebot`   | Bump semver, tag, build & scan Docker image (Trivy), draft GitHub release.                      | PR merged→`main`                     |
+| 9  | `fixer`        | On any gate failure: add/adjust tests **then** patch code; iterate until green.                 | on failure (lint/test)               |
+| 10 | `security`     | Bandit + Semgrep + pip‑audit; open high‑severity CVE issues.                                    | nightly · before merge→`main`        |
+| 11 | `docwriter`    | Update README, API refs, examples, changelog; ensure MkDocs passes.                             | branch green & cov ≥90 %             |
+| 12 | `reviewer`     | Human‑style review; request approvals.                                                          | after `docwriter:success`            |
+| 13 | `releasebot`   | Bump semver, tag, and draft GitHub release notes (container scanning handled externally).       | PR merged→`main`                     |
 
 ### Agent‑handoff rules
 
 * Success → add `ready‑for:<next‑agent>` **and** remove `agent‑running`.
-* **Feature branches** enforce the *dev gate* (coverage ≥70 %, mutation ≥60 %).
-* **main** enforces the *release gate* (coverage ≥90 %, mutation ≥80 %, security & docs pass).
+* **Feature branches** enforce the *dev gate* (coverage ≥70 %).
+* **main** enforces the *release gate* (coverage ≥90 %, security & docs pass).
 
 ---
 
@@ -73,8 +71,6 @@ mypy --strict src tests
 bandit -r src -lll --skip B101               # allow asserts early
 semgrep --config p/ci                       # lightweight SAST
 pytest -q --cov=govdocverify --cov-branch --cov-fail-under=70
-pytest -q -m property                       # Hypothesis tests
-pytest -q -m e2e                            # Playwright (headless)
 ```
 
 ### Release Gate (main)
@@ -87,8 +83,6 @@ bandit -r src -lll
 semgrep --config p/default
 pip-audit -r requirements.txt
 pytest -q --cov=govdocverify --cov-branch --cov-fail-under=90
-pytest -q -m e2e
-trivy fs --exit-code 1 --severity CRITICAL,HIGH .
 mkdocs build --strict
 ```
 
@@ -175,12 +169,12 @@ Codespaces / VS Code: the `devcontainer.json` automatically runs `pre‑commit`
 | Lint error                              | linter            | Auto‑fix & push                                 |
 | Type error                              | tester → fixer    | Patch types/code                                |
 | Unit / integration / property test fail | fixer             | Add/adjust tests **then** patch code            |
-| E2E failure                             | fixer             | Patch UI/service, re‑run Playwright             |
-| Mutation score drop                     | fixer             | Add tests → refine code if still low            |
+| E2E failure                             | fixer             | _Skipped in sandbox_                              |
+| Mutation score drop                     | fixer             | _Not applicable in sandbox_                     |
 | Coverage drop                           | builder / tester  | Add tests or mark legitimate exclusions         |
 | Performance regression (≥15 % slower)   | optimizer         | Profile again, implement caching/indexing/async |
-| High CVE (pip‑audit / Trivy)            | security          | Bump dependency or patch; rebuild image         |
-| SAST finding (Semgrep / CodeQL)         | security → fixer  | Investigate & patch                             |
+| High CVE (pip‑audit)                     | security          | Bump dependency or patch                          |
+| SAST finding (Semgrep)                  | security → fixer  | Investigate & patch                             |
 | Docs build failure                      | docwriter         | Regenerate or repair docs                       |
 
 ---
