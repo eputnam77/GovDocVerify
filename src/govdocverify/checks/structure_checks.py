@@ -1,7 +1,7 @@
 import logging
 import re
 import xml.etree.ElementTree as ET
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Set
 
 from docx import Document
 from docx.document import Document as DocxDocument
@@ -875,6 +875,11 @@ class StructureChecks(BaseChecker):
                 line, line_num, defined_sections, section_lines, result
             )
 
+        appendix_sequence = result.pop("_appendix_sequence", None)
+        result.pop("_appendix_seen_letters", None)
+        if appendix_sequence:
+            result["appendix_sequence"] = appendix_sequence
+
         logger.debug(
             f"Check completed. Has errors: {result['has_errors']}, "
             f"Errors: {len(result['errors'])}, Warnings: {len(result['warnings'])}"
@@ -937,7 +942,6 @@ class StructureChecks(BaseChecker):
             r"(?:Section|§)\s*\d+(?:\([a-z]\))*\s+of\s+the\s+Act(?!\s*,\s*(?:section|paragraph))",
             r"\d+\s*(?:CFR|C\.F\.R\.)(?!\s*part\s*\d+\s*,\s*(?:section|paragraph))",
             r"Public\s+Law\s+\d+[-–]\d+(?!\s*,\s*(?:section|paragraph))",
-            r"(?:see|refer to|under)\s+Appendix\s+[A-Z]",  # Skip appendix references
         ]
 
         should_skip = False
@@ -951,14 +955,53 @@ class StructureChecks(BaseChecker):
             return
 
         # Check for cross-references
-        self._check_section_references_in_line(line, line_num, defined_sections, result)
+        appendix_letters = self._check_appendix_references(line, line_num, result)
+        self._check_section_references_in_line(
+            line, line_num, defined_sections, result, appendix_letters
+        )
         self._check_reference_formatting(line, line_num, result)
         self._check_circular_references(line, line_num, defined_sections, section_lines, result)
         self._check_malformed_references(line, line_num, result)
         self._check_reference_consistency(line, line_num, result)
 
+    def _check_appendix_references(
+        self, line: str, line_num: int, result: Dict[str, Any]
+    ) -> Set[str]:
+        """Track appendix references and flag out-of-order regressions."""
+
+        matches = list(re.finditer(r"\bAppendix\s+([A-Z])\b", line, re.IGNORECASE))
+        if not matches:
+            return set()
+
+        sequence = result.setdefault("_appendix_sequence", [])
+        seen_letters = result.setdefault("_appendix_seen_letters", [])
+        letters_in_line: Set[str] = set()
+
+        for match in matches:
+            letter = match.group(1).upper()
+            sequence.append(letter)
+            letters_in_line.add(letter)
+
+            if letter not in seen_letters:
+                prior_higher = [existing for existing in seen_letters if existing > letter]
+                if prior_higher:
+                    previous_letter = min(prior_higher)
+                    message = (
+                        f"Appendix {letter} referenced after Appendix {previous_letter}. "
+                        "Ensure appendices are referenced in alphabetical order."
+                    )
+                    result["warnings"].append({"line": line_num, "message": message})
+                seen_letters.append(letter)
+
+        return letters_in_line
+
     def _check_section_references_in_line(
-        self, line: str, line_num: int, defined_sections: set, result: Dict[str, Any]
+        self,
+        line: str,
+        line_num: int,
+        defined_sections: set,
+        result: Dict[str, Any],
+        appendix_letters_in_line: Optional[Set[str]] = None,
     ):
         """Check for references to sections and verify they exist."""
         # Pattern to match references like "paragraph 2.1", "section 25.1309", etc.
@@ -977,6 +1020,16 @@ class StructureChecks(BaseChecker):
                 # Skip single letter or single digit references for now
                 if len(ref) == 1:
                     continue
+
+                if appendix_letters_in_line:
+                    ref_prefix = ref.split(".", 1)[0].upper()
+                    if ref_prefix in appendix_letters_in_line:
+                        logger.debug(
+                            "Skipping section reference '%s' in line %s due to appendix context",
+                            ref,
+                            line_num,
+                        )
+                        continue
 
                 if ref not in defined_sections:
                     error_msg = f"Reference to non-existent section {ref}"

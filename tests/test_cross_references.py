@@ -208,6 +208,35 @@ class TestCrossReferenceChecks:
         assert not result["has_errors"]
         assert len(result["warnings"]) == 0  # No warnings expected yet
 
+    def test_appendix_references_in_order(self):
+        content = [
+            "Appendix A provides background information.",
+            "Additional data is included in Appendix B.",
+        ]
+
+        result = self.structure_checks.check(content)
+        logger.debug(f"Appendix in-order test result: {result}")
+
+        assert result.get("appendix_sequence") == ["A", "B"]
+        assert not result["has_errors"]
+        assert len(result["warnings"]) == 0
+
+    def test_appendix_references_out_of_order(self):
+        content = [
+            "Appendix C summarizes historical context.",
+            "See Appendix B for regulatory data.",
+        ]
+
+        result = self.structure_checks.check(content)
+        logger.debug(f"Appendix out-of-order test result: {result}")
+
+        assert result.get("appendix_sequence") == ["C", "B"]
+        assert not result["has_errors"]
+        assert any(
+            "Appendix B referenced after Appendix C" in warning["message"]
+            for warning in result["warnings"]
+        )
+
     def test_compound_references(self):
         """Test compound reference phrases."""
         content = [
