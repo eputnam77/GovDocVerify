@@ -18,6 +18,12 @@ logger = logging.getLogger(__name__)
 
 
 # Message constants for structure checks
+WORD_NAMESPACE = "http://schemas.openxmlformats.org/wordprocessingml/2006/main"
+FOOTNOTE_REFERENCE_TAG = f"{{{WORD_NAMESPACE}}}footnoteReference"
+FOOTNOTE_ID_ATTR = f"{{{WORD_NAMESPACE}}}id"
+FOOTNOTE_TEXT_PATTERN = re.compile(r"\[(\d+)\]")
+
+
 class StructureMessages:
     """Static message constants for structure checks."""
 
@@ -59,6 +65,21 @@ class StructureMessages:
     )
     WATERMARK_UNKNOWN_STAGE = "Unknown document stage: {doc_type}"
     WATERMARK_INCORRECT = "Use {expected} watermark for {doc_type} stage. "
+
+    # Footnote messages
+    FOOTNOTE_GAP = (
+        "Footnote numbering gap detected: expected {expected} but found {found}. "
+        "Confirm footnotes {missing_range} are present."
+    )
+    FOOTNOTE_DUPLICATE = (
+        "Footnote {number} is duplicated; expected footnote {expected} next."
+    )
+    FOOTNOTE_RESET = (
+        "Footnote numbering resets to {number} outside of an appendix heading."
+    )
+    FOOTNOTE_OUT_OF_ORDER = (
+        "Footnote {number} appears out of order; expected footnote {expected}."
+    )
 
 
 class ValidationFormatting:
@@ -183,6 +204,7 @@ class StructureChecks(BaseChecker):
         self._check_list_formatting(paragraphs, results)
         self._check_cross_references(document, results)
         self._check_parentheses(paragraphs, results)
+        self._check_footnote_sequence(paragraphs, results)
         self._check_watermark(document, results, doc_type)
         self._check_required_ac_paragraphs(paragraphs, doc_type, results)
 
@@ -502,6 +524,113 @@ class StructureChecks(BaseChecker):
                     line_number=i + 1,
                     context=snippet,
                 )
+
+    def _check_footnote_sequence(self, paragraphs, results) -> None:
+        """Ensure detected footnotes follow sequential numbering."""
+        expected_number = 1
+        seen_numbers: Set[int] = set()
+
+        for index, paragraph in enumerate(paragraphs, start=1):
+            if self._is_appendix_heading(paragraph):
+                expected_number = 1
+                seen_numbers.clear()
+                continue
+
+            footnote_numbers = self._extract_footnote_numbers(paragraph)
+            if not footnote_numbers:
+                continue
+
+            for number in footnote_numbers:
+                if number == expected_number:
+                    seen_numbers.add(number)
+                    expected_number += 1
+                elif number > expected_number:
+                    missing_range = (
+                        f"{expected_number}-{number - 1}"
+                        if number - expected_number > 1
+                        else str(expected_number)
+                    )
+                    results.add_issue(
+                        message=StructureMessages.FOOTNOTE_GAP.format(
+                            expected=expected_number,
+                            found=number,
+                            missing_range=missing_range,
+                        ),
+                        severity=Severity.WARNING,
+                        line_number=index,
+                    )
+                    seen_numbers.add(number)
+                    expected_number = number + 1
+                elif number in seen_numbers:
+                    results.add_issue(
+                        message=StructureMessages.FOOTNOTE_DUPLICATE.format(
+                            number=number, expected=expected_number
+                        ),
+                        severity=Severity.WARNING,
+                        line_number=index,
+                    )
+                else:
+                    if number == 1 and expected_number != 1:
+                        message = StructureMessages.FOOTNOTE_RESET.format(number=number)
+                    else:
+                        message = StructureMessages.FOOTNOTE_OUT_OF_ORDER.format(
+                            number=number, expected=expected_number
+                        )
+                    results.add_issue(
+                        message=message,
+                        severity=Severity.WARNING,
+                        line_number=index,
+                    )
+                    seen_numbers.add(number)
+
+    def _is_appendix_heading(self, paragraph) -> bool:
+        """Determine whether a paragraph marks the beginning of an appendix."""
+        text = getattr(paragraph, "text", "")
+        if not text:
+            return False
+
+        style = getattr(paragraph, "style", None)
+        style_name = getattr(style, "name", "").lower()
+        normalized_text = text.strip().lower()
+
+        if style_name.startswith("heading") and "appendix" in normalized_text:
+            return True
+
+        return bool(re.match(r"^appendix\s+[a-z0-9]+", normalized_text))
+
+    def _extract_footnote_numbers(self, paragraph) -> List[int]:
+        """Extract ordered footnote numbers from a paragraph."""
+        numbers: List[int] = []
+
+        runs = getattr(paragraph, "runs", None)
+        if runs is not None:
+            for run in runs:
+                numbers.extend(self._extract_numbers_from_run(run))
+        else:
+            text = getattr(paragraph, "text", "")
+            numbers.extend(
+                int(match.group(1)) for match in FOOTNOTE_TEXT_PATTERN.finditer(text)
+            )
+
+        return numbers
+
+    def _extract_numbers_from_run(self, run) -> List[int]:
+        """Extract potential footnote numbers from a python-docx run."""
+        numbers: List[int] = []
+        text = getattr(run, "text", "")
+        if text:
+            numbers.extend(
+                int(match.group(1)) for match in FOOTNOTE_TEXT_PATTERN.finditer(text)
+            )
+
+        element = getattr(run, "_element", None)
+        if element is not None:
+            for footnote_ref in element.iter(FOOTNOTE_REFERENCE_TAG):
+                footnote_id = footnote_ref.get(FOOTNOTE_ID_ATTR)
+                if footnote_id and footnote_id.isdigit():
+                    numbers.append(int(footnote_id))
+
+        return numbers
 
     def _check_watermark(
         self, document: Document, results: DocumentCheckResult, doc_type: str
@@ -857,6 +986,7 @@ class StructureChecks(BaseChecker):
         self._check_section_balance(paragraphs, results)
         self._check_list_formatting(paragraphs, results)
         self._check_parentheses(paragraphs, results)
+        self._check_footnote_sequence(paragraphs, results)
         logger.info("[StructureChecks] check_text completed")
         return results
 

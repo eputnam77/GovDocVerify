@@ -58,3 +58,68 @@ class TestStructureChecks:
         doc.add_paragraph("1. PURPOSE.", style="Heading 1")
         result = self.structure_checks.check_document(doc, "Advisory Circular")
         assert any("Advisory Circular" in issue["message"] for issue in result.issues)
+
+    def test_footnote_sequence_gap_detected(self):
+        doc = Document()
+        doc.add_paragraph("Intro text [1].")
+        doc.add_paragraph("Later reference [3].")
+
+        result = self.structure_checks.check_document(doc, "internal_review")
+
+        footnote_issues = [
+            issue for issue in result.issues if "footnote" in issue["message"].lower()
+        ]
+        assert any("gap" in issue["message"].lower() for issue in footnote_issues)
+
+    def test_footnote_duplicate_detected(self):
+        doc = Document()
+        doc.add_paragraph("Intro text [1].")
+        doc.add_paragraph("Repeated reference [1].")
+
+        result = self.structure_checks.check_document(doc, "internal_review")
+
+        footnote_issues = [
+            issue for issue in result.issues if "footnote" in issue["message"].lower()
+        ]
+        assert any("duplic" in issue["message"].lower() for issue in footnote_issues)
+
+    def test_footnote_out_of_order_detected(self):
+        doc = Document()
+        doc.add_paragraph("Intro text [1].")
+        doc.add_paragraph("Skipped footnote [3].")
+        doc.add_paragraph("Then earlier number [2].")
+
+        result = self.structure_checks.check_document(doc, "internal_review")
+
+        footnote_issues = [
+            issue for issue in result.issues if "footnote" in issue["message"].lower()
+        ]
+        assert any("order" in issue["message"].lower() for issue in footnote_issues)
+
+    def test_footnote_reset_allowed_in_appendix(self):
+        doc = Document()
+        doc.add_paragraph("Intro text [1].")
+        doc.add_paragraph("Another reference [2].")
+        doc.add_paragraph("Appendix A", style="Heading 1")
+        doc.add_paragraph("Appendix reference [1].")
+        doc.add_paragraph("Appendix follow up [2].")
+
+        result = self.structure_checks.check_document(doc, "internal_review")
+
+        footnote_issues = [
+            issue for issue in result.issues if "footnote" in issue["message"].lower()
+        ]
+        assert not footnote_issues
+
+    def test_footnote_sequence_passes_when_ordered(self):
+        doc = Document()
+        doc.add_paragraph("Intro text [1].")
+        doc.add_paragraph("Continuation [2].")
+        doc.add_paragraph("More references [3].")
+
+        result = self.structure_checks.check_document(doc, "internal_review")
+
+        footnote_issues = [
+            issue for issue in result.issues if "footnote" in issue["message"].lower()
+        ]
+        assert not footnote_issues
