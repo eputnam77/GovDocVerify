@@ -147,6 +147,51 @@ class TestFormattingChecks:
         assert not result["has_errors"]
         assert len(result["warnings"]) == 0
 
+    def test_consecutive_blank_paragraphs_warn(self):
+        content = [
+            "PURPOSE.",
+            "",
+            "",
+            "This is the purpose section.",
+        ]
+
+        result = self.format_checks.check(content)
+        messages = [warning["message"].lower() for warning in result["warnings"]]
+        assert any("consecutive blank paragraphs" in message for message in messages)
+        assert any("keep with next" in message for message in messages)
+
+    def test_heading_manual_line_break_warns(self):
+        content = [
+            "PURPOSE.\nThis is the purpose section.",
+            "BACKGROUND.",
+            "This is the background section.",
+        ]
+
+        result = self.format_checks.check(content)
+        issues = [
+            warning
+            for warning in result["warnings"]
+            if "manual line break" in warning["message"].lower()
+        ]
+        assert issues
+        assert issues[0]["line_number"] == 1
+
+    def test_heading_followed_by_blank_warns(self):
+        content = [
+            "PURPOSE.",
+            "",
+            "This is the purpose section.",
+        ]
+
+        result = self.format_checks.check(content)
+        issues = [
+            warning
+            for warning in result["warnings"]
+            if "heading is followed by an empty paragraph" in warning["message"].lower()
+        ]
+        assert issues
+        assert issues[0]["line_number"] == 1
+
     def test_reference_formatting(self):
         content = [
             "See paragraph 5.2.3 for more information.",

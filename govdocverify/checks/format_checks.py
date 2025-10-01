@@ -77,6 +77,20 @@ class FormatMessages:
         "or '{caption_type} X' for other document types."
     )
 
+    # Heading and paragraph spacing messages
+    CONSECUTIVE_BLANK_PARAGRAPH_WARNING = (
+        "Found consecutive blank paragraphs. Use layout tools like 'Keep with next' "
+        "to keep lines together instead of manual spacing."
+    )
+    HEADING_MANUAL_BREAK_WARNING = (
+        "Heading contains a manual line break separating its body text. Use 'Keep with next' "
+        "or similar formatting to keep lines together."
+    )
+    HEADING_FOLLOWED_BY_BLANK_WARNING = (
+        "Heading is followed by an empty paragraph. Remove the blank paragraph and use 'Keep with next' "
+        "to keep the heading with its content."
+    )
+
 
 class FormatChecks(BaseChecker):
     def __init__(self, terminology_manager=None) -> None:
@@ -356,6 +370,7 @@ class FormatChecks(BaseChecker):
         warnings.extend(self._check_spacing_consistency(content))
         warnings.extend(self._check_margin_consistency(content))
         warnings.extend(self._check_reference_formatting(content))
+        warnings.extend(self._check_heading_spacing(content))
 
         return {"warnings": warnings, "errors": errors, "has_errors": has_errors}
 
@@ -452,6 +467,67 @@ class FormatChecks(BaseChecker):
                 )
 
         return warnings
+
+    def _check_heading_spacing(self, content: List[str]) -> List[Dict]:
+        """Detect spacing issues around headings and blank paragraphs."""
+
+        warnings: List[Dict[str, Any]] = []
+        previous_blank = False
+
+        for i, line in enumerate(content, 1):
+            stripped = line.strip()
+
+            # Consecutive blank paragraphs (extra spacing for layout)
+            if not stripped:
+                if previous_blank:
+                    warnings.append(
+                        {
+                            "line_number": i,
+                            "message": FormatMessages.CONSECUTIVE_BLANK_PARAGRAPH_WARNING,
+                            "severity": "warning",
+                        }
+                    )
+                previous_blank = True
+            else:
+                previous_blank = False
+
+            # Manual line break characters inside headings
+            if ("\n" in line or "\r" in line) and self._looks_like_heading(line.splitlines()[0].strip()):
+                # Only warn when a heading paragraph is manually split from its body text
+                segments = [segment.strip() for segment in re.split(r"[\r\n]+", line) if segment.strip()]
+                if len(segments) >= 2 and self._looks_like_heading(segments[0]):
+                    warnings.append(
+                        {
+                            "line_number": i,
+                            "message": FormatMessages.HEADING_MANUAL_BREAK_WARNING,
+                            "severity": "warning",
+                        }
+                    )
+
+        # Heading followed immediately by an empty paragraph
+        for i, line in enumerate(content, 1):
+            if self._looks_like_heading(line.strip()):
+                if i < len(content) and not content[i].strip():
+                    warnings.append(
+                        {
+                            "line_number": i,
+                            "message": FormatMessages.HEADING_FOLLOWED_BY_BLANK_WARNING,
+                            "severity": "warning",
+                        }
+                    )
+
+        return warnings
+
+    @staticmethod
+    def _looks_like_heading(text: str) -> bool:
+        """Heuristic to determine if a line is a heading-style paragraph."""
+
+        if not text:
+            return False
+
+        # Common FAA headings are uppercase (with digits/punctuation) and end with a period or colon
+        heading_pattern = re.compile(r"^[A-Z0-9][A-Z0-9\s,&/()\-]*[\.:]$")
+        return bool(heading_pattern.match(text.strip()))
 
 
 class FormattingChecker(BaseChecker):
