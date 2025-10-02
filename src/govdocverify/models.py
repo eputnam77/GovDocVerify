@@ -69,15 +69,41 @@ class DocumentCheckResult:
     partial_failures: List[Dict[str, Any]] | None = None
 
     def __post_init__(self):
-        """Initialize default values."""
+        """Initialize default values and normalise severities."""
         if self.issues is None:
             self.issues = []
         if self.partial_failures is None:
             self.partial_failures = []
-        # ``severity`` may be supplied by the caller.  The previous
-        # implementation always reset it to ``None`` here, discarding any
-        # pre‑set value.  Only leave it as ``None`` when it wasn't provided.
-        # It will still be updated when issues are added.
+
+        self.severity = self._parse_severity(self.severity)
+        for issue in self.issues:
+            parsed = self._parse_severity(issue.get("severity"))
+            issue["severity"] = parsed if parsed is not None else Severity.WARNING
+
+    @staticmethod
+    def _parse_severity(value: Any) -> Optional["Severity"]:
+        """Coerce arbitrary severity representations into :class:`Severity`."""
+        if value is None:
+            return None
+        if isinstance(value, Severity):
+            return value
+        if isinstance(value, int):
+            try:
+                return Severity(value)
+            except ValueError:
+                return None
+        if isinstance(value, str):
+            candidate = value.strip()
+            if not candidate:
+                return None
+            try:
+                return Severity[candidate.replace(" ", "_").upper()]
+            except KeyError:
+                try:
+                    return Severity(int(candidate))
+                except (ValueError, KeyError):
+                    return None
+        return None
 
     def add_issue(
         self,

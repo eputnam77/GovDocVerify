@@ -69,12 +69,46 @@ class DocumentCheckResult:
     partial_failures: List[Dict[str, Any]] | None = None
 
     def __post_init__(self):
-        """Initialize default values."""
+        """Initialize default values and normalize severities."""
         if self.issues is None:
             self.issues = []
         if self.partial_failures is None:
             self.partial_failures = []
-        self.severity = None  # Will be set on first issue
+
+        # Preserve any caller-supplied severity and normalize issue severities so
+        # helpers like :meth:`to_html` can rely on ``Severity`` instances.  When
+        # callers provide data from JSON or other sources we may see strings or
+        # integers here, which previously caused ``AttributeError`` during
+        # rendering.
+        self.severity = self._parse_severity(self.severity)
+        for issue in self.issues:
+            parsed = self._parse_severity(issue.get("severity"))
+            issue["severity"] = parsed if parsed is not None else Severity.WARNING
+
+    @staticmethod
+    def _parse_severity(value: Any) -> Optional["Severity"]:
+        """Coerce *value* into a :class:`Severity` when possible."""
+        if value is None:
+            return None
+        if isinstance(value, Severity):
+            return value
+        if isinstance(value, int):
+            try:
+                return Severity(value)
+            except ValueError:
+                return None
+        if isinstance(value, str):
+            candidate = value.strip()
+            if not candidate:
+                return None
+            try:
+                return Severity[candidate.replace(" ", "_").upper()]
+            except KeyError:
+                try:
+                    return Severity(int(candidate))
+                except (ValueError, KeyError):
+                    return None
+        return None
 
     def add_issue(
         self,

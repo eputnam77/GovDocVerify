@@ -118,6 +118,34 @@ class DocumentCheckResult:
                 )
         # Preserve any severity supplied by the caller instead of resetting it
         # to ``None``. It will still be updated when new issues are added.
+        self.severity = self._parse_severity(self.severity)
+        for issue in self.issues:
+            parsed = self._parse_severity(issue.get("severity"))
+            issue["severity"] = parsed if parsed is not None else Severity.WARNING
+
+    @staticmethod
+    def _parse_severity(value: Any) -> Optional[Severity]:
+        if value is None:
+            return None
+        if isinstance(value, Severity):
+            return value
+        if isinstance(value, int):
+            try:
+                return Severity(value)
+            except ValueError:
+                return None
+        if isinstance(value, str):
+            candidate = value.strip()
+            if not candidate:
+                return None
+            try:
+                return Severity[candidate.replace(" ", "_").upper()]
+            except KeyError:
+                try:
+                    return Severity(int(candidate))
+                except (ValueError, KeyError):
+                    return None
+        return None
 
     def add_issue(
         self,
@@ -181,9 +209,10 @@ class DocumentCheckResult:
         issues: List[Dict[str, Any]] = []
         for issue in self.issues:
             new_issue = issue.copy()
-            sev = new_issue.get("severity")
-            if isinstance(sev, Severity):
-                new_issue["severity"] = sev.value
+            sev = self._parse_severity(new_issue.get("severity"))
+            new_issue["severity"] = (
+                sev.value if isinstance(sev, Severity) else Severity.WARNING.value
+            )
             issues.append(new_issue)
 
         return {
@@ -213,25 +242,14 @@ class DocumentCheckResult:
         if version > cls.SERIALIZATION_VERSION:
             raise ValueError(f"Unsupported DocumentCheckResult version: {version}")
 
-        def _parse_severity(value: Any) -> Any:
-            if isinstance(value, Severity):
-                return value
-            if isinstance(value, int):
-                return Severity(value)
-            if isinstance(value, str):
-                try:
-                    return Severity[value.strip().replace(" ", "_").upper()]
-                except KeyError:
-                    pass
-            return value
-
         issues: List[Dict[str, Any]] = []
         for issue in data.get("issues", []):
             new_issue = issue.copy()
-            new_issue["severity"] = _parse_severity(new_issue.get("severity"))
+            parsed = cls._parse_severity(new_issue.get("severity"))
+            new_issue["severity"] = parsed if parsed is not None else Severity.WARNING
             issues.append(new_issue)
 
-        severity = _parse_severity(data.get("severity"))
+        severity = cls._parse_severity(data.get("severity"))
 
         return cls(
             success=data.get("success", True),
