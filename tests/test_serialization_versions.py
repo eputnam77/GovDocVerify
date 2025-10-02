@@ -29,3 +29,10 @@ def test_document_check_result_rejects_future_version() -> None:
     data = {"version": 999, "success": True, "issues": []}
     with pytest.raises(ValueError):
         DocumentCheckResult.from_dict(data)
+
+
+def test_document_check_result_html_accepts_string_severity() -> None:
+    res = DocumentCheckResult(issues=[{"message": "msg", "severity": "warning"}])
+    html = res.to_html()
+    assert "msg" in html
+    assert "warning" in html.lower()

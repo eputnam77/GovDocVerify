@@ -87,8 +87,8 @@ class FormatMessages:
         "or similar formatting to keep lines together."
     )
     HEADING_FOLLOWED_BY_BLANK_WARNING = (
-        "Heading is followed by an empty paragraph. Remove the blank paragraph and use 'Keep with next' "
-        "to keep the heading with its content."
+        "Heading is followed by an empty paragraph. Remove the blank paragraph "
+        "and use 'Keep with next' to keep the heading with its content."
     )
 
 
@@ -492,9 +492,14 @@ class FormatChecks(BaseChecker):
                 previous_blank = False
 
             # Manual line break characters inside headings
-            if ("\n" in line or "\r" in line) and self._looks_like_heading(line.splitlines()[0].strip()):
+            has_manual_break = "\n" in line or "\r" in line
+            if has_manual_break and self._looks_like_heading(line.splitlines()[0].strip()):
                 # Only warn when a heading paragraph is manually split from its body text
-                segments = [segment.strip() for segment in re.split(r"[\r\n]+", line) if segment.strip()]
+                segments = [
+                    segment.strip()
+                    for segment in re.split(r"[\r\n]+", line)
+                    if segment.strip()
+                ]
                 if len(segments) >= 2 and self._looks_like_heading(segments[0]):
                     warnings.append(
                         {

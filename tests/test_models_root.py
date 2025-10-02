@@ -27,6 +27,15 @@ def test_document_check_result_html() -> None:
     assert "warning" in html and "error" in html
 
 
+def test_document_check_result_html_handles_string_severity() -> None:
+    res = models.DocumentCheckResult(
+        issues=[{"message": "msg", "severity": "warning"}]
+    )
+    html = res.to_html()
+    assert "msg" in html
+    assert "warning" in html.lower()
+
+
 def test_visibility_settings_roundtrip() -> None:
     vis = models.VisibilitySettings(
         show_readability=False,
@@ -56,3 +65,6 @@ def test_document_check_result_preserves_initial_severity() -> None:
 
     res = DocumentCheckResult(success=True, severity=Severity.WARNING)
     assert res.severity == Severity.WARNING
+
+    legacy = models.DocumentCheckResult(success=True, severity=models.Severity.WARNING)
+    assert legacy.severity == models.Severity.WARNING
