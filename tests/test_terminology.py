@@ -136,6 +136,19 @@ class TestTerminologyChecks:
         assert result["has_errors"] is False
         assert len(result["errors"]) == 0
 
+    def test_standard_definition_allows_leading_article(self):
+        """Definitions starting with 'the' should still match standard wording."""
+        text = (
+            "the Federal Aviation Administration (FAA) oversees safety. "
+            "FAA coordinates national airspace operations."
+        )
+        result = self.terminology_manager.check_text(text)
+        assert result.success
+        assert all(
+            "non-standard definition" not in issue.get("message", "")
+            for issue in result.issues
+        )
+
     def test_authority_citations(self):
         content = "\n".join(
             [

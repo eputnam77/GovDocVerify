@@ -148,6 +148,11 @@ class TestTextUtils:
         assert normalize_document_type("FAA ORDER") == "FAA Order"
         assert normalize_document_type("NASA memorandum") == "NASA Memorandum"
 
+    def test_normalize_document_type_collapses_dotted_acronyms(self):
+        """Dotted acronyms like ``F.A.A.`` should collapse to a single token."""
+        assert normalize_document_type("F.A.A. ORDER") == "FAA Order"
+        assert normalize_document_type("U.S. policy update") == "US Policy Update"
+
     def test_count_syllables(self):
         """Test syllable counting."""
         # Basic words

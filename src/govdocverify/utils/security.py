@@ -1,6 +1,7 @@
 import asyncio
 import logging
 import os
+import re
 import time
 from functools import wraps
 from pathlib import Path
@@ -186,11 +187,32 @@ def _is_allowed_domain(domain: str) -> bool:
     return False
 
 
+def _validate_extension(ext: str) -> None:
+    """Validate a file extension against allowed and legacy lists."""
+    ext = ext.strip()
+    if not ext:
+        raise SecurityError("Missing file extension")
+    normalized = ext.lower()
+    allowed_exts = {value.lower() for value in ALLOWED_FILE_EXTENSIONS}
+    legacy_exts = {value.lower() for value in LEGACY_FILE_EXTENSIONS}
+    if normalized in legacy_exts:
+        raise SecurityError(f"Legacy file format: {ext}")
+    if normalized not in allowed_exts:
+        raise SecurityError(f"Disallowed file format: {ext}")
+
+
 def validate_source(path: str) -> None:
     """Validate that ``path`` is from an approved domain and format."""
 
     path = path.strip()
     lowered = path.lower()
+
+    # Handle Windows drive paths like ``C:\path\file.docx`` which ``urlparse``
+    # interprets as having a scheme of "c".  Treat these as local paths.
+    if re.match(r"^[a-z]:[\\/]", lowered):
+        _, ext = os.path.splitext(lowered)
+        _validate_extension(ext)
+        return
 
     # Separate any URL components before extracting the extension.  The
     # previous implementation ran ``os.path.splitext`` directly on the whole
@@ -198,27 +220,25 @@ def validate_source(path: str) -> None:
     # (e.g. ``".docx?download=1"``) and valid URLs were rejected.
     parsed = urlparse(lowered)
     _, ext = os.path.splitext(parsed.path)
-    ext = ext.strip()
-    normalized_ext = ext.lower()
 
-    allowed_exts = {value.lower() for value in ALLOWED_FILE_EXTENSIONS}
-    legacy_exts = {value.lower() for value in LEGACY_FILE_EXTENSIONS}
+    has_netloc = bool(parsed.netloc)
+    effective_scheme = parsed.scheme or ("https" if has_netloc else "")
 
     # Permit bare local paths without extension or URL components.  All other
     # forms must include an extension for validation.
-    if not parsed.scheme and not ext and not parsed.query and not parsed.fragment:
+    if (
+        not effective_scheme
+        and not has_netloc
+        and not ext
+        and not parsed.query
+        and not parsed.fragment
+    ):
         return
-    if not ext:
-        raise SecurityError("Missing file extension")
-    if normalized_ext in legacy_exts:
-        raise SecurityError(f"Legacy file format: {ext}")
-    if normalized_ext not in allowed_exts:
-        raise SecurityError(f"Disallowed file format: {ext}")
+    _validate_extension(ext)
 
-    if parsed.scheme and parsed.netloc and parsed.scheme not in {"http", "https"}:
-        raise SecurityError(f"Unsupported URL scheme: {parsed.scheme}")
-
-    if parsed.scheme in {"http", "https"} and parsed.netloc:
+    if has_netloc:
+        if effective_scheme not in {"http", "https"}:
+            raise SecurityError(f"Unsupported URL scheme: {effective_scheme}")
         domain = parsed.hostname or ""
         if not _is_allowed_domain(domain):
             raise SecurityError(f"Non-government source domain: {domain}")
