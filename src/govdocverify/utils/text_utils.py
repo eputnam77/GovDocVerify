@@ -352,6 +352,41 @@ def split_into_sentences(text: str) -> List[str]:
     return [s.strip() for s in sentences if s.strip()]
 
 
+def _collapse_uppercase_dotted_token(token: str) -> tuple[str | None, bool]:
+    if "." not in token:
+        return None, False
+    dotted = re.fullmatch(r"[A-Za-z](?:\.[A-Za-z]+)+\.?", token)
+    if not dotted:
+        return None, False
+    segments = [segment for segment in token.rstrip(".").split(".") if segment]
+    if segments and all(len(segment) == 1 for segment in segments):
+        return "".join(segments).upper(), True
+    return None, True
+
+
+def _normalize_document_token(token: str, known_acronyms: Set[str]) -> List[str]:
+    if not token:
+        return []
+    collapsed, is_dotted = _collapse_uppercase_dotted_token(token)
+    parts = [collapsed] if collapsed else [token]
+    if not collapsed and "." in token:
+        numeric_sequence = re.fullmatch(r"\d+(?:\.\d+)+", token)
+        if not is_dotted and not numeric_sequence:
+            parts = [p for p in token.split(".") if p]
+
+    normalised_parts: List[str] = []
+    for part in parts:
+        if not part:
+            continue
+        if part.isupper():
+            vowel_count = sum(1 for ch in part if ch in "AEIOU")
+            if len(part) <= 3 or part in known_acronyms or vowel_count <= 1:
+                normalised_parts.append(part)
+                continue
+        normalised_parts.append(part.lower().capitalize())
+    return normalised_parts
+
+
 def normalize_document_type(doc_type: str | None) -> str:
     """Normalize document type string.
 
@@ -362,24 +397,9 @@ def normalize_document_type(doc_type: str | None) -> str:
     tokens = re.split(r"[\s_-]+", cleaned)
     known_acronyms = _get_known_acronyms()
     words: List[str] = []
+
     for token in tokens:
-        if not token:
-            continue
-        parts = [token]
-        if "." in token:
-            dotted_acronym = re.fullmatch(r"[A-Za-z](?:\.[A-Za-z]+)+\.?", token)
-            numeric_sequence = re.fullmatch(r"\d+(?:\.\d+)+", token)
-            if not dotted_acronym and not numeric_sequence:
-                parts = [p for p in token.split(".") if p]
-        for part in parts:
-            if not part:
-                continue
-            if part.isupper():
-                vowel_count = sum(1 for ch in part if ch in "AEIOU")
-                if len(part) <= 3 or part in known_acronyms or vowel_count <= 1:
-                    words.append(part)
-                    continue
-            words.append(part.lower().capitalize())
+        words.extend(_normalize_document_token(token, known_acronyms))
     return " ".join(words)
 
 

@@ -219,16 +219,24 @@ def validate_source(path: str) -> None:
     parsed = urlparse(lowered)
     _, ext = os.path.splitext(parsed.path)
 
+    has_netloc = bool(parsed.netloc)
+    effective_scheme = parsed.scheme or ("https" if has_netloc else "")
+
     # Allow bare local paths without an extension and without any additional
     # URL components.  Anything else must include a file extension.
-    if not parsed.scheme and not ext and not parsed.query and not parsed.fragment:
+    if (
+        not effective_scheme
+        and not has_netloc
+        and not ext
+        and not parsed.query
+        and not parsed.fragment
+    ):
         return
     _validate_extension(ext)
 
-    if parsed.scheme and parsed.netloc and parsed.scheme not in {"http", "https"}:
-        raise SecurityError(f"Unsupported URL scheme: {parsed.scheme}")
-
-    if parsed.scheme in {"http", "https"} and parsed.netloc:
+    if has_netloc:
+        if effective_scheme not in {"http", "https"}:
+            raise SecurityError(f"Unsupported URL scheme: {effective_scheme}")
         domain = parsed.hostname or ""
         if not _is_allowed_domain(domain):
             raise SecurityError(f"Non-government source domain: {domain}")

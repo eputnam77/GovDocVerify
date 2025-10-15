@@ -298,8 +298,13 @@ class TerminologyManager:
     ) -> None:
         """Validate a standard acronym definition."""
         standard_def = check_state["all_known_acronyms"][acronym]
-        clean_def = definition.replace("The ", "")
-        clean_std_def = standard_def.replace("The ", "")
+
+        def _strip_leading_article(value: str) -> str:
+            stripped = value.strip()
+            return re.sub(r"^the\s+", "", stripped, flags=re.IGNORECASE)
+
+        clean_def = _strip_leading_article(definition)
+        clean_std_def = _strip_leading_article(standard_def)
 
         if clean_def.lower() != clean_std_def.lower():
             logger.warning(f"Non-standard definition for {acronym}: {definition} vs {standard_def}")
