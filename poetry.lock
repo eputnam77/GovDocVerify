@@ -2626,15 +2626,12 @@ files = [
 
 [[package]]
 name = "starlette"
-version = "0.47.2"
+version = "0.49.1"
 description = "The little ASGI library that shines."
 optional = false
 python-versions = ">=3.9"
 groups = ["main"]
-files = [
-    {file = "starlette-0.47.2-py3-none-any.whl", hash = "sha256:c5847e96134e5c5371ee9fac6fdf1a67336d5815e09eb2a01fdb57a351ef915b"},
-    {file = "starlette-0.47.2.tar.gz", hash = "sha256:6ae9aa5db235e4846decc1e7b79c4f346adf41e9777aebeb49dfd09bbd7023d8"},
-]
+files = []
 
 [package.dependencies]
 anyio = ">=3.6.2,<5"
@@ -2921,4 +2918,4 @@ typing = ["mypy"]
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.11,<4.0"
-content-hash = "ed90171f47bfb5d90e50ae33e8a5bac425d91cccd94ba32aa1c446a977ea01b3"
+content-hash = "ad76d4aa161620109dabbf631da41c2ca683a8c0f021d477de6e7f04df76904a"
