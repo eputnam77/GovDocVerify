@@ -1,4 +1,9 @@
-FROM python:3.14.0rc1-slim
+# Use the latest stable Python base image that receives timely security fixes for PCRE2.
+# The previous release-candidate image shipped libpcre2-8 10.45, which was affected by
+# CVE-2025-58050. Moving to the maintained bookworm-based Python 3.12 image ensures the
+# container picks up the patched Debian security update while keeping us on the supported
+# interpreter version for the project.
+FROM python:3.12.5-slim-bookworm
 
 WORKDIR /app
 
