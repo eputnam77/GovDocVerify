@@ -7,10 +7,12 @@ FROM python:3.12.5-slim-bookworm
 
 WORKDIR /app
 
-# Install system dependencies
-RUN apt-get update && apt-get install -y \
+# Install system dependencies and pull in the patched libgnutls30 build to
+# address CVE-2024-0553 (double-free in certificate handling).
+RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     curl \
+    libgnutls30 \
     && rm -rf /var/lib/apt/lists/*
 
 # Install Poetry
