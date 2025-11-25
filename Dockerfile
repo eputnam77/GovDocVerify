@@ -3,7 +3,7 @@
 # CVE-2025-58050. Moving to the maintained bookworm-based Python 3.12 image ensures the
 # container picks up the patched Debian security update while keeping us on the supported
 # interpreter version for the project.
-FROM python:3.12.5-slim-bookworm
+FROM python:3.14.0-slim-bookworm
 
 WORKDIR /app
 
